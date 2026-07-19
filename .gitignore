@@ -12,3 +12,8 @@ build/
 .flutter-plugins-dependencies
 android/.gradle/
 ios/Pods/
+
+# KiCad working-file noise
+*-backups/
+fp-info-cache
+_autosave-*
