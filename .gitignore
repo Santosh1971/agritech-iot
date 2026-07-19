@@ -1,0 +1,14 @@
+.DS_Store
+node_modules/
+.pio/
+.pioenvs/
+build/
+*.env
+.env
+*.hex
+*.bin
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+android/.gradle/
+ios/Pods/
