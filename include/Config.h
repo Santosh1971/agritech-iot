@@ -31,7 +31,7 @@
 #define RELAY_LED_PIN       18    // RS485 LED
 #define FLOW_SENSOR_PIN     4
 #define FLOW_SENSOR_LED_PIN 14   // S1 Sensor LED - Green 
-#define WIFI_LED_PIN        26  // S4/WiFi  LED - Blue
+#define WIFI_LED_PIN        2   //26  // S4/WiFi  LED - Blue
 #define I2C_SDA             21
 #define I2C_SCL             22
 
