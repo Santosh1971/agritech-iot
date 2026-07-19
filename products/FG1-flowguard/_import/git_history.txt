@@ -1,0 +1,21 @@
+* 618e9d4 (HEAD -> main, origin/main, origin/HEAD) Clean up stray .bak files from sed, gitignore them going forward
+* ecf3f47 SoftAP hybrid fallback (firmware + app), correct mqtt.grty.co.in broker throughout
+* 89597b0 SoftAP hybrid fallback: LocalServer, non-blocking retry/relay, boot-order fix, ESP32Async libs
+* 112087b WIP: SoftAP fallback config, relay pin remap, relay-LED linking
+| * 213814f (origin/softap-provisioning) Update simulator to match real SoftAPHandler routes and response shape
+| * 40bfe91 Add SoftAP provisioning handler (replaces BLE on this branch)
+|/  
+* 0fec950 Load MQTT credentials from NVS at runtime instead of hardcoded Config.h
+* b882172 Remove node_modules from git, add .gitignore
+* 998f549 Add SoftAP simulator for hardware-free app development
+* 4e91869 feat: date-range history fetch, water usage trend graph (week/month/custom), Cycles tile overflow fix, Gradle/AGP bump, test data seeder
+* 79661f9 fix: RTC/NTP scheduling, cycles/history local caching, MQTT QoS crash loop, history corruption + timezone bugs, BLE post-provisioning stop, wakelock
+* 32eb809 checkpoint: WIP RTC sync fixes, BLE handler updates, cycles/add_cycle screen changes
+* fefd908 feat: WiFi scan via BLE, complete BLE setup screen, ESP32 WiFi fix
+* 803f56a fix: exclude flutter build folder from git
+* fb62d45 feat: add Flutter app to repo
+| * cc7a0de fix: exclude flutter build folder from git
+| * eb1533e feat: add Flutter app to repo
+|/  
+* b02c077 fix: remove hardcoded upload port
+* 1c180bc feat: initial ESP32 firmware — BLE, MQTT, scheduler, NVS, flow sensor, relay, LED manager

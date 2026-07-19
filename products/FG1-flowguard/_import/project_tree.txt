@@ -1,0 +1,295 @@
+.
+├── .DS_Store
+├── .git
+│   ├── COMMIT_EDITMSG
+│   ├── config
+│   ├── description
+│   ├── FETCH_HEAD
+│   ├── HEAD
+│   ├── hooks
+│   │   ├── applypatch-msg.sample
+│   │   ├── commit-msg.sample
+│   │   ├── fsmonitor-watchman.sample
+│   │   ├── post-update.sample
+│   │   ├── pre-applypatch.sample
+│   │   ├── pre-commit.sample
+│   │   ├── pre-merge-commit.sample
+│   │   ├── pre-push.sample
+│   │   ├── pre-rebase.sample
+│   │   ├── pre-receive.sample
+│   │   ├── prepare-commit-msg.sample
+│   │   ├── push-to-checkout.sample
+│   │   ├── sendemail-validate.sample
+│   │   └── update.sample
+│   ├── index
+│   ├── info
+│   │   ├── exclude
+│   │   └── refs
+│   ├── logs
+│   │   ├── HEAD
+│   │   └── refs
+│   ├── objects
+│   │   ├── 01
+│   │   ├── 04
+│   │   ├── 05
+│   │   ├── 07
+│   │   ├── 09
+│   │   ├── 0a
+│   │   ├── 0c
+│   │   ├── 0d
+│   │   ├── 0e
+│   │   ├── 0f
+│   │   ├── 11
+│   │   ├── 13
+│   │   ├── 15
+│   │   ├── 16
+│   │   ├── 19
+│   │   ├── 20
+│   │   ├── 21
+│   │   ├── 25
+│   │   ├── 28
+│   │   ├── 2e
+│   │   ├── 30
+│   │   ├── 31
+│   │   ├── 32
+│   │   ├── 33
+│   │   ├── 34
+│   │   ├── 39
+│   │   ├── 3a
+│   │   ├── 41
+│   │   ├── 42
+│   │   ├── 45
+│   │   ├── 4a
+│   │   ├── 4b
+│   │   ├── 4e
+│   │   ├── 4f
+│   │   ├── 50
+│   │   ├── 51
+│   │   ├── 56
+│   │   ├── 58
+│   │   ├── 5b
+│   │   ├── 5c
+│   │   ├── 61
+│   │   ├── 63
+│   │   ├── 65
+│   │   ├── 68
+│   │   ├── 69
+│   │   ├── 6d
+│   │   ├── 6e
+│   │   ├── 70
+│   │   ├── 71
+│   │   ├── 75
+│   │   ├── 77
+│   │   ├── 79
+│   │   ├── 7b
+│   │   ├── 86
+│   │   ├── 89
+│   │   ├── 8a
+│   │   ├── 91
+│   │   ├── 92
+│   │   ├── 93
+│   │   ├── 96
+│   │   ├── 97
+│   │   ├── 98
+│   │   ├── 9b
+│   │   ├── a1
+│   │   ├── a4
+│   │   ├── a6
+│   │   ├── aa
+│   │   ├── ad
+│   │   ├── ae
+│   │   ├── af
+│   │   ├── b1
+│   │   ├── b4
+│   │   ├── b6
+│   │   ├── b7
+│   │   ├── bc
+│   │   ├── bd
+│   │   ├── bf
+│   │   ├── c1
+│   │   ├── c2
+│   │   ├── c3
+│   │   ├── c5
+│   │   ├── c6
+│   │   ├── c7
+│   │   ├── c8
+│   │   ├── c9
+│   │   ├── cb
+│   │   ├── ce
+│   │   ├── cf
+│   │   ├── d1
+│   │   ├── d2
+│   │   ├── d5
+│   │   ├── d7
+│   │   ├── d8
+│   │   ├── d9
+│   │   ├── da
+│   │   ├── db
+│   │   ├── dd
+│   │   ├── de
+│   │   ├── df
+│   │   ├── e1
+│   │   ├── e3
+│   │   ├── e4
+│   │   ├── e8
+│   │   ├── e9
+│   │   ├── ec
+│   │   ├── ed
+│   │   ├── ee
+│   │   ├── f0
+│   │   ├── f4
+│   │   ├── f5
+│   │   ├── f7
+│   │   ├── f9
+│   │   ├── fa
+│   │   ├── fc
+│   │   ├── fd
+│   │   ├── fe
+│   │   ├── info
+│   │   └── pack
+│   ├── ORIG_HEAD
+│   ├── packed-refs
+│   └── refs
+│       ├── heads
+│       ├── original
+│       ├── remotes
+│       └── tags
+├── .gitignore
+├── .pio
+│   ├── build
+│   │   ├── esp32dev
+│   │   └── project.checksum
+│   └── libdeps
+│       └── esp32dev
+├── .vscode
+│   ├── c_cpp_properties.json
+│   ├── extensions.json
+│   └── launch.json
+├── flutter_app
+│   ├── .dart_tool
+│   │   ├── dartpad
+│   │   ├── flutter_build
+│   │   ├── package_config_subset
+│   │   ├── package_config.json
+│   │   └── version
+│   ├── .DS_Store
+│   ├── .flutter-plugins
+│   ├── .flutter-plugins-dependencies
+│   ├── analysis_options.yaml
+│   ├── android
+│   │   ├── .gitignore
+│   │   ├── .gradle
+│   │   ├── .kotlin
+│   │   ├── app
+│   │   ├── build.gradle
+│   │   ├── gradle
+│   │   ├── gradle.properties
+│   │   ├── gradlew
+│   │   ├── gradlew.bat
+│   │   ├── local.properties
+│   │   ├── settings.gradle
+│   │   └── smart_water_controller_android.iml
+│   ├── build
+│   │   ├── .DS_Store
+│   │   ├── 53cdc92b91c61249cbff42b4f57e7169
+│   │   ├── app
+│   │   ├── cache.dill.track.dill
+│   │   ├── flutter_blue_plus_android
+│   │   ├── native_assets
+│   │   ├── package_info_plus
+│   │   ├── shared_preferences_android
+│   │   └── wakelock_plus
+│   ├── ios
+│   │   ├── .gitignore
+│   │   ├── Flutter
+│   │   ├── Runner
+│   │   ├── Runner.xcodeproj
+│   │   ├── Runner.xcworkspace
+│   │   └── RunnerTests
+│   ├── lib
+│   │   ├── main.dart
+│   │   ├── models
+│   │   ├── providers
+│   │   ├── screens
+│   │   ├── services
+│   │   └── widgets
+│   ├── linux
+│   │   ├── .gitignore
+│   │   ├── CMakeLists.txt
+│   │   ├── flutter
+│   │   └── runner
+│   ├── macos
+│   │   ├── .gitignore
+│   │   ├── Flutter
+│   │   ├── Runner
+│   │   ├── Runner.xcodeproj
+│   │   ├── Runner.xcworkspace
+│   │   └── RunnerTests
+│   ├── pubspec.lock
+│   ├── pubspec.yaml
+│   ├── README.md
+│   ├── smart_water_controller.iml
+│   ├── test
+│   │   └── widget_test.dart
+│   ├── web
+│   │   ├── favicon.png
+│   │   ├── icons
+│   │   ├── index.html
+│   │   └── manifest.json
+│   └── windows
+│       ├── .gitignore
+│       ├── CMakeLists.txt
+│       ├── flutter
+│       └── runner
+├── include
+│   ├── Config.h
+│   └── README
+├── lib
+│   ├── BLEHandler
+│   │   ├── BLEHandler.cpp
+│   │   └── BLEHandler.h
+│   ├── FlowSensor
+│   │   ├── FlowSensor.cpp
+│   │   └── FlowSensor.h
+│   ├── LEDManager
+│   │   ├── LEDManager.cpp
+│   │   └── LEDManager.h
+│   ├── LocalServer
+│   │   ├── LocalServer.cpp
+│   │   └── LocalServer.h
+│   ├── MQTTClient
+│   │   ├── MQTTClient.cpp
+│   │   └── MQTTClient.h
+│   ├── NVSManager
+│   │   ├── NVSManager.cpp
+│   │   └── NVSManager.h
+│   ├── README
+│   ├── RelayControl
+│   │   ├── RelayControl.cpp
+│   │   └── RelayControl.h
+│   ├── RTCManager
+│   │   ├── RTCManager.cpp
+│   │   └── RTCManager.h
+│   ├── Scheduler
+│   │   ├── Scheduler.cpp
+│   │   └── Scheduler.h
+│   └── WiFiScanner
+│       ├── WiFiScanner.cpp
+│       └── WiFiScanner.h
+├── platformio.ini
+├── project_tree.txt
+├── simulator
+│   ├── .gitignore
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   └── dashboard.html
+│   ├── README.md
+│   ├── server.js
+│   └── state.js
+├── src
+│   └── main.cpp
+└── test
+    └── README
+
+196 directories, 97 files

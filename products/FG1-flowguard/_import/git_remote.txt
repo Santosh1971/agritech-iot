@@ -1,0 +1,2 @@
+origin	https://github.com/Santosh1971/SmartWaterController.git (fetch)
+origin	https://github.com/Santosh1971/SmartWaterController.git (push)

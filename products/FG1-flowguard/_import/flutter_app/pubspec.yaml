@@ -1,0 +1,39 @@
+name: smart_water_controller
+description: Smart Water Controller — hybrid SoftAP/MQTT irrigation control
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # MQTT (cloud transport)
+  mqtt_client: ^10.5.1
+
+  # Local WebSocket transport (SoftAP)
+  web_socket_channel: ^3.0.1
+  
+  # State management
+  flutter_riverpod: ^2.6.1
+  
+  # Local storage
+  shared_preferences: ^2.3.0
+  
+  # UI
+  cupertino_icons: ^1.0.8
+  fl_chart: ^0.70.2
+  intl: ^0.20.2
+  wakelock_plus: ^1.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo.jpeg
