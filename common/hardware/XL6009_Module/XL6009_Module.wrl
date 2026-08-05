@@ -1,0 +1,23 @@
+#VRML V2.0 utf8
+# Simple bounding-box placeholder for the XL6009 boost module.
+# This is NOT an accurate rendering of the real board (trimpot, inductor,
+# IC are not modeled individually) - it's a rough green box sized to the
+# module's approximate overall envelope (43 x 21 x 14 mm) for basic
+# clearance/collision checking in the 3D viewer only.
+
+Transform {
+  translation 0 0 0.007
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 0.0 0.35 0.05
+          specularColor 0.1 0.1 0.1
+          ambientIntensity 0.3
+          shininess 0.2
+        }
+      }
+      geometry Box { size 0.043 0.021 0.014 }
+    }
+  ]
+}

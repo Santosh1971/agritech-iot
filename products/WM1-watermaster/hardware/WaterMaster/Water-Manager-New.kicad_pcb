@@ -33245,7 +33245,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V2"
+	(gr_text "R2"
 		(at 185.85 68.695 0)
 		(layer "F.SilkS")
 		(uuid "09d6ea42-0420-455c-9edf-58572a5b185f")
@@ -33362,7 +33362,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V1"
+	(gr_text "R1"
 		(at 180.87 68.755 0)
 		(layer "F.SilkS")
 		(uuid "2c3b77f4-b7eb-44f7-8bc2-69e8f0eb2b62")
@@ -33492,7 +33492,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V6"
+	(gr_text "R6"
 		(at 207.95 68.775 0)
 		(layer "F.SilkS")
 		(uuid "4faba9a6-11b9-483a-94b6-88df619e3d35")
@@ -33518,7 +33518,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V3"
+	(gr_text "R3"
 		(at 190.91 68.775 0)
 		(layer "F.SilkS")
 		(uuid "535cce3d-d9a3-476c-aa05-13542633a21f")
@@ -33583,7 +33583,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V5"
+	(gr_text "R5"
 		(at 191.23 117.015 0)
 		(layer "F.SilkS")
 		(uuid "60fdc4ce-673f-481a-b147-4ef2aca2f521")
@@ -33596,7 +33596,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V4"
+	(gr_text "R4"
 		(at 196.82 68.715 0)
 		(layer "F.SilkS")
 		(uuid "6185124e-9738-4179-bafa-d464732d704a")
@@ -33674,7 +33674,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V2"
+	(gr_text "R2"
 		(at 172.79 117.045 0)
 		(layer "F.SilkS")
 		(uuid "8ab000b3-ca74-47cf-8504-786975dc8789")
@@ -33687,7 +33687,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V1"
+	(gr_text "R1"
 		(at 167.71 116.995 0)
 		(layer "F.SilkS")
 		(uuid "97af3973-0797-4794-a40e-9b6e5b6f7f7d")
@@ -33817,7 +33817,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V4"
+	(gr_text "R4"
 		(at 186.22 116.965 0)
 		(layer "F.SilkS")
 		(uuid "bca3279a-a6b5-4ba3-ad2e-06639ea6c455")
@@ -33830,7 +33830,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V5"
+	(gr_text "R5"
 		(at 202.1 68.775 0)
 		(layer "F.SilkS")
 		(uuid "c2f52d3f-9625-4163-aa08-7be95303b79c")
@@ -33843,7 +33843,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V3"
+	(gr_text "R3"
 		(at 177.94 117.015 0)
 		(layer "F.SilkS")
 		(uuid "c9c79b73-aa1d-49d2-8eea-bd10f1a441f6")
@@ -33869,7 +33869,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "V6"
+	(gr_text "R6"
 		(at 196.35 116.935 0)
 		(layer "F.SilkS")
 		(uuid "d4ed42b3-c7e4-4112-a04b-8ea53b3d3e26")

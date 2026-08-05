@@ -16,17 +16,17 @@
       "zones": 0.6
     },
     "selection_filter": {
-      "dimensions": false,
-      "footprints": false,
-      "graphics": false,
-      "keepouts": false,
+      "dimensions": true,
+      "footprints": true,
+      "graphics": true,
+      "keepouts": true,
       "lockedItems": true,
-      "otherItems": false,
-      "pads": false,
-      "text": false,
-      "tracks": false,
+      "otherItems": true,
+      "pads": true,
+      "text": true,
+      "tracks": true,
       "vias": true,
-      "zones": false
+      "zones": true
     },
     "visible_items": [
       "vias",
@@ -51,7 +51,7 @@
       "shapes"
     ],
     "visible_layers": "00000000_00000000_00000200_0aa2aaaf",
-    "zone_display_mode": 0
+    "zone_display_mode": 1
   },
   "git": {
     "repo_type": "",
@@ -59,7 +59,7 @@
     "ssh_key": ""
   },
   "meta": {
-    "filename": "PumpNodeNew.kicad_prl",
+    "filename": "ValveNode.kicad_prl",
     "version": 5
   },
   "net_inspector_panel": {
