@@ -1575,6 +1575,155 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Diode:PESD3V3U1UL"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PESD3V3U1UL"
+				(at 0 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Diode_SMD:D_SOD-882"
+				(at 0 -5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://assets.nexperia.com/documents/data-sheet/PESD3V3U1UL.pdf"
+				(at 0 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Ultra low capacitance unidirectional ESD protection diode, 3.3V, SOD-882"
+				(at 0 7.62 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "diode"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "D*SOD?882"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "PESD3V3U1UL_0_1"
+				(polyline
+					(pts
+						(xy -1.27 -1.27) (xy -1.27 1.27) (xy -0.762 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "PESD3V3U1UL_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Driver_Motor:DRV8871DDA"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -3615,7 +3764,7 @@
 		(uuid 0403f9d0-9e9b-4450-b6d8-c37cff439170)
 	)
 	(rectangle
-		(start 170.18 17.78)
+		(start 102.87 17.78)
 		(end 262.89 67.31)
 		(stroke
 			(width 0.508)
@@ -3701,7 +3850,7 @@
 	)
 	(text "INPUT POWER +8V"
 		(exclude_from_sim no)
-		(at 194.31 25.146 0)
+		(at 168.148 23.368 0)
 		(effects
 			(font
 				(size 2.54 2.54)
@@ -3722,6 +3871,26 @@
 			)
 		)
 		(uuid "96aefddd-6886-4204-9106-00f4f0de47f8")
+	)
+	(text "Close to connector"
+		(exclude_from_sim no)
+		(at 116.84 64.262 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "a2c4076b-10c8-477e-b178-7a60707ea330")
+	)
+	(text "Close to MCU"
+		(exclude_from_sim no)
+		(at 144.272 66.294 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "abbfac98-33e2-4ff5-8085-82acbf79d06e")
 	)
 	(text "LoRa"
 		(exclude_from_sim no)
@@ -3802,6 +3971,12 @@
 		(uuid "6b14c9bd-9f51-4ab5-b335-939122c55d17")
 	)
 	(junction
+		(at 144.78 59.69)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7ca15ea3-b210-45e7-a61f-298dbe4e3aa8")
+	)
+	(junction
 		(at 247.65 52.07)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3862,6 +4037,12 @@
 		(uuid "d2de84f9-c6e2-4ca2-a002-6a4b3ddda813")
 	)
 	(junction
+		(at 134.62 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e2e77c18-b621-4d58-944e-a9abf936d0ca")
+	)
+	(junction
 		(at 378.46 130.81)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3872,6 +4053,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e76528b7-a49c-4a37-95a3-5eb57e9b1f2e")
+	)
+	(junction
+		(at 144.78 48.26)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ef7d2325-b5d7-4672-b5a4-9f623ae2c243")
 	)
 	(junction
 		(at 295.91 34.29)
@@ -3950,10 +4137,6 @@
 	(no_connect
 		(at 251.46 143.51)
 		(uuid "d8c1ecd8-738f-4376-a143-3a86b5def078")
-	)
-	(no_connect
-		(at 195.58 116.84)
-		(uuid "f90fe922-4410-429e-a009-0021495c063e")
 	)
 	(no_connect
 		(at 195.58 107.95)
@@ -4088,6 +4271,16 @@
 			(type default)
 		)
 		(uuid "0a28d5ab-cacd-462d-b43e-97118cb25852")
+	)
+	(wire
+		(pts
+			(xy 144.78 58.42) (xy 144.78 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0ad6cff3-eb0e-4eea-a2b7-9ec40b761e81")
 	)
 	(wire
 		(pts
@@ -4411,6 +4604,16 @@
 	)
 	(wire
 		(pts
+			(xy 119.38 57.15) (xy 119.38 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2eafd448-602e-4334-a97a-1703c0568030")
+	)
+	(wire
+		(pts
 			(xy 311.15 86.36) (xy 311.15 91.44)
 		)
 		(stroke
@@ -4461,6 +4664,16 @@
 	)
 	(wire
 		(pts
+			(xy 181.61 116.84) (xy 195.58 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "33fad8af-70b6-4879-8925-c9762a4553d2")
+	)
+	(wire
+		(pts
 			(xy 251.46 128.27) (xy 273.05 128.27)
 		)
 		(stroke
@@ -4498,6 +4711,16 @@
 			(type default)
 		)
 		(uuid "38c835b5-5b52-4de3-9446-368f7a7b1544")
+	)
+	(wire
+		(pts
+			(xy 119.38 48.26) (xy 119.38 49.53)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "393de3d6-0c88-45f2-9367-724a59773312")
 	)
 	(wire
 		(pts
@@ -4728,6 +4951,26 @@
 			(type default)
 		)
 		(uuid "51a0faa2-cefc-4fcd-bcee-04ecb3ec988c")
+	)
+	(wire
+		(pts
+			(xy 144.78 59.69) (xy 134.62 59.69)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "560a676d-d2b7-44f7-8f0c-88feb68b96e4")
+	)
+	(wire
+		(pts
+			(xy 143.51 48.26) (xy 144.78 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "566c2c18-7e43-456b-b9e9-bbb965ff5120")
 	)
 	(wire
 		(pts
@@ -5041,6 +5284,26 @@
 	)
 	(wire
 		(pts
+			(xy 144.78 59.69) (xy 144.78 60.96)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "783952c2-a846-4dc9-a630-c718a460d20b")
+	)
+	(wire
+		(pts
+			(xy 134.62 48.26) (xy 134.62 49.53)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "79b7a84a-4e11-40f0-adab-1cf1dacbd47d")
+	)
+	(wire
+		(pts
 			(xy 339.09 162.56) (xy 350.52 162.56)
 		)
 		(stroke
@@ -5238,6 +5501,16 @@
 			(type default)
 		)
 		(uuid "94cbb7de-a17c-40d3-936e-8f8a8922f9d1")
+	)
+	(wire
+		(pts
+			(xy 134.62 44.45) (xy 134.62 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94f46da6-37cd-4ac0-bb09-48cf46ed3042")
 	)
 	(wire
 		(pts
@@ -5551,6 +5824,16 @@
 	)
 	(wire
 		(pts
+			(xy 144.78 48.26) (xy 144.78 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b3590bb7-171a-4a52-aa7a-4a4d61e8d547")
+	)
+	(wire
+		(pts
 			(xy 368.3 116.84) (xy 365.76 116.84)
 		)
 		(stroke
@@ -5628,6 +5911,16 @@
 			(type default)
 		)
 		(uuid "bfa0c308-98f4-4605-b381-57661483d52d")
+	)
+	(wire
+		(pts
+			(xy 134.62 59.69) (xy 134.62 57.15)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c1501eeb-7f97-4b5f-bcbe-508d40418ac7")
 	)
 	(wire
 		(pts
@@ -5831,6 +6124,26 @@
 	)
 	(wire
 		(pts
+			(xy 134.62 48.26) (xy 135.89 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e4bebfac-484f-4624-b7a2-2f1d3e64c1ce")
+	)
+	(wire
+		(pts
+			(xy 134.62 31.75) (xy 134.62 36.83)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e4d11af2-03de-4521-aa4c-d8d450c7a97b")
+	)
+	(wire
+		(pts
 			(xy 378.46 92.71) (xy 378.46 93.98)
 		)
 		(stroke
@@ -5848,6 +6161,16 @@
 			(type default)
 		)
 		(uuid "ea6e34d6-6e6b-4a06-a50f-aea0a9d267b8")
+	)
+	(wire
+		(pts
+			(xy 144.78 48.26) (xy 158.75 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eb0271dd-726c-4e43-89b7-7536ba4db785")
 	)
 	(wire
 		(pts
@@ -5978,6 +6301,16 @@
 			(type default)
 		)
 		(uuid "f6f00918-7773-45ea-80b4-b80b1c4443a6")
+	)
+	(wire
+		(pts
+			(xy 134.62 48.26) (xy 119.38 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f7e6151d-c593-4901-9aad-76ac2819092e")
 	)
 	(wire
 		(pts
@@ -125654,6 +125987,16 @@
 		)
 		(uuid "a125166b-c22a-47fc-b22b-3f01d0e0cd6d")
 	)
+	(label "Batt_Mon"
+		(at 191.77 116.84 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "a3eab149-a65b-4b5b-8ec0-c715a493efda")
+	)
 	(label "LoRa_LED"
 		(at 254 139.7 0)
 		(effects
@@ -125773,6 +126116,16 @@
 			(justify left bottom)
 		)
 		(uuid "d57ceb31-018f-4dfb-839c-3a9d51eda7e1")
+	)
+	(label "Batt_Mon"
+		(at 157.48 48.26 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d7e5b9fa-58b7-43ca-b458-621d89aa932e")
 	)
 	(label "V4_LED"
 		(at 397.51 109.22 180)
@@ -126329,6 +126682,92 @@
 			(project "ValveNode"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "#PWR032")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 139.7 48.26 270)
+		(mirror x)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "156fc3b7-9f7b-4fa0-a7dc-2d543be21114")
+		(property "Reference" "R33"
+			(at 139.954 42.672 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "470E"
+			(at 139.827 44.577 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 139.7 50.038 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 139.7 48.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 139.7 48.26 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 139.7 48.26 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 139.7 48.26 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f795b895-d986-4be2-9cb5-4eb6a83640ba")
+		)
+		(pin "2"
+			(uuid "42a8ab3c-2219-4281-9c3e-41bc7ecc97f2")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "R33")
 					(unit 1)
 				)
 			)
@@ -127186,6 +127625,72 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+		(at 119.38 59.69 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "436f9f4e-b231-48cb-b355-ca51f1b1f548")
+		(property "Reference" "#PWR081"
+			(at 119.38 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 115.443 61.087 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 119.38 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 119.38 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 119.38 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "bc274547-d2f2-4a17-8d99-c574bc23df8a")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "#PWR081")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
 		(at 367.03 163.83 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -127536,6 +128041,160 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+7.5V")
+		(at 134.62 31.75 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "601f610a-8062-40ab-8a73-e625a147d5f5")
+		(property "Reference" "#PWR07"
+			(at 134.62 35.56 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+8V"
+			(at 133.477 27.94 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 134.62 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 134.62 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+7.5V\""
+			(at 134.62 31.75 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "908337b4-55e7-46be-a95b-dfe6c582d5df")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "#PWR07")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Diode:PESD3V3U1UL")
+		(at 119.38 53.34 90)
+		(mirror x)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "656051a8-dc6b-47fa-9e91-fbf5f56c4612")
+		(property "Reference" "D16"
+			(at 123.444 54.229 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "PESD3V3U1UL"
+			(at 133.096 56.388 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-882"
+			(at 124.46 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://assets.nexperia.com/documents/data-sheet/PESD3V3U1UL.pdf"
+			(at 114.3 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Ultra low capacitance unidirectional ESD protection diode, 3.3V, SOD-882"
+			(at 111.76 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 119.38 53.34 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 119.38 53.34 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "17afd597-b325-4784-9e73-5c8c7c091528")
+		)
+		(pin "1"
+			(uuid "972901d8-52c4-4d51-b3e3-180604e23e5b")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "D16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3.3V")
 		(at 276.86 124.46 0)
 		(mirror y)
@@ -127815,6 +128474,94 @@
 			(project "Nursary_OneCH"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "#PWR031")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 144.78 54.61 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7ed8404c-9913-4990-a37f-472a568e9f1c")
+		(property "Reference" "C19"
+			(at 151.003 54.864 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 152.146 56.642 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 143.8148 58.42 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 144.78 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 144.78 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 144.78 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 144.78 54.61 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f1d953ba-1c63-453d-b379-bcc3b0fb4a49")
+		)
+		(pin "2"
+			(uuid "1d02ab2e-748a-45f6-b185-0f649e45dd90")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "C19")
 					(unit 1)
 				)
 			)
@@ -128767,6 +129514,92 @@
 			(project "ValveNode"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "R10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 134.62 40.64 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a6dc1d32-9514-4b7e-8f7c-f1b1058966e2")
+		(property "Reference" "R18"
+			(at 130.556 39.878 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "56.2K"
+			(at 129.794 41.91 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 136.398 40.64 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 134.62 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 134.62 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 134.62 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 134.62 40.64 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f3d627ef-55e7-4608-845f-222215d88c6f")
+		)
+		(pin "2"
+			(uuid "55ec5539-4890-413b-a61d-2ded9ebe953a")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "R18")
 					(unit 1)
 				)
 			)
@@ -129814,6 +130647,92 @@
 			(project "ValveNode"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "R3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 134.62 53.34 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "be94de4a-ecb7-4d72-9551-36f72987fc5b")
+		(property "Reference" "R32"
+			(at 138.049 52.705 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10K"
+			(at 138.684 54.483 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 136.398 53.34 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 134.62 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 134.62 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Device" ""
+			(at 134.62 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Sim.Type" ""
+			(at 134.62 53.34 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e002078f-5cae-4f79-bd7a-f62f886f62f7")
+		)
+		(pin "2"
+			(uuid "23ca26cc-6754-4ff9-a35e-132f747f3d3b")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "R32")
 					(unit 1)
 				)
 			)
@@ -131698,6 +132617,72 @@
 			(project "PumpNodeNew"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "R1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 144.78 60.96 0)
+		(mirror y)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f18bcb26-8612-42dd-9b60-df3227d7f2f4")
+		(property "Reference" "#PWR080"
+			(at 144.78 67.31 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 140.843 62.357 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 144.78 60.96 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 144.78 60.96 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 144.78 60.96 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "d662bfbb-ffbb-4842-8c42-6d0c19850d44")
+		)
+		(instances
+			(project "ValveNode"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "#PWR080")
 					(unit 1)
 				)
 			)
