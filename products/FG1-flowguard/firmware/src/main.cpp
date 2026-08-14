@@ -642,6 +642,7 @@ void loop() {
         updateWiFiLED();
     }
 
+
     updateConnMode();
 
     // While in local fallback, periodically retry the saved WiFi in the

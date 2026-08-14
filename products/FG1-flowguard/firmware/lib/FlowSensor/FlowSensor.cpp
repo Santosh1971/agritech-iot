@@ -3,7 +3,7 @@
 
 void FlowSensor::begin(uint8_t pin) {
     _pin = pin;
-    pinMode(_pin, INPUT_PULLUP);
+    pinMode(_pin, INPUT);  // GPIO35 has no internal pull-up; R4 on the board provides it externally
     _pulseCount = 0;
     Serial.printf("[FLOW] Initialized on pin %d, cal=%lu pulses/L\n", _pin, _pulsesPerLiter);
 }
