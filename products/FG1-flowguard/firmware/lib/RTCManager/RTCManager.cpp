@@ -3,6 +3,26 @@
 
 bool RTCManager::begin() {
     Wire.begin(I2C_SDA, I2C_SCL);
+#if defined(RTC_CHIP_DS1307)
+    if (!_rtc.begin()) {
+        Serial.println("[RTC] DS1307 not found!");
+        return false;
+    }
+    // DS1307 has no OSF/power-loss flag like DS3231's lostPower() — the
+    // clock-halt bit (isrunning()) only reflects whether the oscillator
+    // was ever started (e.g. brand-new chip, no coin cell fitted), not
+    // whether main power was lost while a good backup battery kept it
+    // running. So this is a weaker signal than DS3231 gave us — a dead/
+    // absent coin cell can silently produce a stale-but-"running" clock.
+    if (!_rtc.isrunning()) {
+        Serial.println("[RTC] DS1307 oscillator not running — time not set");
+        _initialized = false;
+    } else {
+        _initialized = true;
+        Serial.printf("[RTC] Time: %s %s\n",
+            getDateString().c_str(), getTimeString().c_str());
+    }
+#else
     if (!_rtc.begin()) {
         Serial.println("[RTC] DS3231 not found!");
         return false;
@@ -15,6 +35,7 @@ bool RTCManager::begin() {
         Serial.printf("[RTC] Time: %s %s\n",
             getDateString().c_str(), getTimeString().c_str());
     }
+#endif
     return true;
 }
 
@@ -30,7 +51,7 @@ void RTCManager::syncFromUnix(uint32_t unixTime) {
 }
 
 void RTCManager::syncFromTm(struct tm& t) {
-    // Write IST time fields directly to DS3231 — no unix conversion
+    // Write IST time fields directly to the RTC (DS3231 or DS1307) — no unix conversion
     _rtc.adjust(DateTime(
         t.tm_year + 1900,
         t.tm_mon  + 1,
@@ -45,7 +66,11 @@ void RTCManager::syncFromTm(struct tm& t) {
 }
 
 bool RTCManager::isTimeSet() {
+#if defined(RTC_CHIP_DS1307)
+    return _initialized && _rtc.isrunning();
+#else
     return _initialized && !_rtc.lostPower();
+#endif
 }
 
 String RTCManager::getTimeString() {

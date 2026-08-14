@@ -129,6 +129,12 @@ void updateWiFiLED() {
     else                                   leds.setWiFiState(WIFI_LED_FULL_OK);
 }
 
+// Tracks elapsed real time between successful NTP syncs, purely for the
+// [RTC-DRIFT] log line below — resets on reboot (fine for continuous-power
+// accelerated bench testing; not meant to persist across power cycles).
+static uint32_t s_lastSyncMillis = 0;
+static bool     s_haveLastSync   = false;
+
 // Sync RTC from NTP (IST = UTC+5:30 = 19800 seconds)
 void syncNTP() {
     configTime(19800, 0, "in.pool.ntp.org", "asia.pool.ntp.org", "pool.ntp.org");
@@ -140,6 +146,29 @@ void syncNTP() {
         ntpOk = getLocalTime(&timeinfo, 8000);
     }
     if (ntpOk) {
+        // --- Drift measurement (logged BEFORE overwriting the RTC) ---
+        // Compare the RTC's own reported time against the fresh NTP time,
+        // using the same DateTime::unixtime() conversion RTCManager uses
+        // internally for both sides, so the comparison is apples-to-apples
+        // regardless of whether that convention is true UTC.
+        if (rtc.isTimeSet()) {
+            DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+            int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
+            if (s_haveLastSync) {
+                uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
+                if (elapsedSec > 0) {
+                    double ppm = (driftSec * 1e6) / (double)elapsedSec;
+                    Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
+                        (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
+                }
+            } else {
+                Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
+            }
+        }
+        s_lastSyncMillis = millis();
+        s_haveLastSync   = true;
+
         rtc.syncFromTm(timeinfo);
         Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
             timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,
@@ -530,7 +559,7 @@ void setup() {
     leds.setWiFiState(WIFI_LED_SEARCHING);
     nvs.begin();
     rtc.begin();
-    relay.begin(RELAY_PIN, RELAY_LED_PIN);
+    relay.begin(RELAY_PIN);          // no separate relay LED GPIO — see Config.h
     flowSensor.begin(FLOW_SENSOR_PIN);
     flowSensor.setCalibration(nvs.loadCalibration());
     attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flowISR, RISING);

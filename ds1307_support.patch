@@ -1,0 +1,171 @@
+diff --git a/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.cpp b/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.cpp
+index ee68235..81f3fb4 100644
+--- a/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.cpp
++++ b/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.cpp
+@@ -3,6 +3,26 @@
+ 
+ bool RTCManager::begin() {
+     Wire.begin(I2C_SDA, I2C_SCL);
++#if defined(RTC_CHIP_DS1307)
++    if (!_rtc.begin()) {
++        Serial.println("[RTC] DS1307 not found!");
++        return false;
++    }
++    // DS1307 has no OSF/power-loss flag like DS3231's lostPower() — the
++    // clock-halt bit (isrunning()) only reflects whether the oscillator
++    // was ever started (e.g. brand-new chip, no coin cell fitted), not
++    // whether main power was lost while a good backup battery kept it
++    // running. So this is a weaker signal than DS3231 gave us — a dead/
++    // absent coin cell can silently produce a stale-but-"running" clock.
++    if (!_rtc.isrunning()) {
++        Serial.println("[RTC] DS1307 oscillator not running — time not set");
++        _initialized = false;
++    } else {
++        _initialized = true;
++        Serial.printf("[RTC] Time: %s %s\n",
++            getDateString().c_str(), getTimeString().c_str());
++    }
++#else
+     if (!_rtc.begin()) {
+         Serial.println("[RTC] DS3231 not found!");
+         return false;
+@@ -15,6 +35,7 @@ bool RTCManager::begin() {
+         Serial.printf("[RTC] Time: %s %s\n",
+             getDateString().c_str(), getTimeString().c_str());
+     }
++#endif
+     return true;
+ }
+ 
+@@ -30,7 +51,7 @@ void RTCManager::syncFromUnix(uint32_t unixTime) {
+ }
+ 
+ void RTCManager::syncFromTm(struct tm& t) {
+-    // Write IST time fields directly to DS3231 — no unix conversion
++    // Write IST time fields directly to the RTC (DS3231 or DS1307) — no unix conversion
+     _rtc.adjust(DateTime(
+         t.tm_year + 1900,
+         t.tm_mon  + 1,
+@@ -45,7 +66,11 @@ void RTCManager::syncFromTm(struct tm& t) {
+ }
+ 
+ bool RTCManager::isTimeSet() {
++#if defined(RTC_CHIP_DS1307)
++    return _initialized && _rtc.isrunning();
++#else
+     return _initialized && !_rtc.lostPower();
++#endif
+ }
+ 
+ String RTCManager::getTimeString() {
+diff --git a/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.h b/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.h
+index 4137de2..07fdc30 100644
+--- a/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.h
++++ b/products/FG1-flowguard/firmware/lib/RTCManager/RTCManager.h
+@@ -14,6 +14,10 @@ public:
+     String getDateString();
+     uint32_t getUnixTime();
+ private:
+-    RTC_DS3231 _rtc;
++#if defined(RTC_CHIP_DS1307)
++    RTC_DS1307 _rtc;
++#else
++    RTC_DS3231 _rtc;   // default if RTC_CHIP_DS1307 not defined
++#endif
+     bool _initialized = false;
+ };
+diff --git a/products/FG1-flowguard/firmware/platformio.ini b/products/FG1-flowguard/firmware/platformio.ini
+index c314a67..749c5fe 100644
+--- a/products/FG1-flowguard/firmware/platformio.ini
++++ b/products/FG1-flowguard/firmware/platformio.ini
+@@ -1,4 +1,7 @@
+-[env:esp32dev]
++; Shared settings for every environment below. Pick which one to build/flash
++; with `pio run -e <name> -t upload` (or select it in the VS Code PlatformIO
++; environment picker at the bottom status bar).
++[env]
+ platform = espressif32
+ board = esp32dev
+ framework = arduino
+@@ -7,11 +10,6 @@ upload_speed = 921600
+ 
+ board_build.partitions = min_spiffs.csv
+ 
+-build_flags =
+-    -DCORE_DEBUG_LEVEL=3
+-    -DMQTT_MAX_PACKET_SIZE=1024
+-    -I include
+-
+ lib_deps =
+     knolleary/PubSubClient@^2.8
+     bblanchon/ArduinoJson@^7.0
+@@ -19,4 +17,19 @@ lib_deps =
+     adafruit/RTClib@^2.1
+     ESP32Async/AsyncTCP
+     ESP32Async/ESPAsyncWebServer
+-monitor_port = /dev/cu.usbserial-0001  ; optional, for Serial Monitor
+\ No newline at end of file
++monitor_port = /dev/cu.usbserial-0001  ; optional, for Serial Monitor
++
++; ---- DS3231 build (field-deployed units) ----
++[env:esp32dev]
++build_flags =
++    -DCORE_DEBUG_LEVEL=3
++    -DMQTT_MAX_PACKET_SIZE=1024
++    -I include
++
++; ---- DS1307 build (bench-testing the cheaper chip) ----
++[env:esp32dev_ds1307]
++build_flags =
++    -DCORE_DEBUG_LEVEL=3
++    -DMQTT_MAX_PACKET_SIZE=1024
++    -DRTC_CHIP_DS1307
++    -I include
+\ No newline at end of file
+diff --git a/products/FG1-flowguard/firmware/src/main.cpp b/products/FG1-flowguard/firmware/src/main.cpp
+index c36e7d2..815ab3b 100644
+--- a/products/FG1-flowguard/firmware/src/main.cpp
++++ b/products/FG1-flowguard/firmware/src/main.cpp
+@@ -129,6 +129,12 @@ void updateWiFiLED() {
+     else                                   leds.setWiFiState(WIFI_LED_FULL_OK);
+ }
+ 
++// Tracks elapsed real time between successful NTP syncs, purely for the
++// [RTC-DRIFT] log line below — resets on reboot (fine for continuous-power
++// accelerated bench testing; not meant to persist across power cycles).
++static uint32_t s_lastSyncMillis = 0;
++static bool     s_haveLastSync   = false;
++
+ // Sync RTC from NTP (IST = UTC+5:30 = 19800 seconds)
+ void syncNTP() {
+     configTime(19800, 0, "in.pool.ntp.org", "asia.pool.ntp.org", "pool.ntp.org");
+@@ -140,6 +146,29 @@ void syncNTP() {
+         ntpOk = getLocalTime(&timeinfo, 8000);
+     }
+     if (ntpOk) {
++        // --- Drift measurement (logged BEFORE overwriting the RTC) ---
++        // Compare the RTC's own reported time against the fresh NTP time,
++        // using the same DateTime::unixtime() conversion RTCManager uses
++        // internally for both sides, so the comparison is apples-to-apples
++        // regardless of whether that convention is true UTC.
++        if (rtc.isTimeSet()) {
++            DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
++                           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
++            int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
++            if (s_haveLastSync) {
++                uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
++                if (elapsedSec > 0) {
++                    double ppm = (driftSec * 1e6) / (double)elapsedSec;
++                    Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
++                        (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
++                }
++            } else {
++                Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
++            }
++        }
++        s_lastSyncMillis = millis();
++        s_haveLastSync   = true;
++
+         rtc.syncFromTm(timeinfo);
+         Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
+             timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,

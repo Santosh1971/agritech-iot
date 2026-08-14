@@ -14,6 +14,10 @@ public:
     String getDateString();
     uint32_t getUnixTime();
 private:
-    RTC_DS3231 _rtc;
+#if defined(RTC_CHIP_DS1307)
+    RTC_DS1307 _rtc;
+#else
+    RTC_DS3231 _rtc;   // default if RTC_CHIP_DS1307 not defined
+#endif
     bool _initialized = false;
 };

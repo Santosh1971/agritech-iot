@@ -27,13 +27,17 @@
 #define WIFI_RETRY_INTERVAL_MS  60000        // background retry while in fallback
 
 // ---------- GPIO ----------
-#define RELAY_PIN           23    // S2 Flow sensor 
-#define RELAY_LED_PIN       18    // RS485 LED
-#define FLOW_SENSOR_PIN     4
-#define FLOW_SENSOR_LED_PIN 14   // S1 Sensor LED - Green 
-#define WIFI_LED_PIN        2   //26  // S4/WiFi  LED - Blue
-#define I2C_SDA             21
-#define I2C_SCL             22
+// Pin assignments per current FG1 schematic (ESP32-30pin dev kit sheet).
+#define RELAY_PIN           19    // D19 — RELAY1_MCU (relay driver input via ULN2003)
+// No separate relay/pump LED GPIO exists on this board — LED_YELLOW_PUMP is
+// wired on the ULN2003 driver's output side (next to the relay coil), so it
+// lights automatically whenever the relay fires. RelayControl.begin() is
+// called with no LED pin (defaults to 255 = "no LED wired").
+#define FLOW_SENSOR_PIN     35    // D35 — FLOW1_MCU (input-only pin; flow pulse input)
+#define FLOW_SENSOR_LED_PIN 32    // D32 — FLOW1_LED_MCU (flow sensor status LED)
+#define WIFI_LED_PIN        2     // D2/OnBoardLED — doubles as WiFi + power status LED
+#define I2C_SDA             21    // D21/I2C_SDA
+#define I2C_SCL             22    // D22/I2C_SCL
 
 // ---------- Flow Sensor ----------
 #define DEFAULT_PULSES_PER_LITER  450
