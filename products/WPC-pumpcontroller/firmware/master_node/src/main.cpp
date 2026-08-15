@@ -36,10 +36,7 @@
 #define PIN_IN3_LED    14
 #define PIN_IN4_LED    13
 
-// TODO confirm on the bench: does the float switch pull LOW when the
-// level is reached, or when clear? Flip this if level logic reads
-// inverted once you test with a real switch.
-#define LEVEL_ACTIVE_STATE LOW
+#define LEVEL_ACTIVE_STATE LOW   // confirmed correct on the bench (switch ON = below level = GND = LOW)
 
 #define DEBOUNCE_MS        200
 #define POLL_TIMEOUT_MS     500
@@ -96,9 +93,6 @@ struct PumpEntry {
 #define MAX_PUMPS 20
 PumpEntry pumps[MAX_PUMPS];
 
-// For now: hardcode slot 0 as the only known pump, so this firmware is
-// testable stand-alone against a single Pump Node bench unit. Swap for
-// a real join table once JOIN_REQUEST handling + the app exist.
 void initPumpTable() {
   for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, false, false};
   pumps[0].known = true;
@@ -108,7 +102,7 @@ void initPumpTable() {
 struct LevelInput {
   uint8_t pin;
   uint8_t ledPin;
-  bool    state;          // debounced logical state (true = active/level reached)
+  bool    state;
   bool    rawLast;
   uint32_t lastChangeMs;
 };
@@ -117,7 +111,7 @@ LevelInput inputs[4] = {
   {PIN_IN1, PIN_IN1_LED, false, false, 0},
   {PIN_IN2, PIN_IN2_LED, false, false, 0},
   {PIN_IN3, PIN_IN3_LED, false, false, 0},
-  {PIN_IN4, PIN_IN4_LED, false, false, 0},   // no-power input, read but not acted on yet
+  {PIN_IN4, PIN_IN4_LED, false, false, 0},
 };
 
 void updateInputs() {
@@ -139,7 +133,7 @@ void updateInputs() {
   }
 }
 
-// --- Packet build/send ---
+// --- Packet build ---
 uint8_t txPacket[32];
 
 size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, size_t payloadLen) {
@@ -161,9 +155,8 @@ size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, si
 
 // Sends LEVEL_CMD and waits for CMD_ACK, entirely via the non-blocking
 // startTransmit/startReceive + DIO1-interrupt pattern (matching
-// lora_ping_pong and the Pump firmware) rather than the blocking
-// transmit() call, which was leaving the radio's IRQ state such that
-// the following startReceive() never actually caught an RX-done event.
+// lora_ping_pong and the Pump firmware) -- the earlier blocking
+// transmit() call was leaving RX-done undetected afterward.
 bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeoutMs) {
   uint8_t payload[1] = { (uint8_t)(desired ? 1 : 0) };
   size_t len = buildPacket(MSG_LEVEL_CMD, slot, payload, 1);
@@ -190,7 +183,11 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   Serial.print(F(" LEVEL_CMD -> "));
   Serial.println(desired ? F("ON") : F("OFF"));
 
-  radio.startReceive();
+  int rxState = radio.startReceive();
+  if (rxState != RADIOLIB_ERR_NONE) {
+    Serial.print(F("[LoRa] startReceive failed, code "));
+    Serial.println(rxState);
+  }
   uint32_t start = millis();
   while (millis() - start < rxTimeoutMs) {
     if (operationDone) {
@@ -212,16 +209,13 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
         Serial.print(F("[POLL] readData failed, code "));
         Serial.println(rstate);
       }
-      radio.startReceive();   // stray/unrelated/bad packet -- keep listening
+      radio.startReceive();
     }
   }
   return false;
 }
 
 // --- Simple placeholder level logic ---
-// IN1 active  -> low level  -> pump 0 ON
-// IN2 active  -> full level -> pump 0 OFF
-// Real per-pump assignment table comes later via the app.
 bool desiredPumpState[MAX_PUMPS] = { false };
 
 void applyLevelLogic() {
@@ -230,7 +224,6 @@ void applyLevelLogic() {
 }
 
 void pollCycle() {
-  static uint8_t lastCommandedState[MAX_PUMPS] = { 0 };
   static bool everCommanded[MAX_PUMPS] = { false };
 
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
@@ -238,9 +231,6 @@ void pollCycle() {
 
     bool desired = desiredPumpState[slot];
 
-    // stagger only matters when turning multiple pumps ON in the same
-    // pass -- with a single known pump today this is a no-op, but the
-    // delay is left in place so it's already structured for N pumps.
     if (desired && !everCommanded[slot]) delay(STAGGER_MS);
 
     bool acked = false;
@@ -251,7 +241,6 @@ void pollCycle() {
     pumps[slot].online = acked;
     if (acked) {
       pumps[slot].lastRelayState = desired;
-      lastCommandedState[slot] = desired;
       everCommanded[slot] = true;
     } else {
       Serial.print(F("[POLL] slot "));
@@ -266,7 +255,7 @@ void setup() {
   delay(500);
 
   for (auto& in : inputs) {
-    pinMode(in.pin, INPUT);        // external 10k pull-ups already on the board
+    pinMode(in.pin, INPUT);
     pinMode(in.ledPin, OUTPUT);
     digitalWrite(in.ledPin, LOW);
   }
@@ -300,5 +289,5 @@ void loop() {
   Serial.print(F(" DIO1 pin now="));
   Serial.println(digitalRead(PIN_DIO1));
 
-  delay(1000);   // cycle pacing -- tune once real poll interval is decided (see protocol doc open items)
+  delay(1000);
 }
