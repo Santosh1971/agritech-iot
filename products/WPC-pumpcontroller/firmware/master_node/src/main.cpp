@@ -60,11 +60,9 @@ SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 
 volatile bool operationDone = false;
-volatile uint32_t isrFireCount = 0;
 
 void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
-  isrFireCount++;
 }
 
 uint32_t masterId32 = 0;      // lower 4 bytes of this board's MAC
@@ -183,11 +181,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   Serial.print(F(" LEVEL_CMD -> "));
   Serial.println(desired ? F("ON") : F("OFF"));
 
-  int rxState = radio.startReceive();
-  if (rxState != RADIOLIB_ERR_NONE) {
-    Serial.print(F("[LoRa] startReceive failed, code "));
-    Serial.println(rxState);
-  }
+  radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < rxTimeoutMs) {
     if (operationDone) {
@@ -283,11 +277,6 @@ void loop() {
   updateInputs();
   applyLevelLogic();
   pollCycle();
-
-  Serial.print(F("[DIAG] isrFireCount="));
-  Serial.print(isrFireCount);
-  Serial.print(F(" DIO1 pin now="));
-  Serial.println(digitalRead(PIN_DIO1));
 
   delay(1000);
 }
