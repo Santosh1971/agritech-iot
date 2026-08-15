@@ -206,9 +206,11 @@ void loop() {
         } else {
           Serial.print(F("[LoRa] readData failed, code "));
           Serial.println(state);
+          startReceive();
         }
+      } else {
+        startReceive();
       }
-      startReceive();
     }
   }
 
