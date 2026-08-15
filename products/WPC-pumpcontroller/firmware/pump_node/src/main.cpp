@@ -40,7 +40,7 @@
 #define INPUT_ACTIVE_STATE LOW
 
 #define FAILSAFE_TIMEOUT_MS 15000UL
-#define JOIN_RETRY_MS 3000UL
+#define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
 
 // today's bench Master -- override via app/NVS for a different Master
 #define DEFAULT_MASTER_ID 0x86470968UL

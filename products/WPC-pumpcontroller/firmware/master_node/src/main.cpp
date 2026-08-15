@@ -41,7 +41,7 @@
 #define POLL_TIMEOUT_MS     500
 #define POLL_RETRIES        2
 #define STAGGER_MS          5000
-#define JOIN_WINDOW_MS       300
+#define JOIN_WINDOW_MS       2000   // widened -- was missing joins too often against the Pump's 3s retry cadence
 
 enum MsgType : uint8_t {
   MSG_JOIN_REQUEST = 0x01,
