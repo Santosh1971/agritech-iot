@@ -251,14 +251,22 @@ void applyLevelLogic() {
 }
 
 void pollCycle() {
-  static bool everCommanded[MAX_PUMPS] = { false };
+  // wasOn tracks each pump's last CONFIRMED (acked) relay state, not
+  // "have we ever commanded it" -- that's what lets us correctly detect
+  // a fresh OFF->ON transition every time, not just the first time ever.
+  static bool wasOn[MAX_PUMPS] = { false };
+  int freshOnCountThisPass = 0;
 
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
     if (!pumps[slot].known) continue;
 
     bool desired = desiredPumpState[slot];
+    bool turningOn = desired && !wasOn[slot];
 
-    if (desired && !everCommanded[slot]) delay(STAGGER_MS);
+    // stagger only between MULTIPLE pumps freshly turning ON in the
+    // same pass -- the first one in a pass never waits
+    if (turningOn && freshOnCountThisPass > 0) delay(STAGGER_MS);
+    if (turningOn) freshOnCountThisPass++;
 
     bool acked = false;
     for (int attempt = 0; attempt <= POLL_RETRIES && !acked; attempt++) {
@@ -268,7 +276,7 @@ void pollCycle() {
     pumps[slot].online = acked;
     if (acked) {
       pumps[slot].lastRelayState = desired;
-      everCommanded[slot] = true;
+      wasOn[slot] = desired;
     } else {
       Serial.print(F("[POLL] slot "));
       Serial.print(slot);
