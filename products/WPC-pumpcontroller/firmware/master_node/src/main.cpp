@@ -159,52 +159,61 @@ size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, si
   return i;
 }
 
-void sendLevelCmd(uint8_t slot, bool on) {
-  uint8_t payload[1] = { (uint8_t)(on ? 1 : 0) };
+// Sends LEVEL_CMD and waits for CMD_ACK, entirely via the non-blocking
+// startTransmit/startReceive + DIO1-interrupt pattern (matching
+// lora_ping_pong and the Pump firmware) rather than the blocking
+// transmit() call, which was leaving the radio's IRQ state such that
+// the following startReceive() never actually caught an RX-done event.
+bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeoutMs) {
+  uint8_t payload[1] = { (uint8_t)(desired ? 1 : 0) };
   size_t len = buildPacket(MSG_LEVEL_CMD, slot, payload, 1);
-  int state = radio.transmit(txPacket, len);
-  if (state != RADIOLIB_ERR_NONE) {
-    Serial.print(F("[LoRa] TX failed, code "));
-    Serial.println(state);
-  } else {
-    Serial.print(F("[POLL] slot "));
-    Serial.print(slot);
-    Serial.print(F(" LEVEL_CMD -> "));
-    Serial.println(on ? F("ON") : F("OFF"));
-  }
-}
 
-// Uses the same DIO1-interrupt + operationDone flag pattern as the rest
-// of the codebase (lora_ping_pong, pump_node) rather than polling a
-// packet-length API -- that's how RadioLib's SX126x actually signals
-// "a packet arrived."
-bool waitForAck(uint8_t expectedSlot, uint32_t timeoutMs) {
   operationDone = false;
+  int state = radio.startTransmit(txPacket, len);
+  if (state != RADIOLIB_ERR_NONE) {
+    Serial.print(F("[LoRa] startTransmit failed, code "));
+    Serial.println(state);
+    return false;
+  }
+
+  uint32_t t0 = millis();
+  while (!operationDone) {
+    if (millis() - t0 > txTimeoutMs) {
+      Serial.println(F("[LoRa] TX timeout"));
+      return false;
+    }
+  }
+  operationDone = false;
+
+  Serial.print(F("[POLL] slot "));
+  Serial.print(slot);
+  Serial.print(F(" LEVEL_CMD -> "));
+  Serial.println(desired ? F("ON") : F("OFF"));
+
   radio.startReceive();
   uint32_t start = millis();
-  while (millis() - start < timeoutMs) {
+  while (millis() - start < rxTimeoutMs) {
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
-      int len = radio.getPacketLength();
-      int state = radio.readData(buf, len);
-      if (state == RADIOLIB_ERR_NONE && len >= 10) {
+      int rlen = radio.getPacketLength();
+      int rstate = radio.readData(buf, rlen);
+      if (rstate == RADIOLIB_ERR_NONE && rlen >= 10) {
         Serial.print(F("[POLL] RX msgType=0x"));
         Serial.print(buf[1], HEX);
         Serial.print(F(" slot="));
         Serial.println(buf[6]);
-        if (buf[1] == MSG_CMD_ACK && buf[6] == expectedSlot) {
+        if (buf[1] == MSG_CMD_ACK && buf[6] == slot) {
           Serial.print(F("[POLL] CMD_ACK from slot "));
-          Serial.println(expectedSlot);
+          Serial.println(slot);
           return true;
         }
       } else {
         Serial.print(F("[POLL] readData failed, code "));
-        Serial.println(state);
+        Serial.println(rstate);
       }
       radio.startReceive();   // stray/unrelated/bad packet -- keep listening
     }
-    delay(2);
   }
   return false;
 }
@@ -236,8 +245,7 @@ void pollCycle() {
 
     bool acked = false;
     for (int attempt = 0; attempt <= POLL_RETRIES && !acked; attempt++) {
-      sendLevelCmd(slot, desired);
-      acked = waitForAck(slot, POLL_TIMEOUT_MS);
+      acked = pollPump(slot, desired, 2000, POLL_TIMEOUT_MS);
     }
 
     pumps[slot].online = acked;
