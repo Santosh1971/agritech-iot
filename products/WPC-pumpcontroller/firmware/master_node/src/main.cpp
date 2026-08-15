@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 #include <Preferences.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------
 // WPC Master Node
@@ -57,7 +60,8 @@ enum MsgType : uint8_t {
 SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 Preferences prefs;
-uint16_t storedPumpIds[MAX_PUMPS];   // NVS-backed slot->pumpId mapping, 0 = empty
+uint16_t storedPumpIds[MAX_PUMPS];
+WebServer server(80);   // NVS-backed slot->pumpId mapping, 0 = empty
 
 volatile bool operationDone = false;
 
@@ -315,6 +319,37 @@ void pollCycle() {
   }
 }
 
+// GET /status -- JSON snapshot of sump levels + known pumps, for the
+// app to poll while connected to this Master's SoftAP.
+void handleStatus() {
+  JsonDocument doc;
+  char idbuf[12];
+  snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
+  doc["masterId"] = idbuf;
+
+  JsonObject levels = doc["levels"].to<JsonObject>();
+  levels["in1"] = inputs[0].state;
+  levels["in2"] = inputs[1].state;
+  levels["in3"] = inputs[2].state;
+  levels["in4"] = inputs[3].state;
+
+  JsonArray pumpsArr = doc["pumps"].to<JsonArray>();
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    if (!pumps[i].known) continue;
+    JsonObject p = pumpsArr.add<JsonObject>();
+    p["slot"] = pumps[i].slot;
+    p["pumpId"] = pumps[i].pumpId;
+    p["online"] = pumps[i].online;
+    p["relay"] = pumps[i].lastRelayState;
+    p["desired"] = desiredPumpState[i];
+  }
+
+  String out;
+  serializeJson(doc, out);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", out);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -344,9 +379,23 @@ void setup() {
   }
   Serial.println(F("[LoRa] Radio initialized OK."));
   radio.setDio1Action(onRadioAction);
+
+  // Open AP for now -- pairing/network security deferred, matching the
+  // earlier project decision (see docs). App connects directly to this
+  // SoftAP to reach the status endpoint.
+  String apSsid = "WPC-Master-" + String(masterId32 & 0xFFFF, HEX);
+  WiFi.softAP(apSsid.c_str());
+  Serial.print(F("[WIFI] AP started: "));
+  Serial.println(apSsid);
+  Serial.print(F("[WIFI] IP: "));
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/status", handleStatus);
+  server.begin();
 }
 
 void loop() {
+  server.handleClient();
   updateInputs();
   applyLevelLogic();
 
