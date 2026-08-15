@@ -63,9 +63,11 @@ SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 
 volatile bool operationDone = false;
+volatile uint32_t isrFireCount = 0;
 
 void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
+  isrFireCount++;
 }
 
 uint32_t masterId32 = 0;      // lower 4 bytes of this board's MAC
@@ -284,5 +286,11 @@ void loop() {
   updateInputs();
   applyLevelLogic();
   pollCycle();
+
+  Serial.print(F("[DIAG] isrFireCount="));
+  Serial.print(isrFireCount);
+  Serial.print(F(" DIO1 pin now="));
+  Serial.println(digitalRead(PIN_DIO1));
+
   delay(1000);   // cycle pacing -- tune once real poll interval is decided (see protocol doc open items)
 }
