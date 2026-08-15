@@ -1,14 +1,18 @@
 #include <Arduino.h>
 #include <RadioLib.h>
+#include <Preferences.h>
 
 // ---------------------------------------------------------------------
-// WPC Pump Node
-// Pins confirmed against hand-drawn bench schematic (15 Aug) + formal
-// PCB schematic + Master's working lora_ping_pong pinout.
-// LoRa section is identical to Master.
+// WPC Pump Node -- single shared firmware for all Pump Nodes.
+// Each board gets a unique default 4-digit Pump ID derived from its own
+// MAC address (no per-board firmware differences needed). Joins a
+// Master over LoRa via JOIN_REQUEST/JOIN_ACCEPT and is assigned a
+// compact wire-protocol slot dynamically.
 //
-// PROTOCOL (see docs/WPC_LoRa_Protocol_v0.1.md):
-//   [version:1][msgType:1][masterId:4][pumpSlot:1][seq:1][payload...][crc16:2]
+// Defaults (used until the app writes real values into NVS):
+//   pumpId    = last 4 digits of this board's MAC (auto-unique)
+//   masterId  = DEFAULT_MASTER_ID (today's bench Master)
+// Both stored in NVS ("wpc" namespace) so the app can override later.
 // ---------------------------------------------------------------------
 
 #define LORA_FREQ_MHZ 866.0
@@ -26,25 +30,21 @@
 #define PIN_BUSY   27
 #define PIN_DIO1   26
 
-#define PIN_IN1        36   // flow / pump-status input (digital on the bench for now)
-#define PIN_IN4        35   // "No Power" input
+#define PIN_IN1        36
+#define PIN_IN4        35
 #define PIN_IN1_LED    33
 #define PIN_IN4_LED    13
-#define PIN_RELAY1     32   // drives ULN2003 -> relay on the real board; an LED on the bench
+#define PIN_RELAY1     32
 #define PIN_PUMP_ON_LED 4
 
-// TODO: confirm polarity once real flow/status wiring exists -- same
-// convention as Master for now (short to GND = active).
 #define INPUT_ACTIVE_STATE LOW
 
-// Until provisioning/JOIN exists, this pump answers as slot 0 and
-// accepts LEVEL_CMD from whichever Master addresses that slot --
-// there's only one Master on the bench, so this is safe for now.
-#define MY_SLOT 0
+#define FAILSAFE_TIMEOUT_MS 15000UL
+#define JOIN_RETRY_MS 3000UL
 
-#define FAILSAFE_TIMEOUT_MS 15000UL   // no LEVEL_CMD in this long -> force OFF locally
+// today's bench Master -- override via app/NVS for a different Master
+#define DEFAULT_MASTER_ID 0x86470968UL
 
-// ---------------------------------------------------------------------
 enum MsgType : uint8_t {
   MSG_JOIN_REQUEST = 0x01,
   MSG_JOIN_ACCEPT  = 0x02,
@@ -56,6 +56,7 @@ enum MsgType : uint8_t {
 
 SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
+Preferences prefs;
 
 volatile bool operationDone = false;
 bool transmitting = false;
@@ -63,7 +64,12 @@ uint8_t rxBuf[32];
 
 bool relayState = false;
 uint32_t lastCmdMillis = 0;
-bool everReceivedCmd = false;
+
+uint16_t myPumpId = 0;
+uint32_t targetMasterId = 0;
+bool joined = false;
+uint8_t myAssignedSlot = 0xFF;
+uint32_t lastJoinAttemptMs = 0;
 
 void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
@@ -98,28 +104,48 @@ void startReceive() {
 
 uint8_t txPacket[32];
 
-void sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
-  bool in1 = (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE);
-  bool in4 = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
-
+size_t buildPacket(uint8_t msgType, uint32_t masterId, uint8_t pumpSlot, uint8_t seq,
+                    const uint8_t* payload, size_t payloadLen) {
   size_t i = 0;
   txPacket[i++] = PROTO_VERSION;
-  txPacket[i++] = MSG_CMD_ACK;
+  txPacket[i++] = msgType;
   txPacket[i++] = (masterId >> 24) & 0xFF;
   txPacket[i++] = (masterId >> 16) & 0xFF;
   txPacket[i++] = (masterId >> 8) & 0xFF;
   txPacket[i++] = masterId & 0xFF;
-  txPacket[i++] = MY_SLOT;
-  txPacket[i++] = seqEcho;
-  txPacket[i++] = relayState ? 1 : 0;
-  txPacket[i++] = in1 ? 1 : 0;
-  txPacket[i++] = in4 ? 1 : 0;
+  txPacket[i++] = pumpSlot;
+  txPacket[i++] = seq;
+  for (size_t p = 0; p < payloadLen; p++) txPacket[i++] = payload[p];
   uint16_t crc = crc16(txPacket, i);
   txPacket[i++] = (crc >> 8) & 0xFF;
   txPacket[i++] = crc & 0xFF;
+  return i;
+}
+
+void sendJoinRequest() {
+  uint8_t payload[2] = { (uint8_t)(myPumpId >> 8), (uint8_t)(myPumpId & 0xFF) };
+  size_t len = buildPacket(MSG_JOIN_REQUEST, targetMasterId, 0xFF, 0, payload, 2);
+  transmitting = true;
+  int state = radio.startTransmit(txPacket, len);
+  if (state != RADIOLIB_ERR_NONE) {
+    Serial.print(F("[LoRa] JOIN_REQUEST TX failed, code "));
+    Serial.println(state);
+    transmitting = false;
+    startReceive();
+  } else {
+    Serial.print(F("[JOIN] requesting join, pumpId="));
+    Serial.println(myPumpId);
+  }
+}
+
+void sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
+  bool in1 = (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE);
+  bool in4 = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
+  uint8_t payload[3] = { (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0) };
+  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 3);
 
   transmitting = true;
-  int state = radio.startTransmit(txPacket, i);
+  int state = radio.startTransmit(txPacket, len);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] CMD_ACK TX failed, code "));
     Serial.println(state);
@@ -144,16 +170,22 @@ void handlePacket(const uint8_t* buf, int len) {
   uint8_t pumpSlot = buf[6];
   uint8_t seq = buf[7];
 
-  if (msgType != MSG_LEVEL_CMD || pumpSlot != MY_SLOT) return;
+  if (masterId != targetMasterId) return;
 
-  bool desired = (buf[8] != 0);
-
-  if (!everReceivedCmd) {
-    Serial.print(F("[PUMP] first command from Master ID 0x"));
-    Serial.println(masterId, HEX);
-    everReceivedCmd = true;
+  if (!joined) {
+    if (msgType == MSG_JOIN_ACCEPT) {
+      myAssignedSlot = buf[8];
+      joined = true;
+      lastCmdMillis = millis();
+      Serial.print(F("[JOIN] accepted, assigned slot "));
+      Serial.println(myAssignedSlot);
+    }
+    return;
   }
 
+  if (msgType != MSG_LEVEL_CMD || pumpSlot != myAssignedSlot) return;
+
+  bool desired = (buf[8] != 0);
   lastCmdMillis = millis();
   setRelay(desired);
   sendCmdAck(masterId, seq);
@@ -172,6 +204,17 @@ void setup() {
   digitalWrite(PIN_RELAY1, LOW);
   digitalWrite(PIN_PUMP_ON_LED, LOW);
 
+  prefs.begin("wpc", false);
+  uint64_t mac = ESP.getEfuseMac();
+  uint16_t defaultPumpId = (uint16_t)(mac % 10000);
+  myPumpId = prefs.getUShort("pumpId", defaultPumpId);
+  targetMasterId = prefs.getULong("masterId", DEFAULT_MASTER_ID);
+
+  Serial.print(F("[PUMP] pumpId="));
+  Serial.print(myPumpId);
+  Serial.print(F(" targetMasterId=0x"));
+  Serial.println(targetMasterId, HEX);
+
   loraSPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_NSS);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
                            LORA_SYNCWORD, LORA_TXPOWER, 8, 0, false);
@@ -182,12 +225,8 @@ void setup() {
   }
   radio.setDio1Action(onRadioAction);
 
-  Serial.print(F("[PUMP] slot "));
-  Serial.print(MY_SLOT);
-  Serial.println(F(" ready, listening..."));
-
   startReceive();
-  lastCmdMillis = millis();   // don't fail-safe immediately on boot
+  lastJoinAttemptMs = 0;
 }
 
 void loop() {
@@ -214,12 +253,18 @@ void loop() {
     }
   }
 
-  // mirror IN1/IN4 straight to their LEDs for bench visibility
+  if (!joined) {
+    if (millis() - lastJoinAttemptMs > JOIN_RETRY_MS) {
+      lastJoinAttemptMs = millis();
+      sendJoinRequest();
+    }
+    return;
+  }
+
   digitalWrite(PIN_IN1_LED, (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
   digitalWrite(PIN_IN4_LED, (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
 
-  // fail-safe: force OFF if the Master goes quiet
-  if (everReceivedCmd && relayState && (millis() - lastCmdMillis > FAILSAFE_TIMEOUT_MS)) {
+  if (relayState && (millis() - lastCmdMillis > FAILSAFE_TIMEOUT_MS)) {
     Serial.println(F("[FAILSAFE] no LEVEL_CMD received in time -- forcing OFF"));
     setRelay(false);
   }

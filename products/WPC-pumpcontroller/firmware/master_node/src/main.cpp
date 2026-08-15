@@ -3,9 +3,9 @@
 
 // ---------------------------------------------------------------------
 // WPC Master Node
-// Builds on the verified radio init from firmware/lora_ping_pong.
-// Reads 3 water-level float switches + 1 "No Power" input, runs a
-// round-robin poll cycle sending LEVEL_CMD to known Pump slots.
+// Reads 3 water-level float switches + 1 "No Power" input, dynamically
+// accepts Pump Node JOIN_REQUESTs and assigns each a compact wire-slot,
+// then runs a round-robin poll cycle sending LEVEL_CMD to known slots.
 //
 // PROTOCOL (see docs/WPC_LoRa_Protocol_v0.1.md):
 //   [version:1][msgType:1][masterId:4][pumpSlot:1][seq:1][payload...][crc16:2]
@@ -26,26 +26,23 @@
 #define PIN_BUSY   27
 #define PIN_DIO1   26
 
-// Water level / no-power inputs (from Master schematic)
-#define PIN_IN1        36   // level switch 1
-#define PIN_IN2        39   // level switch 2
-#define PIN_IN3        34   // level switch 3
-#define PIN_IN4        35   // "No Power" input
+#define PIN_IN1        36
+#define PIN_IN2        39
+#define PIN_IN3        34
+#define PIN_IN4        35
 #define PIN_IN1_LED    32
 #define PIN_IN2_LED    33
 #define PIN_IN3_LED    14
 #define PIN_IN4_LED    13
 
-#define LEVEL_ACTIVE_STATE LOW   // confirmed correct on the bench (switch ON = below level = GND = LOW)
+#define LEVEL_ACTIVE_STATE LOW
 
 #define DEBOUNCE_MS        200
 #define POLL_TIMEOUT_MS     500
 #define POLL_RETRIES        2
-#define STAGGER_MS          5000   // gap between starting multiple pumps together
+#define STAGGER_MS          5000
+#define JOIN_WINDOW_MS       300
 
-// ---------------------------------------------------------------------
-// Protocol
-// ---------------------------------------------------------------------
 enum MsgType : uint8_t {
   MSG_JOIN_REQUEST = 0x01,
   MSG_JOIN_ACCEPT  = 0x02,
@@ -54,7 +51,7 @@ enum MsgType : uint8_t {
 };
 
 #define PROTO_VERSION 1
-#define BROADCAST_SLOT 0xFF
+#define MAX_PUMPS 20
 
 SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
@@ -65,10 +62,9 @@ void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
 }
 
-uint32_t masterId32 = 0;      // lower 4 bytes of this board's MAC
+uint32_t masterId32 = 0;
 uint8_t  txSeq = 0;
 
-// --- CRC16-CCITT (poly 0x1021, init 0xFFFF) ---
 uint16_t crc16(const uint8_t* data, size_t len) {
   uint16_t crc = 0xFFFF;
   for (size_t i = 0; i < len; i++) {
@@ -80,23 +76,29 @@ uint16_t crc16(const uint8_t* data, size_t len) {
   return crc;
 }
 
-// --- Known pumps (placeholder table until the provisioning/app side exists) ---
 struct PumpEntry {
-  uint8_t slot;
-  bool    known;
-  bool    lastRelayState;
-  bool    online;
+  uint8_t  slot;
+  bool     known;
+  uint16_t pumpId;
+  bool     lastRelayState;
+  bool     online;
 };
-
-#define MAX_PUMPS 20
 PumpEntry pumps[MAX_PUMPS];
 
 void initPumpTable() {
-  for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, false, false};
-  pumps[0].known = true;
+  for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, 0, false, false};
 }
 
-// --- Level inputs, debounced ---
+int findSlotByPumpId(uint16_t pumpId) {
+  for (int i = 0; i < MAX_PUMPS; i++) if (pumps[i].known && pumps[i].pumpId == pumpId) return i;
+  return -1;
+}
+
+int findFreeSlot() {
+  for (int i = 0; i < MAX_PUMPS; i++) if (!pumps[i].known) return i;
+  return -1;
+}
+
 struct LevelInput {
   uint8_t pin;
   uint8_t ledPin;
@@ -131,7 +133,6 @@ void updateInputs() {
   }
 }
 
-// --- Packet build ---
 uint8_t txPacket[32];
 
 size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, size_t payloadLen) {
@@ -151,10 +152,50 @@ size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, si
   return i;
 }
 
-// Sends LEVEL_CMD and waits for CMD_ACK, entirely via the non-blocking
-// startTransmit/startReceive + DIO1-interrupt pattern (matching
-// lora_ping_pong and the Pump firmware) -- the earlier blocking
-// transmit() call was leaving RX-done undetected afterward.
+// Listens briefly for JOIN_REQUEST from not-yet-known pumps and
+// dynamically assigns the next free slot -- this is the "default PN
+// registration" mechanism: no app needed, no pre-guessed ID list.
+void listenForJoin(uint32_t windowMs) {
+  operationDone = false;
+  radio.startReceive();
+  uint32_t start = millis();
+  while (millis() - start < windowMs) {
+    if (operationDone) {
+      operationDone = false;
+      uint8_t buf[32];
+      int len = radio.getPacketLength();
+      int state = radio.readData(buf, len);
+      if (state == RADIOLIB_ERR_NONE && len >= 10) {
+        uint16_t rxCrc = (buf[len - 2] << 8) | buf[len - 1];
+        if (crc16(buf, len - 2) == rxCrc && buf[1] == MSG_JOIN_REQUEST) {
+          uint16_t pumpId = ((uint16_t)buf[8] << 8) | buf[9];
+          int slot = findSlotByPumpId(pumpId);
+          if (slot < 0) slot = findFreeSlot();
+          if (slot >= 0) {
+            pumps[slot].known = true;
+            pumps[slot].pumpId = pumpId;
+            Serial.print(F("[JOIN] pumpId "));
+            Serial.print(pumpId);
+            Serial.print(F(" -> slot "));
+            Serial.println(slot);
+
+            uint8_t payload[1] = { (uint8_t)slot };
+            size_t alen = buildPacket(MSG_JOIN_ACCEPT, (uint8_t)slot, payload, 1);
+            operationDone = false;
+            radio.startTransmit(txPacket, alen);
+            uint32_t t0 = millis();
+            while (!operationDone && millis() - t0 < 1000) {}
+            operationDone = false;
+          } else {
+            Serial.println(F("[JOIN] no free slot"));
+          }
+        }
+      }
+      radio.startReceive();
+    }
+  }
+}
+
 bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeoutMs) {
   uint8_t payload[1] = { (uint8_t)(desired ? 1 : 0) };
   size_t len = buildPacket(MSG_LEVEL_CMD, slot, payload, 1);
@@ -190,18 +231,11 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
       int rlen = radio.getPacketLength();
       int rstate = radio.readData(buf, rlen);
       if (rstate == RADIOLIB_ERR_NONE && rlen >= 10) {
-        Serial.print(F("[POLL] RX msgType=0x"));
-        Serial.print(buf[1], HEX);
-        Serial.print(F(" slot="));
-        Serial.println(buf[6]);
         if (buf[1] == MSG_CMD_ACK && buf[6] == slot) {
           Serial.print(F("[POLL] CMD_ACK from slot "));
           Serial.println(slot);
           return true;
         }
-      } else {
-        Serial.print(F("[POLL] readData failed, code "));
-        Serial.println(rstate);
       }
       radio.startReceive();
     }
@@ -209,12 +243,11 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   return false;
 }
 
-// --- Simple placeholder level logic ---
 bool desiredPumpState[MAX_PUMPS] = { false };
 
 void applyLevelLogic() {
-  if (inputs[0].state) desiredPumpState[0] = true;
-  if (inputs[1].state) desiredPumpState[0] = false;
+  desiredPumpState[0] = inputs[0].state;   // IN1 -> whichever pump joined first (slot 0)
+  desiredPumpState[1] = inputs[1].state;   // IN2 -> whichever pump joined second (slot 1)
 }
 
 void pollCycle() {
@@ -277,23 +310,7 @@ void loop() {
   updateInputs();
   applyLevelLogic();
 
-  Serial.print(F("[DIAG] IN1(36)="));
-  Serial.print(digitalRead(PIN_IN1));
-  Serial.print(F(" IN2(39)="));
-  Serial.print(digitalRead(PIN_IN2));
-  Serial.print(F(" IN3(34)="));
-  Serial.print(digitalRead(PIN_IN3));
-  Serial.print(F(" IN4(35)="));
-  Serial.print(digitalRead(PIN_IN4));
-  Serial.print(F(" | debounced state1="));
-  Serial.print(inputs[0].state);
-  Serial.print(F(" state2="));
-  Serial.print(inputs[1].state);
-  Serial.print(F(" | desired slot0="));
-  Serial.print(desiredPumpState[0]);
-  Serial.print(F(" slot1="));
-  Serial.println(desiredPumpState[1]);
-
+  listenForJoin(JOIN_WINDOW_MS);
   pollCycle();
 
   delay(1000);
