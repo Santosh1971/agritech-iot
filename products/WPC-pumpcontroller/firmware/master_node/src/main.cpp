@@ -64,6 +64,10 @@ SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 
 volatile bool operationDone = false;
 
+void ICACHE_RAM_ATTR onRadioAction() {
+  operationDone = true;
+}
+
 uint32_t masterId32 = 0;      // lower 4 bytes of this board's MAC
 uint8_t  txSeq = 0;
 
