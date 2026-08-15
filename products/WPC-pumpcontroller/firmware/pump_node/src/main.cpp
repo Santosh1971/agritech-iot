@@ -264,8 +264,22 @@ void loop() {
   digitalWrite(PIN_IN1_LED, (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
   digitalWrite(PIN_IN4_LED, (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
 
-  if (relayState && (millis() - lastCmdMillis > FAILSAFE_TIMEOUT_MS)) {
-    Serial.println(F("[FAILSAFE] no LEVEL_CMD received in time -- forcing OFF"));
-    setRelay(false);
+  // Fail-safe applies regardless of relay state -- an idle (OFF) pump
+  // whose Master forgot it (e.g. Master reboot losing its RAM-only join
+  // table) would otherwise sit silently orphaned forever, since it was
+  // never actively driving anything for the old relayState-only check
+  // to catch. Losing contact for too long, in ANY state, means: cut
+  // the relay if it happened to be on, and go back to sending
+  // JOIN_REQUEST so it can automatically recover once the Master is
+  // back and listening again -- no manual reset needed on this side.
+  if (millis() - lastCmdMillis > FAILSAFE_TIMEOUT_MS) {
+    if (relayState) {
+      Serial.println(F("[FAILSAFE] no LEVEL_CMD received in time -- forcing OFF"));
+      setRelay(false);
+    }
+    Serial.println(F("[FAILSAFE] lost contact with Master -- rejoining"));
+    joined = false;
+    myAssignedSlot = 0xFF;
+    lastJoinAttemptMs = 0;
   }
 }
