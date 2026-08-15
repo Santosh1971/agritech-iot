@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <RadioLib.h>
+#include <Preferences.h>
 
 // ---------------------------------------------------------------------
 // WPC Master Node
@@ -55,6 +56,8 @@ enum MsgType : uint8_t {
 
 SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
+Preferences prefs;
+uint16_t storedPumpIds[MAX_PUMPS];   // NVS-backed slot->pumpId mapping, 0 = empty
 
 volatile bool operationDone = false;
 
@@ -87,6 +90,29 @@ PumpEntry pumps[MAX_PUMPS];
 
 void initPumpTable() {
   for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, 0, false, false};
+}
+
+void savePumpTable() {
+  for (int i = 0; i < MAX_PUMPS; i++) storedPumpIds[i] = pumps[i].known ? pumps[i].pumpId : 0;
+  prefs.putBytes("pumpTable", storedPumpIds, sizeof(storedPumpIds));
+}
+
+void loadPumpTable() {
+  size_t n = prefs.getBytes("pumpTable", storedPumpIds, sizeof(storedPumpIds));
+  if (n != sizeof(storedPumpIds)) {
+    memset(storedPumpIds, 0, sizeof(storedPumpIds));
+    return;
+  }
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    if (storedPumpIds[i] != 0) {
+      pumps[i].known = true;
+      pumps[i].pumpId = storedPumpIds[i];
+      Serial.print(F("[NVS] restored slot "));
+      Serial.print(i);
+      Serial.print(F(" -> pumpId "));
+      Serial.println(storedPumpIds[i]);
+    }
+  }
 }
 
 int findSlotByPumpId(uint16_t pumpId) {
@@ -174,6 +200,7 @@ void listenForJoin(uint32_t windowMs) {
           if (slot >= 0) {
             pumps[slot].known = true;
             pumps[slot].pumpId = pumpId;
+            savePumpTable();
             Serial.print(F("[JOIN] pumpId "));
             Serial.print(pumpId);
             Serial.print(F(" -> slot "));
@@ -303,7 +330,9 @@ void setup() {
   Serial.print(F("[MASTER] ID: 0x"));
   Serial.println(masterId32, HEX);
 
+  prefs.begin("wpc", false);
   initPumpTable();
+  loadPumpTable();
 
   loraSPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_NSS);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
