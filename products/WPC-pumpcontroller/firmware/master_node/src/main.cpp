@@ -179,8 +179,11 @@ void listenForJoin(uint32_t windowMs) {
             Serial.print(F(" -> slot "));
             Serial.println(slot);
 
-            uint8_t payload[1] = { (uint8_t)slot };
-            size_t alen = buildPacket(MSG_JOIN_ACCEPT, (uint8_t)slot, payload, 1);
+            // Echo the accepted pumpId back in the payload -- JOIN_ACCEPT
+            // is broadcast over LoRa, so any other unjoined pump hearing
+            // it must be able to tell it wasn't addressed to them.
+            uint8_t payload[3] = { (uint8_t)(pumpId >> 8), (uint8_t)(pumpId & 0xFF), (uint8_t)slot };
+            size_t alen = buildPacket(MSG_JOIN_ACCEPT, (uint8_t)slot, payload, 3);
             operationDone = false;
             radio.startTransmit(txPacket, alen);
             uint32_t t0 = millis();

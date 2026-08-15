@@ -174,7 +174,12 @@ void handlePacket(const uint8_t* buf, int len) {
 
   if (!joined) {
     if (msgType == MSG_JOIN_ACCEPT) {
-      myAssignedSlot = buf[8];
+      // JOIN_ACCEPT is broadcast -- verify it was actually meant for
+      // THIS pump before accepting it, or any pump still unjoined at
+      // the same moment would grab someone else's slot assignment.
+      uint16_t acceptedPumpId = ((uint16_t)buf[8] << 8) | buf[9];
+      if (acceptedPumpId != myPumpId) return;
+      myAssignedSlot = buf[10];
       joined = true;
       lastCmdMillis = millis();
       Serial.print(F("[JOIN] accepted, assigned slot "));
