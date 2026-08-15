@@ -276,6 +276,24 @@ void setup() {
 void loop() {
   updateInputs();
   applyLevelLogic();
+
+  Serial.print(F("[DIAG] IN1(36)="));
+  Serial.print(digitalRead(PIN_IN1));
+  Serial.print(F(" IN2(39)="));
+  Serial.print(digitalRead(PIN_IN2));
+  Serial.print(F(" IN3(34)="));
+  Serial.print(digitalRead(PIN_IN3));
+  Serial.print(F(" IN4(35)="));
+  Serial.print(digitalRead(PIN_IN4));
+  Serial.print(F(" | debounced state1="));
+  Serial.print(inputs[0].state);
+  Serial.print(F(" state2="));
+  Serial.print(inputs[1].state);
+  Serial.print(F(" | desired slot0="));
+  Serial.print(desiredPumpState[0]);
+  Serial.print(F(" slot1="));
+  Serial.println(desiredPumpState[1]);
+
   pollCycle();
 
   delay(1000);
