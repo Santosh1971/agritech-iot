@@ -63,7 +63,6 @@ SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 
 volatile bool operationDone = false;
-bool waitingForAck = false;
 
 uint32_t masterId32 = 0;      // lower 4 bytes of this board's MAC
 uint8_t  txSeq = 0;
@@ -157,12 +156,10 @@ size_t buildPacket(uint8_t msgType, uint8_t pumpSlot, const uint8_t* payload, si
 void sendLevelCmd(uint8_t slot, bool on) {
   uint8_t payload[1] = { (uint8_t)(on ? 1 : 0) };
   size_t len = buildPacket(MSG_LEVEL_CMD, slot, payload, 1);
-  waitingForAck = true;
   int state = radio.transmit(txPacket, len);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] TX failed, code "));
     Serial.println(state);
-    waitingForAck = false;
   } else {
     Serial.print(F("[POLL] slot "));
     Serial.print(slot);
@@ -171,13 +168,19 @@ void sendLevelCmd(uint8_t slot, bool on) {
   }
 }
 
+// Uses the same DIO1-interrupt + operationDone flag pattern as the rest
+// of the codebase (lora_ping_pong, pump_node) rather than polling a
+// packet-length API -- that's how RadioLib's SX126x actually signals
+// "a packet arrived."
 bool waitForAck(uint8_t expectedSlot, uint32_t timeoutMs) {
+  operationDone = false;
   radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < timeoutMs) {
-    uint8_t buf[32];
-    int len = radio.getPacketLength();
-    if (len > 0 && radio.available()) {
+    if (operationDone) {
+      operationDone = false;
+      uint8_t buf[32];
+      int len = radio.getPacketLength();
       int state = radio.readData(buf, len);
       if (state == RADIOLIB_ERR_NONE && len >= 10) {
         if (buf[1] == MSG_CMD_ACK && buf[6] == expectedSlot) {
@@ -186,8 +189,9 @@ bool waitForAck(uint8_t expectedSlot, uint32_t timeoutMs) {
           return true;
         }
       }
+      radio.startReceive();   // stray/unrelated packet -- keep listening
     }
-    delay(5);
+    delay(2);
   }
   return false;
 }
