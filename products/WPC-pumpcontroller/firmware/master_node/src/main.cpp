@@ -190,6 +190,7 @@ void listenForJoin(uint32_t windowMs) {
   radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < windowMs) {
+    server.handleClient();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -244,6 +245,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
 
   uint32_t t0 = millis();
   while (!operationDone) {
+    server.handleClient();
     if (millis() - t0 > txTimeoutMs) {
       Serial.println(F("[LoRa] TX timeout"));
       return false;
@@ -259,6 +261,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < rxTimeoutMs) {
+    server.handleClient();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
