@@ -273,6 +273,7 @@ void setup() {
     while (true) delay(1000);
   }
   Serial.println(F("[LoRa] Radio initialized OK."));
+  radio.setDio1Action(onRadioAction);
 }
 
 void loop() {
