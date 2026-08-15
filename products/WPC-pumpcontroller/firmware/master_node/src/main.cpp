@@ -183,13 +183,20 @@ bool waitForAck(uint8_t expectedSlot, uint32_t timeoutMs) {
       int len = radio.getPacketLength();
       int state = radio.readData(buf, len);
       if (state == RADIOLIB_ERR_NONE && len >= 10) {
+        Serial.print(F("[POLL] RX msgType=0x"));
+        Serial.print(buf[1], HEX);
+        Serial.print(F(" slot="));
+        Serial.println(buf[6]);
         if (buf[1] == MSG_CMD_ACK && buf[6] == expectedSlot) {
           Serial.print(F("[POLL] CMD_ACK from slot "));
           Serial.println(expectedSlot);
           return true;
         }
+      } else {
+        Serial.print(F("[POLL] readData failed, code "));
+        Serial.println(state);
       }
-      radio.startReceive();   // stray/unrelated packet -- keep listening
+      radio.startReceive();   // stray/unrelated/bad packet -- keep listening
     }
     delay(2);
   }
