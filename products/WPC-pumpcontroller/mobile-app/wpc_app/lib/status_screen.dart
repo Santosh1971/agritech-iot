@@ -139,7 +139,9 @@ class _StatusScreenState extends State<StatusScreen> {
           final map = p as Map<String, dynamic>;
           final online = map['online'] == true;
           final relay = map['relay'] == true;
-          final assignedLevel = (map['assignedLevel'] as num?)?.toInt() ?? 0;
+          final assignedLevels = (map['assignedLevels'] as List<dynamic>? ?? [])
+              .map((e) => (e as num).toInt())
+              .toList();
           return Card(
             child: ListTile(
               leading: CircleAvatar(
@@ -157,9 +159,11 @@ class _StatusScreenState extends State<StatusScreen> {
                   ? (relay ? 'Running' : 'Idle')
                   : 'Offline -- not responding'),
               trailing: Chip(
-                label: Text(assignedLevel == 0 ? 'Unassigned' : 'Level $assignedLevel'),
+                label: Text(assignedLevels.isEmpty
+                    ? 'Unassigned'
+                    : 'Levels ${assignedLevels.join(", ")}'),
                 backgroundColor:
-                    assignedLevel == 0 ? Colors.grey.shade200 : Colors.teal.shade50,
+                    assignedLevels.isEmpty ? Colors.grey.shade200 : Colors.teal.shade50,
               ),
             ),
           );

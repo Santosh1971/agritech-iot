@@ -49,11 +49,10 @@ class _AssignScreenState extends State<AssignScreen> {
     }
   }
 
-  Future<void> _togglePumpLevel(int slot, int currentLevel, int tappedLevel) async {
-    final newLevel = currentLevel == tappedLevel ? 0 : tappedLevel;
+  Future<void> _togglePumpLevel(int slot, int level, bool nowAssigned) async {
     setState(() => _busy = true);
     try {
-      await WpcApi.assignPumpLevel(slot, newLevel);
+      await WpcApi.setPumpLevel(slot, level, nowAssigned);
       await _fetch();
     } catch (e) {
       if (mounted) {
@@ -134,14 +133,16 @@ class _AssignScreenState extends State<AssignScreen> {
                       final map = p as Map<String, dynamic>;
                       final slot = (map['slot'] as num).toInt();
                       final pumpId = map['pumpId'];
-                      final assignedLevel = (map['assignedLevel'] as num?)?.toInt() ?? 0;
-                      final selected = assignedLevel == level;
+                      final assignedLevels = (map['assignedLevels'] as List<dynamic>? ?? [])
+                          .map((e) => (e as num).toInt())
+                          .toSet();
+                      final selected = assignedLevels.contains(level);
                       return FilterChip(
                         label: Text('Pump $pumpId'),
                         selected: selected,
                         onSelected: _busy
                             ? null
-                            : (_) => _togglePumpLevel(slot, assignedLevel, level),
+                            : (nowSelected) => _togglePumpLevel(slot, level, nowSelected),
                       );
                     }).toList(),
                   ),
