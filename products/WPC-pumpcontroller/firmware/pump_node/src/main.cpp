@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 #include <Preferences.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ArduinoJson.h>
 
 // ---------------------------------------------------------------------
 // WPC Pump Node -- single shared firmware for all Pump Nodes.
@@ -57,6 +60,7 @@ enum MsgType : uint8_t {
 SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 Preferences prefs;
+WebServer server(80);
 
 volatile bool operationDone = false;
 bool transmitting = false;
@@ -196,6 +200,64 @@ void handlePacket(const uint8_t* buf, int len) {
   sendCmdAck(masterId, seq);
 }
 
+// GET /info -- lets an installer confirm this Pump's identity and
+// current join state without needing serial access.
+void handleInfo() {
+  JsonDocument doc;
+  doc["pumpId"] = myPumpId;
+  char idbuf[12];
+  snprintf(idbuf, sizeof(idbuf), "0x%08X", targetMasterId);
+  doc["targetMasterId"] = idbuf;
+  doc["joined"] = joined;
+  doc["assignedSlot"] = joined ? myAssignedSlot : -1;
+  String out;
+  serializeJson(doc, out);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", out);
+}
+
+// POST /config  body: {"pumpId": N, "targetMasterId": "0xXXXXXXXX"}
+// Either field optional. Changing either forces a fresh join, since the
+// identity this Pump presents (or the Master it targets) just changed.
+// This is what lets a Pump be pointed at a specific Master when multiple
+// systems exist at one site -- previously every Pump shared the same
+// compiled-in DEFAULT_MASTER_ID with no way to override it in the field.
+void handleSetConfig() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  bool changed = false;
+  if (doc["pumpId"].is<int>()) {
+    myPumpId = (uint16_t)(int)doc["pumpId"];
+    prefs.putUShort("pumpId", myPumpId);
+    changed = true;
+  }
+  if (doc["targetMasterId"].is<const char*>()) {
+    const char* s = doc["targetMasterId"];
+    uint32_t v = strtoul(s, nullptr, 16);
+    if (v != 0) {
+      targetMasterId = v;
+      prefs.putULong("masterId", targetMasterId);
+      changed = true;
+    }
+  }
+  if (changed) {
+    joined = false;
+    myAssignedSlot = 0xFF;
+    lastJoinAttemptMs = 0;
+    Serial.println(F("[CONFIG] identity/target changed -- rejoining"));
+  }
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -232,9 +294,21 @@ void setup() {
 
   startReceive();
   lastJoinAttemptMs = 0;
+
+  String apSsid = "WPC-Pump-" + String(myPumpId);
+  WiFi.softAP(apSsid.c_str());
+  Serial.print(F("[WIFI] AP started: "));
+  Serial.println(apSsid);
+  Serial.print(F("[WIFI] IP: "));
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/info", handleInfo);
+  server.on("/config", HTTP_POST, handleSetConfig);
+  server.begin();
 }
 
 void loop() {
+  server.handleClient();
   if (operationDone) {
     operationDone = false;
 
@@ -267,7 +341,10 @@ void loop() {
   }
 
   digitalWrite(PIN_IN1_LED, (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
-  digitalWrite(PIN_IN4_LED, (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
+  // IN4 (No Power) fast-blinks while active, matching the Master's
+  // treatment -- an alert, not just an informational reading.
+  bool noPowerActive = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
+  digitalWrite(PIN_IN4_LED, noPowerActive && ((millis() / 150) % 2 == 0) ? HIGH : LOW);
 
   // Fail-safe applies regardless of relay state -- an idle (OFF) pump
   // whose Master forgot it (e.g. Master reboot losing its RAM-only join

@@ -88,6 +88,7 @@ struct PumpEntry {
   bool     known;
   uint16_t pumpId;
   uint8_t  assignedLevels;  // bitmask -- bit (L-1) set means this pump is assigned to level L. 0 = unassigned (stays OFF)
+  char     name[16];        // installer-friendly label, empty = show pumpId instead
   bool     lastRelayState;
   bool     online;
 };
@@ -95,17 +96,21 @@ PumpEntry pumps[MAX_PUMPS];
 
 uint8_t numLevels = 3;   // configurable 1-3, persisted in NVS
 
-struct StoredPump { uint16_t pumpId; uint8_t levelMask; };
+struct StoredPump { uint16_t pumpId; uint8_t levelMask; char name[16]; };
 StoredPump storedPumps[MAX_PUMPS];
 
 void initPumpTable() {
-  for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, 0, 0, false, false};
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    pumps[i] = {(uint8_t)i, false, 0, 0, "", false, false};
+  }
 }
 
 void savePumpTable() {
   for (int i = 0; i < MAX_PUMPS; i++) {
     storedPumps[i].pumpId = pumps[i].known ? pumps[i].pumpId : 0;
     storedPumps[i].levelMask = pumps[i].assignedLevels;
+    strncpy(storedPumps[i].name, pumps[i].name, sizeof(storedPumps[i].name) - 1);
+    storedPumps[i].name[sizeof(storedPumps[i].name) - 1] = '\0';
   }
   prefs.putBytes("pumpTable", storedPumps, sizeof(storedPumps));
 }
@@ -121,6 +126,8 @@ void loadPumpTable() {
       pumps[i].known = true;
       pumps[i].pumpId = storedPumps[i].pumpId;
       pumps[i].assignedLevels = storedPumps[i].levelMask;
+      strncpy(pumps[i].name, storedPumps[i].name, sizeof(pumps[i].name) - 1);
+      pumps[i].name[sizeof(pumps[i].name) - 1] = '\0';
       Serial.print(F("[NVS] restored slot "));
       Serial.print(i);
       Serial.print(F(" -> pumpId "));
@@ -156,9 +163,17 @@ LevelInput inputs[4] = {
   {PIN_IN4, PIN_IN4_LED, false, false, 0},
 };
 
+// IN4 (No Power) is an alert condition, not an informational level --
+// its LED fast-blinks while active rather than staying steady on, so it
+// reads visually differently from IN1-IN3.
+bool fastBlinkOn(uint32_t intervalMs) {
+  return (millis() / intervalMs) % 2 == 0;
+}
+
 void updateInputs() {
   uint32_t now = millis();
-  for (auto& in : inputs) {
+  for (int i = 0; i < 4; i++) {
+    LevelInput& in = inputs[i];
     bool raw = (digitalRead(in.pin) == LEVEL_ACTIVE_STATE);
     if (raw != in.rawLast) {
       in.lastChangeMs = now;
@@ -166,11 +181,16 @@ void updateInputs() {
     }
     if ((now - in.lastChangeMs) > DEBOUNCE_MS && in.state != raw) {
       in.state = raw;
-      digitalWrite(in.ledPin, in.state ? HIGH : LOW);
       Serial.print(F("[LEVEL] pin "));
       Serial.print(in.pin);
       Serial.print(F(" -> "));
       Serial.println(in.state ? F("ACTIVE") : F("CLEAR"));
+    }
+    bool isNoPower = (i == 3);
+    if (isNoPower && in.state) {
+      digitalWrite(in.ledPin, fastBlinkOn(150) ? HIGH : LOW);
+    } else {
+      digitalWrite(in.ledPin, in.state ? HIGH : LOW);
     }
   }
 }
@@ -369,6 +389,7 @@ void handleStatus() {
     for (int lvl = 1; lvl <= 3; lvl++) {
       if (pumps[i].assignedLevels & (1 << (lvl - 1))) lvls.add(lvl);
     }
+    p["name"] = pumps[i].name;
   }
 
   String out;
@@ -477,7 +498,33 @@ void setup() {
   server.on("/status", handleStatus);
   server.on("/config", HTTP_POST, handleSetConfig);
   server.on("/assign", HTTP_POST, handleAssign);
+  server.on("/name", HTTP_POST, handleSetName);
   server.begin();
+}
+
+// POST /name  body: {"slot": N, "name": "..."}
+void handleSetName() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  int slot = doc["slot"] | -1;
+  const char* name = doc["name"] | "";
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
+    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
+    return;
+  }
+  strncpy(pumps[slot].name, name, sizeof(pumps[slot].name) - 1);
+  pumps[slot].name[sizeof(pumps[slot].name) - 1] = '\0';
+  savePumpTable();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 void loop() {
