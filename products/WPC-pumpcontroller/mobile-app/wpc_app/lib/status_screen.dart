@@ -142,6 +142,8 @@ class _StatusScreenState extends State<StatusScreen> {
           final assignedLevels = (map['assignedLevels'] as List<dynamic>? ?? [])
               .map((e) => (e as num).toInt())
               .toList();
+          final name = (map['name'] as String?) ?? '';
+          final displayName = name.isNotEmpty ? name : 'Pump ${map['pumpId']}';
           return Card(
             child: ListTile(
               leading: CircleAvatar(
@@ -154,7 +156,7 @@ class _StatusScreenState extends State<StatusScreen> {
                   size: 20,
                 ),
               ),
-              title: Text('Pump ${map['pumpId']}  (slot ${map['slot']})'),
+              title: Text('$displayName  (slot ${map['slot']})'),
               subtitle: Text(online
                   ? (relay ? 'Running' : 'Idle')
                   : 'Offline -- not responding'),

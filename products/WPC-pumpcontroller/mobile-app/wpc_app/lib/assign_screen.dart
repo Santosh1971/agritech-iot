@@ -49,6 +49,42 @@ class _AssignScreenState extends State<AssignScreen> {
     }
   }
 
+  Future<void> _renamePump(int slot, String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pump name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'e.g. Field Pump A'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newName == null) return;
+    setState(() => _busy = true);
+    try {
+      await WpcApi.setPumpName(slot, newName);
+      await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to rename: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _togglePumpLevel(int slot, int level, bool nowAssigned) async {
     setState(() => _busy = true);
     try {
@@ -117,6 +153,26 @@ class _AssignScreenState extends State<AssignScreen> {
               child: Text('No pumps joined yet -- power on a Pump Node to see it here.'),
             ),
 
+          if (pumps.isNotEmpty) ...[
+            Text('Pumps', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ...pumps.map((p) {
+              final map = p as Map<String, dynamic>;
+              final slot = (map['slot'] as num).toInt();
+              final name = (map['name'] as String?) ?? '';
+              final displayName = name.isNotEmpty ? name : 'Pump ${map['pumpId']}';
+              return ListTile(
+                dense: true,
+                title: Text(displayName),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: _busy ? null : () => _renamePump(slot, name),
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
+          ],
+
           ...List.generate(numLevels, (i) {
             final level = i + 1;
             return Padding(
@@ -137,8 +193,10 @@ class _AssignScreenState extends State<AssignScreen> {
                           .map((e) => (e as num).toInt())
                           .toSet();
                       final selected = assignedLevels.contains(level);
+                      final name = (map['name'] as String?) ?? '';
+                      final displayName = name.isNotEmpty ? name : 'Pump $pumpId';
                       return FilterChip(
-                        label: Text('Pump $pumpId'),
+                        label: Text(displayName),
                         selected: selected,
                         onSelected: _busy
                             ? null

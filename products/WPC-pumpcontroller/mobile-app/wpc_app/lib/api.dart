@@ -22,6 +22,17 @@ class WpcApi {
     if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
   }
 
+  static Future<void> setPumpName(int slot, String name) async {
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/name'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'slot': slot, 'name': name}),
+        )
+        .timeout(_timeout);
+    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+  }
+
   static Future<void> setPumpLevel(int slot, int level, bool assigned) async {
     final res = await http
         .post(
