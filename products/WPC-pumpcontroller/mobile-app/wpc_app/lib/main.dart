@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'status_screen.dart';
 import 'assign_screen.dart';
+import 'pump_screen.dart';
 
 void main() => runApp(const WpcApp());
 
@@ -27,8 +28,8 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _screens = [StatusScreen(), AssignScreen()];
-  static const _titles = ['WPC Status', 'Assign Levels'];
+  static const _screens = [StatusScreen(), AssignScreen(), PumpScreen()];
+  static const _titles = ['WPC Status', 'Assign Levels', 'Provision Pump'];
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +42,7 @@ class _HomeShellState extends State<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard), label: 'Status'),
           NavigationDestination(icon: Icon(Icons.tune), label: 'Assign'),
+          NavigationDestination(icon: Icon(Icons.settings_input_antenna), label: 'Provision'),
         ],
       ),
     );
