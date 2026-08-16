@@ -236,7 +236,13 @@ void listenForJoin(uint32_t windowMs) {
       int state = radio.readData(buf, len);
       if (state == RADIOLIB_ERR_NONE && len >= 10) {
         uint16_t rxCrc = (buf[len - 2] << 8) | buf[len - 1];
-        if (crc16(buf, len - 2) == rxCrc && buf[1] == MSG_JOIN_REQUEST) {
+        uint32_t reqMasterId = ((uint32_t)buf[2] << 24) | ((uint32_t)buf[3] << 16) |
+                                ((uint32_t)buf[4] << 8) | buf[5];
+        // Must actually be addressed to THIS Master -- without this check,
+        // any Master within range would accept a join meant for a
+        // different one, defeating the point of targetMasterId entirely.
+        if (crc16(buf, len - 2) == rxCrc && buf[1] == MSG_JOIN_REQUEST &&
+            reqMasterId == masterId32) {
           uint16_t pumpId = ((uint16_t)buf[8] << 8) | buf[9];
           int slot = findSlotByPumpId(pumpId);
           if (slot < 0) slot = findFreeSlot();
