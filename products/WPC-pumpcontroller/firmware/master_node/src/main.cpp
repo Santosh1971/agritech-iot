@@ -87,34 +87,46 @@ struct PumpEntry {
   uint8_t  slot;
   bool     known;
   uint16_t pumpId;
+  uint8_t  assignedLevel;   // 0 = unassigned (stays OFF), 1..numLevels = which level drives it
   bool     lastRelayState;
   bool     online;
 };
 PumpEntry pumps[MAX_PUMPS];
 
+uint8_t numLevels = 3;   // configurable 1-3, persisted in NVS
+
+struct StoredPump { uint16_t pumpId; uint8_t level; };
+StoredPump storedPumps[MAX_PUMPS];
+
 void initPumpTable() {
-  for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, 0, false, false};
+  for (int i = 0; i < MAX_PUMPS; i++) pumps[i] = {(uint8_t)i, false, 0, 0, false, false};
 }
 
 void savePumpTable() {
-  for (int i = 0; i < MAX_PUMPS; i++) storedPumpIds[i] = pumps[i].known ? pumps[i].pumpId : 0;
-  prefs.putBytes("pumpTable", storedPumpIds, sizeof(storedPumpIds));
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    storedPumps[i].pumpId = pumps[i].known ? pumps[i].pumpId : 0;
+    storedPumps[i].level = pumps[i].assignedLevel;
+  }
+  prefs.putBytes("pumpTable", storedPumps, sizeof(storedPumps));
 }
 
 void loadPumpTable() {
-  size_t n = prefs.getBytes("pumpTable", storedPumpIds, sizeof(storedPumpIds));
-  if (n != sizeof(storedPumpIds)) {
-    memset(storedPumpIds, 0, sizeof(storedPumpIds));
+  size_t n = prefs.getBytes("pumpTable", storedPumps, sizeof(storedPumps));
+  if (n != sizeof(storedPumps)) {
+    memset(storedPumps, 0, sizeof(storedPumps));
     return;
   }
   for (int i = 0; i < MAX_PUMPS; i++) {
-    if (storedPumpIds[i] != 0) {
+    if (storedPumps[i].pumpId != 0) {
       pumps[i].known = true;
-      pumps[i].pumpId = storedPumpIds[i];
+      pumps[i].pumpId = storedPumps[i].pumpId;
+      pumps[i].assignedLevel = storedPumps[i].level;
       Serial.print(F("[NVS] restored slot "));
       Serial.print(i);
       Serial.print(F(" -> pumpId "));
-      Serial.println(storedPumpIds[i]);
+      Serial.print(storedPumps[i].pumpId);
+      Serial.print(F(" level "));
+      Serial.println(storedPumps[i].level);
     }
   }
 }
@@ -283,8 +295,15 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
 bool desiredPumpState[MAX_PUMPS] = { false };
 
 void applyLevelLogic() {
-  desiredPumpState[0] = inputs[0].state;   // IN1 -> whichever pump joined first (slot 0)
-  desiredPumpState[1] = inputs[1].state;   // IN2 -> whichever pump joined second (slot 1)
+  for (int slot = 0; slot < MAX_PUMPS; slot++) {
+    if (!pumps[slot].known) { desiredPumpState[slot] = false; continue; }
+    uint8_t lvl = pumps[slot].assignedLevel;
+    if (lvl >= 1 && lvl <= numLevels) {
+      desiredPumpState[slot] = inputs[lvl - 1].state;
+    } else {
+      desiredPumpState[slot] = false;   // unassigned -> stays off
+    }
+  }
 }
 
 void pollCycle() {
@@ -329,12 +348,11 @@ void handleStatus() {
   char idbuf[12];
   snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
   doc["masterId"] = idbuf;
+  doc["numLevels"] = numLevels;
 
-  JsonObject levels = doc["levels"].to<JsonObject>();
-  levels["in1"] = inputs[0].state;
-  levels["in2"] = inputs[1].state;
-  levels["in3"] = inputs[2].state;
-  levels["in4"] = inputs[3].state;
+  JsonArray levelsArr = doc["levels"].to<JsonArray>();
+  for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
+  doc["noPower"] = inputs[3].state;   // polarity TBD -- raw state, see docs
 
   JsonArray pumpsArr = doc["pumps"].to<JsonArray>();
   for (int i = 0; i < MAX_PUMPS; i++) {
@@ -345,12 +363,64 @@ void handleStatus() {
     p["online"] = pumps[i].online;
     p["relay"] = pumps[i].lastRelayState;
     p["desired"] = desiredPumpState[i];
+    p["assignedLevel"] = pumps[i].assignedLevel;
   }
 
   String out;
   serializeJson(doc, out);
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", out);
+}
+
+// POST /config  body: {"numLevels": 1-3}
+void handleSetConfig() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  if (doc["numLevels"].is<int>()) {
+    int n = doc["numLevels"];
+    if (n >= 1 && n <= 3) {
+      numLevels = (uint8_t)n;
+      prefs.putUChar("numLevels", numLevels);
+    }
+  }
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
+// POST /assign  body: {"slot": N, "level": 0-3}  (0 = unassign)
+void handleAssign() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  int slot = doc["slot"] | -1;
+  int level = doc["level"] | -1;
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known || level < 0 || level > 3) {
+    server.send(400, "application/json", "{\"error\":\"invalid slot/level\"}");
+    return;
+  }
+  pumps[slot].assignedLevel = (uint8_t)level;
+  savePumpTable();
+  Serial.print(F("[ASSIGN] slot "));
+  Serial.print(slot);
+  Serial.print(F(" -> level "));
+  Serial.println(level);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 void setup() {
@@ -369,6 +439,7 @@ void setup() {
   Serial.println(masterId32, HEX);
 
   prefs.begin("wpc", false);
+  numLevels = prefs.getUChar("numLevels", 3);
   initPumpTable();
   loadPumpTable();
 
@@ -394,6 +465,8 @@ void setup() {
   Serial.println(WiFi.softAPIP());
 
   server.on("/status", handleStatus);
+  server.on("/config", HTTP_POST, handleSetConfig);
+  server.on("/assign", HTTP_POST, handleAssign);
   server.begin();
 }
 
