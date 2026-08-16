@@ -101,7 +101,13 @@ StoredPump storedPumps[MAX_PUMPS];
 
 void initPumpTable() {
   for (int i = 0; i < MAX_PUMPS; i++) {
-    pumps[i] = {(uint8_t)i, false, 0, 0, "", false, false};
+    pumps[i].slot = (uint8_t)i;
+    pumps[i].known = false;
+    pumps[i].pumpId = 0;
+    pumps[i].assignedLevels = 0;
+    pumps[i].name[0] = '\0';
+    pumps[i].lastRelayState = false;
+    pumps[i].online = false;
   }
 }
 
@@ -454,6 +460,31 @@ void handleAssign() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
+// POST /name  body: {"slot": N, "name": "..."}
+void handleSetName() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  int slot = doc["slot"] | -1;
+  const char* name = doc["name"] | "";
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
+    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
+    return;
+  }
+  strncpy(pumps[slot].name, name, sizeof(pumps[slot].name) - 1);
+  pumps[slot].name[sizeof(pumps[slot].name) - 1] = '\0';
+  savePumpTable();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -500,31 +531,6 @@ void setup() {
   server.on("/assign", HTTP_POST, handleAssign);
   server.on("/name", HTTP_POST, handleSetName);
   server.begin();
-}
-
-// POST /name  body: {"slot": N, "name": "..."}
-void handleSetName() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
-  int slot = doc["slot"] | -1;
-  const char* name = doc["name"] | "";
-  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
-    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
-    return;
-  }
-  strncpy(pumps[slot].name, name, sizeof(pumps[slot].name) - 1);
-  pumps[slot].name[sizeof(pumps[slot].name) - 1] = '\0';
-  savePumpTable();
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 void loop() {
