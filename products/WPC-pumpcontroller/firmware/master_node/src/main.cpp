@@ -87,7 +87,7 @@ struct PumpEntry {
   uint8_t  slot;
   bool     known;
   uint16_t pumpId;
-  uint8_t  assignedLevel;   // 0 = unassigned (stays OFF), 1..numLevels = which level drives it
+  uint8_t  assignedLevels;  // bitmask -- bit (L-1) set means this pump is assigned to level L. 0 = unassigned (stays OFF)
   bool     lastRelayState;
   bool     online;
 };
@@ -95,7 +95,7 @@ PumpEntry pumps[MAX_PUMPS];
 
 uint8_t numLevels = 3;   // configurable 1-3, persisted in NVS
 
-struct StoredPump { uint16_t pumpId; uint8_t level; };
+struct StoredPump { uint16_t pumpId; uint8_t levelMask; };
 StoredPump storedPumps[MAX_PUMPS];
 
 void initPumpTable() {
@@ -105,7 +105,7 @@ void initPumpTable() {
 void savePumpTable() {
   for (int i = 0; i < MAX_PUMPS; i++) {
     storedPumps[i].pumpId = pumps[i].known ? pumps[i].pumpId : 0;
-    storedPumps[i].level = pumps[i].assignedLevel;
+    storedPumps[i].levelMask = pumps[i].assignedLevels;
   }
   prefs.putBytes("pumpTable", storedPumps, sizeof(storedPumps));
 }
@@ -120,13 +120,13 @@ void loadPumpTable() {
     if (storedPumps[i].pumpId != 0) {
       pumps[i].known = true;
       pumps[i].pumpId = storedPumps[i].pumpId;
-      pumps[i].assignedLevel = storedPumps[i].level;
+      pumps[i].assignedLevels = storedPumps[i].levelMask;
       Serial.print(F("[NVS] restored slot "));
       Serial.print(i);
       Serial.print(F(" -> pumpId "));
       Serial.print(storedPumps[i].pumpId);
-      Serial.print(F(" level "));
-      Serial.println(storedPumps[i].level);
+      Serial.print(F(" levelMask "));
+      Serial.println(storedPumps[i].levelMask, BIN);
     }
   }
 }
@@ -297,12 +297,14 @@ bool desiredPumpState[MAX_PUMPS] = { false };
 void applyLevelLogic() {
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
     if (!pumps[slot].known) { desiredPumpState[slot] = false; continue; }
-    uint8_t lvl = pumps[slot].assignedLevel;
-    if (lvl >= 1 && lvl <= numLevels) {
-      desiredPumpState[slot] = inputs[lvl - 1].state;
-    } else {
-      desiredPumpState[slot] = false;   // unassigned -> stays off
+    bool on = false;
+    for (int lvl = 1; lvl <= numLevels; lvl++) {
+      if ((pumps[slot].assignedLevels & (1 << (lvl - 1))) && inputs[lvl - 1].state) {
+        on = true;
+        break;
+      }
     }
+    desiredPumpState[slot] = on;
   }
 }
 
@@ -363,7 +365,10 @@ void handleStatus() {
     p["online"] = pumps[i].online;
     p["relay"] = pumps[i].lastRelayState;
     p["desired"] = desiredPumpState[i];
-    p["assignedLevel"] = pumps[i].assignedLevel;
+    JsonArray lvls = p["assignedLevels"].to<JsonArray>();
+    for (int lvl = 1; lvl <= 3; lvl++) {
+      if (pumps[i].assignedLevels & (1 << (lvl - 1))) lvls.add(lvl);
+    }
   }
 
   String out;
@@ -395,7 +400,8 @@ void handleSetConfig() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
-// POST /assign  body: {"slot": N, "level": 0-3}  (0 = unassign)
+// POST /assign  body: {"slot": N, "level": 1-3, "assigned": true/false}
+// Toggles ONE level's membership -- a pump can now have multiple levels set.
 void handleAssign() {
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"error\":\"missing body\"}");
@@ -409,16 +415,20 @@ void handleAssign() {
   }
   int slot = doc["slot"] | -1;
   int level = doc["level"] | -1;
-  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known || level < 0 || level > 3) {
+  bool assigned = doc["assigned"] | false;
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known || level < 1 || level > 3) {
     server.send(400, "application/json", "{\"error\":\"invalid slot/level\"}");
     return;
   }
-  pumps[slot].assignedLevel = (uint8_t)level;
+  uint8_t bit = 1 << (level - 1);
+  if (assigned) pumps[slot].assignedLevels |= bit;
+  else pumps[slot].assignedLevels &= ~bit;
   savePumpTable();
   Serial.print(F("[ASSIGN] slot "));
   Serial.print(slot);
-  Serial.print(F(" -> level "));
-  Serial.println(level);
+  Serial.print(F(" level "));
+  Serial.print(level);
+  Serial.println(assigned ? F(" -> ON") : F(" -> OFF"));
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", "{\"ok\":true}");
 }
