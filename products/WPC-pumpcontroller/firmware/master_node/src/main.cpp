@@ -519,7 +519,9 @@ void setup() {
   // Open AP for now -- pairing/network security deferred, matching the
   // earlier project decision (see docs). App connects directly to this
   // SoftAP to reach the status endpoint.
-  String apSsid = "WPC-Master-" + String(masterId32 & 0xFFFF, HEX);
+  char apSuffix[5];
+  snprintf(apSuffix, sizeof(apSuffix), "%04X", (unsigned int)(masterId32 & 0xFFFF));
+  String apSsid = "WPC-Master-" + String(apSuffix);
   WiFi.softAP(apSsid.c_str());
   Serial.print(F("[WIFI] AP started: "));
   Serial.println(apSsid);

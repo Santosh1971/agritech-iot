@@ -295,7 +295,9 @@ void setup() {
   startReceive();
   lastJoinAttemptMs = 0;
 
-  String apSsid = "WPC-Pump-" + String(myPumpId);
+  char apSuffix[5];
+  snprintf(apSuffix, sizeof(apSuffix), "%04u", (unsigned int)(myPumpId % 10000));
+  String apSsid = "WPC-Pump-" + String(apSuffix);
   WiFi.softAP(apSsid.c_str());
   Serial.print(F("[WIFI] AP started: "));
   Serial.println(apSsid);
