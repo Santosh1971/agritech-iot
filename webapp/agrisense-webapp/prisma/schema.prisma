@@ -32,10 +32,9 @@ enum CommandStatus {
 
 model User {
   id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
+  phone         String   @unique // primary login identifier — OTP-based auth, no password
+  email         String?  @unique // optional, for notifications only
   name          String
-  phone         String?
   role          Role     @default(CUSTOMER)
   createdAt     DateTime @default(now())
 
@@ -44,13 +43,24 @@ model User {
   commandsSent    Command[]
 }
 
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone, expiresAt])
+}
+
 model Device {
   id          String   @id @default(cuid())
   deviceId    String   @unique // MAC-suffixed, e.g. "FG1_A1B2" — matches firmware's own ID scheme
   product     Product
   name        String   // friendly name set by owner/dealer, e.g. "North nursery pump"
-  ownerId     String
-  owner       User     @relation("DeviceOwner", fields: [ownerId], references: [id])
+  ownerId     String?  // null until Admin assigns the device to a customer
+  owner       User?    @relation("DeviceOwner", fields: [ownerId], references: [id])
   dealerId    String?
   dealer      User?    @relation("DeviceDealer", fields: [dealerId], references: [id])
 

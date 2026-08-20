@@ -26,12 +26,49 @@ VPS, separate from the AlgoMomentum Bridge.
 
 One app, role-based — no separate admin app needed (same call WM1-Mini's spec already made).
 
-## Not yet decided / open questions for next session
+## Decisions locked in
 
-- Auth approach: NextAuth (same as Bridge) vs something simpler, given this app also needs role-based
-  dealer access (Bridge only had Admin/User)
-- Whether TH Monitor and FG1's existing MQTT topics get migrated to the new convention immediately,
-  or keep running as-is until each product's next firmware update
-- Backend service that subscribes to `agrisense/#` and writes Reading/Device.lastStatus rows —
-  a small always-running Node process (PM2-managed) separate from the Next.js app itself, or a
-  Next.js API route triggered by the MQTT client — needs a decision once we're actually on the VPS
+- **Auth: phone number + OTP**, not email/password. Fits the farmer/dealer customer base better than
+  Bridge's email/password NextAuth setup — no password to remember, matches how they already use
+  WhatsApp/UPI. SMS OTP via an India-focused gateway (MSG91 or Fast2SMS, TBD which). `OtpCode` model
+  added to the schema; `User.phone` is now the unique login identifier, email is optional/notification-only.
+- **All AgriTech products migrate** to the new broker + unified topic scheme (FG1, FM1, WM1, WPC, TH) —
+  Girish may be an exception if he goes ahead with his own software instead.
+- **MQTT-to-Postgres bridge is a separate standalone Node process**, PM2-managed, independent from the
+  Next.js app — subscribes to `agrisense/#`, writes Reading/Device.lastStatus rows directly via Prisma.
+  Keeps telemetry ingestion running uninterrupted during web app deploys/restarts.
+
+## What's scaffolded now
+
+- `app/` — Next.js App Router: `/login` (phone entry → OTP entry), `/dashboard` (role-scoped device
+  list, server-rendered), `middleware.ts` protecting all routes except login/auth API
+- `app/api/auth/request-otp`, `app/api/auth/verify-otp` — OTP flow, session issued as an httpOnly
+  JWT cookie (`lib/session.ts`)
+- `lib/sms.ts` — stub for the SMS gateway call; has a dev-mode console.log fallback so you can test
+  the whole login flow locally before a real gateway (MSG91/Fast2SMS) is wired in
+- `bridge/` — standalone MQTT-to-Postgres service (see decisions above), separate `package.json` so
+  it runs as its own PM2 process independent of the Next.js app
+- Note: **users are provisioned by Admin, not self-signup** — matches the WM1-Mini access model
+  where Admin assigns devices to dealers/customers. A phone number that passes OTP but has no
+  matching `User` row gets a clear "not registered, contact your dealer" message rather than an
+  account being silently created.
+
+## Running locally (before the VPS is reachable)
+
+```bash
+cd webapp/agrisense-webapp
+npm install
+cp .env.example .env   # point DATABASE_URL at a local Postgres, or use a free Neon/Supabase dev DB
+npx prisma generate
+npx prisma migrate dev --name init
+npm run dev
+```
+
+OTP codes print to the terminal in dev mode (see `lib/sms.ts`) — no SMS gateway needed to test the
+login flow end-to-end. You'll need at least one `User` row in the DB to actually log in past OTP
+(Prisma Studio — `npx prisma studio` — is the quickest way to add yourself as an ADMIN for testing).
+
+## Still open
+
+- Which SMS OTP gateway (MSG91 vs Fast2SMS) — pick once we're setting up env vars on the VPS
+- Whether TH Monitor and FG1's existing MQTT topics migrate immediately or at their next firmware update
