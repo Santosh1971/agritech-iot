@@ -4,23 +4,21 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
-  ADMIN     // Santosh, Avinash — sees everything
-  DEALER    // e.g. Kamta — sees only devices assigned to them, full control
-  CUSTOMER  // e.g. Girish, Vinay — sees only their own devices
+  ADMIN
+  DEALER
+  CUSTOMER
 }
 
 enum Product {
-  FG1      // Flow Guard
-  FM1      // Flow Master
-  WM1_MINI // Water Manager Mini (WiFi only)
-  WM1_PRO  // Water Manager Pro (WiFi + LoRa)
-  WPC      // Wireless Pump Controller
-  TH       // Temperature/Humidity Monitor
-  // PC (GSM Pump Controller) intentionally excluded — SMS-based, no MQTT/cloud presence
+  FG1
+  FM1
+  WM1_MINI
+  WM1_PRO
+  WPC
+  TH
 }
 
 enum CommandStatus {
@@ -32,8 +30,8 @@ enum CommandStatus {
 
 model User {
   id            String   @id @default(cuid())
-  phone         String   @unique // primary login identifier — OTP-based auth, no password
-  email         String?  @unique // optional, for notifications only
+  phone         String   @unique
+  email         String?  @unique
   name          String
   role          Role     @default(CUSTOMER)
   createdAt     DateTime @default(now())
@@ -55,18 +53,18 @@ model OtpCode {
 }
 
 model Device {
-  id          String   @id @default(cuid())
-  deviceId    String   @unique // MAC-suffixed, e.g. "FG1_A1B2" — matches firmware's own ID scheme
+  id          String    @id @default(cuid())
+  deviceId    String    @unique
   product     Product
-  name        String   // friendly name set by owner/dealer, e.g. "North nursery pump"
-  ownerId     String?  // null until Admin assigns the device to a customer
-  owner       User?    @relation("DeviceOwner", fields: [ownerId], references: [id])
+  name        String
+  ownerId     String?
+  owner       User?     @relation("DeviceOwner", fields: [ownerId], references: [id])
   dealerId    String?
-  dealer      User?    @relation("DeviceDealer", fields: [dealerId], references: [id])
+  dealer      User?     @relation("DeviceDealer", fields: [dealerId], references: [id])
 
-  lastStatus  Json?    // last retained payload from agrisense/<product>/<deviceId>/status
+  lastStatus  Json?
   lastSeenAt  DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   readings    Reading[]
   commands    Command[]
@@ -75,14 +73,11 @@ model Device {
   @@index([dealerId])
 }
 
-// Generic telemetry store — payload shape is product-specific (flow rate, temp/humidity,
-// valve/relay states, etc.), kept as JSON rather than one table per product so new products
-// don't need a migration to start logging data.
 model Reading {
-  id        String   @id @default(cuid())
-  deviceId  String
-  device    Device   @relation(fields: [deviceId], references: [id])
-  payload   Json
+  id         String   @id @default(cuid())
+  deviceId   String
+  device     Device   @relation(fields: [deviceId], references: [id])
+  payload    Json
   recordedAt DateTime @default(now())
 
   @@index([deviceId, recordedAt])
@@ -90,10 +85,10 @@ model Reading {
 
 model Command {
   id         String        @id @default(cuid())
-  cmdId      String        @unique @default(uuid()) // correlates with cmd/ack topic payload
+  cmdId      String        @unique @default(uuid())
   deviceId   String
   device     Device        @relation(fields: [deviceId], references: [id])
-  payloadId  String        // e.g. "SetParameter", "SystemReset", "SetTime"
+  payloadId  String
   params     Json?
   status     CommandStatus @default(SENT)
   sentById   String
