@@ -10,9 +10,12 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.0.0",
+    "jose": "^6.2.9",
     "jsonwebtoken": "^9.0.2",
     "next": "^15.0.0",
+    "pg": "^8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

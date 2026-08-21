@@ -1,6 +1,6 @@
-import jwt from "jsonwebtoken";
+import { SignJWT, jwtVerify } from "jose";
 
-const SECRET = process.env.JWT_SECRET as string;
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET as string);
 
 export type SessionPayload = {
   userId: string;
@@ -8,13 +8,18 @@ export type SessionPayload = {
   role: "ADMIN" | "DEALER" | "CUSTOMER";
 };
 
-export function signSession(payload: SessionPayload): string {
-  return jwt.sign(payload, SECRET, { expiresIn: "30d" });
+export async function signSession(payload: SessionPayload): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(SECRET);
 }
 
-export function verifySession(token: string): SessionPayload | null {
+export async function verifySession(token: string): Promise<SessionPayload | null> {
   try {
-    return jwt.verify(token, SECRET) as SessionPayload;
+    const { payload } = await jwtVerify(token, SECRET);
+    return payload as unknown as SessionPayload;
   } catch {
     return null;
   }

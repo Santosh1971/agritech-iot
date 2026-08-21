@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
   const token = (await cookies()).get("agrisense_session")?.value;
-  const session = token ? verifySession(token) : null;
+  const session = token ? await verifySession(token) : null;
   if (!session) return null; // middleware already redirects; this satisfies TS
 
   // Role-scoped device query — matches the Admin/Dealer/Customer access model.

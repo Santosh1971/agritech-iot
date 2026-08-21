@@ -3,7 +3,7 @@ import { verifySession } from "@/lib/session";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/request-otp", "/api/auth/verify-otp"];
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next")) {
@@ -11,7 +11,7 @@ export function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get("agrisense_session")?.value;
-  const session = token ? verifySession(token) : null;
+  const session = token ? await verifySession(token) : null;
 
   if (!session) {
     return NextResponse.redirect(new URL("/login", req.url));

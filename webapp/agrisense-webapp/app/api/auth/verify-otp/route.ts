@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const token = signSession({ userId: user.id, phone: user.phone, role: user.role });
+  const token = await signSession({ userId: user.id, phone: user.phone, role: user.role });
 
   const res = NextResponse.json({ ok: true, role: user.role });
   res.cookies.set("agrisense_session", token, {
