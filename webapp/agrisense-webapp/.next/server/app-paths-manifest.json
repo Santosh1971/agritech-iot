@@ -1,0 +1,4 @@
+{
+  "/api/auth/request-otp/route": "app/api/auth/request-otp/route.js",
+  "/login/page": "app/login/page.js"
+}
