@@ -19,6 +19,8 @@ class LocalSetupScreen extends ConsumerStatefulWidget {
 class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   bool _connected = false;
   bool _connecting = false;
+  bool _scanning = false;
+  List<Map<String, dynamic>> _scanResults = [];
   StreamSubscription? _respSub;
   Map<String, dynamic>? _deviceInfo;
 
@@ -65,6 +67,22 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     final ok  = msg['ok'] == true;
     if (cmd == 'device_info' && ok) {
       setState(() => _deviceInfo = msg['data'] as Map<String, dynamic>?);
+      return;
+    }
+    if (cmd == 'wifi_scan') {
+      // Two different messages both arrive tagged cmd=='wifi_scan':
+      // the immediate {"scanning":true} ack (data is a Map — keep
+      // spinning), and the real result once the async scan finishes
+      // (data is a List — that's when we actually stop).
+      if (ok && msg['data'] is List) {
+        setState(() {
+          _scanning = false;
+          _scanResults = (msg['data'] as List)
+              .map((e) => e as Map<String, dynamic>)
+              .toList()
+            ..sort((a, b) => (b['rssi'] as int).compareTo(a['rssi'] as int));
+        });
+      }
       return;
     }
     if (!mounted) return;
@@ -124,6 +142,43 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
 
           _sectionTitle('Home WiFi (for cloud mode)'),
           _card(child: Column(children: [
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              onPressed: (_connected && !_scanning) ? () {
+                setState(() => _scanning = true);
+                _send({'cmd': 'wifi_scan'});
+              } : null,
+              icon: _scanning
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.wifi_find),
+              label: Text(_scanning ? 'Scanning...' : 'Scan for Networks'),
+            )),
+            if (_scanResults.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _scanResults.length,
+                  itemBuilder: (context, i) {
+                    final net = _scanResults[i];
+                    final ssid = net['ssid'] as String;
+                    final rssi = net['rssi'] as int;
+                    final open = net['open'] == true;
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(
+                        rssi > -60 ? Icons.wifi : (rssi > -75 ? Icons.wifi_2_bar : Icons.wifi_1_bar),
+                      ),
+                      title: Text(ssid),
+                      trailing: open ? const Icon(Icons.lock_open, size: 16) : const Icon(Icons.lock, size: 16),
+                      onTap: () => setState(() => _wifiSsidCtrl.text = ssid),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             TextField(controller: _wifiSsidCtrl,
                 autocorrect: false,
                 enableSuggestions: false,

@@ -46,6 +46,7 @@ public:
     void publishStatus(const String& json);
     void publishActiveCycle(const String& json);
     void publishCycles(const String& json);
+    void publishWifiScanResult(const String& json);
     bool publishHistory(const String& json);
 
     std::function<String(const String& cmd, const JsonObject& payload)> onCommand;

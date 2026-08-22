@@ -91,6 +91,9 @@ void LocalServer::publishCycles(const String& json) {
     _lastCycles = json;
     _broadcast("cycles", json);
 }
+void LocalServer::publishWifiScanResult(const String& json) {
+    _broadcast("wifi_scan_result", json);
+}
 bool LocalServer::publishHistory(const String& json) {
     _lastHistory = json;
     _broadcast("history", json);

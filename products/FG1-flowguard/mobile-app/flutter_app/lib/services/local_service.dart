@@ -107,6 +107,15 @@ class LocalService implements DeviceService {
         } else if (type == 'history' && data is List) {
           _historyController.add(
               data.map((e) => HistoryEntry.fromJson(e as Map<String, dynamic>)).toList());
+        } else if (type == 'wifi_scan_result') {
+          // Scan results arrive as a broadcast (not a direct command
+          // response) since the firmware now kicks off the scan async
+          // and pushes results once ready, rather than blocking the
+          // command handler for the scan's duration. Re-wrap into the
+          // same {"ok","cmd","data"} shape provisioning screens already
+          // consume via responseStream, so nothing downstream needs two
+          // separate code paths.
+          _responseController.add({'ok': true, 'cmd': 'wifi_scan', 'data': data});
         }
         return;
       }

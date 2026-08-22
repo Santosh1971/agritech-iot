@@ -1,21 +1,47 @@
 #include "WiFiScanner.h"
 #include <ArduinoJson.h>
 
-String WiFiScanner::scanAsJson() {
-    Serial.println("[WiFi] Scanning networks...");
-    // Negative results (WIFI_SCAN_FAILED=-1, WIFI_SCAN_RUNNING=-2) usually
-    // mean the radio was transiently busy — most likely the background
-    // WiFi retry (see main.cpp's beginBackgroundRetry) mid-attempt, since
-    // WiFi.begin() itself does an internal scan-for-AP as part of
-    // connecting. Retry a few times with a short gap rather than
-    // reporting "0 networks found" for what's actually a busy radio.
-    int found = WiFi.scanNetworks();
-    for (int attempt = 0; found < 0 && attempt < 3; attempt++) {
-        Serial.printf("[WiFi] Scan busy (code %d) — retrying...\n", found);
-        delay(500);
-        found = WiFi.scanNetworks();
+void WiFiScanner::startScan() {
+    Serial.println("[WiFi] Scanning networks (async)...");
+    _lastFound = WIFI_SCAN_RUNNING;
+    _retries = 0;
+    // Default per-channel dwell (~120ms) is often too short to catch
+    // other APs' beacon frames while concurrently running our own
+    // SoftAP — confirmed on real hardware (scan technically succeeded
+    // but consistently found 0 networks). Explicit params: async=true,
+    // show_hidden=false, passive=false (active probe — faster and more
+    // reliable than passive for this case), max_ms_per_chan=500 (up
+    // from the ~120ms default).
+    WiFi.scanNetworks(true, false, false, 500);
+}
+
+bool WiFiScanner::checkComplete() {
+    int result = WiFi.scanComplete();
+
+    if (result == WIFI_SCAN_RUNNING) {
+        _lastFound = result;
+        return false;
     }
 
+    if (result == WIFI_SCAN_FAILED && _retries < MAX_RETRIES) {
+        _retries++;
+        Serial.printf("[WiFi] Scan failed — retrying (%d/%d)...\n", _retries, MAX_RETRIES);
+        WiFi.scanNetworks(true);
+        _lastFound = WIFI_SCAN_RUNNING;
+        return false;
+    }
+
+    // Either a real result (>=0) or we've exhausted retries on repeated
+    // failure — either way, this is final.
+    _lastFound = result;
+    return true;
+}
+
+String WiFiScanner::resultAsJson() {
+    // Reuse the count from checkComplete()'s read — do NOT call
+    // WiFi.scanComplete() again here, since the driver's internal state
+    // can shift between two separate calls in concurrent AP+STA mode.
+    int found = _lastFound;
     JsonDocument doc;
     JsonArray arr = doc.to<JsonArray>();
     if (found > 0) {

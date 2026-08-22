@@ -51,6 +51,15 @@ RetryState retryState     = RETRY_IDLE;
 // in progress) wasn't enough — a fresh retry could still start mid-scan.
 // volatile since it's read/written across those two task contexts.
 volatile bool wifiScanInProgress = false;
+// Set when a wifi_scan command has kicked off an async scan and loop()
+// still needs to poll for/publish the result.
+bool wifiScanPending = false;
+// scanNetworks(true) doesn't flag WIFI_SCAN_RUNNING instantaneously —
+// polling scanComplete() in the SAME loop() iteration the scan was
+// started in can read a stale/transient state and be mistaken for
+// "done". Give the driver a brief moment before the first poll.
+uint32_t wifiScanStartMs = 0;
+const uint32_t WIFI_SCAN_MIN_WAIT_MS = 300;
 uint32_t   retryStartMs   = 0;
 const uint32_t RETRY_CONNECT_TIMEOUT_MS = 8000;
 
@@ -476,25 +485,22 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
     }
 
     if (cmd == "wifi_scan") {
-        // Wait out any retry already in flight — beginBackgroundRetry()'s
-        // WiFi.begin() call occupies the radio for up to
-        // RETRY_CONNECT_TIMEOUT_MS, and scanning at the same time
-        // reliably returns WIFI_SCAN_RUNNING (-2) rather than real
-        // results (seen repeatedly in testing — a short retry loop alone
-        // wasn't enough).
-        uint32_t waitStart = millis();
-        while (retryState == RETRY_CONNECTING &&
-               millis() - waitStart < RETRY_CONNECT_TIMEOUT_MS) {
-            delay(100);
-            pollBackgroundRetry();
+        // Does NOT wait for or run the scan here at all — blocking this
+        // handler (even with an "async" scan polled via delay()) was
+        // confirmed on real hardware to still starve the async_tcp task
+        // and crash the device via watchdog. Instead: kick the scan off
+        // and return immediately; loop() polls for completion and
+        // pushes the result out as a "wifi_scan_result" broadcast once
+        // ready (see wifiScanPending below) — the same non-blocking
+        // push pattern already used for status/cycles/history.
+        if (retryState == RETRY_CONNECTING) {
+            return "{\"scanning\":false,\"error\":\"wifi busy, try again shortly\"}";
         }
-        // Block a NEW retry from starting while the scan itself runs —
-        // loop() (different core) would otherwise happily start one
-        // mid-scan.
         wifiScanInProgress = true;
-        String result = wifiScanner.scanAsJson();
-        wifiScanInProgress = false;
-        return result;
+        wifiScanPending = true;
+        wifiScanStartMs = millis();
+        wifiScanner.startScan();
+        return "{\"scanning\":true}";
     }
     if (cmd == "device_info") return buildStatusJSON();
 
@@ -631,6 +637,16 @@ void loop() {
     localServer.loop();
     mqtt.loop();
     scheduler.loop();
+
+    // Non-blocking check — WiFi.scanComplete() just reads a status flag,
+    // costs nothing when no scan is pending.
+    if (wifiScanPending && millis() - wifiScanStartMs >= WIFI_SCAN_MIN_WAIT_MS &&
+        wifiScanner.checkComplete()) {
+        wifiScanPending = false;
+        String json = wifiScanner.resultAsJson();
+        wifiScanInProgress = false;
+        localServer.publishWifiScanResult(json);
+    }
 
     if (pendingFactoryReset && millis() >= pendingFactoryResetAt) {
         nvs.factoryReset();
