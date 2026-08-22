@@ -125,6 +125,8 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
           _sectionTitle('Home WiFi (for cloud mode)'),
           _card(child: Column(children: [
             TextField(controller: _wifiSsidCtrl,
+                autocorrect: false,
+                enableSuggestions: false,
                 decoration: const InputDecoration(labelText: 'SSID')),
             const SizedBox(height: 8),
             TextField(controller: _wifiPassCtrl, obscureText: true,
