@@ -13,7 +13,9 @@ class MqttService implements DeviceService {
   // genuinely different, auth-required broker from what firmware
   // actually defaults to. That mismatch meant the app and device could
   // never rendezvous over Cloud mode even when both had real internet.
-  static const String _broker = 'mqtt.grty.co.in';
+  static const String _broker = 'mqtt.agrisenseandcontrol.in';
+  static const String _mqttUser = 'fg1-device';
+  static const String _mqttPass = 'asacfg1';
   static const int    _port   = 1883;
 
   // Topics are now scoped to a specific physical device via its 4-char
@@ -26,7 +28,7 @@ class MqttService implements DeviceService {
   late final String _topicStatus, _topicCmd, _topicHistory, _topicCycles;
 
   MqttService({required this.deviceSuffix}) {
-    final base = 'swc/SWC_001/$deviceSuffix';
+    final base = 'agrisense/FG1/SWC_001_$deviceSuffix';
     _topicStatus  = '$base/status';
     _topicCmd     = '$base/command';
     _topicHistory = '$base/history';
@@ -66,6 +68,7 @@ class MqttService implements DeviceService {
 
     final connMsg = MqttConnectMessage()
         .withClientIdentifier(clientId)
+        .authenticateAs(_mqttUser, _mqttPass)
         .startClean();
     _client!.connectionMessage = connMsg;
 

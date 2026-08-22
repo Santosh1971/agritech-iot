@@ -49,5 +49,5 @@ private:
     char     _pass[64]    = {0};
 
     String _deviceId;
-    String _topicStatus, _topicHistory, _topicActive, _topicCycles, _topicCmd;
+    String _topicStatus, _topicHistory, _topicActive, _topicCycles, _topicCmd, _topicLwt;
 };

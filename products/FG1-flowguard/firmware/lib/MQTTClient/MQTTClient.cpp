@@ -31,11 +31,12 @@ void MQTTHandler::begin(const char* broker, uint16_t port, const char* user, con
     // device's session properly instead of treating every reconnect as
     // an unrelated new client).
     _deviceId     = String(DEVICE_ID) + "_" + macSuffix;
-    _topicStatus  = "swc/" DEVICE_ID "/" + macSuffix + "/status";
-    _topicHistory = "swc/" DEVICE_ID "/" + macSuffix + "/history";
-    _topicActive  = "swc/" DEVICE_ID "/" + macSuffix + "/active_cycle";
-    _topicCycles  = "swc/" DEVICE_ID "/" + macSuffix + "/cycles";
-    _topicCmd     = "swc/" DEVICE_ID "/" + macSuffix + "/command";
+    _topicStatus  = "agrisense/FG1/" + _deviceId + "/status";
+    _topicHistory = "agrisense/FG1/" + _deviceId + "/history";
+    _topicActive  = "agrisense/FG1/" + _deviceId + "/active_cycle";
+    _topicCycles  = "agrisense/FG1/" + _deviceId + "/cycles";
+    _topicCmd     = "agrisense/FG1/" + _deviceId + "/command";
+    _topicLwt     = "agrisense/FG1/" + _deviceId + "/lwt";
 
     _mqtt.setClient(_wifiClient);
     _mqtt.setServer(_broker, _port);
@@ -60,11 +61,13 @@ void MQTTHandler::loop() {
 
 void MQTTHandler::_reconnect() {
     Serial.printf("[MQTT] Connecting as %s...\n", _deviceId.c_str());
-    bool ok = (strlen(_user) > 0)
-              ? _mqtt.connect(_deviceId.c_str(), _user, _pass)
-              : _mqtt.connect(_deviceId.c_str());
+    bool ok = _mqtt.connect(
+        _deviceId.c_str(), _user, _pass,
+        _topicLwt.c_str(), 1, true, "{\"online\":false}"
+    );
     if (ok) {
         Serial.println("[MQTT] Connected");
+        _mqtt.publish(_topicLwt.c_str(), "{\"online\":true}", true);
         _mqtt.subscribe(_topicCmd.c_str());
         Serial.printf("[MQTT] Subscribed to %s\n", _topicCmd.c_str());
     } else {

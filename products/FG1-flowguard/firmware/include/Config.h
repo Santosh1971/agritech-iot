@@ -11,10 +11,10 @@
 #define BLE_CHAR_TX_UUID        "12345678-1234-1234-1234-123456789abe"
 
 // ---------- MQTT ----------
-#define MQTT_BROKER         "mqtt.grty.co.in"
+#define MQTT_BROKER         "mqtt.agrisenseandcontrol.in"
 #define MQTT_PORT           1883
-#define MQTT_USER           ""
-#define MQTT_PASS           ""
+#define MQTT_USER           "fg1-device"
+#define MQTT_PASS           "asacfg1"
 // Topics are now built at runtime in MQTTClient.cpp from the actual
 // per-device ID (see computeDeviceId() in main.cpp) — these used to be
 // fixed here at compile time as "swc/SWC_001/...", which every physical
@@ -56,7 +56,7 @@
 
 // ---------- Timing ----------
 #define STATUS_PUBLISH_INTERVAL_MS   5000
-#define SCHEDULE_CHECK_INTERVAL_MS   30000
+#define SCHEDULE_CHECK_INTERVAL_MS   1000
 #define STATE_SAVE_INTERVAL_MS       10000
 
 // ---------- LED Blink Patterns ----------

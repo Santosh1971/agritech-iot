@@ -8,6 +8,8 @@ void Scheduler::begin(NVSManager* nvs, RTCManager* rtc,
     _relay = relay;
     _cycleCount = _nvs->loadCycles(_cycles);
     memset(&_state, 0, sizeof(_state));
+    _lastScheduleCheck = 0;
+    _checkSchedule(); // check immediately on boot, don't wait for first interval tick
     Serial.printf("[SCHED] Ready — %d cycles loaded\n", _cycleCount);
 }
 
