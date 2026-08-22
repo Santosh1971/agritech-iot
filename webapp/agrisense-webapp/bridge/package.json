@@ -7,7 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.0.0",
-    "mqtt": "^5.10.0"
+    "dotenv": "^17.4.2",
+    "mqtt": "^5.10.0",
+    "pg": "^8.23.0"
   }
 }
