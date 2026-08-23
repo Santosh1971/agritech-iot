@@ -8,13 +8,22 @@
 // ---------- Cycle struct ----------
 enum OperationMode { LITER_BASED, TIME_BASED, TIME_WINDOW_LITER };
 
+// durationMinutes replaces the old endHour/endMinute fixed-clock-time
+// field. A fixed end time meant a power outage mid-cycle silently
+// shortened the actual run: the pump would stop at the same wall-clock
+// time regardless of how long it had been off, so "10am-10:10am" could
+// deliver anywhere from 0 to 10 minutes of real pump time depending on
+// when the outage happened. Duration is tracked as accumulated ACTIVE
+// (relay-on) seconds instead — see RunningState below — so an outage
+// simply doesn't count against it, the same way outage time already
+// doesn't count against a liter target (no flow = no liters, whether
+// the pump is off due to an outage or anything else).
 struct Cycle {
     uint8_t  id;
     char     name[32];
     uint8_t  startHour;
     uint8_t  startMinute;
-    uint8_t  endHour;
-    uint8_t  endMinute;
+    uint16_t durationMinutes;
     OperationMode mode;
     float    targetLiters;
     bool     enabled;
@@ -28,6 +37,15 @@ struct RunningState {
     float    litersDelivered;
     uint32_t startUnix;
     char     startedBy[16];   // "auto" or "manual"
+    // elapsedSeconds is the accumulated ACTIVE (relay-on) duration base,
+    // same accumulate-across-pause/resume-and-power-loss pattern as
+    // litersDelivered above. segmentStartUnix is the wall-clock time the
+    // current active segment began (reset on every resume/power-recovery)
+    // — live elapsed = elapsedSeconds + (now - segmentStartUnix) while
+    // active && !paused, mirroring how live liters are computed from the
+    // flow sensor's current-segment count on top of the persisted base.
+    uint32_t elapsedSeconds;
+    uint32_t segmentStartUnix;
 };
 
 // ---------- History entry ----------

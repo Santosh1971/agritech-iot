@@ -25,7 +25,7 @@ class MqttService implements DeviceService {
   // for one would reach all of them, and their retained status topics
   // would overwrite each other.
   final String deviceSuffix;
-  late final String _topicStatus, _topicCmd, _topicHistory, _topicCycles;
+  late final String _topicStatus, _topicCmd, _topicHistory, _topicCycles, _topicLwt;
 
   MqttService({required this.deviceSuffix}) {
     final base = 'agrisense/FG1/SWC_001_$deviceSuffix';
@@ -33,6 +33,7 @@ class MqttService implements DeviceService {
     _topicCmd     = '$base/command';
     _topicHistory = '$base/history';
     _topicCycles  = '$base/cycles';
+    _topicLwt     = '$base/lwt';
   }
 
   MqttServerClient? _client;
@@ -42,11 +43,13 @@ class MqttService implements DeviceService {
   final _historyController   = StreamController<List<HistoryEntry>>.broadcast();
   final _cyclesController    = StreamController<List<Cycle>>.broadcast();
   final _connectedController = StreamController<bool>.broadcast();
+  final _deviceOnlineController = StreamController<bool>.broadcast();
 
   Stream<DeviceStatus>       get statusStream    => _statusController.stream;
   Stream<List<HistoryEntry>> get historyStream   => _historyController.stream;
   Stream<List<Cycle>>        get cyclesStream    => _cyclesController.stream;
   Stream<bool>               get connectedStream => _connectedController.stream;
+  Stream<bool>               get deviceOnlineStream => _deviceOnlineController.stream;
 
   bool get isConnected =>
       _client?.connectionStatus?.state == MqttConnectionState.connected;
@@ -102,6 +105,7 @@ class MqttService implements DeviceService {
     _client!.subscribe(_topicStatus,  MqttQos.atMostOnce);
     _client!.subscribe(_topicHistory, MqttQos.atMostOnce);
     _client!.subscribe(_topicCycles,  MqttQos.atMostOnce);
+    _client!.subscribe(_topicLwt,     MqttQos.atMostOnce);
 
     _client!.updates?.listen(
       (List<MqttReceivedMessage<MqttMessage>> msgs) {
@@ -141,6 +145,9 @@ class MqttService implements DeviceService {
             .map((e) => Cycle.fromJson(e as Map<String, dynamic>))
             .toList();
         _cyclesController.add(list);
+      } else if (topic == _topicLwt) {
+        final json = jsonDecode(payload) as Map<String, dynamic>;
+        _deviceOnlineController.add(json['online'] == true);
       }
     } catch (e) {
       print('[MQTT] Parse error on $topic: $e');
@@ -192,6 +199,7 @@ class MqttService implements DeviceService {
   void _onDisconnected() {
     print('[MQTT] Disconnected — retrying in 5s');
     _connectedController.add(false);
+    _deviceOnlineController.add(false);
     Future.delayed(const Duration(seconds: 5), () {
       if (!isConnected) connect();
     });
@@ -202,6 +210,7 @@ class MqttService implements DeviceService {
     _historyController.close();
     _cyclesController.close();
     _connectedController.close();
+    _deviceOnlineController.close();
     try { _client?.disconnect(); } catch (_) {}
   }
 }

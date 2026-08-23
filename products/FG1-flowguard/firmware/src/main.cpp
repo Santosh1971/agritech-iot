@@ -106,6 +106,7 @@ String buildStatusJSON() {
     doc["liters_delivered"] = s.litersDelivered;
     doc["started_by"]       = s.startedBy;
     doc["cycle_start_unix"] = s.startUnix;
+    doc["elapsed_seconds"]  = s.elapsedSeconds;
     String out; serializeJson(doc, out);
     return out;
 }
@@ -122,8 +123,7 @@ String buildCyclesJSON() {
         o["name"]    = cycles[i].name;
         o["sh"]      = cycles[i].startHour;
         o["sm"]      = cycles[i].startMinute;
-        o["eh"]      = cycles[i].endHour;
-        o["em"]      = cycles[i].endMinute;
+        o["dur"]     = cycles[i].durationMinutes;
         o["mode"]    = (int)cycles[i].mode;
         o["liters"]  = cycles[i].targetLiters;
         o["enabled"] = cycles[i].enabled;
@@ -330,11 +330,10 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
             if (count >= MAX_CYCLES) break;
             cycles[count].id           = o["id"];
             strlcpy(cycles[count].name, o["name"] | "", 32);
-            cycles[count].startHour    = o["sh"];
-            cycles[count].startMinute  = o["sm"];
-            cycles[count].endHour      = o["eh"];
-            cycles[count].endMinute    = o["em"];
-            cycles[count].mode         = (OperationMode)(int)o["mode"];
+            cycles[count].startHour       = o["sh"];
+            cycles[count].startMinute     = o["sm"];
+            cycles[count].durationMinutes = o["dur"];
+            cycles[count].mode            = (OperationMode)(int)o["mode"];
             cycles[count].targetLiters = (float)o["liters"];
             cycles[count].enabled      = o["enabled"];
             count++;

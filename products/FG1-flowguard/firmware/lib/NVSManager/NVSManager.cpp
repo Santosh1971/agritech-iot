@@ -26,8 +26,7 @@ void NVSManager::saveCycles(Cycle* cycles, uint8_t count) {
         o["name"]    = cycles[i].name;
         o["sh"]      = cycles[i].startHour;
         o["sm"]      = cycles[i].startMinute;
-        o["eh"]      = cycles[i].endHour;
-        o["em"]      = cycles[i].endMinute;
+        o["dur"]     = cycles[i].durationMinutes;
         o["mode"]    = (int)cycles[i].mode;
         o["liters"]  = cycles[i].targetLiters;
         o["enabled"] = cycles[i].enabled;
@@ -53,11 +52,28 @@ uint8_t NVSManager::loadCycles(Cycle* cycles) {
         if (i >= MAX_CYCLES) break;
         cycles[i].id           = o["id"];
         strlcpy(cycles[i].name, o["name"] | "", sizeof(cycles[i].name));
-        cycles[i].startHour    = o["sh"];
-        cycles[i].startMinute  = o["sm"];
-        cycles[i].endHour      = o["eh"];
-        cycles[i].endMinute    = o["em"];
-        cycles[i].mode         = (OperationMode)(int)o["mode"];
+        cycles[i].startHour       = o["sh"];
+        cycles[i].startMinute     = o["sm"];
+        // One-time backward-compat migration: cycles saved before this
+        // schema change have no "dur" key, only the old "eh"/"em" fixed
+        // end-time fields. Convert those into an equivalent duration on
+        // load so an existing saved cycle keeps working (rather than
+        // silently loading durationMinutes as 0, which would make it
+        // complete instantly and never actually run the pump -- a real
+        // regression for any device already in the field).
+        if (o["dur"].is<int>()) {
+            cycles[i].durationMinutes = o["dur"];
+        } else if (o["eh"].is<int>() && o["em"].is<int>()) {
+            int startMins = (int)cycles[i].startHour * 60 + (int)cycles[i].startMinute;
+            int endMins   = (int)o["eh"] * 60 + (int)o["em"];
+            int mins      = endMins - startMins;
+            cycles[i].durationMinutes = (mins > 0) ? (uint16_t)mins : 0;
+            Serial.printf("[NVS] Migrated cycle %s from end-time to duration=%dmin\n",
+                          o["name"] | "", cycles[i].durationMinutes);
+        } else {
+            cycles[i].durationMinutes = 0;
+        }
+        cycles[i].mode            = (OperationMode)(int)o["mode"];
         cycles[i].targetLiters = o["liters"];
         cycles[i].enabled      = o["enabled"];
         i++;
@@ -140,6 +156,8 @@ void NVSManager::saveRunningState(const RunningState& s) {
     _prefs.putFloat("rs_liters",  s.litersDelivered);
     _prefs.putULong("rs_start",   s.startUnix);
     _prefs.putString("rs_by",     s.startedBy);
+    _prefs.putULong("rs_elapsed", s.elapsedSeconds);
+    _prefs.putULong("rs_segStart", s.segmentStartUnix);
     _prefs.end();
 }
 
@@ -152,6 +170,8 @@ bool NVSManager::loadRunningState(RunningState& s) {
     s.startUnix       = _prefs.getULong("rs_start",   0);
     String by         = _prefs.getString("rs_by",     "auto");
     strlcpy(s.startedBy, by.c_str(), sizeof(s.startedBy));
+    s.elapsedSeconds    = _prefs.getULong("rs_elapsed",  0);
+    s.segmentStartUnix  = _prefs.getULong("rs_segStart", 0);
     _prefs.end();
     return s.active;
 }

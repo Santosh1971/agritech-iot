@@ -10,7 +10,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(deviceStatusProvider);
-    final isConnected = ref.watch(deviceConnectedProvider);
+    final isConnected = ref.watch(deviceOnlineProvider);
     final mode = ref.watch(transportModeProvider);
     final themeMode = ref.watch(themeModeProvider);
     final deviceSuffix = ref.watch(deviceSuffixProvider);

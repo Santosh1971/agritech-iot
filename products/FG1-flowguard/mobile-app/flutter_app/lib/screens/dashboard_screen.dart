@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/providers.dart';
 import '../models/device_status.dart';
 import '../models/cycle.dart';
@@ -20,9 +22,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _didInitialRequest = false;
   Timer? _tickTimer;
 
+  // Last-known Today's Summary, cached on the phone (SharedPreferences) so
+  // it still shows something meaningful when the device has been offline
+  // this whole app session and historyProvider never got a live response
+  // — same "show the last known value rather than blank" principle as the
+  // MQTT-retained status/cycles topics, just implemented locally since
+  // history itself isn't retained on the broker (deliberately — it's an
+  // append-only log, not a snapshot).
+  double _cachedTodayTotal = 0;
+  double _cachedManualTotal = 0;
+  int _cachedTodayCycleCount = 0;
+  HistoryEntry? _cachedLastEntry;
+
+  Future<void> _loadCachedSummary() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedDay = prefs.getString('summary_day');
+    final today = DateTime.now();
+    final todayKey = '${today.year}-${today.month}-${today.day}';
+    // Only trust the cache if it's actually from today — yesterday's
+    // totals showing up as "today's" would be misleading, not helpful.
+    if (cachedDay != todayKey) return;
+    final lastEntryJson = prefs.getString('summary_last_entry');
+    if (!mounted) return;
+    setState(() {
+      _cachedTodayTotal = prefs.getDouble('summary_today_total') ?? 0;
+      _cachedManualTotal = prefs.getDouble('summary_manual_total') ?? 0;
+      _cachedTodayCycleCount = prefs.getInt('summary_today_count') ?? 0;
+      _cachedLastEntry = lastEntryJson == null
+          ? null
+          : HistoryEntry.fromJson(jsonDecode(lastEntryJson) as Map<String, dynamic>);
+    });
+  }
+
+  Future<void> _saveCachedSummary(double todayTotal, double manualTotal,
+      int todayCycleCount, HistoryEntry? lastEntry) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now();
+    await prefs.setString('summary_day', '${today.year}-${today.month}-${today.day}');
+    await prefs.setDouble('summary_today_total', todayTotal);
+    await prefs.setDouble('summary_manual_total', manualTotal);
+    await prefs.setInt('summary_today_count', todayCycleCount);
+    if (lastEntry != null) {
+      await prefs.setString('summary_last_entry', jsonEncode(lastEntry.toJson()));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadCachedSummary();
     // "Today's" totals are computed from DateTime.now() on every build(),
     // but build() only naturally re-runs when new data arrives (status
     // push, cycles/history update). If the connection is quiet for any
@@ -60,6 +108,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(deviceStatusProvider);
     final connected = ref.watch(deviceConnectedProvider);
+    final online = ref.watch(deviceOnlineProvider);
     final cyclesAsync = ref.watch(cyclesProvider);
     final historyAsync = ref.watch(historyProvider);
     final mqtt = ref.read(deviceServiceProvider);
@@ -79,6 +128,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final cycles = cyclesAsync.maybeWhen(data: (c) => c, orElse: () => <Cycle>[]);
     final history = historyAsync.maybeWhen(data: (h) => h, orElse: () => <HistoryEntry>[]);
+    final hasLiveHistory = historyAsync.hasValue;
 
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +150,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         // button that does nothing when tapped.
       ),
       body: statusAsync.maybeWhen(
-        data: (s) => _buildDashboard(s, mqtt, cycles, history, connected),
+        data: (s) => _buildDashboard(s, mqtt, cycles, history, connected, online, hasLiveHistory),
         orElse: () => _buildLoading(connected),
       ),
     );
@@ -134,22 +184,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildDashboard(DeviceStatus s, DeviceService mqtt,
       List<Cycle> cycles, List<HistoryEntry> history,
-      bool connected) {
+      bool connected, bool online, bool hasLiveHistory) {
     // Today's real totals, computed from history — not the live
     // current-cycle field, which is legitimately 0 whenever nothing is
     // actively running right now.
     final now = DateTime.now();
-    final todayEntries = history.where((h) =>
-        h.dateTime.year == now.year &&
-        h.dateTime.month == now.month &&
-        h.dateTime.day == now.day);
-    final todayTotal = todayEntries.fold<double>(0, (sum, h) => sum + h.litersDelivered);
-    final manualTotal = todayEntries
-        .where((h) => h.status == 'manual')
-        .fold<double>(0, (sum, h) => sum + h.litersDelivered);
-    final todayCycleCount = todayEntries.length;
-    final lastEntry = history.isEmpty ? null : history.reduce(
-        (a, b) => a.timestamp >= b.timestamp ? a : b);
+    double todayTotal;
+    double manualTotal;
+    int todayCycleCount;
+    HistoryEntry? lastEntry;
+    if (hasLiveHistory) {
+      final todayEntries = history.where((h) =>
+          h.dateTime.year == now.year &&
+          h.dateTime.month == now.month &&
+          h.dateTime.day == now.day);
+      todayTotal = todayEntries.fold<double>(0, (sum, h) => sum + h.litersDelivered);
+      manualTotal = todayEntries
+          .where((h) => h.status == 'manual')
+          .fold<double>(0, (sum, h) => sum + h.litersDelivered);
+      todayCycleCount = todayEntries.length;
+      lastEntry = history.isEmpty ? null : history.reduce(
+          (a, b) => a.timestamp >= b.timestamp ? a : b);
+      _saveCachedSummary(todayTotal, manualTotal, todayCycleCount, lastEntry);
+    } else {
+      // No live history response this session (device offline the whole
+      // time, most likely) — fall back to the last successfully computed
+      // summary, cached locally on the phone, rather than showing 0/blank
+      // just because this particular session never got a fresh answer.
+      todayTotal = _cachedTodayTotal;
+      manualTotal = _cachedManualTotal;
+      todayCycleCount = _cachedTodayCycleCount;
+      lastEntry = _cachedLastEntry;
+    }
 
     // Next scheduled cycle — nearest enabled cycle's start time from now,
     // wrapping to tomorrow if everything today has already passed (cycles
@@ -175,7 +241,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _DeviceBanner(status: s, connected: connected),
+          _DeviceBanner(status: s, connected: online),
           const SizedBox(height: 16),
 
           Row(children: [
@@ -238,11 +304,10 @@ class _DeviceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Whether the APP can actually talk to the device right now — true in
-    // both Local (SoftAP) and Cloud (MQTT) modes when the transport is up.
-    // status.mqttConnected is the firmware's OWN cloud link and is
-    // legitimately false in local mode, so it was never the right signal
-    // for this banner.
+    // Whether the DEVICE ITSELF is actually online right now — driven by
+    // deviceOnlineProvider (LWT-based in Cloud mode), not just whether the
+    // phone has a link to the broker (which stays up even when the device
+    // is powered off, since the broker is on a separate always-on server).
     final online = connected;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -414,8 +479,8 @@ class _ActiveCycleCard extends StatelessWidget {
     final start = status.cycleStartTime;
     final startStr = start == null ? '--:--'
         : formatTime12(start.hour, start.minute);
-    final endStr = (cfg != null && cfg.mode != OperationMode.literBased)
-        ? cfg.endTimeStr : '--:--';
+    final durationStr = (cfg != null && cfg.mode != OperationMode.literBased)
+        ? cfg.durationStr : '--';
     final targetStr = cfg != null && cfg.mode != OperationMode.timeBased
         ? '${cfg.targetLiters.toStringAsFixed(1)} L' : '--';
 
@@ -427,6 +492,26 @@ class _ActiveCycleCard extends StatelessWidget {
         ? (cfg.targetLiters - status.litersDelivered).clamp(0.0, cfg.targetLiters) : null;
     final progress = hasTarget
         ? (status.litersDelivered / cfg.targetLiters).clamp(0.0, 1.0) : null;
+
+    // Duration progress — the counterpart to the liters progress above,
+    // for modes that have a duration target (timeBased, timeWindowLiter).
+    // elapsedSeconds is the firmware's accumulated ACTIVE (relay-on)
+    // time, so this stays accurate across a pause/resume or even a
+    // power-outage mid-cycle — it's driven by the same field the
+    // firmware itself uses to decide when to stop.
+    final hasDuration = cfg != null && cfg.mode != OperationMode.literBased
+        && cfg.durationMinutes > 0;
+    final durationTargetSecs = hasDuration ? cfg.durationMinutes * 60 : 0;
+    final elapsedSecs = status.elapsedSeconds;
+    final remainingSecs = hasDuration
+        ? (durationTargetSecs - elapsedSecs).clamp(0, durationTargetSecs) : null;
+    final durationProgress = hasDuration
+        ? (elapsedSecs / durationTargetSecs).clamp(0.0, 1.0) : null;
+    String fmtMinSec(int totalSeconds) {
+      final m = totalSeconds ~/ 60;
+      final s = totalSeconds % 60;
+      return m > 0 ? '${m}m ${s}s' : '${s}s';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -453,10 +538,34 @@ class _ActiveCycleCard extends StatelessWidget {
           child: Column(children: [
             Row(children: [
               _CycleDetailItem(label: 'Start Time', value: startStr),
-              _CycleDetailItem(label: 'End Time', value: endStr),
+              _CycleDetailItem(label: 'Duration', value: durationStr),
               _CycleDetailItem(label: 'Target', value: targetStr),
             ]),
             const Divider(height: 16),
+            if (hasDuration) ...[
+              Row(children: [
+                _CycleDetailItem(
+                    label: 'Elapsed',
+                    value: fmtMinSec(elapsedSecs),
+                    valueColor: const Color(0xFF2196F3)),
+                _CycleDetailItem(label: 'Remaining',
+                    value: remainingSecs == null ? '--' : fmtMinSec(remainingSecs),
+                    valueColor: const Color(0xFFFF9800)),
+                _CycleDetailItem(label: 'Progress',
+                    value: durationProgress == null ? '--%'
+                        : '${(durationProgress * 100).toStringAsFixed(0)}%',
+                    valueColor: const Color(0xFF4CAF50)),
+              ]),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: durationProgress ?? 0.0,
+                backgroundColor: Colors.grey.shade200,
+                color: const Color(0xFF4CAF50),
+                minHeight: 6,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (hasTarget) ...[
             Row(children: [
               _CycleDetailItem(
                   label: 'Delivered',
@@ -479,6 +588,7 @@ class _ActiveCycleCard extends StatelessWidget {
               color: const Color(0xFF4CAF50),
               minHeight: 6,
             ),
+            ],
             const SizedBox(height: 12),
             Row(children: [
               Expanded(

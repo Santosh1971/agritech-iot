@@ -44,6 +44,8 @@ class LocalService implements DeviceService {
   Stream<List<Cycle>>        get cyclesStream    => _cyclesController.stream;
   @override
   Stream<bool>                get connectedStream => _connectedController.stream;
+  @override
+  Stream<bool>                get deviceOnlineStream => _connectedController.stream;
   Stream<Map<String, dynamic>> get responseStream  => _responseController.stream;
 
   @override

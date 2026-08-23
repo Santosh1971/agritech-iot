@@ -12,6 +12,7 @@ abstract class DeviceService {
   Stream<List<HistoryEntry>> get historyStream;
   Stream<List<Cycle>>        get cyclesStream;
   Stream<bool>                get connectedStream;
+  Stream<bool>                get deviceOnlineStream;
 
   bool get isConnected;
 

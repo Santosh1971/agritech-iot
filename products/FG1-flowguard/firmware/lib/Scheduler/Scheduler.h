@@ -59,4 +59,15 @@ private:
     // local to startManual() that _checkCycleCompletion() never actually
     // read — manual liter-target runs could never auto-stop as a result.
     float _manualTarget = 0;
+
+    // Guards against re-triggering the same cycle repeatedly within the
+    // same start minute — a real risk once a cycle can complete near-
+    // instantly (e.g. a 0-minute/misconfigured duration), since
+    // _checkSchedule() only checks !_state.active and would otherwise
+    // happily re-fire the same cycle every ~1s tick for the whole
+    // minute, chattering the relay on/off continuously. Found in
+    // testing; genuinely bad for relay/pump hardware, not just cosmetic.
+    uint8_t _lastTrigCycleId = 255;
+    uint8_t _lastTrigHour    = 255;
+    uint8_t _lastTrigMinute  = 255;
 };

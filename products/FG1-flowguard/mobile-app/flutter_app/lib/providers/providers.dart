@@ -141,6 +141,42 @@ class ConnectedNotifier extends StateNotifier<bool> {
 final deviceConnectedProvider =
     StateNotifierProvider<ConnectedNotifier, bool>((ref) => ConnectedNotifier(ref));
 
+class DeviceOnlineNotifier extends StateNotifier<bool> {
+  final Ref ref;
+  Timer? _offlineTimer;
+  StreamSubscription<bool>? _sub;
+
+  DeviceOnlineNotifier(this.ref) : super(false) {
+    _sub = ref.read(deviceServiceProvider).deviceOnlineStream.listen(_onEvent);
+    ref.listen(deviceServiceProvider, (prev, next) {
+      _sub?.cancel();
+      _sub = next.deviceOnlineStream.listen(_onEvent);
+    });
+  }
+
+  void _onEvent(bool online) {
+    if (online) {
+      _offlineTimer?.cancel();
+      state = true;
+    } else {
+      _offlineTimer?.cancel();
+      _offlineTimer = Timer(const Duration(seconds: 6), () {
+        state = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _offlineTimer?.cancel();
+    _sub?.cancel();
+    super.dispose();
+  }
+}
+
+final deviceOnlineProvider =
+    StateNotifierProvider<DeviceOnlineNotifier, bool>((ref) => DeviceOnlineNotifier(ref));
+
 final deviceStatusProvider = StreamProvider<DeviceStatus>((ref) {
   return ref.watch(deviceServiceProvider).statusStream;
 });

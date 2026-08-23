@@ -57,41 +57,41 @@ void Scheduler::checkPowerRecovery() {
     }
     if (!c) { _nvs->clearRunningState(); return; }
 
-    DateTime now   = _rtc->now();
-    uint8_t  nowH  = now.hour();
-    uint8_t  nowM  = now.minute();
-    uint16_t nowMins   = nowH * 60 + nowM;
-    uint16_t startMins = c->startHour * 60 + c->startMinute;
-    uint16_t endMins   = c->endHour   * 60 + c->endMinute;
+    // TIME_BASED has no liter target at all — gate purely on remaining
+    // duration. LITER_BASED has no duration at all — gate purely on
+    // liters remaining. TIME_WINDOW_LITER needs BOTH still unmet: some
+    // duration remaining AND some liters remaining.
+    bool hasDuration = (c->mode == TIME_BASED || c->mode == TIME_WINDOW_LITER);
+    uint32_t durationTargetSecs = (uint32_t)c->durationMinutes * 60;
+    bool durationOk = hasDuration ? (saved.elapsedSeconds < durationTargetSecs) : true;
 
-    // TIME_BASED has no liter target at all — gate purely on the window.
-    // LITER_BASED has no window at all — gate purely on liters remaining.
-    // TIME_WINDOW_LITER needs BOTH: still within window AND liters left.
-    bool withinWindow = (c->mode == TIME_BASED || c->mode == TIME_WINDOW_LITER)
-                        ? (nowMins >= startMins && nowMins < endMins)
-                        : true;
     bool hasLiterTarget = (c->mode == LITER_BASED || c->mode == TIME_WINDOW_LITER);
     float remaining = hasLiterTarget ? (c->targetLiters - saved.litersDelivered) : 0;
     bool litersOk = hasLiterTarget ? (remaining > 0) : true;
 
-    if (withinWindow && litersOk) {
+    if (durationOk && litersOk) {
         // Resume exactly where it left off — _state = saved carries over
-        // the accumulated liters base, so the total keeps climbing from
-        // its pre-power-loss value rather than restarting at 0.
-        Serial.printf("[SCHED] Resuming cycle %d after power loss — window still open"
-                       "%s\n", c->id,
-                       hasLiterTarget ? ", liters remaining" : "");
+        // both the accumulated liters base and the accumulated active-
+        // duration base, so both totals keep climbing from their
+        // pre-power-loss values rather than restarting. segmentStartUnix
+        // is reset to now so the outage itself is never counted as
+        // active time — only time the pump is genuinely running counts
+        // toward the duration target, the same way outage time already
+        // never counted toward a liter target (no flow = no liters).
+        Serial.printf("[SCHED] Resuming cycle %d after power loss%s%s\n", c->id,
+                       hasDuration    ? " — duration remaining" : "",
+                       hasLiterTarget ? " — liters remaining"   : "");
         _state = saved;
         _state.active = true;
         _state.paused = false;
+        _state.segmentStartUnix = _rtc->getUnixTime();
         _flow->resetCount();  // live segment counts fresh from resume; base preserved in _state.litersDelivered
         _relay->on();          // relay + linked LED together (see RelayControl)
     } else {
-        // Window already elapsed (or liter target already met) — do NOT
-        // switch the pump back on, even if some liters technically
-        // remain undelivered. Matches "if cycle time elapsed, don't
-        // switch on relay/LED."
-        Serial.println("[SCHED] Not resuming — cycle window elapsed or target already met");
+        // Duration already fully elapsed and/or liter target already met
+        // before the outage — do NOT switch the pump back on. Matches
+        // "if cycle target already met, don't switch on relay/LED."
+        Serial.println("[SCHED] Not resuming — duration/target already met");
         _nvs->clearRunningState();
     }
 }
@@ -122,6 +122,8 @@ void Scheduler::loop() {
         RunningState toSave = _state;
         if (!_state.paused) {
             toSave.litersDelivered = _state.litersDelivered + _flow->getLitersDelivered();
+            toSave.elapsedSeconds  = _state.elapsedSeconds +
+                                      (uint32_t)(_rtc->getUnixTime() - _state.segmentStartUnix);
         }
         _nvs->saveRunningState(toSave);
     }
@@ -137,8 +139,20 @@ void Scheduler::_checkSchedule() {
         Cycle& c = _cycles[i];
         if (!c.enabled) continue;
         if (c.startHour == nowH && c.startMinute == nowM) {
+            // Don't re-fire the same cycle again within the same start
+            // minute (see header comment) -- a cycle that completes
+            // near-instantly (0-minute duration, misconfigured or from
+            // a stale app build not yet sending duration) would
+            // otherwise retrigger on every ~1s tick for the rest of the
+            // minute, chattering the relay continuously.
+            if (c.id == _lastTrigCycleId && nowH == _lastTrigHour && nowM == _lastTrigMinute) {
+                continue;
+            }
             Serial.printf("[SCHED] Triggering cycle %d at %02d:%02d\n",
                           c.id, nowH, nowM);
+            _lastTrigCycleId = c.id;
+            _lastTrigHour    = nowH;
+            _lastTrigMinute  = nowM;
             _startCycle(c);
             return;
         }
@@ -152,15 +166,23 @@ void Scheduler::_startCycle(Cycle& c, bool isRecovery) {
     _state.cycleId         = c.id;
     _state.litersDelivered = 0;
     _state.startUnix       = _rtc->getUnixTime();
+    _state.elapsedSeconds    = 0;
+    _state.segmentStartUnix  = _state.startUnix;
     strlcpy(_state.startedBy, "auto", sizeof(_state.startedBy));
     _relay->on();
     _nvs->saveRunningState(_state);
-    Serial.printf("[SCHED] Cycle %d started (mode=%d, target=%.1fL)\n",
-                  c.id, c.mode, c.targetLiters);
+    Serial.printf("[SCHED] Cycle %d started (mode=%d, duration=%dmin, target=%.1fL)\n",
+                  c.id, c.mode, c.durationMinutes, c.targetLiters);
 }
 
 void Scheduler::_checkCycleCompletion() {
     float delivered = _flow->getLitersDelivered() + _state.litersDelivered;
+    // Live elapsed active-duration = persisted base + time since the
+    // current active segment began. Only outage/paused time is excluded
+    // (this function is only called while active && !paused, so the
+    // "since segment began" delta here is always genuine running time).
+    uint32_t elapsed = _state.elapsedSeconds +
+                        (uint32_t)(_rtc->getUnixTime() - _state.segmentStartUnix);
     bool done = false;
 
     if (_state.cycleId == 255) {
@@ -175,14 +197,12 @@ void Scheduler::_checkCycleCompletion() {
             if (_cycles[i].id == _state.cycleId) { c = &_cycles[i]; break; }
         }
         if (c) {
-            DateTime now   = _rtc->now();
-            uint16_t nowM  = now.hour() * 60 + now.minute();
-            uint16_t endM  = c->endHour * 60 + c->endMinute;
+            uint32_t durationTargetSecs = (uint32_t)c->durationMinutes * 60;
 
-            if (c->mode == LITER_BASED && delivered >= c->targetLiters)      done = true;
-            if (c->mode == TIME_BASED  && nowM >= endM)                       done = true;
+            if (c->mode == LITER_BASED && delivered >= c->targetLiters)         done = true;
+            if (c->mode == TIME_BASED  && elapsed >= durationTargetSecs)         done = true;
             if (c->mode == TIME_WINDOW_LITER &&
-                (delivered >= c->targetLiters || nowM >= endM))               done = true;
+                (delivered >= c->targetLiters || elapsed >= durationTargetSecs)) done = true;
         }
     }
 
@@ -236,6 +256,7 @@ void Scheduler::pauseCycle() {
     _relay->off();
     _state.paused          = true;
     _state.litersDelivered += _flow->getLitersDelivered();
+    _state.elapsedSeconds  += (uint32_t)(_rtc->getUnixTime() - _state.segmentStartUnix);
     _flow->resetCount();
     _nvs->saveRunningState(_state);
     Serial.println("[SCHED] Cycle paused");
@@ -244,6 +265,7 @@ void Scheduler::pauseCycle() {
 void Scheduler::resumeCycle() {
     if (!_state.active || !_state.paused) return;
     _state.paused = false;
+    _state.segmentStartUnix = _rtc->getUnixTime();
     _flow->resetCount();
     _relay->on();
     _nvs->saveRunningState(_state);
@@ -258,6 +280,8 @@ void Scheduler::startManual(float liters) {
     _state.cycleId         = 255;  // manual sentinel
     _state.litersDelivered = 0;
     _state.startUnix       = _rtc->getUnixTime();
+    _state.elapsedSeconds    = 0;
+    _state.segmentStartUnix  = _state.startUnix;
     strlcpy(_state.startedBy, "manual", sizeof(_state.startedBy));
 
     // Real fix: this used to be stored in a local `static Cycle
@@ -285,6 +309,8 @@ RunningState Scheduler::getCurrentState() {
     RunningState s = _state;
     if (s.active && !s.paused) {
         s.litersDelivered = _state.litersDelivered + _flow->getLitersDelivered();
+        s.elapsedSeconds  = _state.elapsedSeconds +
+                             (uint32_t)(_rtc->getUnixTime() - _state.segmentStartUnix);
     }
     return s;
 }

@@ -299,7 +299,7 @@ class _CycleTile extends StatelessWidget {
               const Icon(Icons.timer_outlined, size: 14,
                   color: Colors.grey),
               const SizedBox(width: 4),
-              Text('${cycle.startTimeStr} - ${cycle.endTimeStr}',
+              Text('${cycle.durationStr} from ${cycle.startTimeStr}',
                   style: const TextStyle(
                       color: Colors.grey, fontSize: 12)),
             ],

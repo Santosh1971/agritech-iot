@@ -7,8 +7,14 @@ class Cycle {
   final String name;
   final int startHour;
   final int startMinute;
-  final int endHour;
-  final int endMinute;
+  // Replaces the old fixed endHour/endMinute clock time. A fixed end
+  // time meant a power outage mid-cycle silently shortened the actual
+  // run (pump stops at the same wall-clock time regardless of how long
+  // it was off). Duration is tracked by the firmware as accumulated
+  // ACTIVE (relay-on) seconds instead, so an outage doesn't count
+  // against it — the same way outage time never counted against a liter
+  // target.
+  final int durationMinutes;
   final OperationMode mode;
   final double targetLiters;
   final bool enabled;
@@ -18,15 +24,22 @@ class Cycle {
     required this.name,
     required this.startHour,
     required this.startMinute,
-    required this.endHour,
-    required this.endMinute,
+    required this.durationMinutes,
     required this.mode,
     required this.targetLiters,
     required this.enabled,
   });
 
   String get startTimeStr => formatTime12(startHour, startMinute);
-  String get endTimeStr => formatTime12(endHour, endMinute);
+
+  String get durationStr {
+    final h = durationMinutes ~/ 60;
+    final m = durationMinutes % 60;
+    if (h > 0 && m > 0) return '${h}h ${m}m';
+    if (h > 0) return '${h}h';
+    return '${m}m';
+  }
+
   String get modeLabel => switch (mode) {
         OperationMode.literBased       => 'Liter Based',
         OperationMode.timeBased        => 'Time Based',
@@ -38,39 +51,36 @@ class Cycle {
         'name':    name,
         'sh':      startHour,
         'sm':      startMinute,
-        'eh':      endHour,
-        'em':      endMinute,
+        'dur':     durationMinutes,
         'mode':    mode.index,
         'liters':  targetLiters,
         'enabled': enabled,
       };
 
   factory Cycle.fromJson(Map<String, dynamic> j) => Cycle(
-        id:           j['id']      ?? 0,
-        name:         j['name']    ?? '',
-        startHour:    j['sh']      ?? 0,
-        startMinute:  j['sm']      ?? 0,
-        endHour:      j['eh']      ?? 0,
-        endMinute:    j['em']      ?? 0,
-        mode:         OperationMode.values[j['mode'] ?? 0],
-        targetLiters: (j['liters'] ?? 0).toDouble(),
-        enabled:      j['enabled'] ?? true,
+        id:              j['id']   ?? 0,
+        name:            j['name'] ?? '',
+        startHour:       j['sh']   ?? 0,
+        startMinute:     j['sm']   ?? 0,
+        durationMinutes: j['dur']  ?? 0,
+        mode:            OperationMode.values[j['mode'] ?? 0],
+        targetLiters:    (j['liters'] ?? 0).toDouble(),
+        enabled:         j['enabled'] ?? true,
       );
 
   Cycle copyWith({
     int? id, String? name,
     int? startHour, int? startMinute,
-    int? endHour, int? endMinute,
+    int? durationMinutes,
     OperationMode? mode, double? targetLiters, bool? enabled,
   }) => Cycle(
-        id:           id           ?? this.id,
-        name:         name         ?? this.name,
-        startHour:    startHour    ?? this.startHour,
-        startMinute:  startMinute  ?? this.startMinute,
-        endHour:      endHour      ?? this.endHour,
-        endMinute:    endMinute    ?? this.endMinute,
-        mode:         mode         ?? this.mode,
-        targetLiters: targetLiters ?? this.targetLiters,
-        enabled:      enabled      ?? this.enabled,
+        id:              id              ?? this.id,
+        name:            name            ?? this.name,
+        startHour:       startHour       ?? this.startHour,
+        startMinute:     startMinute     ?? this.startMinute,
+        durationMinutes: durationMinutes ?? this.durationMinutes,
+        mode:            mode            ?? this.mode,
+        targetLiters:    targetLiters    ?? this.targetLiters,
+        enabled:         enabled         ?? this.enabled,
       );
 }

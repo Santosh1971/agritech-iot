@@ -14,6 +14,10 @@ class DeviceStatus {
   final double litersDelivered;
   final String startedBy;
   final int cycleStartUnix; // 0 if no cycle active/ever run
+  // Accumulated ACTIVE (relay-on) seconds for the current cycle — the
+  // basis for duration-mode completion on the firmware side. Outage/
+  // paused time doesn't count, only genuine pump-on time.
+  final int elapsedSeconds;
 
   DeviceStatus({
     required this.deviceId,
@@ -31,6 +35,7 @@ class DeviceStatus {
     required this.litersDelivered,
     required this.startedBy,
     required this.cycleStartUnix,
+    required this.elapsedSeconds,
   });
 
   // Local (phone) time the current cycle started, or null if none active.
@@ -58,6 +63,7 @@ class DeviceStatus {
         litersDelivered: (j['liters_delivered'] ?? 0).toDouble(),
         startedBy:       j['started_by']        ?? '',
         cycleStartUnix:  (j['cycle_start_unix'] ?? 0) as int,
+        elapsedSeconds:  (j['elapsed_seconds']  ?? 0) as int,
       );
 
   static DeviceStatus empty() => DeviceStatus(
@@ -66,5 +72,6 @@ class DeviceStatus {
         wifiRssi: 0, wifiConnected: false, mqttConnected: false,
         cycleActive: false, cyclePaused: false, cycleId: 0,
         litersDelivered: 0.0, startedBy: '', cycleStartUnix: 0,
+        elapsedSeconds: 0,
       );
 }

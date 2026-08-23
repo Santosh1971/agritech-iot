@@ -18,11 +18,11 @@ class AddCycleScreen extends StatefulWidget {
 }
 
 class _AddCycleScreenState extends State<AddCycleScreen> {
-  final _nameController   = TextEditingController();
-  final _litersController = TextEditingController(text: '20.0');
+  final _nameController     = TextEditingController();
+  final _litersController   = TextEditingController(text: '20.0');
+  final _durationController = TextEditingController(text: '30');
   OperationMode _mode     = OperationMode.timeWindowLiter;
   TimeOfDay _startTime    = const TimeOfDay(hour: 10, minute: 0);
-  TimeOfDay _endTime      = const TimeOfDay(hour: 11, minute: 0);
   bool _enabled           = true;
 
   @override
@@ -30,11 +30,11 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
     super.initState();
     if (widget.cycle != null) {
       final c = widget.cycle!;
-      _nameController.text   = c.name;
-      _litersController.text = c.targetLiters.toStringAsFixed(1);
+      _nameController.text     = c.name;
+      _litersController.text   = c.targetLiters.toStringAsFixed(1);
+      _durationController.text = c.durationMinutes.toString();
       _mode      = c.mode;
       _startTime = TimeOfDay(hour: c.startHour, minute: c.startMinute);
-      _endTime   = TimeOfDay(hour: c.endHour,   minute: c.endMinute);
       _enabled   = c.enabled;
     }
   }
@@ -43,30 +43,28 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
   void dispose() {
     _nameController.dispose();
     _litersController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: isStart ? _startTime : _endTime,
+      initialTime: _startTime,
     );
-    if (picked != null) setState(() {
-      if (isStart) _startTime = picked; else _endTime = picked;
-    });
+    if (picked != null) setState(() => _startTime = picked);
   }
 
   void _save() {
     final newCycle = Cycle(
       id: widget.cycle?.id ?? (widget.existingCycles.length + 1),
-      name:         _nameController.text.trim(),
-      startHour:    _startTime.hour,
-      startMinute:  _startTime.minute,
-      endHour:      _endTime.hour,
-      endMinute:    _endTime.minute,
-      mode:         _mode,
-      targetLiters: double.tryParse(_litersController.text) ?? 20.0,
-      enabled:      _enabled,
+      name:            _nameController.text.trim(),
+      startHour:       _startTime.hour,
+      startMinute:     _startTime.minute,
+      durationMinutes: int.tryParse(_durationController.text) ?? 30,
+      mode:            _mode,
+      targetLiters:    double.tryParse(_litersController.text) ?? 20.0,
+      enabled:         _enabled,
     );
 
     final updated = List<Cycle>.from(widget.existingCycles);
@@ -171,12 +169,21 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
           ]),
           const SizedBox(height: 12),
 
-          // End Time
+          // Duration
           if (_mode != OperationMode.literBased) ...[
             _Card(children: [
-              _Label('Cycle End Time'),
-              _TimePicker(
-                  time: _endTime, onTap: () => _pickTime(false)),
+              _Label('Duration'),
+              TextField(
+                controller: _durationController,
+                keyboardType: TextInputType.number,
+                decoration: _dec('30').copyWith(suffixText: 'minutes'),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Pump runs for this long even across a power outage — '
+                'time off doesn\'t count against it.',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
             ]),
             const SizedBox(height: 12),
           ],
@@ -256,9 +263,9 @@ class _AddCycleScreenState extends State<AddCycleScreen> {
         OperationMode.literBased =>
             'Pump starts at start time and stops after delivering target liters.',
         OperationMode.timeBased =>
-            'Pump starts at start time and stops at end time.',
+            'Pump starts at start time and runs for the configured duration.',
         OperationMode.timeWindowLiter =>
-            'Pump stops after delivering target liters OR at end time — whichever comes first.',
+            'Pump stops after delivering target liters OR the configured duration — whichever comes first.',
       };
 
   InputDecoration _dec(String hint) => InputDecoration(
