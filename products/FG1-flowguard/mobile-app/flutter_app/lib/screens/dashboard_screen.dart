@@ -479,6 +479,69 @@ class _ActiveCycleCard extends StatelessWidget {
     final start = status.cycleStartTime;
     final startStr = start == null ? '--:--'
         : formatTime12(start.hour, start.minute);
+    final elapsedSecs = status.elapsedSeconds;
+    String fmtMinSec(int totalSeconds) {
+      final m = totalSeconds ~/ 60;
+      final s = totalSeconds % 60;
+      return m > 0 ? '${m}m ${s}s' : '${s}s';
+    }
+
+    if (isManual) {
+      // A manual start has no schedule config behind it -- no duration
+      // or liters target was ever set, since the point is just "run
+      // until I say stop." So this shows only what's actually true:
+      // when it started, how long it's been going, and how much water
+      // has gone out so far -- framed as a running total, not progress
+      // toward some target that was never set. No pause (pausing an
+      // indefinite run doesn't mean anything) and no "cycle" language
+      // (it isn't one) -- just Stop.
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF4CAF50),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(children: [
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(children: [
+              Icon(Icons.touch_app, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Manual ON',
+                  style: TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(8)),
+            child: Column(children: [
+              Row(children: [
+                _CycleDetailItem(label: 'Start Time', value: startStr),
+                _CycleDetailItem(label: 'Elapsed', value: fmtMinSec(elapsedSecs),
+                    valueColor: const Color(0xFF2196F3)),
+                _CycleDetailItem(label: 'Liters',
+                    value: '${status.litersDelivered.toStringAsFixed(1)} L',
+                    valueColor: const Color(0xFF2196F3)),
+              ]),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => mqtt.manualOff(),
+                  icon: const Icon(Icons.stop, size: 18, color: Colors.white),
+                  label: const Text('STOP', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      );
+    }
+
     final durationStr = (cfg != null && cfg.mode != OperationMode.literBased)
         ? cfg.durationStr : '--';
     final targetStr = cfg != null && cfg.mode != OperationMode.timeBased
@@ -502,16 +565,10 @@ class _ActiveCycleCard extends StatelessWidget {
     final hasDuration = cfg != null && cfg.mode != OperationMode.literBased
         && cfg.durationMinutes > 0;
     final durationTargetSecs = hasDuration ? cfg.durationMinutes * 60 : 0;
-    final elapsedSecs = status.elapsedSeconds;
     final remainingSecs = hasDuration
         ? (durationTargetSecs - elapsedSecs).clamp(0, durationTargetSecs) : null;
     final durationProgress = hasDuration
         ? (elapsedSecs / durationTargetSecs).clamp(0.0, 1.0) : null;
-    String fmtMinSec(int totalSeconds) {
-      final m = totalSeconds ~/ 60;
-      final s = totalSeconds % 60;
-      return m > 0 ? '${m}m ${s}s' : '${s}s';
-    }
 
     return Container(
       decoration: BoxDecoration(

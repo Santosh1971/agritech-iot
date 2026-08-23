@@ -11,14 +11,6 @@ class ManualScreen extends ConsumerStatefulWidget {
 }
 
 class _ManualScreenState extends ConsumerState<ManualScreen> {
-  final _litersController = TextEditingController(text: '10.0');
-
-  @override
-  void dispose() {
-    _litersController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(deviceStatusProvider);
@@ -102,57 +94,6 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
               ),
             ),
           ]),
-          const SizedBox(height: 24),
-
-          // Manual Water Delivery
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8, offset: const Offset(0, 2))],
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Manual Water (Optional)',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _litersController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  suffix: Text('Liters',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final liters = double.tryParse(
-                        _litersController.text) ?? 0;
-                    if (liters > 0) mqtt.manualLiters(liters);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2196F3),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    'START FOR ${_litersController.text} LITERS',
-                    style: const TextStyle(color: Colors.white,
-                        fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                ),
-              ),
-            ]),
-          ),
         ],
       ),
     );

@@ -22,6 +22,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   bool _scanning = false;
   List<Map<String, dynamic>> _scanResults = [];
   StreamSubscription? _respSub;
+  StreamSubscription<bool>? _connSub;
   Map<String, dynamic>? _deviceInfo;
 
   final _wifiSsidCtrl = TextEditingController();
@@ -31,6 +32,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   @override
   void dispose() {
     _respSub?.cancel();
+    _connSub?.cancel();
     _wifiSsidCtrl.dispose();
     _wifiPassCtrl.dispose();
     _calibrationCtrl.dispose();
@@ -52,6 +54,26 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     setState(() => _connecting = true);
     final local = ref.read(localServiceProvider);
     _respSub ??= local.responseStream.listen(_onResponse);
+    // The local SoftAP link is genuinely flaky in practice (phone WiFi
+    // stacks don't love a non-internet access point, and the scan
+    // itself briefly loads the ESP32's radio) — logs from real devices
+    // show the WS client connecting and dropping repeatedly during
+    // setup. Previously this screen only checked connection state once,
+    // at the initial connect() call, so a later drop left _connected
+    // stuck at true and, worse, left _scanning stuck at true forever if
+    // the drop happened mid-scan — the spinner and "Scanning..." label
+    // then never recovers even after the link comes back, since nothing
+    // was listening for the drop to reset that state.
+    _connSub ??= local.connectedStream.listen((isConnected) {
+      if (!mounted) return;
+      setState(() {
+        _connected = isConnected;
+        if (!isConnected && _scanning) {
+          _scanning = false;
+          _snack('Connection dropped during scan — try again');
+        }
+      });
+    });
     final ok = await local.connect();
     setState(() {
       _connected = ok;
@@ -188,11 +210,23 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                 decoration: const InputDecoration(labelText: 'Password')),
             const SizedBox(height: 12),
             SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: () => _send({
-                'cmd': 'wifi_config',
-                'ssid': _wifiSsidCtrl.text,
-                'pass': _wifiPassCtrl.text,
-              }),
+              onPressed: () {
+                _send({
+                  'cmd': 'wifi_config',
+                  'ssid': _wifiSsidCtrl.text,
+                  'pass': _wifiPassCtrl.text,
+                });
+                // Saving credentials alone still leaves the device parked
+                // in local-only mode if force_local_mode was ever set on
+                // it (e.g. from earlier bench testing) — previously this
+                // required a separate, non-obvious trip to Settings to
+                // tap "Resume Auto Mode," or the newly-saved network would
+                // silently never actually get used ("retry scheduled" in
+                // the logs, but the retry never runs). Saving credentials
+                // is a clear enough signal that the intent is to use them
+                // now, so send this automatically right after.
+                _send({'cmd': 'resume_auto_mode'});
+              },
               child: const Text('Save WiFi Credentials'),
             )),
           ])),
