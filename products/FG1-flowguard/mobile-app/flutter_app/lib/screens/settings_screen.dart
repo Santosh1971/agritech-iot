@@ -27,16 +27,6 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
 
-          // App branding header.
-          Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset('assets/images/logo.jpeg',
-                  width: 160, height: 160, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Device status card -- reflects whichever transport is active,
           // not specifically MQTT (that's what deviceConnectedProvider is for).
           Container(

@@ -139,7 +139,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           padding: const EdgeInsets.all(8),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset('assets/images/logo.jpeg', fit: BoxFit.cover),
+            child: Image.asset('assets/images/logo_icon.png', fit: BoxFit.contain),
           ),
         ),
         title: Text('Dashboard',
@@ -166,7 +166,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Image.asset('assets/images/logo.jpeg', width: 120, height: 120, fit: BoxFit.cover),
+        child: Image.asset('assets/images/logo_icon.png', width: 120, height: 120, fit: BoxFit.contain),
       ),
       const SizedBox(height: 24),
       Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 16)),

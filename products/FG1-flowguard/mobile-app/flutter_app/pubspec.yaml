@@ -32,8 +32,31 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.jpeg
+    - assets/images/logo_icon.png
+
+# Regenerates every platform's launcher icon from a single source image.
+# Rebranding for a new customer is then just: replace assets/images/logo.jpeg,
+# update the app name (below in this file's `name`/`description` are internal
+# only — the user-facing name is set in android/app/src/main/AndroidManifest.xml's
+# android:label and lib/main.dart's MaterialApp title), then run:
+#   flutter pub get
+#   flutter pub run flutter_launcher_icons
+# which regenerates every icon size/density automatically before the next build.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  # Uses the cropped square icon mark (logo_icon.png), not the full
+  # wide wordmark image (logo.jpeg) -- the full logo's aspect ratio
+  # doesn't fit a square icon slot without cropping off the "N"/"A"
+  # edges of the text, same issue this fixed in the AppBar/loading
+  # screen. The icon mark alone (leaf + "nb") is what actually reads
+  # correctly at small icon sizes anyway.
+  image_path: "assets/images/logo_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_icon.png"

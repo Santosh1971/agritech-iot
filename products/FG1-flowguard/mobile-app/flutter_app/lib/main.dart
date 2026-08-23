@@ -17,7 +17,7 @@ class SWCApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp(
-      title: 'SWC',
+      title: 'NB Agri',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: ThemeData(
