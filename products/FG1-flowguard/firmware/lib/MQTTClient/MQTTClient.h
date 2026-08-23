@@ -49,5 +49,14 @@ private:
     char     _pass[64]    = {0};
 
     String _deviceId;
-    String _topicStatus, _topicHistory, _topicActive, _topicCycles, _topicCmd, _topicLwt;
+    // _topicCyclesConfig is a separate, retained-message channel for
+    // pushing cycle-schedule updates specifically (distinct from
+    // _topicCmd, which stays non-retained/ephemeral — correct for
+    // one-shot actions like manual_on, but wrong for a schedule update:
+    // if the device is offline when the app saves new cycles, a
+    // non-retained cmd message is simply lost forever. A retained
+    // message on its own topic is held by the broker and delivered the
+    // instant the device reconnects and subscribes, exactly like the
+    // existing retained status/cycles/lwt topics.
+    String _topicStatus, _topicHistory, _topicActive, _topicCycles, _topicCmd, _topicLwt, _topicCyclesConfig;
 };

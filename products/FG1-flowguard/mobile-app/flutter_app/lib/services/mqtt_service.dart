@@ -25,7 +25,7 @@ class MqttService implements DeviceService {
   // for one would reach all of them, and their retained status topics
   // would overwrite each other.
   final String deviceSuffix;
-  late final String _topicStatus, _topicCmd, _topicHistory, _topicCycles, _topicLwt;
+  late final String _topicStatus, _topicCmd, _topicHistory, _topicCycles, _topicLwt, _topicCyclesConfig;
 
   MqttService({required this.deviceSuffix}) {
     final base = 'agrisense/FG1/SWC_001_$deviceSuffix';
@@ -34,6 +34,15 @@ class MqttService implements DeviceService {
     _topicHistory = '$base/history';
     _topicCycles  = '$base/cycles';
     _topicLwt     = '$base/lwt';
+    // Separate, retained-message topic for pushing cycle-schedule
+    // updates — distinct from the ephemeral _topicCmd (correct for
+    // one-shot actions, wrong for a schedule update: if the device is
+    // offline when a new schedule is saved, a non-retained message on
+    // _topicCmd is simply lost forever). Retaining this message means
+    // the broker holds it and delivers it the instant the device
+    // reconnects and subscribes — no separate firmware-side "pending
+    // command queue" needed, MQTT's own retain mechanism does the job.
+    _topicCyclesConfig = '$base/cycles_config';
   }
 
   MqttServerClient? _client;
@@ -43,6 +52,11 @@ class MqttService implements DeviceService {
   final _historyController   = StreamController<List<HistoryEntry>>.broadcast();
   final _cyclesController    = StreamController<List<Cycle>>.broadcast();
   final _connectedController = StreamController<bool>.broadcast();
+  // Separate from _connectedController — see device_service.dart's
+  // deviceOnlineStream doc comment. Starts unknown (no value emitted)
+  // until either a real LWT message arrives or the broker connection
+  // itself drops (which we can confidently call "not online" — we can't
+  // BE sure the device is up if we can't even ask the broker).
   final _deviceOnlineController = StreamController<bool>.broadcast();
 
   Stream<DeviceStatus>       get statusStream    => _statusController.stream;
@@ -146,6 +160,12 @@ class MqttService implements DeviceService {
             .toList();
         _cyclesController.add(list);
       } else if (topic == _topicLwt) {
+        // {"online": true} on device connect, {"online": false} pushed by
+        // the broker itself (as the device's Last Will) if it disconnects
+        // uncleanly (power loss, WiFi drop) — this is the actual signal
+        // for "is the device physically reachable right now", unlike
+        // connectedStream which only reflects the phone's own link to
+        // the broker.
         final json = jsonDecode(payload) as Map<String, dynamic>;
         _deviceOnlineController.add(json['online'] == true);
       }
@@ -160,6 +180,23 @@ class MqttService implements DeviceService {
       final builder = MqttClientPayloadBuilder();
       builder.addString(jsonEncode(payload));
       _client!.publishMessage(_topicCmd, MqttQos.atMostOnce, builder.payload!);
+    } catch (e) {
+      print('[MQTT] Publish error: $e');
+    }
+  }
+
+  // Publishes with the MQTT retain flag set, to _topicCyclesConfig
+  // specifically — see that field's doc comment. Only needs a live link
+  // to the BROKER (always up on the VPS), not to the device itself: the
+  // broker holds the message and delivers it whenever the device next
+  // subscribes, whether that's instantly (device currently online) or
+  // after a real delay (device was offline when this was sent).
+  void _publishRetained(String topic, Map<String, dynamic> payload) {
+    if (!isConnected) { print('[MQTT] Not connected'); return; }
+    try {
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(jsonEncode(payload));
+      _client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!, retain: true);
     } catch (e) {
       print('[MQTT] Publish error: $e');
     }
@@ -190,7 +227,7 @@ class MqttService implements DeviceService {
         'to': _deviceEpoch(to),
       });
   void getCycles()                 => _publish({'cmd': 'get_cycles'});
-  void setCycles(List<Cycle> cycles) => _publish({
+  void setCycles(List<Cycle> cycles) => _publishRetained(_topicCyclesConfig, {
         'cmd': 'set_cycles',
         'cycles': cycles.map((c) => c.toJson()).toList(),
       });
@@ -199,6 +236,10 @@ class MqttService implements DeviceService {
   void _onDisconnected() {
     print('[MQTT] Disconnected — retrying in 5s');
     _connectedController.add(false);
+    // Can't confirm the device is online if we can't even reach the
+    // broker to ask — treat broker disconnect as device-unknown/offline
+    // too, rather than leaving the last LWT value (possibly stale
+    // "online:true" from before the broker link itself dropped) standing.
     _deviceOnlineController.add(false);
     Future.delayed(const Duration(seconds: 5), () {
       if (!isConnected) connect();

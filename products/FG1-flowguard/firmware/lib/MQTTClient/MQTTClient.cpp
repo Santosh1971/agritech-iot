@@ -37,6 +37,7 @@ void MQTTHandler::begin(const char* broker, uint16_t port, const char* user, con
     _topicCycles  = "agrisense/FG1/" + _deviceId + "/cycles";
     _topicCmd     = "agrisense/FG1/" + _deviceId + "/command";
     _topicLwt     = "agrisense/FG1/" + _deviceId + "/lwt";
+    _topicCyclesConfig = "agrisense/FG1/" + _deviceId + "/cycles_config";
 
     _mqtt.setClient(_wifiClient);
     _mqtt.setServer(_broker, _port);
@@ -70,6 +71,8 @@ void MQTTHandler::_reconnect() {
         _mqtt.publish(_topicLwt.c_str(), "{\"online\":true}", true);
         _mqtt.subscribe(_topicCmd.c_str());
         Serial.printf("[MQTT] Subscribed to %s\n", _topicCmd.c_str());
+        _mqtt.subscribe(_topicCyclesConfig.c_str());
+        Serial.printf("[MQTT] Subscribed to %s\n", _topicCyclesConfig.c_str());
     } else {
         Serial.printf("[MQTT] Failed rc=%d — retry in 5s\n", _mqtt.state());
     }
