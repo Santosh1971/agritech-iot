@@ -36,9 +36,22 @@ public:
     // Called on boot for power recovery
     void checkPowerRecovery();
 
+    // Called on boot, right after checkPowerRecovery() -- runs an
+    // immediate schedule check (exact-match trigger, or missed-cycle
+    // catch-up) using the RTC's own time, which is available well
+    // before WiFi/NTP/MQTT finish. Without this, the first check would
+    // only happen once the main loop() naturally ticks, which is after
+    // the ENTIRE setup() sequence completes -- including up to 15s of
+    // WiFi connect timeout, which can stretch even longer in exactly
+    // the scenario this matters most for: a power outage that also
+    // took the farmer's router down, delaying reconnection further.
+    void checkScheduleNow();
+
 private:
     void _startCycle(Cycle& c, bool isRecovery = false);
     void _checkSchedule();
+    void _checkMissedCycles(const DateTime& now, uint8_t nowH, uint8_t nowM);
+    bool _hasRunSinceScheduledStart(const Cycle& c, const DateTime& now);
     void _checkCycleCompletion();
     void _saveProgress();
 

@@ -570,6 +570,12 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flowISR, RISING);
     scheduler.begin(&nvs, &rtc, &flowSensor, &relay);
     scheduler.checkPowerRecovery();
+    // Immediate schedule check using the RTC's own time -- deliberately
+    // BEFORE WiFi/NTP/MQTT below, so a missed-cycle catch-up or an
+    // exact-minute trigger doesn't wait on network setup (which can
+    // take 15s+ on its own, longer still if the same outage that just
+    // ended also took the farmer's router down).
+    scheduler.checkScheduleNow();
 
     // WiFi — connect if credentials exist, else fall back to local SoftAP
     // so the device is still controllable with no field WiFi reachable

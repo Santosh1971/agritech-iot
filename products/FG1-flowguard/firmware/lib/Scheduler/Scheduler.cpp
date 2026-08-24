@@ -9,7 +9,20 @@ void Scheduler::begin(NVSManager* nvs, RTCManager* rtc,
     _cycleCount = _nvs->loadCycles(_cycles);
     memset(&_state, 0, sizeof(_state));
     _lastScheduleCheck = 0;
-    _checkSchedule(); // check immediately on boot, don't wait for first interval tick
+    // Deliberately does NOT call _checkSchedule() here anymore. main.cpp's
+    // setup() calls checkPowerRecovery() right after this returns, and
+    // THAT must get first refusal on a mid-run cycle interrupted by a
+    // power loss -- resuming it with its accumulated progress intact.
+    // The very first loop()/update() tick (within ~1s, guaranteed since
+    // _lastScheduleCheck=0 and setup() itself takes well over a second
+    // for WiFi/NTP/MQTT) naturally runs _checkSchedule() immediately
+    // after, so nothing is lost by removing the explicit call here --
+    // it's just now correctly ordered AFTER checkPowerRecovery() instead
+    // of racing ahead of it. Confirmed on real hardware: with the old
+    // ordering, a missed-cycle catch-up firing here would set
+    // _state.active=true before checkPowerRecovery() got a chance to
+    // run, causing it to skip a genuine mid-run resume entirely and
+    // restart the cycle from zero instead of continuing it.
     Serial.printf("[SCHED] Ready — %d cycles loaded\n", _cycleCount);
 }
 
@@ -19,6 +32,22 @@ void Scheduler::reloadCycles() {
 }
 
 void Scheduler::checkPowerRecovery() {
+    // begin() (called just before this, in main.cpp's setup()) already
+    // runs an initial _checkSchedule() -- which can now start a missed
+    // cycle fresh via the catch-up logic above. If that happened,
+    // _state.active is already correctly set and there is nothing to
+    // "recover": blindly continuing below would overwrite that fresh
+    // state with whatever (possibly stale) RunningState happens to be
+    // sitting in NVS from an earlier, unrelated interrupted run --
+    // confirmed happening on real hardware: a missed-cycle catch-up
+    // was immediately clobbered by a leftover saved state from earlier
+    // testing, resetting flow count and re-"resuming" instead of
+    // leaving the fresh start alone.
+    if (_state.active) {
+        Serial.println("[SCHED] Skipping power recovery — a cycle is already active (likely just caught up on boot)");
+        return;
+    }
+
     RunningState saved;
     if (!_nvs->loadRunningState(saved)) return;
     Serial.println("[SCHED] Power recovery — checking interrupted cycle...");
@@ -96,6 +125,15 @@ void Scheduler::checkPowerRecovery() {
     }
 }
 
+void Scheduler::checkScheduleNow() {
+    // Only meaningful the moment right after checkPowerRecovery() on
+    // boot -- update()'s own !_state.active gate (and _checkSchedule()'s
+    // own defensive guard) means this is a safe no-op if a cycle is
+    // already active (e.g. checkPowerRecovery() just resumed one).
+    _lastScheduleCheck = millis();
+    _checkSchedule();
+}
+
 void Scheduler::loop() {
     uint32_t now = millis();
 
@@ -130,6 +168,11 @@ void Scheduler::loop() {
 }
 
 void Scheduler::_checkSchedule() {
+    // Defensive — update() only calls this while !_state.active, and
+    // begin() no longer calls it directly at all (see begin()'s comment),
+    // but guarding here too means this is correct regardless of how or
+    // when it's called, not dependent on callers remembering the rule.
+    if (_state.active) return;
     if (!_rtc->isTimeSet()) return;
     DateTime now  = _rtc->now();
     uint8_t  nowH = now.hour();
@@ -157,6 +200,65 @@ void Scheduler::_checkSchedule() {
             return;
         }
     }
+
+    // No cycle matched the exact current minute -- check whether any
+    // enabled cycle's scheduled start already passed today and it
+    // hasn't run yet (e.g. the device was down across a power outage
+    // spanning its start time, so the exact-minute match above never
+    // got the chance to fire for it). If so, start it now, for its
+    // full configured duration/target, exactly as if it were starting
+    // on time -- confirmed as the expected behavior, not a partial or
+    // shortened make-up run. Only reached when nothing is currently
+    // active (update() only calls _checkSchedule() while !_state.active).
+    _checkMissedCycles(now, nowH, nowM);
+}
+
+void Scheduler::_checkMissedCycles(const DateTime& now, uint8_t nowH, uint8_t nowM) {
+    for (uint8_t i = 0; i < _cycleCount; i++) {
+        Cycle& c = _cycles[i];
+        if (!c.enabled) continue;
+
+        // Cycles run "everyday" with no explicit date field -- compare
+        // purely by hour:minute against right now.
+        bool startTimePassed = (c.startHour < nowH) ||
+                                (c.startHour == nowH && c.startMinute < nowM);
+        if (!startTimePassed) continue;
+
+        if (_hasRunSinceScheduledStart(c, now)) continue;
+
+        Serial.printf("[SCHED] Missed cycle %d (scheduled %02d:%02d) — catching up now at %02d:%02d\n",
+                      c.id, c.startHour, c.startMinute, nowH, nowM);
+        _startCycle(c);
+        // One catch-up per check, same as the exact-match loop above --
+        // if more than one cycle was missed (a long outage spanning
+        // several start times), the next tick picks up the next one
+        // once this one finishes, naturally serializing them.
+        return;
+    }
+}
+
+bool Scheduler::_hasRunSinceScheduledStart(const Cycle& c, const DateTime& now) {
+    // Deliberately anchored on the cycle's CURRENT configured start
+    // time today, not just "any history entry for this cycle ID
+    // today" -- confirmed as a real bug on hardware: a cycle
+    // rescheduled to a new time later the same day (e.g. reconfigured
+    // from 17:55 to 18:10 mid-session) was incorrectly treated as
+    // "already handled today" because of its earlier run under the
+    // OLD schedule, so the catch-up never fired for the new time.
+    // Anchoring on the scheduled time itself means a run recorded
+    // before that time doesn't count, but one at or after it does --
+    // correctly covering both a normal single run and a same-day
+    // reschedule.
+    DateTime scheduledToday(now.year(), now.month(), now.day(), c.startHour, c.startMinute, 0);
+    uint32_t scheduledStart = scheduledToday.unixtime();
+    uint32_t nowTs          = now.unixtime();
+
+    HistoryEntry entries[HISTORY_MAX_ENTRIES];
+    uint8_t count = _nvs->getHistoryInRange(entries, HISTORY_MAX_ENTRIES, scheduledStart, nowTs);
+    for (uint8_t i = 0; i < count; i++) {
+        if (entries[i].cycleId == c.id) return true;
+    }
+    return false;
 }
 
 void Scheduler::_startCycle(Cycle& c, bool isRecovery) {

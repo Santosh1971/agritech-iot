@@ -55827,7 +55827,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 201.93 86.36 0)
 			(effects
 				(font
@@ -57696,7 +57696,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_0805_2012Metric"
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 209.55 166.37 0)
 			(effects
 				(font
@@ -57914,7 +57914,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-882"
+		(property "Footprint" "Diode_SMD:D_0805_2012Metric"
 			(at 213.36 102.87 0)
 			(effects
 				(font
