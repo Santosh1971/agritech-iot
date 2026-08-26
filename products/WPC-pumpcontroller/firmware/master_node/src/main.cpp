@@ -38,6 +38,8 @@
 #define PIN_IN2_LED    33
 #define PIN_IN3_LED    14
 #define PIN_IN4_LED    13
+#define PIN_LORA_LED   4    // dedicated LoRa activity LED (from schematic)
+#define PIN_WIFI_LED   2    // dev kit's own "WiFi" onboard LED (separate from the hardwired-always-on Power LED)
 
 #define LEVEL_ACTIVE_STATE LOW
 
@@ -500,6 +502,21 @@ void setup() {
     pinMode(in.ledPin, OUTPUT);
     digitalWrite(in.ledPin, LOW);
   }
+
+  // Self-test: all 6 LEDs (4 level LEDs incl. No-Power alert, LoRa
+  // activity, and the dev kit's onboard WiFi LED) ON for 3s then OFF --
+  // NOT the hardwired-always-on Power LED, which isn't GPIO controlled.
+  pinMode(PIN_LORA_LED, OUTPUT);
+  pinMode(PIN_WIFI_LED, OUTPUT);
+  Serial.println(F("[SELFTEST] LEDs ON"));
+  for (auto& in : inputs) digitalWrite(in.ledPin, HIGH);
+  digitalWrite(PIN_LORA_LED, HIGH);
+  digitalWrite(PIN_WIFI_LED, HIGH);
+  delay(3000);
+  for (auto& in : inputs) digitalWrite(in.ledPin, LOW);
+  digitalWrite(PIN_LORA_LED, LOW);
+  digitalWrite(PIN_WIFI_LED, LOW);
+  Serial.println(F("[SELFTEST] LEDs OFF"));
 
   uint64_t mac = ESP.getEfuseMac();
   masterId32 = (uint32_t)(mac & 0xFFFFFFFF);
