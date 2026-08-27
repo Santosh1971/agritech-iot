@@ -12,6 +12,7 @@ class WpcApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NB Agri Automation - WPC',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
       home: const HomeShell(),
     );
