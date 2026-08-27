@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'api.dart';
 
 class StatusScreen extends StatefulWidget {
@@ -70,7 +71,8 @@ class _StatusScreenState extends State<StatusScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final masterId = _status!['masterId'] as String? ?? '--';
+    final masterId = (_status!['masterId'] as String? ?? '--')
+        .replaceFirst(RegExp(r'^0x', caseSensitive: false), '');
     final numLevels = (_status!['numLevels'] as num?)?.toInt() ?? 0;
     final levels = (_status!['levels'] as List<dynamic>? ?? []);
     final noPower = _status!['noPower'] == true;
@@ -84,7 +86,21 @@ class _StatusScreenState extends State<StatusScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Master: $masterId', style: Theme.of(context).textTheme.bodySmall),
+        Row(
+          children: [
+            Text('Master: $masterId', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: masterId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Master ID copied')),
+                );
+              },
+              child: const Icon(Icons.copy, size: 16, color: Colors.grey),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
 
         if (noPower)

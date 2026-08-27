@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api.dart';
 
@@ -12,17 +13,21 @@ class _PumpScreenState extends State<PumpScreen> {
   Map<String, dynamic>? _info;
   String? _error;
   bool _busy = false;
+  bool _editing = false;
 
   final _masterIdController = TextEditingController();
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _fetch();
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _fetch());
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _masterIdController.dispose();
     super.dispose();
   }
@@ -39,7 +44,8 @@ class _PumpScreenState extends State<PumpScreen> {
       setState(() {
         _info = info;
         _error = null;
-        _masterIdController.text = masterId;
+        // don't stomp on what the user is actively typing while auto-refresh polls
+        if (!_editing) _masterIdController.text = masterId;
       });
     } catch (e) {
       if (!mounted) return;
@@ -131,10 +137,18 @@ class _PumpScreenState extends State<PumpScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Pump ID: ${_info!['pumpId']}'),
-                    Text('Target Master: ${_info!['targetMasterId']}'),
+                    Text(
+                      'Target Master: ${(_info!['targetMasterId'] as String? ?? '').replaceFirst(RegExp(r'^0x', caseSensitive: false), '')}',
+                    ),
                     Text('Joined: ${_info!['joined'] == true ? 'Yes' : 'No'}'),
-                    if (_info!['joined'] == true)
-                      Text('Assigned Slot: ${_info!['assignedSlot']}'),
+                    if (_info!['joined'] != true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Connecting to Master -- this can take up to about 15 seconds. This screen updates automatically.',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -147,8 +161,9 @@ class _PumpScreenState extends State<PumpScreen> {
               controller: _masterIdController,
               textCapitalization: TextCapitalization.characters,
               maxLength: 8,
+              onTap: () => _editing = true,
               decoration: const InputDecoration(
-                labelText: 'Master ID (8 characters, no 0x)',
+                labelText: 'Master ID (8 characters)',
                 border: OutlineInputBorder(),
               ),
             ),

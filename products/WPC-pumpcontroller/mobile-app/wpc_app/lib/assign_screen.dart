@@ -154,7 +154,7 @@ class _AssignScreenState extends State<AssignScreen> {
             ),
 
           if (pumps.isNotEmpty) ...[
-            Text('Pumps', style: Theme.of(context).textTheme.titleMedium),
+            Text('Available Pumps', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ...pumps.map((p) {
               final map = p as Map<String, dynamic>;
