@@ -45,10 +45,7 @@ class _StatusScreenState extends State<StatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _fetch,
-      child: _buildBody(),
-    );
+    return RefreshIndicator(onRefresh: _fetch, child: _buildBody());
   }
 
   Widget _buildBody() {
@@ -79,6 +76,11 @@ class _StatusScreenState extends State<StatusScreen> {
     final noPower = _status!['noPower'] == true;
     final pumps = _status!['pumps'] as List<dynamic>? ?? [];
 
+    final unassigned = pumps.where((p) {
+      final assigned = ((p as Map<String, dynamic>)['assignedLevels'] as List<dynamic>? ?? []);
+      return assigned.isEmpty;
+    }).toList();
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -108,69 +110,99 @@ class _StatusScreenState extends State<StatusScreen> {
             ),
           ),
 
-        Text('Water Levels', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: List.generate(numLevels, (i) {
-            final active = i < levels.length && levels[i] == true;
-            return Chip(
-              label: Text('Level ${i + 1}'),
-              backgroundColor: active ? Colors.amber.shade100 : Colors.grey.shade200,
-              avatar: Icon(
+        // Levels top-to-bottom as Level N .. Level 1, matching the physical
+        // board layout (highest level at top). Each box shows the level's
+        // own state plus the pumps assigned to it -- no slot numbers, since
+        // that's internal wire-protocol addressing, not something an
+        // installer needs to see.
+        for (int lvl = numLevels; lvl >= 1; lvl--) ...[
+          _buildLevelBox(context, lvl, levels, pumps),
+          const SizedBox(height: 12),
+        ],
+
+        if (unassigned.isNotEmpty) ...[
+          Text('Unassigned', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: unassigned.map((p) => _pumpRow(p as Map<String, dynamic>)).toList(),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLevelBox(
+      BuildContext context, int lvl, List<dynamic> levels, List<dynamic> pumps) {
+    final active = (lvl - 1) < levels.length && levels[lvl - 1] == true;
+    final levelPumps = pumps.where((p) {
+      final assigned = ((p as Map<String, dynamic>)['assignedLevels'] as List<dynamic>? ?? [])
+          .map((e) => (e as num).toInt());
+      return assigned.contains(lvl);
+    }).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: active ? Colors.amber.shade50 : Colors.grey.shade100,
+        border: Border.all(color: active ? Colors.amber.shade300 : Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
                 active ? Icons.water_drop : Icons.water_drop_outlined,
-                size: 18,
                 color: active ? Colors.amber.shade800 : Colors.grey,
               ),
-            );
-          }),
-        ),
-        const SizedBox(height: 24),
-
-        Text('Pumps', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (pumps.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text('No pumps joined yet.'),
+              const SizedBox(width: 8),
+              Text('Level $lvl', style: Theme.of(context).textTheme.titleMedium),
+            ],
           ),
-        ...pumps.map((p) {
-          final map = p as Map<String, dynamic>;
-          final online = map['online'] == true;
-          final relay = map['relay'] == true;
-          final assignedLevels = (map['assignedLevels'] as List<dynamic>? ?? [])
-              .map((e) => (e as num).toInt())
-              .toList();
-          final name = (map['name'] as String?) ?? '';
-          final displayName = name.isNotEmpty ? name : 'Pump ${map['pumpId']}';
-          return Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: online
-                    ? (relay ? Colors.green : Colors.grey.shade400)
-                    : Colors.red.shade200,
-                child: Icon(
-                  relay ? Icons.power : Icons.power_off,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              title: Text('$displayName  (slot ${map['slot']})'),
-              subtitle: Text(online
-                  ? (relay ? 'Running' : 'Idle')
-                  : 'Offline -- not responding'),
-              trailing: Chip(
-                label: Text(assignedLevels.isEmpty
-                    ? 'Unassigned'
-                    : 'Levels ${assignedLevels.join(", ")}'),
-                backgroundColor:
-                    assignedLevels.isEmpty ? Colors.grey.shade200 : Colors.teal.shade50,
-              ),
+          const SizedBox(height: 8),
+          if (levelPumps.isEmpty)
+            const Text('No pumps assigned', style: TextStyle(color: Colors.grey)),
+          ...levelPumps.map((p) => _pumpRow(p as Map<String, dynamic>)),
+        ],
+      ),
+    );
+  }
+
+  Widget _pumpRow(Map<String, dynamic> map) {
+    final online = map['online'] == true;
+    final relay = map['relay'] == true;
+    final name = (map['name'] as String?) ?? '';
+    final displayName = name.isNotEmpty ? name : 'Pump ${map['pumpId']}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(
+            relay ? Icons.power : Icons.power_off,
+            size: 18,
+            color: !online ? Colors.red.shade300 : (relay ? Colors.green : Colors.grey),
+          ),
+          const SizedBox(width: 6),
+          Expanded(child: Text(displayName)),
+          Text(
+            !online ? 'Offline' : (relay ? 'Running' : 'Idle'),
+            style: TextStyle(
+              color: !online ? Colors.red : (relay ? Colors.green.shade700 : Colors.grey),
+              fontWeight: FontWeight.w500,
             ),
-          );
-        }),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -173,8 +173,9 @@ class _AssignScreenState extends State<AssignScreen> {
             const SizedBox(height: 16),
           ],
 
+          // Top-to-bottom Level N .. Level 1, matching the physical board.
           ...List.generate(numLevels, (i) {
-            final level = i + 1;
+            final level = numLevels - i;
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Column(

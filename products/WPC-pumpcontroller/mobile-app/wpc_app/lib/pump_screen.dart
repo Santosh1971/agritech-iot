@@ -13,7 +13,6 @@ class _PumpScreenState extends State<PumpScreen> {
   String? _error;
   bool _busy = false;
 
-  final _pumpIdController = TextEditingController();
   final _masterIdController = TextEditingController();
 
   @override
@@ -24,7 +23,6 @@ class _PumpScreenState extends State<PumpScreen> {
 
   @override
   void dispose() {
-    _pumpIdController.dispose();
     _masterIdController.dispose();
     super.dispose();
   }
@@ -34,11 +32,14 @@ class _PumpScreenState extends State<PumpScreen> {
     try {
       final info = await WpcApi.getPumpInfo();
       if (!mounted) return;
+      String masterId = (info['targetMasterId'] as String? ?? '');
+      if (masterId.toLowerCase().startsWith('0x')) {
+        masterId = masterId.substring(2);
+      }
       setState(() {
         _info = info;
         _error = null;
-        _pumpIdController.text = info['pumpId'].toString();
-        _masterIdController.text = info['targetMasterId'] as String? ?? '';
+        _masterIdController.text = masterId;
       });
     } catch (e) {
       if (!mounted) return;
@@ -50,26 +51,20 @@ class _PumpScreenState extends State<PumpScreen> {
   }
 
   Future<void> _save() async {
-    final pumpId = int.tryParse(_pumpIdController.text.trim());
-    final masterId = _masterIdController.text.trim();
-    if (pumpId == null || pumpId < 0 || pumpId > 9999) {
+    final masterId = _masterIdController.text.trim().toUpperCase();
+    final hexPattern = RegExp(r'^[0-9A-F]{8}$');
+    if (!hexPattern.hasMatch(masterId)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pump ID must be 0-9999')),
-      );
-      return;
-    }
-    if (!masterId.toLowerCase().startsWith('0x') || masterId.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Master ID should look like 0x86470968')),
+        const SnackBar(content: Text('Master ID must be exactly 8 characters (0-9, A-F)')),
       );
       return;
     }
     setState(() => _busy = true);
     try {
-      await WpcApi.setPumpConfig(pumpId: pumpId, targetMasterId: masterId);
+      await WpcApi.setPumpConfig(targetMasterId: masterId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved -- Pump is rejoining under the new settings')),
+          const SnackBar(content: Text('Saved -- Pump is rejoining under the new Master')),
         );
       }
       await _fetch();
@@ -146,25 +141,18 @@ class _PumpScreenState extends State<PumpScreen> {
             ),
             const SizedBox(height: 24),
 
-            Text('Change Settings', style: Theme.of(context).textTheme.titleMedium),
+            Text('Link to Master', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             TextField(
-              controller: _pumpIdController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Pump ID (0-9999)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
               controller: _masterIdController,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 8,
               decoration: const InputDecoration(
-                labelText: 'Target Master ID (e.g. 0x86470968)',
+                labelText: 'Master ID (8 characters, no 0x)',
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: _busy ? null : _save,
               child: _busy
