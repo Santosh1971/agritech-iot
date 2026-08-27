@@ -1,4 +1,4 @@
-package com.agritech.wpc_app
+package com.nbagri.wpc
 
 import io.flutter.embedding.android.FlutterActivity
 

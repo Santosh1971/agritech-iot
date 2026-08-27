@@ -11,7 +11,7 @@ class WpcApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WPC',
+      title: 'NB Agri Automation - WPC',
       theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
       home: const HomeShell(),
     );
@@ -34,7 +34,15 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index])),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            Image.asset('assets/images/logo_icon.png', height: 28),
+            const SizedBox(width: 8),
+            Text(_titles[_index]),
+          ],
+        ),
+      ),
       body: _screens[_index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
