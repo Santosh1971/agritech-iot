@@ -5,6 +5,14 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 
+// Forward declarations -- several early helper functions (delayWithLeds,
+// listenForJoin, etc.) call these before their real definitions appear
+// later in the file. Plain .cpp, no Arduino auto-prototyping, so without
+// these the compiler rejects the call. Same fix for the recurring
+// ordering issue we've hit several times on this project.
+void updateInputs();
+void applyLevelLogic();
+
 // ---------------------------------------------------------------------
 // WPC Master Node
 // Reads 3 water-level float switches + 1 "No Power" input, dynamically
