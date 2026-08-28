@@ -290,17 +290,22 @@ bool fastBlinkOn(uint32_t intervalMs) {
   return (millis() / intervalMs) % 2 == 0;
 }
 
+// Asymmetric "minimum dwell" logic, not a symmetric debounce: a genuine
+// level change is accepted INSTANTLY as soon as it's eligible (enough
+// time has passed since the last accepted change), but any reading that
+// disagrees with the currently-accepted state is otherwise ignored
+// entirely until that time has elapsed -- so a real crossing reacts
+// immediately, while a bounce/wobble right at the threshold (waves,
+// pump vibration) can't flip it back and forth. lastChangeMs here means
+// "when we last ACCEPTED a change", not "when the raw signal last moved".
 void updateInputs() {
   uint32_t now = millis();
   for (int i = 0; i < 4; i++) {
     LevelInput& in = inputs[i];
     bool raw = (digitalRead(in.pin) == LEVEL_ACTIVE_STATE);
-    if (raw != in.rawLast) {
-      in.lastChangeMs = now;
-      in.rawLast = raw;
-    }
-    if ((now - in.lastChangeMs) > levelDebounceMs && in.state != raw) {
+    if (raw != in.state && (now - in.lastChangeMs) >= levelDebounceMs) {
       in.state = raw;
+      in.lastChangeMs = now;
       Serial.print(F("[LEVEL] pin "));
       Serial.print(in.pin);
       Serial.print(F(" -> "));
@@ -713,6 +718,10 @@ void setup() {
   prefs.begin("wpc", false);
   numLevels = prefs.getUChar("numLevels", 3);
   levelDebounceMs = prefs.getULong("debounceMs", DEBOUNCE_MS_DEFAULT);
+  // Seed each input's lastChangeMs so the very first real reading at
+  // boot is treated as immediately eligible, not locked out for up to
+  // a full debounce period right after power-on.
+  for (auto& in : inputs) in.lastChangeMs = millis() - levelDebounceMs - 1;
   initPumpTable();
   loadPumpTable();
 
