@@ -598,6 +598,39 @@ void handleSetName() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
+// POST /forget  body: {"slot": N}
+// Clears a slot entirely -- for removing a stale/orphaned pump entry
+// (e.g. one that was reprovisioned to a different pumpId and will never
+// come back under its old identity).
+void handleForget() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  int slot = doc["slot"] | -1;
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
+    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
+    return;
+  }
+  pumps[slot].known = false;
+  pumps[slot].pumpId = 0;
+  pumps[slot].assignedLevels = 0;
+  pumps[slot].name[0] = '\0';
+  pumps[slot].lastRelayState = false;
+  pumps[slot].online = false;
+  savePumpTable();
+  Serial.print(F("[FORGET] slot "));
+  Serial.println(slot);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -663,6 +696,7 @@ void setup() {
   server.on("/config", HTTP_POST, handleSetConfig);
   server.on("/assign", HTTP_POST, handleAssign);
   server.on("/name", HTTP_POST, handleSetName);
+  server.on("/forget", HTTP_POST, handleForget);
   server.begin();
 }
 
