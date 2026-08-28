@@ -49,8 +49,7 @@ class _PumpScreenState extends State<PumpScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error =
-          "Not reachable -- connect WiFi to the Pump's own network (WPC-Pump-XXXX), not the Master");
+      setState(() => _error = "Not reachable: \$e");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
