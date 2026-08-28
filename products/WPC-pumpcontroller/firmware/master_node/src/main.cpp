@@ -377,7 +377,13 @@ void applyLevelLogic() {
     if (!pumps[slot].known) { desiredPumpState[slot] = false; continue; }
     bool on = false;
     for (int lvl = 1; lvl <= numLevels; lvl++) {
-      if ((pumps[slot].assignedLevels & (1 << (lvl - 1))) && inputs[lvl - 1].state) {
+      // Real float switches close (short) when water RISES and lifts them,
+      // opposite of the bench DIP switches -- so "not yet reached" (switch
+      // still open) is what should drive the pump ON, not the reverse. The
+      // raw reading and the LEDs stay unflipped (LED ON still correctly
+      // means "water physically present at this level") -- only this
+      // control condition is inverted.
+      if ((pumps[slot].assignedLevels & (1 << (lvl - 1))) && !inputs[lvl - 1].state) {
         on = true;
         break;
       }
@@ -626,7 +632,18 @@ void printDebugSummary() {
     any = true;
     Serial.print(F("P"));
     Serial.print(i + 1);
-    Serial.print(F(":"));
+    Serial.print(F("("));
+    bool firstLvl = true;
+    for (int lvl = 1; lvl <= 3; lvl++) {
+      if (pumps[i].assignedLevels & (1 << (lvl - 1))) {
+        if (!firstLvl) Serial.print(F(","));
+        Serial.print(F("L"));
+        Serial.print(lvl);
+        firstLvl = false;
+      }
+    }
+    if (firstLvl) Serial.print(F("-"));
+    Serial.print(F("):"));
     Serial.print(pumps[i].lastRelayState ? F("ON") : F("OFF"));
     Serial.print(F(" "));
   }
