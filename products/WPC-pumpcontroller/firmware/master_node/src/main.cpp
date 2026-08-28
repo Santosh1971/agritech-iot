@@ -205,6 +205,8 @@ struct PumpEntry {
   char     name[16];        // installer-friendly label, empty = show pumpId instead
   bool     lastRelayState;
   bool     online;
+  bool     everAttempted;   // false right after boot/restore -- online defaults false too but that
+                             // does NOT mean "confirmed offline", just "not yet checked this session"
 };
 PumpEntry pumps[MAX_PUMPS];
 
@@ -222,6 +224,7 @@ void initPumpTable() {
     pumps[i].name[0] = '\0';
     pumps[i].lastRelayState = false;
     pumps[i].online = false;
+    pumps[i].everAttempted = false;
   }
 }
 
@@ -498,21 +501,26 @@ void pollCycle() {
     if (turningOn && freshOnCountThisPass > 0) delayWithLeds(STAGGER_MS);
     if (turningOn) freshOnCountThisPass++;
 
-    // A slot ALREADY marked offline gets a short, single-shot check
-    // instead of the full retry budget -- otherwise a known-but-currently-
-    // unresponsive slot can burn ~7.5s/cycle on wasted retries, starving
-    // the fixed 2s join-listening window of any real chance to catch that
-    // same pump's actual JOIN_REQUEST when it's trying to reconnect.
-    bool wasKnownOnline = pumps[slot].online;
-    int maxAttempts = wasKnownOnline ? (POLL_RETRIES + 1) : 1;
-    uint32_t txTimeout = wasKnownOnline ? 2000 : 500;
-    uint32_t rxTimeout = wasKnownOnline ? POLL_TIMEOUT_MS : 200;
+    // A slot only gets the short, single-shot check after it has
+    // genuinely been tried and failed at least once THIS session --
+    // online defaults false on every boot (it's never persisted), so
+    // without the everAttempted check every freshly-restored pump would
+    // wrongly get the aggressive short timeout on its very first ever
+    // poll, before it had any real chance to reconnect. Once confirmed
+    // offline by a real generous attempt, reduce the budget so a
+    // known-dead slot doesn't burn ~7.5s/cycle starving the 2s
+    // join-listening window.
+    bool giveFullBudget = pumps[slot].online || !pumps[slot].everAttempted;
+    int maxAttempts = giveFullBudget ? (POLL_RETRIES + 1) : 1;
+    uint32_t txTimeout = giveFullBudget ? 2000 : 500;
+    uint32_t rxTimeout = giveFullBudget ? POLL_TIMEOUT_MS : 200;
 
     bool acked = false;
     for (int attempt = 0; attempt < maxAttempts && !acked; attempt++) {
       acked = pollPump(slot, desired, txTimeout, rxTimeout);
     }
 
+    pumps[slot].everAttempted = true;
     pumps[slot].online = acked;
     if (acked) {
       pumps[slot].lastRelayState = desired;
