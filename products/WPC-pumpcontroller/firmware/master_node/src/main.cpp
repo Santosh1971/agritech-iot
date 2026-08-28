@@ -375,6 +375,11 @@ void listenForJoin(uint32_t windowMs) {
           if (slot >= 0) {
             pumps[slot].known = true;
             pumps[slot].pumpId = pumpId;
+            // A fresh join is a genuinely new chance to reconnect --
+            // reset everAttempted so it gets the fair, generous first
+            // poll (full retries/timeout), not the reduced budget left
+            // over from whatever happened to this slot before.
+            pumps[slot].everAttempted = false;
             savePumpTable();
             Serial.print(F("[JOIN] pumpId "));
             Serial.print(pumpId);
