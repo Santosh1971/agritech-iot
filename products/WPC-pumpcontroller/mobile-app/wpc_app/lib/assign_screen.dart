@@ -12,6 +12,7 @@ class _AssignScreenState extends State<AssignScreen> {
   Map<String, dynamic>? _status;
   String? _error;
   bool _busy = false;
+  double? _debounceSliderValue;   // local while dragging; null = show the server's current value
 
   @override
   void initState() {
@@ -179,6 +180,52 @@ class _AssignScreenState extends State<AssignScreen> {
                 ? null
                 : (selection) => _setNumLevels(selection.first),
           ),
+          const SizedBox(height: 24),
+
+          Text('Level Debounce Time', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Builder(builder: (context) {
+            final debounceMs = (_status!['debounceMs'] as num?)?.toInt() ?? 10000;
+            final serverSeconds = (debounceMs / 1000).clamp(10.0, 300.0);
+            final displaySeconds = _debounceSliderValue ?? serverSeconds;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${displaySeconds.round()}s', style: Theme.of(context).textTheme.bodyMedium),
+                Slider(
+                  min: 10,
+                  max: 300,
+                  divisions: 29,
+                  value: displaySeconds,
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() => _debounceSliderValue = v),
+                  onChangeEnd: _busy
+                      ? null
+                      : (v) async {
+                          setState(() => _busy = true);
+                          try {
+                            await WpcApi.setDebounceMs((v * 1000).round());
+                            await _fetch();
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to set debounce: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _busy = false;
+                                _debounceSliderValue = null;
+                              });
+                            }
+                          }
+                        },
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 24),
 
           if (pumps.isEmpty)

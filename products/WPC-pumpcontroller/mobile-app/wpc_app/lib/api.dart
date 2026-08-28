@@ -33,6 +33,17 @@ class WpcApi {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  static Future<void> setDebounceMs(int ms) async {
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/config'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'debounceMs': ms}),
+        )
+        .timeout(_timeout);
+    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+  }
+
   static Future<void> setNumLevels(int n) async {
     final res = await http
         .post(
