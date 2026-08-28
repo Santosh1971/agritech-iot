@@ -85,6 +85,40 @@ class _AssignScreenState extends State<AssignScreen> {
     }
   }
 
+  Future<void> _forgetPump(int slot, String displayName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Forget pump?'),
+        content: Text(
+          '$displayName will be removed from the Master and no longer show anywhere. '
+          "This doesn't affect the physical Pump Node -- it can rejoin later if it's still active.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Forget', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      await WpcApi.forgetPump(slot);
+      await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to forget: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _togglePumpLevel(int slot, int level, bool nowAssigned) async {
     setState(() => _busy = true);
     try {
@@ -164,9 +198,18 @@ class _AssignScreenState extends State<AssignScreen> {
               return ListTile(
                 dense: true,
                 title: Text(displayName),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
-                  onPressed: _busy ? null : () => _renamePump(slot, name),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 20),
+                      onPressed: _busy ? null : () => _renamePump(slot, name),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                      onPressed: _busy ? null : () => _forgetPump(slot, displayName),
+                    ),
+                  ],
                 ),
               );
             }),
