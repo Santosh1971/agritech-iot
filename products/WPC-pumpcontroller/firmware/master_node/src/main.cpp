@@ -113,19 +113,45 @@ void updateLoraLed() {
   digitalWrite(PIN_LORA_LED, errPattern[phaseIdx] ? HIGH : LOW);
 }
 
+int wifiStationCount = 0;
+
+// Three distinct patterns: slow double-blink-then-pause (idle, AP up, no
+// phone connected), continuous fast blink with no pause (a phone IS
+// connected right now -- this is what Avinash asked for, to see at a
+// glance which device his phone is actually talking to), or a slower
+// continuous blink (SoftAP itself failed to start). Speeds are kept
+// clearly different (50ms vs 150ms) so "connected" and "error" don't
+// look the same at a glance.
 void updateWifiLed() {
+  static uint32_t lastStationCheck = 0;
   static uint32_t phaseStart = 0;
   static uint8_t phaseIdx = 0;
-  static const bool okPattern[]   = {true, false, true, false};
-  static const uint16_t okDur[]   = {80, 80, 80, 800};
-  static const bool errPattern[]  = {true, false};
-  static const uint16_t errDur[]  = {100, 100};
-
-  const bool* pattern = wifiApOk ? okPattern : errPattern;
-  const uint16_t* durations = wifiApOk ? okDur : errDur;
-  const uint8_t patternLen = wifiApOk ? 4 : 2;
 
   uint32_t now = millis();
+  if (now - lastStationCheck >= 500) {
+    wifiStationCount = WiFi.softAPgetStationNum();
+    lastStationCheck = now;
+  }
+
+  static const bool idlePattern[]      = {true, false, true, false};
+  static const uint16_t idleDur[]      = {80, 80, 80, 800};
+  static const bool connectedPattern[] = {true, false};
+  static const uint16_t connectedDur[] = {50, 50};
+  static const bool errPattern[]       = {true, false};
+  static const uint16_t errDur[]       = {150, 150};
+
+  const bool* pattern;
+  const uint16_t* durations;
+  uint8_t patternLen;
+
+  if (!wifiApOk) {
+    pattern = errPattern; durations = errDur; patternLen = 2;
+  } else if (wifiStationCount > 0) {
+    pattern = connectedPattern; durations = connectedDur; patternLen = 2;
+  } else {
+    pattern = idlePattern; durations = idleDur; patternLen = 4;
+  }
+
   if (now - phaseStart >= durations[phaseIdx]) {
     phaseIdx = (phaseIdx + 1) % patternLen;
     phaseStart = now;
