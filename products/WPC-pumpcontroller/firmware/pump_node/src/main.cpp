@@ -6,6 +6,8 @@
 #include <ArduinoJson.h>
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
+bool wifiApOk = false;
+int wifiStationCount = 0;
 
 // ---------------------------------------------------------------------
 // WPC Pump Node -- single shared firmware for all Pump Nodes.
@@ -316,9 +318,6 @@ void setup() {
   server.on("/config", HTTP_POST, handleSetConfig);
   server.begin();
 }
-
-bool wifiApOk = false;
-int wifiStationCount = 0;
 
 // Same three-pattern indicator as the Master: slow double-blink-then-pause
 // (idle, AP up, no phone connected), continuous fast blink (a phone IS
