@@ -452,9 +452,19 @@ void pollCycle() {
     if (turningOn && freshOnCountThisPass > 0) delayWithLeds(STAGGER_MS);
     if (turningOn) freshOnCountThisPass++;
 
+    // A slot ALREADY marked offline gets a short, single-shot check
+    // instead of the full retry budget -- otherwise a known-but-currently-
+    // unresponsive slot can burn ~7.5s/cycle on wasted retries, starving
+    // the fixed 2s join-listening window of any real chance to catch that
+    // same pump's actual JOIN_REQUEST when it's trying to reconnect.
+    bool wasKnownOnline = pumps[slot].online;
+    int maxAttempts = wasKnownOnline ? (POLL_RETRIES + 1) : 1;
+    uint32_t txTimeout = wasKnownOnline ? 2000 : 500;
+    uint32_t rxTimeout = wasKnownOnline ? POLL_TIMEOUT_MS : 200;
+
     bool acked = false;
-    for (int attempt = 0; attempt <= POLL_RETRIES && !acked; attempt++) {
-      acked = pollPump(slot, desired, 2000, POLL_TIMEOUT_MS);
+    for (int attempt = 0; attempt < maxAttempts && !acked; attempt++) {
+      acked = pollPump(slot, desired, txTimeout, rxTimeout);
     }
 
     pumps[slot].online = acked;
