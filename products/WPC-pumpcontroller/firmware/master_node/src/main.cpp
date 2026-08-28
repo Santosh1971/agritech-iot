@@ -51,7 +51,10 @@ void applyLevelLogic();
 
 #define LEVEL_ACTIVE_STATE LOW
 
-#define DEBOUNCE_MS        200
+#define DEBOUNCE_MS_DEFAULT   10000UL   // 10s -- programmable range is 10s-5min
+#define DEBOUNCE_MS_MIN        10000UL
+#define DEBOUNCE_MS_MAX       300000UL
+uint32_t levelDebounceMs = DEBOUNCE_MS_DEFAULT;
 #define POLL_TIMEOUT_MS     500
 #define POLL_RETRIES        2
 #define STAGGER_MS          5000
@@ -296,7 +299,7 @@ void updateInputs() {
       in.lastChangeMs = now;
       in.rawLast = raw;
     }
-    if ((now - in.lastChangeMs) > DEBOUNCE_MS && in.state != raw) {
+    if ((now - in.lastChangeMs) > levelDebounceMs && in.state != raw) {
       in.state = raw;
       Serial.print(F("[LEVEL] pin "));
       Serial.print(in.pin);
@@ -528,6 +531,7 @@ void handleStatus() {
   snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
   doc["masterId"] = idbuf;
   doc["numLevels"] = numLevels;
+  doc["debounceMs"] = levelDebounceMs;
 
   JsonArray levelsArr = doc["levels"].to<JsonArray>();
   for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
@@ -572,6 +576,13 @@ void handleSetConfig() {
     if (n >= 1 && n <= 3) {
       numLevels = (uint8_t)n;
       prefs.putUChar("numLevels", numLevels);
+    }
+  }
+  if (doc["debounceMs"].is<unsigned long>() || doc["debounceMs"].is<int>()) {
+    unsigned long d = doc["debounceMs"];
+    if (d >= DEBOUNCE_MS_MIN && d <= DEBOUNCE_MS_MAX) {
+      levelDebounceMs = (uint32_t)d;
+      prefs.putULong("debounceMs", levelDebounceMs);
     }
   }
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -701,6 +712,7 @@ void setup() {
 
   prefs.begin("wpc", false);
   numLevels = prefs.getUChar("numLevels", 3);
+  levelDebounceMs = prefs.getULong("debounceMs", DEBOUNCE_MS_DEFAULT);
   initPumpTable();
   loadPumpTable();
 
