@@ -5,6 +5,8 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 
+void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
+
 // ---------------------------------------------------------------------
 // WPC Pump Node -- single shared firmware for all Pump Nodes.
 // Each board gets a unique default 4-digit Pump ID derived from its own
@@ -39,6 +41,7 @@
 #define PIN_IN4_LED    13
 #define PIN_RELAY1     32
 #define PIN_PUMP_ON_LED 4
+#define PIN_WIFI_LED   2   // onboard "WiFi" LED on the dev kit, same as Master
 
 #define INPUT_ACTIVE_STATE LOW
 
@@ -298,19 +301,69 @@ void setup() {
   char apSuffix[5];
   snprintf(apSuffix, sizeof(apSuffix), "%04u", (unsigned int)(myPumpId % 10000));
   String apSsid = "WPC-Pump-" + String(apSuffix);
-  WiFi.softAP(apSsid.c_str());
+  wifiApOk = WiFi.softAP(apSsid.c_str());
+  if (!wifiApOk) {
+    Serial.println(F("[WIFI] softAP() failed to start"));
+  }
   Serial.print(F("[WIFI] AP started: "));
   Serial.println(apSsid);
   Serial.print(F("[WIFI] IP: "));
   Serial.println(WiFi.softAPIP());
+
+  pinMode(PIN_WIFI_LED, OUTPUT);
 
   server.on("/info", handleInfo);
   server.on("/config", HTTP_POST, handleSetConfig);
   server.begin();
 }
 
+bool wifiApOk = false;
+int wifiStationCount = 0;
+
+// Same three-pattern indicator as the Master: slow double-blink-then-pause
+// (idle, AP up, no phone connected), continuous fast blink (a phone IS
+// connected to this Pump's own SoftAP right now), or a distinctly slower
+// continuous blink (SoftAP itself failed to start).
+void updateWifiLed() {
+  static uint32_t lastStationCheck = 0;
+  static uint32_t phaseStart = 0;
+  static uint8_t phaseIdx = 0;
+
+  uint32_t now = millis();
+  if (now - lastStationCheck >= 500) {
+    wifiStationCount = WiFi.softAPgetStationNum();
+    lastStationCheck = now;
+  }
+
+  static const bool idlePattern[]      = {true, false, true, false};
+  static const uint16_t idleDur[]      = {80, 80, 80, 800};
+  static const bool connectedPattern[] = {true, false};
+  static const uint16_t connectedDur[] = {50, 50};
+  static const bool errPattern[]       = {true, false};
+  static const uint16_t errDur[]       = {150, 150};
+
+  const bool* pattern;
+  const uint16_t* durations;
+  uint8_t patternLen;
+
+  if (!wifiApOk) {
+    pattern = errPattern; durations = errDur; patternLen = 2;
+  } else if (wifiStationCount > 0) {
+    pattern = connectedPattern; durations = connectedDur; patternLen = 2;
+  } else {
+    pattern = idlePattern; durations = idleDur; patternLen = 4;
+  }
+
+  if (now - phaseStart >= durations[phaseIdx]) {
+    phaseIdx = (phaseIdx + 1) % patternLen;
+    phaseStart = now;
+  }
+  digitalWrite(PIN_WIFI_LED, pattern[phaseIdx] ? HIGH : LOW);
+}
+
 void loop() {
   server.handleClient();
+  updateWifiLed();
   if (operationDone) {
     operationDone = false;
 
