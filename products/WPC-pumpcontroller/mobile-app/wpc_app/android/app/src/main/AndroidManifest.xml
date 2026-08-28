@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:networkSecurityConfig="@xml/network_security_config"
-        android:label="NB Agri Automation - WPC"
+        android:label="NB Agri-WPC"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
