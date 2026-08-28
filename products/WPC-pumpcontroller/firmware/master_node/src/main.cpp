@@ -105,19 +105,6 @@ void updateLoraLed() {
   digitalWrite(PIN_LORA_LED, errPattern[phaseIdx] ? HIGH : LOW);
 }
 
-// Non-blocking replacement for plain delay() -- keeps the WiFi and LoRa
-// LED patterns (and the web server) alive during long waits, instead of
-// freezing them for the whole duration like a bare delay() does.
-void delayWithLeds(uint32_t ms) {
-  uint32_t start = millis();
-  while (millis() - start < ms) {
-    server.handleClient();
-    updateWifiLed();
-    updateLoraLed();
-    delay(5);
-  }
-}
-
 void updateWifiLed() {
   static uint32_t phaseStart = 0;
   static uint8_t phaseIdx = 0;
@@ -136,6 +123,19 @@ void updateWifiLed() {
     phaseStart = now;
   }
   digitalWrite(PIN_WIFI_LED, pattern[phaseIdx] ? HIGH : LOW);
+}
+
+// Non-blocking replacement for plain delay() -- keeps the WiFi and LoRa
+// LED patterns (and the web server) alive during long waits, instead of
+// freezing them for the whole duration like a bare delay() does.
+void delayWithLeds(uint32_t ms) {
+  uint32_t start = millis();
+  while (millis() - start < ms) {
+    server.handleClient();
+    updateWifiLed();
+    updateLoraLed();
+    delay(5);
+  }
 }   // NVS-backed slot->pumpId mapping, 0 = empty
 
 volatile bool operationDone = false;
