@@ -134,6 +134,8 @@ void delayWithLeds(uint32_t ms) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateInputs();
+    applyLevelLogic();
     delay(5);
   }
 }   // NVS-backed slot->pumpId mapping, 0 = empty
@@ -306,6 +308,8 @@ void listenForJoin(uint32_t windowMs) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateInputs();
+    applyLevelLogic();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -751,5 +755,5 @@ void loop() {
   listenForJoin(JOIN_WINDOW_MS);
   pollCycle();
 
-  delay(1000);
+  delayWithLeds(1000);
 }
