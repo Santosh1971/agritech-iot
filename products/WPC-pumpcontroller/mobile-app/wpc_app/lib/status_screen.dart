@@ -40,7 +40,7 @@ class _StatusScreenState extends State<StatusScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Not reachable: \$e');
+      setState(() => _error = 'Not reachable: $e');
     }
   }
 

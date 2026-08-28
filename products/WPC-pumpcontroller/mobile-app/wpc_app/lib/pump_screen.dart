@@ -49,7 +49,7 @@ class _PumpScreenState extends State<PumpScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = "Not reachable: \$e");
+      setState(() => _error = "Not reachable: $e");
     } finally {
       if (mounted) setState(() => _busy = false);
     }

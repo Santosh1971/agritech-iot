@@ -29,7 +29,7 @@ class _AssignScreenState extends State<AssignScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Not reachable: \$e');
+      setState(() => _error = 'Not reachable: $e');
     }
   }
 
