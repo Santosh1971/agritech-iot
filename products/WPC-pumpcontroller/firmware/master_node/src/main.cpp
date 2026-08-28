@@ -82,6 +82,42 @@ void blinkLed(uint8_t pin, int times, int onMs = 60, int offMs = 60) {
 // when the SoftAP started OK, fast single-blink if it failed. Must be
 // called frequently (main loop AND inside any blocking wait loops) since
 // it only advances based on millis(), never actually delays.
+bool loraLinkError = false;   // true when the most recently completed poll cycle got zero ACKs from any known pump
+
+// Fast continuous blink to flag "nothing is responding" -- only takes
+// over the LoRa LED when loraLinkError is true; otherwise leaves the LED
+// alone so the momentary 1x-send/2x-receive blinkLed() calls keep working
+// exactly as before. The two never really compete: this pattern only
+// shows during stretches with zero ACKs, and the discrete double-blink
+// only shows right when an ACK succeeds -- by definition not overlapping.
+void updateLoraLed() {
+  if (!loraLinkError) return;
+  static uint32_t phaseStart = 0;
+  static uint8_t phaseIdx = 0;
+  static const bool errPattern[] = {true, false};
+  static const uint16_t errDur[] = {80, 80};
+
+  uint32_t now = millis();
+  if (now - phaseStart >= errDur[phaseIdx]) {
+    phaseIdx = (phaseIdx + 1) % 2;
+    phaseStart = now;
+  }
+  digitalWrite(PIN_LORA_LED, errPattern[phaseIdx] ? HIGH : LOW);
+}
+
+// Non-blocking replacement for plain delay() -- keeps the WiFi and LoRa
+// LED patterns (and the web server) alive during long waits, instead of
+// freezing them for the whole duration like a bare delay() does.
+void delayWithLeds(uint32_t ms) {
+  uint32_t start = millis();
+  while (millis() - start < ms) {
+    server.handleClient();
+    updateWifiLed();
+    updateLoraLed();
+    delay(5);
+  }
+}
+
 void updateWifiLed() {
   static uint32_t phaseStart = 0;
   static uint8_t phaseIdx = 0;
@@ -269,6 +305,7 @@ void listenForJoin(uint32_t windowMs) {
   while (millis() - start < windowMs) {
     server.handleClient();
     updateWifiLed();
+    updateLoraLed();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -304,7 +341,7 @@ void listenForJoin(uint32_t windowMs) {
             operationDone = false;
             radio.startTransmit(txPacket, alen);
             uint32_t t0 = millis();
-            while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); }
+            while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); updateLoraLed(); }
             operationDone = false;
             blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent the JOIN_ACCEPT
           } else {
@@ -333,6 +370,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   while (!operationDone) {
     server.handleClient();
     updateWifiLed();
+    updateLoraLed();
     if (millis() - t0 > txTimeoutMs) {
       Serial.println(F("[LoRa] TX timeout"));
       return false;
@@ -351,6 +389,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   while (millis() - start < rxTimeoutMs) {
     server.handleClient();
     updateWifiLed();
+    updateLoraLed();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -398,16 +437,19 @@ void pollCycle() {
   // a fresh OFF->ON transition every time, not just the first time ever.
   static bool wasOn[MAX_PUMPS] = { false };
   int freshOnCountThisPass = 0;
+  bool anyKnownPump = false;
+  bool anyAckedThisPass = false;
 
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
     if (!pumps[slot].known) continue;
+    anyKnownPump = true;
 
     bool desired = desiredPumpState[slot];
     bool turningOn = desired && !wasOn[slot];
 
     // stagger only between MULTIPLE pumps freshly turning ON in the
     // same pass -- the first one in a pass never waits
-    if (turningOn && freshOnCountThisPass > 0) delay(STAGGER_MS);
+    if (turningOn && freshOnCountThisPass > 0) delayWithLeds(STAGGER_MS);
     if (turningOn) freshOnCountThisPass++;
 
     bool acked = false;
@@ -419,12 +461,15 @@ void pollCycle() {
     if (acked) {
       pumps[slot].lastRelayState = desired;
       wasOn[slot] = desired;
+      anyAckedThisPass = true;
     } else {
       Serial.print(F("[POLL] slot "));
       Serial.print(slot);
       Serial.println(F(" NOT ACKED -- marked offline"));
     }
   }
+
+  loraLinkError = anyKnownPump && !anyAckedThisPass;
 }
 
 // GET /status -- JSON snapshot of sump levels + known pumps, for the
@@ -654,6 +699,7 @@ void printDebugSummary() {
 void loop() {
   server.handleClient();
   updateWifiLed();
+  updateLoraLed();
   updateInputs();
   applyLevelLogic();
 
