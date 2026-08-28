@@ -63,7 +63,44 @@ SPIClass loraSPI(HSPI);
 SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 Preferences prefs;
 uint16_t storedPumpIds[MAX_PUMPS];
-WebServer server(80);   // NVS-backed slot->pumpId mapping, 0 = empty
+WebServer server(80);
+bool wifiApOk = false;   // set from WiFi.softAP()'s own return value
+
+// Blocking blink -- used for infrequent, short-lived LoRa TX/RX indicators.
+// Fine here since it's only ever called right after a TX/RX event already
+// confirmed complete, not inside a timing-critical wait window.
+void blinkLed(uint8_t pin, int times, int onMs = 60, int offMs = 60) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(pin, HIGH);
+    delay(onMs);
+    digitalWrite(pin, LOW);
+    if (i < times - 1) delay(offMs);
+  }
+}
+
+// Non-blocking repeating pattern for the WiFi LED -- double-blink heartbeat
+// when the SoftAP started OK, fast single-blink if it failed. Must be
+// called frequently (main loop AND inside any blocking wait loops) since
+// it only advances based on millis(), never actually delays.
+void updateWifiLed() {
+  static uint32_t phaseStart = 0;
+  static uint8_t phaseIdx = 0;
+  static const bool okPattern[]   = {true, false, true, false};
+  static const uint16_t okDur[]   = {80, 80, 80, 800};
+  static const bool errPattern[]  = {true, false};
+  static const uint16_t errDur[]  = {100, 100};
+
+  const bool* pattern = wifiApOk ? okPattern : errPattern;
+  const uint16_t* durations = wifiApOk ? okDur : errDur;
+  const uint8_t patternLen = wifiApOk ? 4 : 2;
+
+  uint32_t now = millis();
+  if (now - phaseStart >= durations[phaseIdx]) {
+    phaseIdx = (phaseIdx + 1) % patternLen;
+    phaseStart = now;
+  }
+  digitalWrite(PIN_WIFI_LED, pattern[phaseIdx] ? HIGH : LOW);
+}   // NVS-backed slot->pumpId mapping, 0 = empty
 
 volatile bool operationDone = false;
 
@@ -231,6 +268,7 @@ void listenForJoin(uint32_t windowMs) {
   uint32_t start = millis();
   while (millis() - start < windowMs) {
     server.handleClient();
+    updateWifiLed();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -256,6 +294,7 @@ void listenForJoin(uint32_t windowMs) {
             Serial.print(pumpId);
             Serial.print(F(" -> slot "));
             Serial.println(slot);
+            blinkLed(PIN_LORA_LED, 2);   // 2 blinks = we received the JOIN_REQUEST
 
             // Echo the accepted pumpId back in the payload -- JOIN_ACCEPT
             // is broadcast over LoRa, so any other unjoined pump hearing
@@ -265,8 +304,9 @@ void listenForJoin(uint32_t windowMs) {
             operationDone = false;
             radio.startTransmit(txPacket, alen);
             uint32_t t0 = millis();
-            while (!operationDone && millis() - t0 < 1000) {}
+            while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); }
             operationDone = false;
+            blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent the JOIN_ACCEPT
           } else {
             Serial.println(F("[JOIN] no free slot"));
           }
@@ -292,6 +332,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   uint32_t t0 = millis();
   while (!operationDone) {
     server.handleClient();
+    updateWifiLed();
     if (millis() - t0 > txTimeoutMs) {
       Serial.println(F("[LoRa] TX timeout"));
       return false;
@@ -303,11 +344,13 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   Serial.print(slot);
   Serial.print(F(" LEVEL_CMD -> "));
   Serial.println(desired ? F("ON") : F("OFF"));
+  blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent something
 
   radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < rxTimeoutMs) {
     server.handleClient();
+    updateWifiLed();
     if (operationDone) {
       operationDone = false;
       uint8_t buf[32];
@@ -317,6 +360,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
         if (buf[1] == MSG_CMD_ACK && buf[6] == slot) {
           Serial.print(F("[POLL] CMD_ACK from slot "));
           Serial.println(slot);
+          blinkLed(PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
         }
       }
@@ -545,7 +589,10 @@ void setup() {
   char apSuffix[9];
   snprintf(apSuffix, sizeof(apSuffix), "%08X", (unsigned int)masterId32);
   String apSsid = "WPC-Master-" + String(apSuffix);
-  WiFi.softAP(apSsid.c_str());
+  wifiApOk = WiFi.softAP(apSsid.c_str());
+  if (!wifiApOk) {
+    Serial.println(F("[WIFI] softAP() failed to start"));
+  }
   Serial.print(F("[WIFI] AP started: "));
   Serial.println(apSsid);
   Serial.print(F("[WIFI] IP: "));
@@ -558,11 +605,42 @@ void setup() {
   server.begin();
 }
 
+// One-line status summary each cycle: level states, No-Power alert
+// (with raw pin reading alongside the logical state), and every known
+// pump's last CONFIRMED (acked) relay state, labeled P1/P2/... by slot.
+void printDebugSummary() {
+  Serial.print(F("[STATUS] "));
+  for (int lvl = 1; lvl <= numLevels; lvl++) {
+    Serial.print(F("L"));
+    Serial.print(lvl);
+    Serial.print(F(":"));
+    Serial.print(inputs[lvl - 1].state ? F("ON") : F("OFF"));
+    Serial.print(F(" "));
+  }
+  Serial.print(F("| NoPower:"));
+  Serial.print(inputs[3].state ? F("ON(LOW)") : F("OFF(HIGH)"));
+  Serial.print(F(" | "));
+  bool any = false;
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    if (!pumps[i].known) continue;
+    any = true;
+    Serial.print(F("P"));
+    Serial.print(i + 1);
+    Serial.print(F(":"));
+    Serial.print(pumps[i].lastRelayState ? F("ON") : F("OFF"));
+    Serial.print(F(" "));
+  }
+  if (!any) Serial.print(F("(no pumps joined)"));
+  Serial.println();
+}
+
 void loop() {
   server.handleClient();
+  updateWifiLed();
   updateInputs();
   applyLevelLogic();
 
+  printDebugSummary();
   listenForJoin(JOIN_WINDOW_MS);
   pollCycle();
 
