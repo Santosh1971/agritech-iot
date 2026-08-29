@@ -261,7 +261,7 @@ void handleSetConfig() {
     if (v != 0) {
       targetMasterId = v;
       prefs.putULong("masterId", targetMasterId);
-      currentSyncWord = (uint8_t)(targetMasterId & 0xFF);
+      currentSyncWord = (uint8_t)((targetMasterId ^ (targetMasterId >> 8) ^ (targetMasterId >> 16) ^ (targetMasterId >> 24)) & 0xFF);
       radio.setSyncWord(currentSyncWord);
       Serial.print(F("[CONFIG] syncword updated to 0x"));
       Serial.println(currentSyncWord, HEX);
@@ -306,7 +306,9 @@ void setup() {
   // Must match the target Master's own derived syncword -- see Master's
   // main.cpp for why. Recomputed and applied live in handleSetConfig()
   // too, if the target Master ever changes without a reboot.
-  currentSyncWord = (uint8_t)(targetMasterId & 0xFF);
+  // Must use the identical fold formula as Master -- see Master's
+  // main.cpp for why plain truncation caused a real collision.
+  currentSyncWord = (uint8_t)((targetMasterId ^ (targetMasterId >> 8) ^ (targetMasterId >> 16) ^ (targetMasterId >> 24)) & 0xFF);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
                            currentSyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {

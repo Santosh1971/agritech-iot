@@ -826,7 +826,13 @@ void setup() {
   // the same site (a mismatched syncword is filtered before the radio
   // even attempts to decode a stray packet, unlike checking masterId
   // only after successfully decoding a full packet's content).
-  uint8_t mySyncWord = (uint8_t)(masterId32 & 0xFF);
+  // XOR-fold all 4 bytes rather than just truncating to the low byte --
+  // two of our own bench Master IDs happened to share the exact same
+  // low byte (0x67A99B20 vs 0x68A99B20, both ending in 0x20), which
+  // silently made the plain-truncation version give them the SAME
+  // syncword, defeating the whole point. XOR-folding uses all 32 bits'
+  // worth of entropy and avoids that specific collision.
+  uint8_t mySyncWord = (uint8_t)((masterId32 ^ (masterId32 >> 8) ^ (masterId32 >> 16) ^ (masterId32 >> 24)) & 0xFF);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
                            mySyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
