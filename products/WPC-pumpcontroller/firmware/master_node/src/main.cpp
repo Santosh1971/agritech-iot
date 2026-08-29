@@ -443,11 +443,13 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
 
   radio.startReceive();
   uint32_t start = millis();
+  int firesThisWindow = 0;
   while (millis() - start < rxTimeoutMs) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
     if (operationDone) {
+      firesThisWindow++;
       operationDone = false;
       uint8_t buf[32];
       int rlen = radio.getPacketLength();
@@ -480,6 +482,9 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
       }
       radio.startReceive();
     }
+  }
+  if (firesThisWindow == 0) {
+    Serial.println(F("[POLL] RX interrupt never fired this window"));
   }
   return false;
 }
