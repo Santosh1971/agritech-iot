@@ -309,6 +309,8 @@ void setup() {
   // Must use the identical fold formula as Master -- see Master's
   // main.cpp for why plain truncation caused a real collision.
   currentSyncWord = (uint8_t)((targetMasterId ^ (targetMasterId >> 8) ^ (targetMasterId >> 16) ^ (targetMasterId >> 24)) & 0xFF);
+  Serial.print(F("[LoRa] syncWord = 0x"));
+  Serial.println(currentSyncWord, HEX);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
                            currentSyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {

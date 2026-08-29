@@ -833,6 +833,8 @@ void setup() {
   // syncword, defeating the whole point. XOR-folding uses all 32 bits'
   // worth of entropy and avoids that specific collision.
   uint8_t mySyncWord = (uint8_t)((masterId32 ^ (masterId32 >> 8) ^ (masterId32 >> 16) ^ (masterId32 >> 24)) & 0xFF);
+  Serial.print(F("[LoRa] syncWord = 0x"));
+  Serial.println(mySyncWord, HEX);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
                            mySyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
