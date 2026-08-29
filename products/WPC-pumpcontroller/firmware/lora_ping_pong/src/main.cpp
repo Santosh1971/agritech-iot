@@ -91,6 +91,14 @@ void setup() {
   Serial.println();
   Serial.print(F("[ID] Board ID: 0x"));
   Serial.println((uint32_t)(mac & 0xFFFFFFFF), HEX);
+
+#if BOARD_ROLE == 2
+  Serial.println(F("[IDLE] Parked -- no radio init, zero RF activity. Self-test then solid ON."));
+  blink(3, 150, 150);
+  digitalWrite(PIN_LED, HIGH);
+  return;   // never touch the radio at all -- guarantees no interference with a real test elsewhere
+#endif
+
   Serial.print(F("[LoRa] Booting as "));
   Serial.println(BOARD_ROLE == 0 ? F("INITIATOR (PING)") : F("RESPONDER (PONG)"));
 
@@ -118,6 +126,9 @@ void setup() {
 }
 
 void loop() {
+#if BOARD_ROLE == 2
+  return;   // idle -- nothing to ever do
+#endif
   // PING-side retry -- resend the SAME packet (counter unchanged) if no
   // reply has arrived within RETRY_TIMEOUT_MS. Without this, a single
   // dropped first packet (normal, occasional on any real RF link) makes
