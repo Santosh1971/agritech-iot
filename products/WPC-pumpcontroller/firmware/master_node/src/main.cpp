@@ -89,6 +89,52 @@ void blinkLed(uint8_t pin, int times, int onMs = 60, int offMs = 60) {
   }
 }
 
+// Non-blocking version of the momentary LoRa TX/RX indicator -- the
+// blocking blinkLed() above is what caused the "pumps never ack" bug
+// (a ~60ms blink sat between TX-done and startReceive(), delaying
+// Master's switch into listening mode long enough to miss real
+// replies). This version returns instantly; call updateBlinkSequence()
+// frequently (same call sites as updateWifiLed()/updateLoraLed()) to
+// actually advance the pattern based on elapsed time.
+struct BlinkSequence {
+  uint8_t pin;
+  bool active;
+  uint8_t phaseIdx;
+  uint8_t totalPhases;
+  uint32_t phaseStart;
+  uint16_t onMs;
+  uint16_t offMs;
+};
+BlinkSequence loraBlinkSeq = {PIN_LORA_LED, false, 0, 0, 0, 60, 60};
+
+void startBlinkSequence(BlinkSequence& b, uint8_t pin, int times, int onMs = 60, int offMs = 60) {
+  b.pin = pin;
+  b.active = true;
+  b.phaseIdx = 0;
+  b.totalPhases = (uint8_t)(times * 2);
+  b.phaseStart = millis();
+  b.onMs = onMs;
+  b.offMs = offMs;
+  digitalWrite(pin, HIGH);
+}
+
+void updateBlinkSequence(BlinkSequence& b) {
+  if (!b.active) return;
+  bool onPhase = (b.phaseIdx % 2 == 0);
+  uint16_t dur = onPhase ? b.onMs : b.offMs;
+  if (millis() - b.phaseStart >= dur) {
+    b.phaseIdx++;
+    b.phaseStart = millis();
+    if (b.phaseIdx >= b.totalPhases) {
+      b.active = false;
+      digitalWrite(b.pin, LOW);
+      return;
+    }
+    bool nowOnPhase = (b.phaseIdx % 2 == 0);
+    digitalWrite(b.pin, nowOnPhase ? HIGH : LOW);
+  }
+}
+
 // Non-blocking repeating pattern for the WiFi LED -- double-blink heartbeat
 // when the SoftAP started OK, fast single-blink if it failed. Must be
 // called frequently (main loop AND inside any blocking wait loops) since
@@ -171,6 +217,7 @@ void delayWithLeds(uint32_t ms) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateBlinkSequence(loraBlinkSeq);
     updateInputs();
     applyLevelLogic();
     delay(5);
@@ -353,6 +400,7 @@ void listenForJoin(uint32_t windowMs) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateBlinkSequence(loraBlinkSeq);
     updateInputs();
     applyLevelLogic();
     if (operationDone) {
@@ -385,7 +433,7 @@ void listenForJoin(uint32_t windowMs) {
             Serial.print(pumpId);
             Serial.print(F(" -> slot "));
             Serial.println(slot);
-            blinkLed(PIN_LORA_LED, 2);   // 2 blinks = we received the JOIN_REQUEST
+            startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received the JOIN_REQUEST
 
             // Echo the accepted pumpId back in the payload -- JOIN_ACCEPT
             // is broadcast over LoRa, so any other unjoined pump hearing
@@ -395,9 +443,9 @@ void listenForJoin(uint32_t windowMs) {
             operationDone = false;
             radio.startTransmit(txPacket, alen);
             uint32_t t0 = millis();
-            while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); updateLoraLed(); }
+            while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); updateLoraLed(); updateBlinkSequence(loraBlinkSeq); }
             operationDone = false;
-            blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent the JOIN_ACCEPT
+            startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent the JOIN_ACCEPT
           } else {
             Serial.println(F("[JOIN] no free slot"));
           }
@@ -426,6 +474,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateBlinkSequence(loraBlinkSeq);
     if (millis() - t0 > txTimeoutMs) {
       Serial.println(F("[LoRa] TX timeout"));
       return false;
@@ -447,13 +496,14 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   // the RX window afterward was. The blink is purely cosmetic, so it's
   // safe to move after the timing-critical part.
   radio.startReceive();
-  blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent something
+  startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent something
   uint32_t start = millis();
   int firesThisWindow = 0;
   while (millis() - start < rxTimeoutMs) {
     server.handleClient();
     updateWifiLed();
     updateLoraLed();
+    updateBlinkSequence(loraBlinkSeq);
     if (operationDone) {
       firesThisWindow++;
       operationDone = false;
@@ -469,7 +519,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
           Serial.print(rxSeq);
           Serial.print(F(" slot="));
           Serial.println(slot);
-          blinkLed(PIN_LORA_LED, 2);   // 2 blinks = we received something back
+          startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
         } else {
           // We decoded SOMETHING but it didn't match what we're polling for --
@@ -848,6 +898,7 @@ void loop() {
   server.handleClient();
   updateWifiLed();
   updateLoraLed();
+  updateBlinkSequence(loraBlinkSeq);
   updateInputs();
   applyLevelLogic();
 

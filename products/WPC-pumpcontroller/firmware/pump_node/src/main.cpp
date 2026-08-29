@@ -201,12 +201,10 @@ void handlePacket(const uint8_t* buf, int len) {
   bool desired = (buf[8] != 0);
   lastCmdMillis = millis();
   setRelay(desired);
-  // Diagnostic: a JOIN_REQUEST (sent from an idle, settled radio state)
-  // gets through fine, but CMD_ACK (sent immediately inside the RX
-  // interrupt handler) apparently never does -- testing whether the
-  // radio needs a brief moment to settle from RX before it can cleanly
-  // transmit again.
-  delay(20);
+  // (The RX-to-TX settling delay tested here turned out not to be the
+  // real issue -- the actual bug was on Master's side, a blocking LED
+  // blink delaying its switch into receive mode. Removed to avoid
+  // leaving an unnecessary blocking call in this timing-sensitive path.)
   bool ackSent = sendCmdAck(masterId, seq);
   Serial.print(F("[CMD] seq="));
   Serial.print(seq);
