@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 
+#ifndef BOARD_ROLE
 #define BOARD_ROLE   1
+#endif
 #define LORA_FREQ_MHZ 866.0
 #define LORA_BW_KHZ   125.0
 #define LORA_SF       9
