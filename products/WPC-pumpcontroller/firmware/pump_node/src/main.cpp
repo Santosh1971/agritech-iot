@@ -8,6 +8,7 @@
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
 bool wifiApOk = false;
 int wifiStationCount = 0;
+uint8_t currentSyncWord = 0x12;   // recomputed from targetMasterId before use
 
 // ---------------------------------------------------------------------
 // WPC Pump Node -- single shared firmware for all Pump Nodes.
@@ -260,6 +261,10 @@ void handleSetConfig() {
     if (v != 0) {
       targetMasterId = v;
       prefs.putULong("masterId", targetMasterId);
+      currentSyncWord = (uint8_t)(targetMasterId & 0xFF);
+      radio.setSyncWord(currentSyncWord);
+      Serial.print(F("[CONFIG] syncword updated to 0x"));
+      Serial.println(currentSyncWord, HEX);
       changed = true;
     }
   }
@@ -298,8 +303,12 @@ void setup() {
   Serial.println(targetMasterId, HEX);
 
   loraSPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_NSS);
+  // Must match the target Master's own derived syncword -- see Master's
+  // main.cpp for why. Recomputed and applied live in handleSetConfig()
+  // too, if the target Master ever changes without a reboot.
+  currentSyncWord = (uint8_t)(targetMasterId & 0xFF);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
-                           LORA_SYNCWORD, LORA_TXPOWER, 8, 0, false);
+                           currentSyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] radio.begin() failed, code "));
     Serial.println(state);

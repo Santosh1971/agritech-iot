@@ -821,8 +821,14 @@ void setup() {
   loadPumpTable();
 
   loraSPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_NSS);
+  // Per-Master syncword, derived from this board's own MAC-based ID --
+  // gives real radio-level isolation between independent WPC systems at
+  // the same site (a mismatched syncword is filtered before the radio
+  // even attempts to decode a stray packet, unlike checking masterId
+  // only after successfully decoding a full packet's content).
+  uint8_t mySyncWord = (uint8_t)(masterId32 & 0xFF);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
-                           LORA_SYNCWORD, LORA_TXPOWER, 8, 0, false);
+                           mySyncWord, LORA_TXPOWER, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] radio.begin() failed, code "));
     Serial.println(state);
