@@ -48,7 +48,7 @@ uint8_t currentSyncWord = 0x12;   // recomputed from targetMasterId before use
 
 #define INPUT_ACTIVE_STATE LOW
 
-#define FAILSAFE_TIMEOUT_MS 15000UL
+#define FAILSAFE_TIMEOUT_MS 60000UL   // 2x Master's 30s heartbeat -- tolerates one missed heartbeat before declaring real loss of contact
 #define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
 
 // today's bench Master -- override via app/NVS for a different Master

@@ -56,6 +56,7 @@ void applyLevelLogic();
 #define DEBOUNCE_MS_MAX       300000UL
 uint32_t levelDebounceMs = DEBOUNCE_MS_DEFAULT;
 #define POLL_TIMEOUT_MS     500   // reverted -- widening to 3000 for a test did not fix ACK detection, so 500 wasn't the problem
+#define HEARTBEAT_INTERVAL_MS 30000UL   // re-confirm state even with no change, keeps Pump's fail-safe from ever tripping under normal quiet operation
 #define POLL_RETRIES        2
 #define STAGGER_MS          5000
 #define JOIN_WINDOW_MS       2000   // widened -- was missing joins too often against the Pump's 3s retry cadence
@@ -254,6 +255,7 @@ struct PumpEntry {
   bool     online;
   bool     everAttempted;   // false right after boot/restore -- online defaults false too but that
                              // does NOT mean "confirmed offline", just "not yet checked this session"
+  uint32_t lastSendMs;      // last time we attempted a send to this slot -- drives the heartbeat
 };
 PumpEntry pumps[MAX_PUMPS];
 
@@ -272,6 +274,7 @@ void initPumpTable() {
     pumps[i].lastRelayState = false;
     pumps[i].online = false;
     pumps[i].everAttempted = false;
+    pumps[i].lastSendMs = 0;
   }
 }
 
@@ -567,6 +570,17 @@ void applyLevelLogic() {
   }
 }
 
+// Event + heartbeat scheduling -- a slot is only actually sent to when
+// its desired state has genuinely changed, when it has never been
+// attempted yet, or when HEARTBEAT_INTERVAL_MS has elapsed since the
+// last attempt. This is the real fix for the multi-Master collision
+// risk: continuous once-a-second polling of every known slot, whether
+// or not anything changed, is what made airtime collisions likely in
+// the first place. Field level changes are genuinely rare, so this
+// cuts total channel traffic dramatically while keeping full ACK/retry
+// reliability whenever a send does happen. The heartbeat re-sends the
+// SAME LEVEL_CMD/CMD_ACK pair on a timer -- no new message type needed,
+// it doubles as both a liveness check and a state re-sync.
 void pollCycle() {
   // wasOn tracks each pump's last CONFIRMED (acked) relay state, not
   // "have we ever commanded it" -- that's what lets us correctly detect
@@ -574,6 +588,7 @@ void pollCycle() {
   static bool wasOn[MAX_PUMPS] = { false };
   int freshOnCountThisPass = 0;
   bool anyKnownPump = false;
+  bool anySentThisPass = false;
   bool anyAckedThisPass = false;
 
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
@@ -581,6 +596,12 @@ void pollCycle() {
     anyKnownPump = true;
 
     bool desired = desiredPumpState[slot];
+
+    bool stateChanged = pumps[slot].everAttempted && (desired != pumps[slot].lastRelayState);
+    bool heartbeatDue = (millis() - pumps[slot].lastSendMs) >= HEARTBEAT_INTERVAL_MS;
+    bool neverAttempted = !pumps[slot].everAttempted;
+    if (!stateChanged && !heartbeatDue && !neverAttempted) continue;   // nothing to do this cycle
+
     bool turningOn = desired && !wasOn[slot];
 
     // stagger only between MULTIPLE pumps freshly turning ON in the
@@ -602,6 +623,9 @@ void pollCycle() {
     uint32_t txTimeout = giveFullBudget ? 2000 : 500;
     uint32_t rxTimeout = giveFullBudget ? POLL_TIMEOUT_MS : 200;
 
+    anySentThisPass = true;
+    pumps[slot].lastSendMs = millis();
+
     bool acked = false;
     for (int attempt = 0; attempt < maxAttempts && !acked; attempt++) {
       acked = pollPump(slot, desired, txTimeout, rxTimeout);
@@ -620,7 +644,12 @@ void pollCycle() {
     }
   }
 
-  loraLinkError = anyKnownPump && !anyAckedThisPass;
+  // Only judge link health on cycles where we actually tried to send
+  // something -- otherwise a normal quiet cycle (nothing due) would
+  // wrongly look identical to "every known pump just failed to ack".
+  if (anySentThisPass) {
+    loraLinkError = anyKnownPump && !anyAckedThisPass;
+  }
 }
 
 // GET /status -- JSON snapshot of sump levels + known pumps, for the
