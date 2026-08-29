@@ -28,6 +28,10 @@ bool transmitting = false;
 uint32_t counter = 0;
 char txBuf[32];
 
+#define RETRY_TIMEOUT_MS 5000
+bool waitingForReply = false;
+uint32_t lastActionMs = 0;
+
 void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
 }
@@ -106,12 +110,26 @@ void setup() {
   if (BOARD_ROLE == 0) {
     delay(2000);
     sendPacket();
+    waitingForReply = true;
+    lastActionMs = millis();
   } else {
     startReceive();
   }
 }
 
 void loop() {
+  // PING-side retry -- resend the SAME packet (counter unchanged) if no
+  // reply has arrived within RETRY_TIMEOUT_MS. Without this, a single
+  // dropped first packet (normal, occasional on any real RF link) makes
+  // both sides wait forever with no way to recover, which looks
+  // identical to a genuinely dead radio from the outside.
+  if (BOARD_ROLE == 0 && waitingForReply && !transmitting &&
+      (millis() - lastActionMs > RETRY_TIMEOUT_MS)) {
+    Serial.println(F("[LoRa] No reply -- retrying same packet"));
+    sendPacket();
+    lastActionMs = millis();
+  }
+
   if (!operationDone) return;
   operationDone = false;
 
@@ -122,6 +140,10 @@ void loop() {
     blink(1, 50, 0);
 
     startReceive();
+    if (BOARD_ROLE == 0) {
+      waitingForReply = true;
+      lastActionMs = millis();
+    }
 
   } else {
     String received;
@@ -141,9 +163,14 @@ void loop() {
 
       blink(2, 50, 80);
 
+      waitingForReply = false;
       counter++;
       delay(500);
       sendPacket();
+      if (BOARD_ROLE == 0) {
+        waitingForReply = true;
+        lastActionMs = millis();
+      }
 
     } else if (state == RADIOLIB_ERR_CRC_MISMATCH) {
       Serial.println(F("[LoRa] RX CRC error"));
