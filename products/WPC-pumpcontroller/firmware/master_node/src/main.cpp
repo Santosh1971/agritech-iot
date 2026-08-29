@@ -55,7 +55,7 @@ void applyLevelLogic();
 #define DEBOUNCE_MS_MIN        10000UL
 #define DEBOUNCE_MS_MAX       300000UL
 uint32_t levelDebounceMs = DEBOUNCE_MS_DEFAULT;
-#define POLL_TIMEOUT_MS     500
+#define POLL_TIMEOUT_MS     3000   // widened as a diagnostic test -- was 500
 #define POLL_RETRIES        2
 #define STAGGER_MS          5000
 #define JOIN_WINDOW_MS       2000   // widened -- was missing joins too often against the Pump's 3s retry cadence
