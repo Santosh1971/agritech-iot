@@ -99,8 +99,7 @@ void setRelay(bool on) {
   relayState = on;
   digitalWrite(PIN_RELAY1, on ? HIGH : LOW);
   digitalWrite(PIN_PUMP_ON_LED, on ? HIGH : LOW);
-  Serial.print(F("[RELAY] -> "));
-  Serial.println(on ? F("ON") : F("OFF"));
+  // printing moved to handlePacket()'s combined summary line, see below
 }
 
 void startReceive() {
@@ -147,7 +146,7 @@ void sendJoinRequest() {
   }
 }
 
-void sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
+bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
   bool in1 = (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE);
   bool in4 = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
   uint8_t payload[3] = { (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0) };
@@ -160,9 +159,9 @@ void sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
     Serial.println(state);
     transmitting = false;
     startReceive();
-  } else {
-    Serial.println(F("[LoRa] CMD_ACK sent"));
+    return false;
   }
+  return true;
 }
 
 void handlePacket(const uint8_t* buf, int len) {
@@ -202,7 +201,14 @@ void handlePacket(const uint8_t* buf, int len) {
   bool desired = (buf[8] != 0);
   lastCmdMillis = millis();
   setRelay(desired);
-  sendCmdAck(masterId, seq);
+  bool ackSent = sendCmdAck(masterId, seq);
+  Serial.print(F("[CMD] seq="));
+  Serial.print(seq);
+  Serial.print(F(" slot="));
+  Serial.print(pumpSlot);
+  Serial.print(F(" -> relay "));
+  Serial.print(desired ? F("ON") : F("OFF"));
+  Serial.println(ackSent ? F(", ACK sent") : F(", ACK FAILED"));
 }
 
 // GET /info -- lets an installer confirm this Pump's identity and

@@ -411,6 +411,7 @@ void listenForJoin(uint32_t windowMs) {
 bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeoutMs) {
   uint8_t payload[1] = { (uint8_t)(desired ? 1 : 0) };
   size_t len = buildPacket(MSG_LEVEL_CMD, slot, payload, 1);
+  uint8_t sentSeq = txSeq - 1;   // buildPacket post-increments txSeq -- this is the value it just used
 
   operationDone = false;
   int state = radio.startTransmit(txPacket, len);
@@ -434,7 +435,9 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
 
   Serial.print(F("[POLL] slot "));
   Serial.print(slot);
-  Serial.print(F(" LEVEL_CMD -> "));
+  Serial.print(F(" seq="));
+  Serial.print(sentSeq);
+  Serial.print(F(" -> "));
   Serial.println(desired ? F("ON") : F("OFF"));
   blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent something
 
@@ -450,12 +453,30 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
       int rlen = radio.getPacketLength();
       int rstate = radio.readData(buf, rlen);
       if (rstate == RADIOLIB_ERR_NONE && rlen >= 10) {
-        if (buf[1] == MSG_CMD_ACK && buf[6] == slot) {
-          Serial.print(F("[POLL] CMD_ACK from slot "));
+        uint8_t rxType = buf[1];
+        uint8_t rxSlot = buf[6];
+        uint8_t rxSeq  = buf[7];
+        if (rxType == MSG_CMD_ACK && rxSlot == slot) {
+          Serial.print(F("[POLL] ACK seq="));
+          Serial.print(rxSeq);
+          Serial.print(F(" slot="));
           Serial.println(slot);
           blinkLed(PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
+        } else {
+          // We decoded SOMETHING but it didn't match what we're polling for --
+          // seeing this at all (vs total silence) tells us the radio IS
+          // receiving real packets, just not the one we expected right now.
+          Serial.print(F("[POLL] RX mismatch type=0x"));
+          Serial.print(rxType, HEX);
+          Serial.print(F(" slot="));
+          Serial.print(rxSlot);
+          Serial.print(F(" seq="));
+          Serial.println(rxSeq);
         }
+      } else if (rstate != RADIOLIB_ERR_NONE) {
+        Serial.print(F("[POLL] readData failed, code "));
+        Serial.println(rstate);
       }
       radio.startReceive();
     }
