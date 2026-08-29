@@ -439,9 +439,15 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   Serial.print(sentSeq);
   Serial.print(F(" -> "));
   Serial.println(desired ? F("ON") : F("OFF"));
-  blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent something
 
+  // Switch to RX FIRST, with zero delay -- blinkLed() is blocking
+  // (~60ms) and was previously called before this, meaning Master could
+  // still be blinking an LED while the Pump had already finished
+  // transmitting its reply, missing it entirely regardless of how long
+  // the RX window afterward was. The blink is purely cosmetic, so it's
+  // safe to move after the timing-critical part.
   radio.startReceive();
+  blinkLed(PIN_LORA_LED, 1);   // 1 blink = we sent something
   uint32_t start = millis();
   int firesThisWindow = 0;
   while (millis() - start < rxTimeoutMs) {
