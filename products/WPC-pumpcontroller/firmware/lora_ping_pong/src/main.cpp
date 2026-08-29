@@ -83,7 +83,10 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
+  uint64_t mac = ESP.getEfuseMac();
   Serial.println();
+  Serial.print(F("[ID] Board ID: 0x"));
+  Serial.println((uint32_t)(mac & 0xFFFFFFFF), HEX);
   Serial.print(F("[LoRa] Booting as "));
   Serial.println(BOARD_ROLE == 0 ? F("INITIATOR (PING)") : F("RESPONDER (PONG)"));
 
