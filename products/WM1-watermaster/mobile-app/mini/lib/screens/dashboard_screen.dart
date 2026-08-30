@@ -1,0 +1,403 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/providers.dart';
+import '../models/device_status.dart';
+import '../models/program.dart';
+import 'local_setup_screen.dart';
+
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key});
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _didInitialConnect = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final connected = ref.watch(deviceConnectedProvider);
+    final statusAsync = ref.watch(deviceStatusProvider);
+    final mode = ref.watch(transportModeProvider);
+
+    if (!_didInitialConnect) {
+      _didInitialConnect = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(deviceServiceProvider).connect());
+    }
+
+    final status = statusAsync.valueOrNull ?? DeviceStatus.empty();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('NB Agri-WM', style: TextStyle(fontWeight: FontWeight.w600)),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Chip(
+                label: Text(mode == TransportMode.local ? 'Local' : 'Cloud', style: const TextStyle(fontSize: 12)),
+                avatar: Icon(mode == TransportMode.local ? Icons.wifi_tethering : Icons.cloud, size: 16),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.read(deviceServiceProvider).connect(),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _ConnectionCard(connected: connected, status: status),
+            const SizedBox(height: 16),
+            if (!connected) ...[
+              _ConnectionLogCard(),
+              const SizedBox(height: 16),
+            ],
+            if (connected && !status.rtcOk) ...[
+              _RtcWarningCard(),
+              const SizedBox(height: 16),
+            ],
+            if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
+              _ActiveRunCard(status: status),
+            if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
+              const SizedBox(height: 16),
+            _RelayStateCard(status: status),
+            const SizedBox(height: 16),
+            _QuickActionsCard(connected: connected),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConnectionCard extends ConsumerWidget {
+  final bool connected;
+  final DeviceStatus status;
+  const _ConnectionCard({required this.connected, required this.status});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = connected ? const Color(0xFF4CAF50) : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: connected ? color.withOpacity(0.08) : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: connected ? color : Colors.grey.shade300),
+      ),
+      child: Row(children: [
+        Icon(connected ? Icons.check_circle : Icons.error_outline, color: color, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(connected ? 'Device Online' : 'Device Offline',
+                style: TextStyle(fontWeight: FontWeight.w600, color: connected ? color : Colors.grey)),
+            if (connected)
+              Text(
+                status.deviceId.isEmpty ? '—' : '${status.deviceId} • RTC ${status.rtcDate} ${status.rtcTime}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+          ]),
+        ),
+        if (connected && status.forcedLocal)
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            child: Chip(label: Text('Forced Local', style: TextStyle(fontSize: 11)), visualDensity: VisualDensity.compact),
+          ),
+        // Explicit manual retry — for exactly the case where the app was
+        // opened before actually joining the device's WiFi, or the
+        // phone switched networks while the app sat open. In Local
+        // mode this calls retryNow(), which forces a fresh WiFi bind
+        // (the background auto-retry loop deliberately reuses the
+        // existing bind to avoid hammering Android's network APIs —
+        // see LocalService's _minRebindInterval — so a plain connect()
+        // here could silently do nothing right after switching networks).
+        if (!connected)
+          FilledButton.icon(
+            onPressed: () {
+              if (ref.read(transportModeProvider) == TransportMode.local) {
+                ref.read(localServiceProvider).retryNow();
+              } else {
+                ref.read(deviceServiceProvider).connect();
+              }
+            },
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Retry'),
+          ),
+      ]),
+    );
+  }
+}
+
+class _ConnectionLogCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final log = ref.watch(localDebugLogProvider);
+    final recent = log.length > 6 ? log.sublist(log.length - 6) : log;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('WHY OFFLINE?', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
+          const Spacer(),
+          TextButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalSetupScreen())),
+            child: const Text('Full log', style: TextStyle(fontSize: 12)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        if (recent.isEmpty)
+          const Text('(nothing logged yet — pull to refresh)', style: TextStyle(color: Colors.grey, fontSize: 12))
+        else
+          ...recent.map((l) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(l, style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+              )),
+      ]),
+    );
+  }
+}
+
+class _RtcWarningCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.warning_amber, color: Colors.orange),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text('RTC not set — schedules will not trigger until the device\'s clock is synced.',
+              style: TextStyle(color: Colors.deepOrange, fontSize: 13)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalSetupScreen())),
+          child: const Text('Fix'),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ActiveRunCard extends ConsumerWidget {
+  final DeviceStatus status;
+  const _ActiveRunCard({required this.status});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final elapsed = status.elapsedSec ?? 0;
+    final target = status.runTargetSec ?? 1;
+    final progress = (elapsed / target).clamp(0.0, 1.0);
+    final paused = status.state == SchedulerState.paused;
+    final activeIndex = status.activeSeqIndex ?? 0;
+
+    final programs = ref.watch(programsProvider).valueOrNull ?? const [];
+    Program? activeProgram;
+    for (final p in programs) {
+      if (p.id == status.activeProgramId) { activeProgram = p; break; }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(paused ? Icons.pause_circle : Icons.play_circle, color: paused ? Colors.orange : Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('${status.activeProgramName ?? "Program"} — ${status.activeSequenceName ?? ""}',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          if (paused)
+            const Text('PAUSED — no power', style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(value: progress, minHeight: 8,
+              color: paused ? Colors.orange : Colors.green, backgroundColor: Colors.grey.shade200),
+        ),
+        const SizedBox(height: 6),
+        Text('${_fmt(elapsed)} / ${_fmt(target)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        if (activeProgram != null && activeProgram.sequences.length > 1) ...[
+          const Divider(height: 24),
+          const Text('SEQUENCE TIMELINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          for (int i = 0; i < activeProgram.sequences.length; i++)
+            _SequenceTimelineRow(
+              sequence: activeProgram.sequences[i],
+              relayNames: status.relayNames,
+              phase: i < activeIndex ? _SeqPhase.done : (i == activeIndex ? _SeqPhase.current : _SeqPhase.upcoming),
+            ),
+        ],
+      ]),
+    );
+  }
+
+  String _fmt(int sec) {
+    final m = sec ~/ 60, s = sec % 60;
+    return '${m}m ${s.toString().padLeft(2, '0')}s';
+  }
+}
+
+enum _SeqPhase { done, current, upcoming }
+
+class _SequenceTimelineRow extends StatelessWidget {
+  final Sequence sequence;
+  final RelayNames relayNames;
+  final _SeqPhase phase;
+  const _SequenceTimelineRow({required this.sequence, required this.relayNames, required this.phase});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = switch (phase) {
+      _SeqPhase.done => (Icons.check_circle, const Color(0xFF4CAF50)),
+      _SeqPhase.current => (Icons.play_circle_fill, const Color(0xFF2196F3)),
+      _SeqPhase.upcoming => (Icons.radio_button_unchecked, Colors.grey),
+    };
+    final valveLabels = [
+      for (int i = 0; i < 4; i++)
+        if (sequence.valveOn(i)) relayNames.valveName(i),
+    ].join(', ');
+    final minutes = sequence.runTargetSec ~/ 60;
+    final secs = sequence.runTargetSec % 60;
+    final duration = sequence.runMode == RunMode.time
+        ? '${minutes}m${secs > 0 ? ' ${secs}s' : ''}'
+        : '${sequence.runTargetLiters} L';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(sequence.name,
+                style: TextStyle(fontWeight: phase == _SeqPhase.current ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: 13, color: phase == _SeqPhase.upcoming ? Colors.grey : null)),
+            Text('${valveLabels.isEmpty ? "no valves" : valveLabels} • $duration${sequence.doseEnabled ? " • dosing" : ""}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _RelayStateCard extends StatelessWidget {
+  final DeviceStatus status;
+  const _RelayStateCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('RELAYS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _RelayChip(label: status.relayNames.pump, on: status.pump, icon: Icons.water_drop),
+          _RelayChip(label: status.relayNames.dosing, on: status.dosing, icon: Icons.science),
+          for (int i = 0; i < status.valves.length; i++)
+            _RelayChip(label: status.relayNames.valveName(i), on: status.valves[i], icon: Icons.opacity),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _RelayChip extends StatelessWidget {
+  final String label;
+  final bool on;
+  final IconData icon;
+  const _RelayChip({required this.label, required this.on, required this.icon});
+  @override
+  Widget build(BuildContext context) {
+    final color = on ? const Color(0xFF2196F3) : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: on ? color.withOpacity(0.1) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: on ? color : Colors.grey.shade300),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 13)),
+      ]),
+    );
+  }
+}
+
+class _QuickActionsCard extends ConsumerWidget {
+  final bool connected;
+  const _QuickActionsCard({required this.connected});
+
+  void _snack(BuildContext context, String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('QUICK ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          OutlinedButton.icon(
+            onPressed: connected ? () { ref.read(deviceServiceProvider).forceStop(); _snack(context, 'Force stop sent'); } : null,
+            icon: const Icon(Icons.stop_circle, color: Colors.red),
+            label: const Text('Force Stop'),
+          ),
+          OutlinedButton.icon(
+            onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerLoss(); _snack(context, 'Simulated power loss — cycle should pause'); } : null,
+            icon: const Icon(Icons.power_off, color: Colors.orange),
+            label: const Text('Simulate Power Loss'),
+          ),
+          OutlinedButton.icon(
+            onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerRestore(); _snack(context, 'Simulated power restore — cycle should resume'); } : null,
+            icon: const Icon(Icons.power, color: Colors.green),
+            label: const Text('Simulate Power Restore'),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          'Power buttons stand in for the real "No Power" sense line (IN1) — '
+          'no sensor is wired for that yet. To test the device actually losing '
+          'and regaining power (not just this simulation), unplug it for a '
+          'while and reconnect: an active program resumes from where it left '
+          'off, not from the start.',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+        ),
+      ]),
+    );
+  }
+}
