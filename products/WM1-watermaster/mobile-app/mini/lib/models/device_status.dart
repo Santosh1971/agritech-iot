@@ -49,6 +49,16 @@ class DeviceStatus {
   final bool rtcOk;
   final RelayNames relayNames;
 
+  // Real ADC/pulse reads — see firmware's Sensors.h for the documented
+  // placeholder scale factors (no real 4-20mA sensor/flow meter/level
+  // switch wired up yet, so these are plumbing-verified, not calibrated).
+  final double pressure1Bar;
+  final double pressure2Bar;
+  final double flowRateLpm;
+  final double flowTotalLiters;
+  final bool waterLevelOk;
+  final double batteryVolts;
+
   // Only present while a sequence is active (RUNNING or PAUSED).
   final int? activeProgramId;
   final String? activeProgramName;
@@ -71,6 +81,12 @@ class DeviceStatus {
     this.rtcTime = '--:--',
     this.rtcOk = false,
     this.relayNames = const RelayNames(),
+    this.pressure1Bar = 0,
+    this.pressure2Bar = 0,
+    this.flowRateLpm = 0,
+    this.flowTotalLiters = 0,
+    this.waterLevelOk = true,
+    this.batteryVolts = 0,
     this.activeProgramId,
     this.activeProgramName,
     this.activeSequenceName,
@@ -106,6 +122,12 @@ class DeviceStatus {
         rtcTime: j['rtc_time'] as String? ?? '--:--',
         rtcOk: j['rtc_ok'] as bool? ?? false,
         relayNames: RelayNames.fromJson(j['relay_names'] as Map<String, dynamic>?),
+        pressure1Bar: (j['pressure1_bar'] as num?)?.toDouble() ?? 0,
+        pressure2Bar: (j['pressure2_bar'] as num?)?.toDouble() ?? 0,
+        flowRateLpm: (j['flow_rate_lpm'] as num?)?.toDouble() ?? 0,
+        flowTotalLiters: (j['flow_total_liters'] as num?)?.toDouble() ?? 0,
+        waterLevelOk: j['water_level_ok'] as bool? ?? true,
+        batteryVolts: (j['battery_volts'] as num?)?.toDouble() ?? 0,
         activeProgramId: (j['active_program_id'] as num?)?.toInt(),
         activeProgramName: j['active_program_name'] as String?,
         activeSequenceName: j['active_sequence_name'] as String?,

@@ -9,6 +9,7 @@
 #include "Ds1307Clock.h"
 #include "RelayNames.h"
 #include "SequenceLibrary.h"
+#include "Sensors.h"
 
 // Shared command dispatch — called identically from the MQTT message
 // callback and the local WebSocket handler, same pattern FG1 uses.
@@ -60,10 +61,10 @@ public:
   CommandHandler(Scheduler& scheduler, IrrigationController& irrigation,
                  WiFiManager& wifi, ProgramStore& store,
                  Program* programSlots[], uint8_t& programCount,
-                 Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library)
+                 Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library, Sensors& sensors)
     : _scheduler(scheduler), _irrigation(irrigation), _wifi(wifi),
       _store(store), _programSlots(programSlots), _programCount(programCount),
-      _clock(clock), _names(names), _library(library) {}
+      _clock(clock), _names(names), _library(library), _sensors(sensors) {}
 
   void handle(const String& jsonIn, ReplyFn reply) {
     // Every command that reaches the firmware, from ANY transport (local
@@ -392,6 +393,16 @@ private:
     doc["rtc_time"] = _clock.timeString();
     doc["rtc_ok"] = _clock.isRunning();
 
+    // See Sensors.h: pressure/flow scale factors are documented
+    // placeholders until real sensors are wired — values here are real
+    // ADC/pulse reads, not yet calibrated engineering units.
+    doc["pressure1_bar"] = _sensors.pressure1Bar();
+    doc["pressure2_bar"] = _sensors.pressure2Bar();
+    doc["flow_rate_lpm"] = _sensors.flowRateLpm();
+    doc["flow_total_liters"] = _sensors.flowTotalLiters();
+    doc["water_level_ok"] = _sensors.waterLevelOk();
+    doc["battery_volts"] = _sensors.batteryVolts();
+
     JsonObject names = doc["relay_names"].to<JsonObject>();
     names["pump"] = _names.pump;
     names["dosing"] = _names.dosing;
@@ -446,6 +457,7 @@ private:
   Ds1307Clock& _clock;
   RelayNames& _names;
   SequenceLibrary& _library;
+  Sensors& _sensors;
   bool _programsChanged = false;
   bool _libraryChanged = false;
   bool _statusChanged = false;

@@ -27,6 +27,7 @@
 #include "Ds1307Clock.h"
 #include "RelayNames.h"
 #include "SequenceLibrary.h"
+#include "Sensors.h"
 #include "WiFiScanner.h"
 #include "StatusLed.h"
 #include "CommandHandler.h"
@@ -47,8 +48,14 @@ LocalServer localServer;
 Ds1307Clock rtcClock;
 RelayNames relayNames;
 SequenceLibrary sequenceLibrary;
+Sensors sensors;
 WiFiScanner wifiScanner;
 StatusLed statusLed;
+
+// Kept as a free function per this firmware's existing ISR convention
+// (see the earlier bench sketches) rather than inside Sensors.h, which
+// avoids any static-instance-pointer machinery in a header.
+void IRAM_ATTR onFlowPulse() { sensors.pulseCount++; }
 
 Program programPool[ProgramStore::MAX_SLOTS];
 Program* programSlots[ProgramStore::MAX_SLOTS];
@@ -75,6 +82,8 @@ void setup() {
   rtcClock.begin();
   relayNames.begin();
   sequenceLibrary.begin();
+  sensors.begin();
+  attachInterrupt(digitalPinToInterrupt(Sensors::PIN_FLOW), onFlowPulse, RISING);
   statusLed.begin();
   if (!rtcClock.isRunning()) {
     Serial.println("[RTC] WARNING: oscillator not running — RTC was never set. "
@@ -99,7 +108,7 @@ void setup() {
   wifiManager.begin();
 
   static CommandHandler handler(scheduler, irrigation, wifiManager, programStore,
-                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary);
+                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary, sensors);
   commandHandler = &handler;
 
   mqtt.begin(commandHandler);
@@ -114,6 +123,7 @@ void loop() {
   wifiManager.loop();
   mqtt.loop(wifiManager.isStaConnected());
   localServer.loop();
+  sensors.update();
   scheduler.update(rtcClock.now());
   // LED reflects "a phone joined the WiFi", not "the app's WebSocket is
   // open" — this is the WPC precedent this was meant to mirror in the

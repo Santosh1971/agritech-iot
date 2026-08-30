@@ -4,6 +4,7 @@ import '../providers/providers.dart';
 import '../models/device_status.dart';
 import '../models/program.dart';
 import 'local_setup_screen.dart';
+import 'schematic_diagram.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -19,6 +20,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final connected = ref.watch(deviceConnectedProvider);
     final statusAsync = ref.watch(deviceStatusProvider);
     final mode = ref.watch(transportModeProvider);
+    final hardwareConfig = ref.watch(hardwareConfigProvider);
 
     if (!_didInitialConnect) {
       _didInitialConnect = true;
@@ -63,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _ActiveRunCard(status: status),
             if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
               const SizedBox(height: 16),
-            _RelayStateCard(status: status),
+            SchematicDiagram(status: status, config: hardwareConfig),
             const SizedBox(height: 16),
             _QuickActionsCard(connected: connected),
           ],
@@ -296,57 +298,6 @@ class _SequenceTimelineRow extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
           ]),
         ),
-      ]),
-    );
-  }
-}
-
-class _RelayStateCard extends StatelessWidget {
-  final DeviceStatus status;
-  const _RelayStateCard({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('RELAYS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          _RelayChip(label: status.relayNames.pump, on: status.pump, icon: Icons.water_drop),
-          _RelayChip(label: status.relayNames.dosing, on: status.dosing, icon: Icons.science),
-          for (int i = 0; i < status.valves.length; i++)
-            _RelayChip(label: status.relayNames.valveName(i), on: status.valves[i], icon: Icons.opacity),
-        ]),
-      ]),
-    );
-  }
-}
-
-class _RelayChip extends StatelessWidget {
-  final String label;
-  final bool on;
-  final IconData icon;
-  const _RelayChip({required this.label, required this.on, required this.icon});
-  @override
-  Widget build(BuildContext context) {
-    final color = on ? const Color(0xFF2196F3) : Colors.grey;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: on ? color.withOpacity(0.1) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: on ? color : Colors.grey.shade300),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 13)),
       ]),
     );
   }

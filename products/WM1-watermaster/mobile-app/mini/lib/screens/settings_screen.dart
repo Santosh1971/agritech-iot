@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import 'local_setup_screen.dart';
+import 'hardware_config_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -118,6 +119,13 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Local Device Setup',
               subtitle: 'WiFi, time sync, relay names, factory reset',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalSetupScreen())),
+            ),
+            _SettingsTile(
+              icon: Icons.tune,
+              color: const Color(0xFF4CAF50),
+              title: 'Hardware Configuration',
+              subtitle: 'Which sensors/dosing are actually wired up',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HardwareConfigScreen())),
             ),
           ]),
           const SizedBox(height: 16),

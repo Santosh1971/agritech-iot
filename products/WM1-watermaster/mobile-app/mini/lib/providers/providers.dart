@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,12 +8,14 @@ import '../services/mqtt_service.dart';
 import '../services/local_service.dart';
 import '../models/device_status.dart';
 import '../models/program.dart';
+import '../models/hardware_config.dart';
 
 enum TransportMode { local, cloud }
 
 const _transportPrefsKey = 'transport_mode';
 const _themePrefsKey = 'theme_mode';
 const _deviceSuffixPrefsKey = 'device_suffix';
+const _hardwareConfigPrefsKey = 'hardware_config';
 
 /// The 4-char MAC suffix identifying which physical device this app
 /// talks to over Cloud/MQTT (shown on the device's own SoftAP name,
@@ -34,6 +37,33 @@ class DeviceSuffixNotifier extends StateNotifier<String> {
 
 final deviceSuffixProvider =
     StateNotifierProvider<DeviceSuffixNotifier, String>((ref) => DeviceSuffixNotifier());
+
+/// Which optional sensors/dosing are actually wired up — see
+/// HardwareConfig's doc comment. Purely a local display preference,
+/// never sent to the device.
+class HardwareConfigNotifier extends StateNotifier<HardwareConfig> {
+  HardwareConfigNotifier() : super(const HardwareConfig()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_hardwareConfigPrefsKey);
+    if (raw == null) return;
+    try {
+      state = HardwareConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {}
+  }
+
+  Future<void> update(HardwareConfig config) async {
+    state = config;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_hardwareConfigPrefsKey, jsonEncode(config.toJson()));
+  }
+}
+
+final hardwareConfigProvider =
+    StateNotifierProvider<HardwareConfigNotifier, HardwareConfig>((ref) => HardwareConfigNotifier());
 
 final mqttServiceProvider = Provider<MqttService>((ref) {
   final suffix = ref.watch(deviceSuffixProvider);
