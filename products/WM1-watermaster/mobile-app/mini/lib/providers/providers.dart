@@ -19,7 +19,7 @@ const _hardwareConfigPrefsKey = 'hardware_config';
 
 /// The 4-char MAC suffix identifying which physical device this app
 /// talks to over Cloud/MQTT (shown on the device's own SoftAP name,
-/// WM1_XXXX, and in Settings > Device Info once connected locally).
+/// WM1_XXXXXXXX, and in Settings > Device Info once connected locally).
 class DeviceSuffixNotifier extends StateNotifier<String> {
   DeviceSuffixNotifier() : super('') {
     _load();

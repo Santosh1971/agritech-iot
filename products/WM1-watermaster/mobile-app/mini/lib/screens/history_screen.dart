@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import '../models/device_status.dart';
 import '../models/history_record.dart';
+import '../services/device_service.dart';
 
 enum _Metric { time, volume }
 
@@ -13,11 +14,12 @@ enum _Metric { time, volume }
 /// and volume (where a flow meter is present) with a daily average,
 /// covering both scheduled and manually-toggled runs.
 ///
-/// Local-only for now: this reads over the same responseStream Local
-/// Setup uses for wifi_scan/device_info, which only exists on
-/// LocalService. Opening this while in Cloud mode without also being on
-/// the device's local network will just show "no data yet" — extending
-/// this to Cloud would mean adding a dedicated MQTT history topic.
+/// Works over either transport: Local reads its reply off responseStream,
+/// Cloud gets it via a dedicated MQTT topic (no periodic broadcast exists
+/// for history the way there is for status/programs) — see historyStream
+/// on DeviceService. Cloud requests a smaller page (see _maxForMode)
+/// since the broker path has a real payload-size ceiling that Local's
+/// WebSocket doesn't.
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
   @override
@@ -25,17 +27,41 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  StreamSubscription<Map<String, dynamic>>? _sub;
+  StreamSubscription<List<HistoryRecord>>? _sub;
+  DeviceService? _subscribedTo;
   List<HistoryRecord> _records = [];
   bool _loading = true;
   _Metric _metric = _Metric.time;
   final Set<DateTime> _expanded = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _sub = ref.read(localServiceProvider).responseStream.listen(_onResponse);
-    _fetch();
+  // Resubscribes when the active transport changes (e.g. the user
+  // switches Local <-> Cloud while this screen is open) and, since
+  // that means whatever we last fetched came from a now-inactive
+  // service, kicks off a fresh fetch on the new one rather than
+  // leaving stale results on screen.
+  void _ensureSubscribed(DeviceService service, TransportMode mode) {
+    if (identical(_subscribedTo, service)) return;
+    _sub?.cancel();
+    _subscribedTo = service;
+    _sub = service.historyStream.listen(_onHistory);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _fetch(service, mode));
+  }
+
+  void _fetch(DeviceService service, TransportMode mode) {
+    setState(() => _loading = true);
+    // 3 months back, generously — the device only ever has at most what
+    // it actually retained, so asking for more than that is harmless.
+    final since = DateTime.now().subtract(const Duration(days: 92));
+    final sinceEpoch = DateTime.utc(since.year, since.month, since.day).millisecondsSinceEpoch ~/ 1000;
+    // Local's WebSocket has no real size ceiling; Cloud's MQTT buffer
+    // does (see MqttClientWrapper.h) — matches FG1's own precedent of
+    // ~150-200 history entries fitting its buffer comfortably.
+    final max = mode == TransportMode.local ? 2000 : 150;
+    service.getHistory(since: sinceEpoch, max: max);
+  }
+
+  void _onHistory(List<HistoryRecord> list) {
+    if (mounted) setState(() { _records = list; _loading = false; });
   }
 
   @override
@@ -44,26 +70,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     super.dispose();
   }
 
-  void _fetch() {
-    setState(() => _loading = true);
-    // 3 months back, generously — the device only ever has at most what
-    // it actually retained, so asking for more than that is harmless.
-    final since = DateTime.now().subtract(const Duration(days: 92));
-    final sinceEpoch = DateTime.utc(since.year, since.month, since.day).millisecondsSinceEpoch ~/ 1000;
-    ref.read(localServiceProvider).getHistory(since: sinceEpoch, max: 2000);
-  }
-
-  void _onResponse(Map<String, dynamic> msg) {
-    if (msg['cmd'] != 'get_history' || msg['data'] is! List) return;
-    final list = (msg['data'] as List)
-        .cast<Map<String, dynamic>>()
-        .map(HistoryRecord.fromJson)
-        .toList();
-    if (mounted) setState(() { _records = list; _loading = false; });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final service = ref.watch(deviceServiceProvider);
+    final mode = ref.watch(transportModeProvider);
+    _ensureSubscribed(service, mode);
+
     final names = ref.watch(deviceStatusProvider).valueOrNull?.relayNames ?? const RelayNames();
     final days = DailyHistory.groupByDay(_records);
 
@@ -71,7 +83,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Run History', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
-        actions: [IconButton(onPressed: _fetch, icon: const Icon(Icons.refresh))],
+        actions: [IconButton(onPressed: () => _fetch(service, mode), icon: const Icon(Icons.refresh))],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -80,9 +92,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No history yet. This screen reads over the device\'s local '
-                      'connection — make sure you\'re on its WiFi (or the app is '
-                      'in Local mode) and try refreshing.',
+                      mode == TransportMode.local
+                          ? 'No history yet. Make sure you\'re connected to the device\'s WiFi and try refreshing.'
+                          : 'No history yet. Make sure the device is online in Cloud mode and try refreshing.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey.shade600),
                     ),

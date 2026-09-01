@@ -257,10 +257,10 @@ void _showDeviceSuffixDialog(BuildContext context, WidgetRef ref, String current
             ] else
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
-                child: Text('Not connected locally right now — connect to the device\'s WM1_XXXX WiFi to pick it automatically, or type its ID below.', style: TextStyle(fontSize: 12)),
+                child: Text('Not connected locally right now — connect to the device\'s WM1_XXXXXXXX WiFi to pick it automatically, or type its ID below.', style: TextStyle(fontSize: 12)),
               ),
-            TextField(controller: ctrl, maxLength: 4, textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(labelText: 'Last 4 characters', counterText: '')),
+            TextField(controller: ctrl, maxLength: 8, textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(labelText: 'Last 8 characters', counterText: '')),
           ]);
         },
       ),

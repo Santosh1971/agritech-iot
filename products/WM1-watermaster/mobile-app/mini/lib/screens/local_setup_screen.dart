@@ -173,7 +173,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
               const SizedBox(height: 8),
               Text(
                 'If the log shows "Connect failed" or nothing at all even '
-                'though your phone is on the device\'s WM1_XXXX WiFi: try '
+                'though your phone is on the device\'s WM1_XXXXXXXX WiFi: try '
                 'turning off mobile data (or airplane mode + WiFi back on). '
                 'Some phones route apps over cellular instead of a WiFi '
                 'network that has no internet, which silently breaks this.',
@@ -321,6 +321,31 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                 onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerRestore(); _snack('Simulated power restore — cycle should resume'); } : null,
                 icon: const Icon(Icons.power, color: Colors.green),
                 label: const Text('Simulate Power Restore'),
+              ),
+            ]),
+            const Divider(height: 24),
+            Text(
+              'Backfills ~3 months of made-up history (mixed scheduled and '
+              'manual runs) so the Run History screen\'s charts and daily '
+              'grouping can be checked without waiting for real usage. '
+              'Clear it again once you\'re done looking.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                onPressed: connected
+                    ? () { ref.read(deviceServiceProvider).sendRaw({'cmd': 'seed_history_test_data'}); _snack('Seeding ~3 months of test history'); }
+                    : null,
+                icon: const Icon(Icons.data_thresholding_outlined, color: Colors.purple),
+                label: const Text('Seed Test History'),
+              ),
+              OutlinedButton.icon(
+                onPressed: connected
+                    ? () { ref.read(deviceServiceProvider).sendRaw({'cmd': 'clear_history'}); _snack('History cleared'); }
+                    : null,
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text('Clear History'),
               ),
             ]),
           ]),

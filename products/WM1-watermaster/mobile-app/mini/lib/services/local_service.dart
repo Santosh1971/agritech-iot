@@ -5,6 +5,7 @@ import 'device_service.dart';
 import 'network_binding.dart';
 import '../models/device_status.dart';
 import '../models/program.dart';
+import '../models/history_record.dart';
 
 /// Talks directly to the device over its own SoftAP (or the same LAN,
 /// once wifi_config has joined it to the farm's WiFi) — no broker
@@ -51,6 +52,7 @@ class LocalService implements DeviceService {
   final _libraryController = StreamController<List<LibrarySequence>>.broadcast();
   final _connectedController = StreamController<bool>.broadcast();
   final _responseController = StreamController<Map<String, dynamic>>.broadcast();
+  final _historyController = StreamController<List<HistoryRecord>>.broadcast();
   // Human-readable connection lifecycle events — shown in the UI so
   // "why is it not working" doesn't require a serial monitor to answer.
   final _debugController = StreamController<String>.broadcast();
@@ -67,6 +69,8 @@ class LocalService implements DeviceService {
   Stream<bool> get connectedStream => _connectedController.stream;
   @override
   Stream<bool> get deviceOnlineStream => _connectedController.stream;
+  @override
+  Stream<List<HistoryRecord>> get historyStream => _historyController.stream;
   Stream<Map<String, dynamic>> get responseStream => _responseController.stream;
   // Live updates only — a broadcast stream doesn't replay anything that
   // fired before a listener attached. Since this service starts
@@ -171,7 +175,7 @@ class LocalService implements DeviceService {
       return true;
     } catch (e) {
       // The failure mode this specifically catches: phone shows
-      // "connected to WM1_XXXX WiFi" but the handshake to 192.168.4.1
+      // "connected to WM1_XXXXXXXX WiFi" but the handshake to 192.168.4.1
       // never completes — most commonly because the phone's OS is
       // routing this app's traffic over mobile data instead of that
       // WiFi (it has no internet, so Android/iOS may prefer another
@@ -249,6 +253,10 @@ class LocalService implements DeviceService {
           _libraryController.add((msg['data'] as List)
               .map((e) => LibrarySequence.fromJson(e as Map<String, dynamic>))
               .toList());
+        } else if (msg['cmd'] == 'get_history' && msg['data'] is List) {
+          _historyController.add((msg['data'] as List)
+              .map((e) => HistoryRecord.fromJson(e as Map<String, dynamic>))
+              .toList());
         }
       }
     } catch (e) {
@@ -301,8 +309,7 @@ class LocalService implements DeviceService {
 
   void getStatus() => _send({'cmd': 'get_status'});
   void scanWifi() => _send({'cmd': 'wifi_scan'});
-  // Local-only for now (see history_screen.dart) — reply arrives on
-  // responseStream like device_info/wifi_scan, cmd == 'get_history'.
+  @override
   void getHistory({int since = 0, int max = 500}) => _send({'cmd': 'get_history', 'since': since, 'max': max});
   void syncRtcFromPhone() {
     final now = DateTime.now();
@@ -345,6 +352,7 @@ class LocalService implements DeviceService {
     _libraryController.close();
     _connectedController.close();
     _responseController.close();
+    _historyController.close();
     _debugController.close();
     _sub?.cancel();
     try { _channel?.sink.close(); } catch (_) {}

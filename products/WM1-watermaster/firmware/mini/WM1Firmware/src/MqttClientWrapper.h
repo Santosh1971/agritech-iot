@@ -13,6 +13,9 @@
 //   agrisense/WM1/<deviceId>/programs_config  (cloud -> device, RETAINED) — {"cmd":"set_programs",...}
 //   agrisense/WM1/<deviceId>/library_config   (cloud -> device, RETAINED) — {"cmd":"set_sequence_library",...}
 //   agrisense/WM1/<deviceId>/lwt              (device -> cloud, retained) — {"online": bool}
+//   agrisense/WM1/<deviceId>/history          (device -> cloud) — get_history's reply, published
+//                                              here since there's no periodic history broadcast
+//                                              the way there is for status/programs/library.
 //
 // programs_config is retained (same reasoning as FG1's cycles_config):
 // only needs a live link to the BROKER, not the device — if the device
@@ -23,7 +26,10 @@ public:
   void begin(CommandHandler* handler) {
     _handler = handler;
     _client.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
-    _client.setBufferSize(4096);
+    // Same buffer FG1 uses for the same reason — a history reply is the
+    // one payload here that can genuinely be large (a query over many
+    // records), unlike the small per-command acks everything else sends.
+    _client.setBufferSize(24576);
     _client.setCallback([this](char* topic, uint8_t* payload, unsigned int len) {
       _onMessage(topic, payload, len);
     });
@@ -37,6 +43,7 @@ public:
     _topicProgramsConfig = base + "programs_config";
     _topicLibraryConfig = base + "library_config";
     _topicLwt = base + "lwt";
+    _topicHistory = base + "history";
   }
 
   void loop(bool wifiConnected) {
@@ -87,10 +94,18 @@ private:
     if (!_handler) return;
     // Both command and programs_config carry a {"cmd": ...} payload —
     // same handler either way, no routing needed beyond having
-    // subscribed to both. Replies aren't published anywhere for MQTT
-    // (matches FG1: command acks aren't surfaced, the next status/
-    // programs broadcast is the source of truth for what happened).
-    _handler->handle(msg, [](const String&) {});
+    // subscribed to both. Most replies aren't published anywhere for
+    // MQTT (matches FG1: command acks aren't surfaced, the next status/
+    // programs broadcast is the source of truth for what happened) —
+    // get_history is the one exception, since there's no broadcast
+    // equivalent for it the app could otherwise wait on. Bug fix: this
+    // used to discard every reply unconditionally, silently dropping
+    // get_history's result over Cloud mode entirely.
+    _handler->handle(msg, [this](const String& reply) {
+      if (reply.indexOf("\"cmd\":\"get_history\"") >= 0) {
+        _client.publish(_topicHistory.c_str(), reply.c_str(), false);
+      }
+    });
   }
 
   static constexpr uint32_t RECONNECT_INTERVAL_MS = 5000;
@@ -98,6 +113,6 @@ private:
   WiFiClient _wifiClient;
   PubSubClient _client{_wifiClient};
   CommandHandler* _handler = nullptr;
-  String _topicStatus, _topicPrograms, _topicLibrary, _topicCommand, _topicProgramsConfig, _topicLibraryConfig, _topicLwt;
+  String _topicStatus, _topicPrograms, _topicLibrary, _topicCommand, _topicProgramsConfig, _topicLibraryConfig, _topicLwt, _topicHistory;
   uint32_t _lastAttempt = 0;
 };

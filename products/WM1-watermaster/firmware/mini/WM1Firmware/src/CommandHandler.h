@@ -66,6 +66,9 @@
 //                         with ts >= since (default 0 = everything retained), newest first.
 //                         Covers both auto (program/sequence) and manual (single-channel
 //                         toggle) runs — see RunHistory.h for the on-disk format/retention.
+//   seed_history_test_data / clear_history   — dev/demo only: backfill ~3 months of
+//                         synthetic history to check the History screen's presentation,
+//                         and wipe it again afterward.
 //
 // KNOWN GAPS (flagged, not silently guessed at):
 //   - manual_set bypasses the Scheduler's arbitration with an active
@@ -193,6 +196,12 @@ public:
       time_t since = (time_t)(doc["since"] | 0);
       uint16_t max = doc["max"] | 500;
       reply(_wrapOk(cmd, _history.queryJson(since, max)));
+    } else if (cmd == "seed_history_test_data") {
+      _seedHistoryTestData();
+      reply(_okReply(cmd));
+    } else if (cmd == "clear_history") {
+      _history.clear();
+      reply(_okReply(cmd));
     } else {
       reply(_errorReply(cmd, "unknown_command"));
     }
@@ -360,6 +369,49 @@ private:
       float volumeDelta = _sensors.flowTotalLiters() - _manualTrack[idx].startVolumeLiters;
       _history.record(_manualTrack[idx].startEpoch, duration, channelKey, "manual", volumeDelta);
     }
+  }
+
+  // Dev/demo-only: backfills ~3 months of synthetic history so the
+  // app's History screen (charts, daily grouping, averages) can be
+  // checked visually without waiting for real usage to accumulate.
+  // Mix of "auto" (cycle) and "manual" entries, varied durations/
+  // volumes across different crops/channels — not meant to resemble
+  // any real schedule, just to exercise the presentation. clear_history
+  // removes it again once it's served its purpose.
+  void _seedHistoryTestData() {
+    time_t now = _clock.now();
+    static const char* crops[] = {"Bhata", "Gobbi", "Mirchi", "Tomato"};
+    static const char* manualChannels[] = {"valve1", "valve2", "valve3", "valve4", "dosing"};
+
+    // Built up in RAM and written in ONE open/append/close (see
+    // RunHistory::flushBatch's doc comment) rather than ~140 separate
+    // ones — confirmed live that the per-record version was slow enough
+    // to produce watchdog-starvation-like symptoms on real hardware.
+    String batch;
+    batch.reserve(20 * 1024);
+
+    for (int day = 89; day >= 0; day--) {
+      time_t dayStart = now - (time_t)day * 86400;
+
+      // 1-2 auto (scheduled) runs most days, varying crop/duration/volume.
+      int autoRuns = (day % 3 == 0) ? 2 : 1;
+      for (int r = 0; r < autoRuns; r++) {
+        uint32_t startOffset = 6 * 3600 + (uint32_t)r * 4 * 3600;  // 6am, +4h for a 2nd run
+        uint32_t durationSec = 900 + ((uint32_t)(day * 37 + r * 53) % 1800);  // 15-45 min
+        float volumeLiters = (durationSec / 60.0f) * 8.0f;  // ~8 L/min, made up
+        String name = String("Drip - ") + crops[(day + r) % 4];
+        _history.recordBatch(dayStart + startOffset, durationSec, name, "auto", volumeLiters, batch);
+      }
+
+      // A manual toggle roughly every 4th day.
+      if (day % 4 == 0) {
+        uint32_t durationSec = 300 + ((uint32_t)(day * 17) % 600);  // 5-15 min
+        float volumeLiters = (durationSec / 60.0f) * 6.0f;
+        _history.recordBatch(dayStart + 15 * 3600, durationSec, manualChannels[day % 5], "manual", volumeLiters, batch);
+      }
+    }
+    _history.flushBatch(batch);
+    Serial.println("[History] Seeded ~3 months of test data");
   }
 
   String _handleSetRelayNames(JsonDocument& doc) {

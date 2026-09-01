@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../models/device_status.dart';
 import '../models/program.dart';
+import '../models/history_record.dart';
 
 /// Common shape for talking to the WM1 device, regardless of transport.
 /// MqttService (cloud, via broker) and LocalService (SoftAP, direct
@@ -12,6 +13,7 @@ abstract class DeviceService {
   Stream<List<LibrarySequence>> get libraryStream;
   Stream<bool> get connectedStream;
   Stream<bool> get deviceOnlineStream;
+  Stream<List<HistoryRecord>> get historyStream;
 
   bool get isConnected;
 
@@ -28,6 +30,7 @@ abstract class DeviceService {
   void setLibrary(List<LibrarySequence> library);
   void simulatePowerLoss();
   void simulatePowerRestore();
+  void getHistory({int since = 0, int max = 500});
 
   // Escape hatch for commands not part of the typed interface above
   // (wifi_config, force_local_mode, resume_auto_mode, device_info).

@@ -28,6 +28,14 @@ public:
 
   bool ready() const { return _ready; }
 
+  // Wipes all history — used both as a real "start fresh" action and to
+  // remove seeded test data (see CommandHandler's seed_history_test_data)
+  // once it's served its purpose.
+  void clear() {
+    if (!_ready) return;
+    LittleFS.remove(HISTORY_PATH);
+  }
+
   // source: "auto" or "manual". name is either "Program - Sequence"
   // (auto) or a stable channel key like "valve3"/"dosing" (manual) —
   // the app resolves the manual case to whatever that channel's
@@ -37,23 +45,40 @@ public:
               const String& source, float volumeLiters) {
     if (!_ready || durationSec == 0) return;
 
-    JsonDocument doc;
-    doc["ts"] = (uint32_t)startEpoch;
-    doc["dur"] = durationSec;
-    doc["name"] = name;
-    doc["src"] = source;
-    doc["vol"] = volumeLiters;
-    String line;
-    serializeJson(doc, line);
-
     File f = LittleFS.open(HISTORY_PATH, "a");
     if (!f) {
       Serial.println("[History] open-for-append failed");
       return;
     }
-    f.println(line);
+    f.println(_buildLine(startEpoch, durationSec, name, source, volumeLiters));
     f.close();
 
+    _maybeTrim();
+  }
+
+  // Bug fix: seeding test data used to call record() in a loop — ~140
+  // separate LittleFS open/append/close cycles back to back, entirely
+  // inside one command handler call with no yielding. Confirmed live:
+  // that was slow enough to produce garbled serial output consistent
+  // with the watchdog-starvation class of bug this codebase has hit
+  // before with blocking WiFi scans. One open/write/close for the
+  // whole batch, one _maybeTrim() at the end, avoids it entirely.
+  void recordBatch(time_t startEpoch, uint32_t durationSec, const String& name,
+                    const String& source, float volumeLiters, String& batchBuffer) {
+    if (durationSec == 0) return;
+    batchBuffer += _buildLine(startEpoch, durationSec, name, source, volumeLiters);
+    batchBuffer += '\n';
+  }
+
+  void flushBatch(const String& batchBuffer) {
+    if (!_ready || batchBuffer.isEmpty()) return;
+    File f = LittleFS.open(HISTORY_PATH, "a");
+    if (!f) {
+      Serial.println("[History] open-for-append failed");
+      return;
+    }
+    f.print(batchBuffer);
+    f.close();
     _maybeTrim();
   }
 
@@ -96,6 +121,19 @@ public:
   }
 
 private:
+  static String _buildLine(time_t startEpoch, uint32_t durationSec, const String& name,
+                            const String& source, float volumeLiters) {
+    JsonDocument doc;
+    doc["ts"] = (uint32_t)startEpoch;
+    doc["dur"] = durationSec;
+    doc["name"] = name;
+    doc["src"] = source;
+    doc["vol"] = volumeLiters;
+    String line;
+    serializeJson(doc, line);
+    return line;
+  }
+
   static constexpr const char* HISTORY_PATH = "/history.jsonl";
   // ~64KB comfortably covers 3 months of a small farm's realistic run
   // frequency (a handful of records/day) at this record size, while

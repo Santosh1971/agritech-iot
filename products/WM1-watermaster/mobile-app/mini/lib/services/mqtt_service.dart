@@ -7,6 +7,7 @@ import 'device_service.dart';
 import 'network_binding.dart';
 import '../models/device_status.dart';
 import '../models/program.dart';
+import '../models/history_record.dart';
 
 /// Cloud transport over the shared AgriSense broker — same broker FG1
 /// already uses. Topics mirror FG1's mqtt_service.dart pattern (see
@@ -16,6 +17,8 @@ import '../models/program.dart';
 ///   agrisense/WM1/<deviceId>/command           (this app -> device)
 ///   agrisense/WM1/<deviceId>/programs_config   (this app -> device, RETAINED)
 ///   agrisense/WM1/<deviceId>/lwt               (retained, {"online":bool})
+///   agrisense/WM1/<deviceId>/history            (get_history's reply — no periodic
+///                                                 broadcast exists for this one)
 class MqttService implements DeviceService {
   static const String _broker = 'mqtt.agrisenseandcontrol.in';
   // Per-product credential, same simplification FG1 currently uses
@@ -24,9 +27,9 @@ class MqttService implements DeviceService {
   static const String _mqttPass = 'asacwm1';
   static const int _port = 1883;
 
-  final String deviceSuffix; // last 4 hex chars, e.g. "FDE4" -> WM1_FDE4
+  final String deviceSuffix; // last 8 hex chars, e.g. "1A2B3FDE" -> WM1_1A2B3FDE
   late final String _topicStatus, _topicPrograms, _topicLibrary, _topicCommand,
-      _topicProgramsConfig, _topicLibraryConfig, _topicLwt;
+      _topicProgramsConfig, _topicLibraryConfig, _topicLwt, _topicHistory;
 
   MqttService({required this.deviceSuffix}) {
     final base = 'agrisense/WM1/WM1_$deviceSuffix';
@@ -37,6 +40,7 @@ class MqttService implements DeviceService {
     _topicProgramsConfig = '$base/programs_config';
     _topicLibraryConfig = '$base/library_config';
     _topicLwt = '$base/lwt';
+    _topicHistory = '$base/history';
   }
 
   MqttServerClient? _client;
@@ -47,6 +51,7 @@ class MqttService implements DeviceService {
   final _libraryController = StreamController<List<LibrarySequence>>.broadcast();
   final _connectedController = StreamController<bool>.broadcast();
   final _deviceOnlineController = StreamController<bool>.broadcast();
+  final _historyController = StreamController<List<HistoryRecord>>.broadcast();
 
   @override
   Stream<DeviceStatus> get statusStream => _statusController.stream;
@@ -58,6 +63,8 @@ class MqttService implements DeviceService {
   Stream<bool> get connectedStream => _connectedController.stream;
   @override
   Stream<bool> get deviceOnlineStream => _deviceOnlineController.stream;
+  @override
+  Stream<List<HistoryRecord>> get historyStream => _historyController.stream;
 
   @override
   bool get isConnected => _client?.connectionStatus?.state == MqttConnectionState.connected;
@@ -117,6 +124,7 @@ class MqttService implements DeviceService {
     _client!.subscribe(_topicPrograms, MqttQos.atMostOnce);
     _client!.subscribe(_topicLibrary, MqttQos.atMostOnce);
     _client!.subscribe(_topicLwt, MqttQos.atMostOnce);
+    _client!.subscribe(_topicHistory, MqttQos.atMostOnce);
 
     _client!.updates?.listen((List<MqttReceivedMessage<MqttMessage>> msgs) {
       for (final msg in msgs) {
@@ -152,6 +160,17 @@ class MqttService implements DeviceService {
       } else if (topic == _topicLwt) {
         final json = jsonDecode(payload) as Map<String, dynamic>;
         _deviceOnlineController.add(json['online'] == true);
+      } else if (topic == _topicHistory) {
+        // Firmware publishes get_history's own {"ok","cmd","data"} reply
+        // shape here (see MqttClientWrapper.h), not a bare array, so this
+        // unwraps it the same way a direct command reply would be.
+        final wrapped = jsonDecode(payload) as Map<String, dynamic>;
+        if (wrapped['data'] is List) {
+          final list = (wrapped['data'] as List)
+              .map((e) => HistoryRecord.fromJson(e as Map<String, dynamic>))
+              .toList();
+          _historyController.add(list);
+        }
       }
     } catch (e) {
       print('[MQTT] Parse error on $topic: $e');
@@ -212,6 +231,8 @@ class MqttService implements DeviceService {
   void simulatePowerLoss() => _publish({'cmd': 'simulate_power_loss'});
   @override
   void simulatePowerRestore() => _publish({'cmd': 'simulate_power_restore'});
+  @override
+  void getHistory({int since = 0, int max = 500}) => _publish({'cmd': 'get_history', 'since': since, 'max': max});
 
   void _onConnected() => _connectedController.add(true);
   void _onDisconnected() {
@@ -230,6 +251,7 @@ class MqttService implements DeviceService {
     _libraryController.close();
     _connectedController.close();
     _deviceOnlineController.close();
+    _historyController.close();
     try { _client?.disconnect(); } catch (_) {}
   }
 }
