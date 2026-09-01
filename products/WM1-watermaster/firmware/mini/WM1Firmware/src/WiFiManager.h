@@ -91,6 +91,15 @@ public:
 
 private:
   void _startStaConnect() {
+    // Defensive: if a previous attempt is still in flight (e.g. new
+    // credentials submitted again before the last attempt timed out),
+    // calling WiFi.begin() straight over it is exactly what produces
+    // ESP-IDF's "sta is connecting, return error" — confirmed live.
+    // Disconnecting first abandons that attempt cleanly instead of
+    // racing it.
+    if (_state == WifiState::STA_CONNECTING) {
+      WiFi.disconnect();
+    }
     Serial.printf("[WiFi] Attempting STA connect to: %s\n", _savedSsid.c_str());
     WiFi.begin(_savedSsid.c_str(), _savedPass.c_str());
     _staAttemptStart = millis();

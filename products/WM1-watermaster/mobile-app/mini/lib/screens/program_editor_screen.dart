@@ -318,7 +318,7 @@ class _SequenceCardState extends State<_SequenceCard> {
         Wrap(spacing: 8, children: [
           for (int v = 0; v < 4; v++)
             FilterChip(
-              label: Text(widget.relayNames.valveName(v)),
+              label: Text(widget.relayNames.valveDisplay(v)),
               selected: s.valveOn(v),
               onSelected: (sel) { setState(() { s.setValve(v, sel); }); widget.onChanged(); },
               selectedColor: const Color(0xFF2196F3).withOpacity(0.2),

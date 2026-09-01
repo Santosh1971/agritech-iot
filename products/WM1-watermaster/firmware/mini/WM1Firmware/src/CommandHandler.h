@@ -10,6 +10,7 @@
 #include "RelayNames.h"
 #include "SequenceLibrary.h"
 #include "Sensors.h"
+#include "RunHistory.h"
 
 // Shared command dispatch — called identically from the MQTT message
 // callback and the local WebSocket handler, same pattern FG1 uses.
@@ -29,24 +30,42 @@
 //   manual_set        {"channel":"dosing"|"valve1".."valve4", "state": bool}
 //   trigger_program    {"id": N, "seq": 0}           — bypass schedule, run now
 //   force_stop
+//   pause / resume        — user-initiated freeze/continue of the active
+//                            sequence, distinct from force_stop: elapsed
+//                            time and the active program are preserved,
+//                            same freeze mechanism as an IN1/water pause.
 //   list_programs
 //   set_programs       {"programs": [...]}            — full replace, like FG1's set_cycles
 //   simulate_power_loss / simulate_power_restore       — bench-test stand-in for real IN1
 //                                                         wiring (§3.7) — no hardware sense
 //                                                         line exists yet, see spec conversation.
+//   set_water_level_enabled {"enabled": bool}          — opt this installation into L1/L2
+//                                                         dry-run protection (Sensors.h) — OFF
+//                                                         by default, since most Minis (borewell
+//                                                         supply) have nothing wired to IN2/IN3.
+//   simulate_water_low / simulate_water_ok             — bench-test stand-in for the real L1/L2
+//                                                         float switches, same idea as the power ones.
 //   wifi_config        {"ssid": "...", "password": "..."}
 //   force_local_mode / resume_auto_mode
 //   wifi_scan          — kicks off an async scan (WiFiScanner, ported from
 //                         FG1); result arrives as a "wifi_scan_result" broadcast
 //   rtc_sync           {"unix": N} — see Ds1307Clock.h for the unix-encoding convention
 //   factory_reset      — clears saved programs/WiFi creds/checkpoint, reboots
-//   set_relay_names    {"pump":"...","dosing":"...","valves":["...","...","...","..."]}
-//                         — display labels only, roles stay fixed (§2.3)
+//   set_relay_names    {"pump":"...","dosing":"...","valves":["...","...","...","..."],
+//                        "pressure1":"...","pressure2":"...","flow":"...",
+//                        "waterUpper":"...","waterLower":"..."}
+//                         — display labels only, roles stay fixed (§2.3). The app
+//                         appends the fixed hardware suffix (_R1, _P1, _IN1, ...)
+//                         when displaying these; the firmware stores the bare name.
 //   list_sequence_library
 //   set_sequence_library {"sequences":[...]}          — full replace, same pattern as set_programs.
 //                         Library entries are COPIED into a program's own sequences when the app
 //                         builds a program from them — see SequenceLibrary.h's doc comment.
 //   device_info
+//   get_history        {"since": epochSeconds, "max": N}   — up to N records (default 500)
+//                         with ts >= since (default 0 = everything retained), newest first.
+//                         Covers both auto (program/sequence) and manual (single-channel
+//                         toggle) runs — see RunHistory.h for the on-disk format/retention.
 //
 // KNOWN GAPS (flagged, not silently guessed at):
 //   - manual_set bypasses the Scheduler's arbitration with an active
@@ -61,10 +80,11 @@ public:
   CommandHandler(Scheduler& scheduler, IrrigationController& irrigation,
                  WiFiManager& wifi, ProgramStore& store,
                  Program* programSlots[], uint8_t& programCount,
-                 Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library, Sensors& sensors)
+                 Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library, Sensors& sensors,
+                 RunHistory& history)
     : _scheduler(scheduler), _irrigation(irrigation), _wifi(wifi),
       _store(store), _programSlots(programSlots), _programCount(programCount),
-      _clock(clock), _names(names), _library(library), _sensors(sensors) {}
+      _clock(clock), _names(names), _library(library), _sensors(sensors), _history(history) {}
 
   void handle(const String& jsonIn, ReplyFn reply) {
     // Every command that reaches the firmware, from ANY transport (local
@@ -98,6 +118,12 @@ public:
     } else if (cmd == "force_stop") {
       _scheduler.forceStop();
       reply(_okReply(cmd));
+    } else if (cmd == "pause") {
+      _scheduler.pause();
+      reply(_okReply(cmd));
+    } else if (cmd == "resume") {
+      _scheduler.resume();
+      reply(_okReply(cmd));
     } else if (cmd == "list_programs") {
       reply(_wrapOk(cmd, _programsJson()));
     } else if (cmd == "set_programs") {
@@ -107,6 +133,25 @@ public:
       reply(_okReply(cmd));
     } else if (cmd == "simulate_power_restore") {
       _scheduler.onPowerStateChange(true);
+      reply(_okReply(cmd));
+    } else if (cmd == "set_water_level_enabled") {
+      bool enabled = doc["enabled"] | false;
+      _sensors.setWaterLevelEnabled(enabled);
+      _sensors.clearSimulation();
+      // Re-arm the scheduler's own flag immediately: turning the
+      // feature OFF must release any pause it was holding, and turning
+      // it ON should start from "assume OK" rather than a stale reading.
+      _scheduler.onWaterLevelChange(true);
+      reply(_okReply(cmd));
+    } else if (cmd == "simulate_water_low") {
+      // Bench-test stand-in for the real L1/L2 float switches, same
+      // pattern as simulate_power_loss — no real hardware exists yet.
+      _sensors.simulateLevels(false, false);
+      if (_sensors.waterLevelEnabled()) _scheduler.onWaterLevelChange(false);
+      reply(_okReply(cmd));
+    } else if (cmd == "simulate_water_ok") {
+      _sensors.simulateLevels(true, true);
+      if (_sensors.waterLevelEnabled()) _scheduler.onWaterLevelChange(true);
       reply(_okReply(cmd));
     } else if (cmd == "wifi_config") {
       String ssid = doc["ssid"] | "";
@@ -144,6 +189,10 @@ public:
       reply(_handleSetLibrary(doc));
     } else if (cmd == "device_info") {
       reply(_wrapOk(cmd, _deviceInfoJson()));
+    } else if (cmd == "get_history") {
+      time_t since = (time_t)(doc["since"] | 0);
+      uint16_t max = doc["max"] | 500;
+      reply(_wrapOk(cmd, _history.queryJson(since, max)));
     } else {
       reply(_errorReply(cmd, "unknown_command"));
     }
@@ -268,15 +317,49 @@ private:
     String channel = doc["channel"] | "";
     bool state = doc["state"] | false;
     if (channel == "dosing") {
+      bool was = _irrigation.getDosing();
       _irrigation.setDosing(state);
+      _trackManual(4, "dosing", was, state);
     } else if (channel.startsWith("valve")) {
       int idx = _channelFromName(channel);
       if (idx < 0) return _errorReply("manual_set", "unknown_channel");
+      bool was = _irrigation.getValve((uint8_t)idx);
       _irrigation.setValve((uint8_t)idx, state);
+      _trackManual(idx, channel, was, state);
     } else {
       return _errorReply("manual_set", "unknown_channel");
     }
     return _okReply("manual_set");
+  }
+
+  // Logs a history record for a manually-toggled channel's ON window,
+  // the moment it goes back off — mirrors what the Scheduler does for
+  // auto runs in Scheduler::_stopSequence(), just per-channel instead
+  // of per-sequence since manual_set has no sequence concept at all.
+  // `channelKey` (e.g. "valve3"/"dosing") is stored as-is, NOT the
+  // current display name — the app resolves it to whatever that
+  // channel is named NOW, so a later rename doesn't orphan old history.
+  struct ManualTrack { bool on = false; time_t startEpoch = 0; float startVolumeLiters = 0; };
+  ManualTrack _manualTrack[5];  // 0-3 = valve1-4, 4 = dosing
+
+  void _trackManual(int idx, const String& channelKey, bool wasOn, bool nowOn) {
+    if (wasOn == nowOn) return;
+    // Bug fix: this used time(nullptr) — this firmware never calls
+    // settimeofday(), so that's an uncalibrated uptime-ish value, not a
+    // real date (confirmed live: logged ts=26 right after boot instead
+    // of the actual date). _clock.now() is the real RTC-backed source
+    // of truth everywhere else in this firmware.
+    if (nowOn) {
+      _manualTrack[idx].on = true;
+      _manualTrack[idx].startEpoch = _clock.now();
+      _manualTrack[idx].startVolumeLiters = _sensors.flowTotalLiters();
+    } else {
+      if (!_manualTrack[idx].on) return;  // wasn't a manual-tracked window (e.g. scheduler-driven)
+      _manualTrack[idx].on = false;
+      uint32_t duration = (uint32_t)(_clock.now() - _manualTrack[idx].startEpoch);
+      float volumeDelta = _sensors.flowTotalLiters() - _manualTrack[idx].startVolumeLiters;
+      _history.record(_manualTrack[idx].startEpoch, duration, channelKey, "manual", volumeDelta);
+    }
   }
 
   String _handleSetRelayNames(JsonDocument& doc) {
@@ -289,6 +372,11 @@ private:
       _names.valve[i] = String((const char*)(v.as<const char*>()));
       i++;
     }
+    _names.pressure1 = String((const char*)(doc["pressure1"] | "Pressure 1"));
+    _names.pressure2 = String((const char*)(doc["pressure2"] | "Pressure 2"));
+    _names.flow = String((const char*)(doc["flow"] | "Water Meter"));
+    _names.waterUpper = String((const char*)(doc["waterUpper"] | "Upper"));
+    _names.waterLower = String((const char*)(doc["waterLower"] | "Lower"));
     _names.save();
     return _okReply("set_relay_names");
   }
@@ -381,6 +469,7 @@ private:
     JsonDocument doc;
     doc["device_id"] = computeDeviceId();
     doc["state"] = (int)_scheduler.state();
+    doc["pause_reason"] = _scheduler.pauseReason();
     doc["pump"] = _irrigation.getPump();
     doc["dosing"] = _irrigation.getDosing();
     JsonArray valves = doc["valves"].to<JsonArray>();
@@ -400,6 +489,9 @@ private:
     doc["pressure2_bar"] = _sensors.pressure2Bar();
     doc["flow_rate_lpm"] = _sensors.flowRateLpm();
     doc["flow_total_liters"] = _sensors.flowTotalLiters();
+    doc["water_level_enabled"] = _sensors.waterLevelEnabled();
+    doc["water_l1_ok"] = _sensors.waterL1Ok();
+    doc["water_l2_ok"] = _sensors.waterL2Ok();
     doc["water_level_ok"] = _sensors.waterLevelOk();
     doc["battery_volts"] = _sensors.batteryVolts();
 
@@ -408,6 +500,11 @@ private:
     names["dosing"] = _names.dosing;
     JsonArray valveNames = names["valves"].to<JsonArray>();
     for (uint8_t i = 0; i < 4; i++) valveNames.add(_names.valve[i]);
+    names["pressure1"] = _names.pressure1;
+    names["pressure2"] = _names.pressure2;
+    names["flow"] = _names.flow;
+    names["waterUpper"] = _names.waterUpper;
+    names["waterLower"] = _names.waterLower;
 
     const Program* active = _scheduler.activeProgram();
     if (active) {
@@ -458,6 +555,7 @@ private:
   RelayNames& _names;
   SequenceLibrary& _library;
   Sensors& _sensors;
+  RunHistory& _history;
   bool _programsChanged = false;
   bool _libraryChanged = false;
   bool _statusChanged = false;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
-import '../models/hardware_config.dart';
 
 /// Which optional I/O this specific installation actually has wired up
 /// — the schematic Dashboard only draws/reads what's marked present
@@ -56,11 +55,49 @@ class HardwareConfigScreen extends ConsumerWidget {
             ),
             _Toggle(
               icon: Icons.waves,
-              label: 'Water Level Sensor (High/Low)',
+              label: 'Water Level Sensor (L1 + L2)',
+              subtitle: 'IN2 / IN3',
               value: config.hasWaterLevel,
-              onChanged: (v) => notifier.update(config.copyWith(hasWaterLevel: v)),
+              onChanged: (v) {
+                notifier.update(config.copyWith(hasWaterLevel: v));
+                // This one isn't purely cosmetic: it also arms/disarms the
+                // firmware's actual dry-run pause behavior, so the device
+                // needs to be told directly, not just the app's own display
+                // preference — see set_water_level_enabled's doc comment in
+                // CommandHandler.h. A borewell farmer who leaves this off
+                // never has L1/L2 read at all.
+                ref.read(deviceServiceProvider).sendRaw({'cmd': 'set_water_level_enabled', 'enabled': v});
+              },
             ),
           ]),
+          if (config.hasWaterLevel) ...[
+            const SizedBox(height: 16),
+            Text('DRY-RUN PROTECTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Text(
+              'If both L1 and L2 read dry (water has receded below L1, the '
+              'lower switch), irrigation pauses automatically — same '
+              'freeze/resume behavior as a power outage — and resumes once '
+              'water is back. No real float switches are wired up yet, so '
+              'use these to bench-test the pause without them.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            _Section(children: [
+              ListTile(
+                leading: const Icon(Icons.water_drop_outlined, color: Colors.orange),
+                title: const Text('Simulate Water Low', style: TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: const Text('Both L1 and L2 dry', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () => ref.read(deviceServiceProvider).sendRaw({'cmd': 'simulate_water_low'}),
+              ),
+              ListTile(
+                leading: const Icon(Icons.water_drop, color: Colors.blue),
+                title: const Text('Simulate Water OK', style: TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: const Text('L1 and L2 restored', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                onTap: () => ref.read(deviceServiceProvider).sendRaw({'cmd': 'simulate_water_ok'}),
+              ),
+            ]),
+          ],
         ],
       ),
     );

@@ -281,6 +281,10 @@ class LocalService implements DeviceService {
   @override
   void forceStop() => _send({'cmd': 'force_stop'});
   @override
+  void pause() => _send({'cmd': 'pause'});
+  @override
+  void resume() => _send({'cmd': 'resume'});
+  @override
   void getPrograms() => _send({'cmd': 'list_programs'});
   @override
   void setPrograms(List<Program> programs) =>
@@ -297,6 +301,9 @@ class LocalService implements DeviceService {
 
   void getStatus() => _send({'cmd': 'get_status'});
   void scanWifi() => _send({'cmd': 'wifi_scan'});
+  // Local-only for now (see history_screen.dart) — reply arrives on
+  // responseStream like device_info/wifi_scan, cmd == 'get_history'.
+  void getHistory({int since = 0, int max = 500}) => _send({'cmd': 'get_history', 'since': since, 'max': max});
   void syncRtcFromPhone() {
     final now = DateTime.now();
     // Same FG1 convention: reinterpret the phone's LOCAL wall-clock
@@ -306,8 +313,27 @@ class LocalService implements DeviceService {
     _send({'cmd': 'rtc_sync', 'unix': asUtc.millisecondsSinceEpoch ~/ 1000});
   }
   void factoryReset() => _send({'cmd': 'factory_reset'});
-  void setRelayNames({required String pump, required String dosing, required List<String> valves}) =>
-      _send({'cmd': 'set_relay_names', 'pump': pump, 'dosing': dosing, 'valves': valves});
+  void setRelayNames({
+    required String pump,
+    required String dosing,
+    required List<String> valves,
+    required String pressure1,
+    required String pressure2,
+    required String flow,
+    required String waterUpper,
+    required String waterLower,
+  }) =>
+      _send({
+        'cmd': 'set_relay_names',
+        'pump': pump,
+        'dosing': dosing,
+        'valves': valves,
+        'pressure1': pressure1,
+        'pressure2': pressure2,
+        'flow': flow,
+        'waterUpper': waterUpper,
+        'waterLower': waterLower,
+      });
 
   @override
   void dispose() {

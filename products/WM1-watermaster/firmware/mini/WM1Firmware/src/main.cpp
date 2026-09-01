@@ -28,6 +28,7 @@
 #include "RelayNames.h"
 #include "SequenceLibrary.h"
 #include "Sensors.h"
+#include "RunHistory.h"
 #include "WiFiScanner.h"
 #include "StatusLed.h"
 #include "CommandHandler.h"
@@ -40,7 +41,9 @@
 
 ShiftRegisterRelayController relays(RLY_DATA, RLY_CLK, RLY_LATCH);
 IrrigationController irrigation(relays);
-Scheduler scheduler(irrigation);
+Sensors sensors;
+RunHistory runHistory;
+Scheduler scheduler(irrigation, sensors, runHistory);
 ProgramStore programStore;
 WiFiManager wifiManager;
 MqttClientWrapper mqtt;
@@ -48,7 +51,6 @@ LocalServer localServer;
 Ds1307Clock rtcClock;
 RelayNames relayNames;
 SequenceLibrary sequenceLibrary;
-Sensors sensors;
 WiFiScanner wifiScanner;
 StatusLed statusLed;
 
@@ -77,6 +79,24 @@ void setup() {
 
   Serial.printf("\n=== Water Manager-Mini — %s ===\n", computeDeviceId().c_str());
 
+  // Self-test: all 7 status LEDs (Flow/PR1/PR2/IN1/IN2/IN3/LOBATT) plus
+  // the onboard WiFi status LED ON for 3s then OFF — same idea as WPC's
+  // boot self-test, adapted to this board's LED set. Relays are
+  // deliberately NOT included (unlike the LEDs, energizing a pump/valve
+  // during a self-test isn't something you want happening automatically
+  // at every boot). Direct pin control here, ahead of each component's
+  // normal begin() below, which will leave everything in its real
+  // starting state once this finishes.
+  relays.begin();
+  pinMode(StatusLed::PIN, OUTPUT);
+  Serial.println("[SelfTest] LEDs ON");
+  for (uint8_t bit = 0; bit <= ShiftRegisterRelayController::LED_LOBATT; bit++) relays.setLed(bit, true);
+  digitalWrite(StatusLed::PIN, HIGH);
+  delay(3000);
+  relays.allLedsOff();
+  digitalWrite(StatusLed::PIN, LOW);
+  Serial.println("[SelfTest] LEDs OFF");
+
   irrigation.begin();
   scheduler.begin();
   rtcClock.begin();
@@ -84,6 +104,7 @@ void setup() {
   sequenceLibrary.begin();
   sensors.begin();
   attachInterrupt(digitalPinToInterrupt(Sensors::PIN_FLOW), onFlowPulse, RISING);
+  runHistory.begin();
   statusLed.begin();
   if (!rtcClock.isRunning()) {
     Serial.println("[RTC] WARNING: oscillator not running — RTC was never set. "
@@ -108,7 +129,7 @@ void setup() {
   wifiManager.begin();
 
   static CommandHandler handler(scheduler, irrigation, wifiManager, programStore,
-                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary, sensors);
+                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary, sensors, runHistory);
   commandHandler = &handler;
 
   mqtt.begin(commandHandler);
@@ -124,6 +145,14 @@ void loop() {
   mqtt.loop(wifiManager.isStaConnected());
   localServer.loop();
   sensors.update();
+  // Only ever affects scheduling when this installation has actually
+  // opted in (Settings > Hardware Configuration > Water Level Sensor,
+  // sent down as set_water_level_enabled) — see Sensors.h's doc comment
+  // on why an unconditional read would be unsafe for a borewell farmer
+  // with nothing wired to IN2/IN3 at all.
+  if (sensors.waterLevelEnabled()) {
+    scheduler.onWaterLevelChange(sensors.waterLevelOk());
+  }
   scheduler.update(rtcClock.now());
   // LED reflects "a phone joined the WiFi", not "the app's WebSocket is
   // open" — this is the WPC precedent this was meant to mirror in the

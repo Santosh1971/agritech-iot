@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/providers.dart';
 import 'local_setup_screen.dart';
 import 'hardware_config_screen.dart';
+import 'history_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -126,6 +127,13 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Hardware Configuration',
               subtitle: 'Which sensors/dosing are actually wired up',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HardwareConfigScreen())),
+            ),
+            _SettingsTile(
+              icon: Icons.history,
+              color: const Color(0xFF7B1FA2),
+              title: 'Run History',
+              subtitle: 'Time and volume by day, scheduled and manual runs',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
             ),
           ]),
           const SizedBox(height: 16),

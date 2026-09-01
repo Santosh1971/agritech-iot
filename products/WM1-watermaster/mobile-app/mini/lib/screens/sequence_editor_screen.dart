@@ -79,7 +79,7 @@ class _SequenceEditorScreenState extends State<SequenceEditorScreen> {
             Wrap(spacing: 8, children: [
               for (int v = 0; v < 4; v++)
                 FilterChip(
-                  label: Text(names.valveName(v)),
+                  label: Text(names.valveDisplay(v)),
                   selected: _seq.valveOn(v),
                   onSelected: (sel) => setState(() => _seq.setValve(v, sel)),
                   selectedColor: const Color(0xFF2196F3).withOpacity(0.2),

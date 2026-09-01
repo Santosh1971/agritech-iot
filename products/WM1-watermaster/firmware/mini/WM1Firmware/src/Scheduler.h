@@ -3,6 +3,8 @@
 #include <time.h>
 #include <Preferences.h>
 #include "IrrigationController.h"
+#include "Sensors.h"
+#include "RunHistory.h"
 
 // Core scheduling engine. This is where the trickiest rules from the
 // spec live:
@@ -58,7 +60,8 @@ enum class SchedulerState : uint8_t { IDLE, RUNNING, PAUSED, QUEUED_WAITING };
 
 class Scheduler {
 public:
-  Scheduler(IrrigationController& irrigation) : _irrigation(irrigation) {}
+  Scheduler(IrrigationController& irrigation, Sensors& sensors, RunHistory& history)
+    : _irrigation(irrigation), _sensors(sensors), _history(history) {}
 
   void begin();
 
@@ -70,6 +73,24 @@ public:
 
   // Wired to IN1 (§3.7). true = power OK (HIGH), false = no power (LOW).
   void onPowerStateChange(bool powerOk);
+
+  // Source dry-run protection from the optional L1/L2 float switches
+  // (IN2/IN3) — only ever called when that feature is enabled for this
+  // installation (main.cpp gates it; most Minis have no level switches
+  // at all and never call this, so _waterOk simply stays true forever).
+  // true = water present at L1 or L2, false = both dry, pause like a
+  // power loss until level is restored.
+  void onWaterLevelChange(bool ok);
+
+  // User-initiated pause/resume — distinct from forceStop(): pause
+  // freezes the active sequence exactly like an IN1/water-low pause
+  // (elapsed time stops, relays off, resumes from the same point), it
+  // just doesn't clear _activeProgram the way a stop does. Feeds the
+  // same _reevaluatePause() as power/water, so all three conditions
+  // must be OK before anything actually resumes — pausing while water
+  // is already low, then hitting Resume, correctly stays paused.
+  void pause();
+  void resume();
 
   // Manual override (§6, Manual Control page) — takes priority
   // immediately, and the interrupted automated cycle resumes once
@@ -96,6 +117,10 @@ public:
       _irrigation.allOff();
     }
     _queuedProgram = nullptr;
+    // A stop always fully clears any user pause too — otherwise the
+    // NEXT program to start would find _manualOk already false (stuck
+    // from a previous run) and refuse to actually energize anything.
+    _manualOk = true;
   }
 
   // Program registration and a bench-testing hook to bypass the
@@ -116,6 +141,20 @@ public:
   void resetPrograms(Program* slots[], uint8_t count);
 
   SchedulerState state() const { return _state; }
+
+  // Which condition is holding a PAUSED state — lets the app show
+  // "Paused — water low" instead of a bare "Paused", without it having
+  // to guess from unrelated fields. Meaningless (empty) unless actually
+  // paused; checked in this order since _reevaluatePause pauses the
+  // instant ANY one of these goes false, so more than one can be bad
+  // at once — order here is just which one the app names first.
+  const char* pauseReason() const {
+    if (_state != SchedulerState::PAUSED) return "";
+    if (!_waterOk) return "water";
+    if (!_powerOk) return "power";
+    if (!_manualOk) return "manual";
+    return "";
+  }
   uint32_t elapsedRunSec() const { return _elapsedRunSec; }
   const Program* activeProgram() const { return _activeProgram; }
   uint8_t activeSeqIndex() const { return _activeSeqIndex; }
@@ -135,6 +174,7 @@ private:
   void _tickRunning(time_t now);
   void _checkDuePrograms(time_t now);
   void _applyDosingForElapsed(uint32_t elapsedSec);
+  void _reevaluatePause(const char* reason);
 
   // Writes (or clears) the runtime checkpoint. Called on every state
   // transition (start/stop/pause) — those are rare/cheap — plus every
@@ -150,11 +190,22 @@ private:
   uint32_t _lastCheckpointedElapsed = 0;
 
   IrrigationController& _irrigation;
+  Sensors& _sensors;
+  RunHistory& _history;
   SchedulerState _state = SchedulerState::IDLE;
 
   // What's currently running (or paused mid-run)
   Program* _activeProgram = nullptr;
   uint8_t _activeSeqIndex = 0;
+
+  // Wall-clock start of the CURRENT sequence and the flow totalizer's
+  // reading at that instant — captured once in _startSequence(), not
+  // reset across an internal pause/resume, so the history record
+  // logged in _stopSequence() covers the sequence's whole span
+  // (including any paused gap) rather than just its final un-paused
+  // stretch.
+  time_t _seqStartEpoch = 0;
+  float _seqStartVolumeLiters = 0;
 
   // Elapsed RUN seconds for the active sequence — NOT wall-clock
   // elapsed. This is the field that makes the outage math work: it
@@ -175,5 +226,7 @@ private:
   uint8_t _programCount = 0;
 
   bool _powerOk = true;
+  bool _waterOk = true;
+  bool _manualOk = true;
   time_t _lastTickTime = 0;
 };

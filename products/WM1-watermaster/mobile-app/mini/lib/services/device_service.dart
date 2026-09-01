@@ -20,6 +20,8 @@ abstract class DeviceService {
   void manualSet(String channel, bool state); // channel: "dosing"|"valve1".."valve4"
   void triggerProgram(int programId, int seqIndex);
   void forceStop();
+  void pause();
+  void resume();
   void getPrograms();
   void setPrograms(List<Program> programs);
   void getLibrary();

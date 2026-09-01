@@ -31,6 +31,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // Same brand mark FG1/WPC use in their own AppBars.
+        leading: Padding(
+          padding: const EdgeInsets.all(8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset('assets/images/logo_icon.png', fit: BoxFit.contain),
+          ),
+        ),
         title: const Text('NB Agri-WM', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
@@ -65,9 +73,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _ActiveRunCard(status: status),
             if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
               const SizedBox(height: 16),
-            SchematicDiagram(status: status, config: hardwareConfig),
-            const SizedBox(height: 16),
-            _QuickActionsCard(connected: connected),
+            SchematicDiagram(status: status, config: hardwareConfig, connected: connected),
           ],
         ),
       ),
@@ -212,6 +218,13 @@ class _ActiveRunCard extends ConsumerWidget {
       if (p.id == status.activeProgramId) { activeProgram = p; break; }
     }
 
+    final pausedReason = switch (status.pauseReason) {
+      'water' => 'water low',
+      'power' => 'no power',
+      'manual' => 'by user',
+      _ => 'unknown',
+    };
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -228,7 +241,7 @@ class _ActiveRunCard extends ConsumerWidget {
                 style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
           if (paused)
-            const Text('PAUSED — no power', style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text('PAUSED — $pausedReason', style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600)),
         ]),
         const SizedBox(height: 10),
         ClipRRect(
@@ -276,7 +289,7 @@ class _SequenceTimelineRow extends StatelessWidget {
     };
     final valveLabels = [
       for (int i = 0; i < 4; i++)
-        if (sequence.valveOn(i)) relayNames.valveName(i),
+        if (sequence.valveOn(i)) relayNames.valveDisplay(i),
     ].join(', ');
     final minutes = sequence.runTargetSec ~/ 60;
     final secs = sequence.runTargetSec % 60;
@@ -303,52 +316,3 @@ class _SequenceTimelineRow extends StatelessWidget {
   }
 }
 
-class _QuickActionsCard extends ConsumerWidget {
-  final bool connected;
-  const _QuickActionsCard({required this.connected});
-
-  void _snack(BuildContext context, String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('QUICK ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          OutlinedButton.icon(
-            onPressed: connected ? () { ref.read(deviceServiceProvider).forceStop(); _snack(context, 'Force stop sent'); } : null,
-            icon: const Icon(Icons.stop_circle, color: Colors.red),
-            label: const Text('Force Stop'),
-          ),
-          OutlinedButton.icon(
-            onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerLoss(); _snack(context, 'Simulated power loss — cycle should pause'); } : null,
-            icon: const Icon(Icons.power_off, color: Colors.orange),
-            label: const Text('Simulate Power Loss'),
-          ),
-          OutlinedButton.icon(
-            onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerRestore(); _snack(context, 'Simulated power restore — cycle should resume'); } : null,
-            icon: const Icon(Icons.power, color: Colors.green),
-            label: const Text('Simulate Power Restore'),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Text(
-          'Power buttons stand in for the real "No Power" sense line (IN1) — '
-          'no sensor is wired for that yet. To test the device actually losing '
-          'and regaining power (not just this simulation), unplug it for a '
-          'while and reconnect: an active program resumes from where it left '
-          'off, not from the start.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-        ),
-      ]),
-    );
-  }
-}

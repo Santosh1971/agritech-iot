@@ -48,24 +48,53 @@ bool Scheduler::restoreFromNVS(Program* programSlots[], uint8_t programCount) {
 void Scheduler::onPowerStateChange(bool powerOk) {
   if (powerOk == _powerOk) return;  // no change
   _powerOk = powerOk;
+  _reevaluatePause("power");
+}
 
-  if (!powerOk) {
-    // IN1 LOW: pause immediately, all relays off, hold everything
-    // exactly where it is (§3.7). We deliberately do NOT stop the
-    // sequence (_stopSequence) here — that would discard progress.
-    // We just freeze it.
+void Scheduler::onWaterLevelChange(bool ok) {
+  if (ok == _waterOk) return;  // no change
+  _waterOk = ok;
+  _reevaluatePause("water");
+}
+
+void Scheduler::pause() {
+  if (!_manualOk) return;  // already paused
+  _manualOk = false;
+  _reevaluatePause("manual");
+}
+
+void Scheduler::resume() {
+  if (_manualOk) return;  // wasn't manually paused
+  _manualOk = true;
+  _reevaluatePause("manual");
+}
+
+// Shared pause/resume machinery for every independent reason irrigation
+// might need to freeze mid-run (IN1 power loss, and now source-dry-run
+// protection from L1/L2). Both reasons are tracked as their own flag
+// (_powerOk / _waterOk) and combined here rather than each calling
+// allOff()/setValveMask() directly — that guards against the case where
+// BOTH conditions are bad at once: if power comes back while water is
+// still low, this must stay paused, not resume just because the power
+// flag alone flipped true.
+void Scheduler::_reevaluatePause(const char* reason) {
+  bool systemOk = _powerOk && _waterOk && _manualOk;
+
+  if (!systemOk) {
+    // Pause immediately, all relays off, hold everything exactly where
+    // it is (§3.7's IN1 behavior, now shared by the water-level check
+    // too). We deliberately do NOT stop the sequence (_stopSequence)
+    // here — that would discard progress. We just freeze it.
     if (_state == SchedulerState::RUNNING) {
       _irrigation.allOff();
       _state = SchedulerState::PAUSED;
-      _checkpoint(true);  // capture the latest elapsed right before power actually goes away
-      Serial.printf("[Scheduler] PAUSED (no power) at elapsed=%us\n", _elapsedRunSec);
+      _checkpoint(true);  // capture the latest elapsed right before the condition actually hit
+      Serial.printf("[Scheduler] PAUSED (%s) at elapsed=%us\n", reason, _elapsedRunSec);
     }
   } else {
-    // IN1 HIGH again: resume exactly where we left off. Because
-    // _elapsedRunSec never moved while paused, the sequence still has
-    // the same remaining time/volume to go as it did the instant
-    // power was lost — the loop() re-applies valveMask/dosing state
-    // fresh below on the next update() tick.
+    // Resume exactly where we left off. Because _elapsedRunSec never
+    // moved while paused, the sequence still has the same remaining
+    // time/volume to go as it did the instant it was interrupted.
     if (_state == SchedulerState::PAUSED && _activeProgram) {
       _irrigation.setValveMask(_activeProgram->sequences[_activeSeqIndex].valveMask);
       // Dosing resumes too, only if it had started and hadn't finished
@@ -173,13 +202,32 @@ void Scheduler::_startSequence(Program& prog, uint8_t seqIndex, time_t now) {
   _activeProgram = &prog;
   _activeSeqIndex = seqIndex;
   _elapsedRunSec = 0;
-  _state = SchedulerState::RUNNING;
-
+  _seqStartEpoch = now;
+  _seqStartVolumeLiters = _sensors.flowTotalLiters();
   Sequence& seq = prog.sequences[seqIndex];
-  _irrigation.setValveMask(seq.valveMask);  // pump auto-follows via IrrigationController
+
+  // Bug fix: this used to set RUNNING and energize relays unconditionally,
+  // regardless of _powerOk/_waterOk. That's fine as long as whichever
+  // condition went bad does so WHILE something is already running (the
+  // normal case _reevaluatePause was built for) — but if it went bad
+  // while the Scheduler was IDLE (nothing to pause), the flag flips
+  // silently with no visible effect, and _startSequence would then
+  // happily start a brand new sequence and turn a valve on into a
+  // known-dry source or a known power outage. Starting straight into
+  // PAUSED (relays left off) means the existing resume path picks it up
+  // exactly like a mid-run pause/resume — nothing extra to write there.
+  bool systemOk = _powerOk && _waterOk && _manualOk;
+  if (systemOk) {
+    _state = SchedulerState::RUNNING;
+    _irrigation.setValveMask(seq.valveMask);  // pump auto-follows via IrrigationController
+    Serial.printf("[Scheduler] Started '%s' / sequence '%s' (mask=0x%02X)\n",
+                  prog.name, seq.name, seq.valveMask);
+  } else {
+    _state = SchedulerState::PAUSED;
+    Serial.printf("[Scheduler] '%s' / sequence '%s' due but system not OK (powerOk=%d waterOk=%d manualOk=%d) — starting paused\n",
+                  prog.name, seq.name, _powerOk, _waterOk, _manualOk);
+  }
   _checkpoint(true);
-  Serial.printf("[Scheduler] Started '%s' / sequence '%s' (mask=0x%02X)\n",
-                prog.name, seq.name, seq.valveMask);
 }
 
 void Scheduler::_stopSequence(bool completed) {
@@ -187,6 +235,18 @@ void Scheduler::_stopSequence(bool completed) {
   Serial.printf("[Scheduler] %s '%s' after %us\n",
                 completed ? "Completed" : "Stopped",
                 _activeProgram ? _activeProgram->name : "?", _elapsedRunSec);
+
+  // Log this sequence's run regardless of whether it completed or was
+  // stopped early — "what actually happened" is what the history is
+  // for. Volume is a delta against the totalizer reading captured at
+  // _startSequence(), so it covers the sequence's whole span even if
+  // it was paused partway through.
+  if (_activeProgram) {
+    Sequence& seq = _activeProgram->sequences[_activeSeqIndex];
+    float volumeDelta = _sensors.flowTotalLiters() - _seqStartVolumeLiters;
+    String name = String(_activeProgram->name) + " - " + seq.name;
+    _history.record(_seqStartEpoch, _elapsedRunSec, name, "auto", volumeDelta);
+  }
 
   // Chain to the next sequence within the same program — a Program is
   // "one or more Sequences" that run one after another, not just the
@@ -202,7 +262,13 @@ void Scheduler::_stopSequence(bool completed) {
     uint8_t nextSeqIndex = _activeSeqIndex + 1;
     Serial.printf("[Scheduler] Chaining to next sequence (%u/%u) in '%s'\n",
                   nextSeqIndex + 1, prog->sequenceCount, prog->name);
-    _startSequence(*prog, nextSeqIndex, time(nullptr));
+    // Bug fix: this used to pass time(nullptr) — this firmware never
+    // calls settimeofday(), so that's an uncalibrated uptime-ish value,
+    // not a real epoch (harmless while nothing consumed it; RunHistory
+    // now does). _lastTickTime is the RTC-accurate `now` update() was
+    // just called with, which is exactly what's needed here since
+    // _stopSequence only ever runs from within that same tick.
+    _startSequence(*prog, nextSeqIndex, _lastTickTime);
     return;
   }
 
@@ -217,7 +283,7 @@ void Scheduler::_stopSequence(bool completed) {
     Program* next = _queuedProgram;
     uint8_t seqIdx = _queuedSeqIndex;
     _queuedProgram = nullptr;
-    _startSequence(*next, seqIdx, time(nullptr));
+    _startSequence(*next, seqIdx, _lastTickTime);
   }
 }
 
@@ -298,9 +364,13 @@ void Scheduler::_checkDuePrograms(time_t now) {
 void Scheduler::triggerNow(Program* prog, uint8_t seqIndex) {
   // Test/manual hook — starts a program immediately, bypassing its
   // schedule entirely. Not part of the spec; purely for bench testing
-  // without waiting on real clock times.
+  // without waiting on real clock times. Uses _lastTickTime rather than
+  // time(nullptr) for the same reason as the chaining fix above — this
+  // runs outside update()'s call chain so it can be up to one loop()
+  // iteration (tens of ms) stale, which is irrelevant for the history
+  // record this timestamp ends up in.
   if (_state == SchedulerState::IDLE) {
-    _startSequence(*prog, seqIndex, time(nullptr));
+    _startSequence(*prog, seqIndex, _lastTickTime);
   } else {
     _queuedProgram = prog;
     _queuedSeqIndex = seqIndex;

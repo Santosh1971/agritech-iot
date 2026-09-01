@@ -23,6 +23,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   final _dosingNameController = TextEditingController();
   final List<TextEditingController> _valveNameControllers =
       List.generate(4, (_) => TextEditingController());
+  final _pressure1NameController = TextEditingController();
+  final _pressure2NameController = TextEditingController();
+  final _flowNameController = TextEditingController();
+  final _waterUpperNameController = TextEditingController();
+  final _waterLowerNameController = TextEditingController();
 
   StreamSubscription<Map<String, dynamic>>? _responseSub;
   bool _scanning = false;
@@ -45,6 +50,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     for (final c in _valveNameControllers) {
       c.dispose();
     }
+    _pressure1NameController.dispose();
+    _pressure2NameController.dispose();
+    _flowNameController.dispose();
+    _waterUpperNameController.dispose();
+    _waterLowerNameController.dispose();
     super.dispose();
   }
 
@@ -78,6 +88,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     for (int i = 0; i < 4; i++) {
       _valveNameControllers[i].text = names.valveName(i);
     }
+    _pressure1NameController.text = names.pressure1;
+    _pressure2NameController.text = names.pressure2;
+    _flowNameController.text = names.flow;
+    _waterUpperNameController.text = names.waterUpper;
+    _waterLowerNameController.text = names.waterLower;
   }
 
   void _saveRelayNames() {
@@ -88,8 +103,13 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
             final t = _valveNameControllers[i].text.trim();
             return t.isEmpty ? 'Valve ${i + 1}' : t;
           }),
+          pressure1: _pressure1NameController.text.trim().isEmpty ? 'Pressure 1' : _pressure1NameController.text.trim(),
+          pressure2: _pressure2NameController.text.trim().isEmpty ? 'Pressure 2' : _pressure2NameController.text.trim(),
+          flow: _flowNameController.text.trim().isEmpty ? 'Water Meter' : _flowNameController.text.trim(),
+          waterUpper: _waterUpperNameController.text.trim().isEmpty ? 'Upper' : _waterUpperNameController.text.trim(),
+          waterLower: _waterLowerNameController.text.trim().isEmpty ? 'Lower' : _waterLowerNameController.text.trim(),
         );
-    _snack('Relay names saved');
+    _snack('Names saved');
   }
 
   Future<void> _confirmFactoryReset() async {
@@ -239,21 +259,36 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
           ]),
           const SizedBox(height: 16),
           _Card(children: [
-            _Label('Rename Relays'),
-            Text('Display names only — what each relay actually does (pump, dosing, or a valve) doesn\'t change.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            _Label('Rename Hardware'),
+            Text(
+              'Display names only — what each point actually does doesn\'t '
+              'change. The suffix shown (_R1, _P1, ...) is fixed and always '
+              'appended so you can tell which physical point a name refers '
+              'to — e.g. typing "Mirchi" for Valve 3 shows as Mirchi_R3 everywhere.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
             const SizedBox(height: 10),
-            TextField(controller: _pumpNameController, decoration: _dec('Pump (RL1)')),
+            TextField(controller: _pumpNameController, decoration: _dec('Pump', suffix: '_R1')),
             const SizedBox(height: 8),
-            TextField(controller: _dosingNameController, decoration: _dec('Dosing (RL2)')),
+            TextField(controller: _dosingNameController, decoration: _dec('Doser', suffix: '_R2')),
             for (int i = 0; i < 4; i++) ...[
               const SizedBox(height: 8),
-              TextField(controller: _valveNameControllers[i], decoration: _dec('Valve ${i + 1} (RL${i + 3})')),
+              TextField(controller: _valveNameControllers[i], decoration: _dec('Valve ${i + 1}', suffix: '_R${i + 3}')),
             ],
+            const SizedBox(height: 8),
+            TextField(controller: _pressure1NameController, decoration: _dec('Pressure Sensor 1', suffix: '_P1')),
+            const SizedBox(height: 8),
+            TextField(controller: _pressure2NameController, decoration: _dec('Pressure Sensor 2', suffix: '_P2')),
+            const SizedBox(height: 8),
+            TextField(controller: _flowNameController, decoration: _dec('Water Meter', suffix: '_FL')),
+            const SizedBox(height: 8),
+            TextField(controller: _waterUpperNameController, decoration: _dec('Upper Level Switch (L1)', suffix: '_IN1')),
+            const SizedBox(height: 8),
+            TextField(controller: _waterLowerNameController, decoration: _dec('Lower Level Switch (L2)', suffix: '_IN2')),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: connected ? _saveRelayNames : null, child: const Text('Save Relay Names')),
+              child: FilledButton(onPressed: connected ? _saveRelayNames : null, child: const Text('Save Names')),
             ),
           ]),
           const SizedBox(height: 16),
@@ -263,6 +298,31 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
               onPressed: connected ? () => ref.read(localServiceProvider).sendRaw({'cmd': 'device_info'}) : null,
               child: const Text('Request Device Info'),
             ),
+          ]),
+          const SizedBox(height: 16),
+          _Card(children: [
+            _Label('Bench-test Tools'),
+            Text(
+              'Stand-ins for the real "No Power" sense line (IN1) — no '
+              'sensor is wired for that yet. To test the device actually '
+              'losing and regaining power (not just this simulation), '
+              'unplug it for a while and reconnect: an active program '
+              'resumes from where it left off, not from the start.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerLoss(); _snack('Simulated power loss — cycle should pause'); } : null,
+                icon: const Icon(Icons.power_off, color: Colors.orange),
+                label: const Text('Simulate Power Loss'),
+              ),
+              OutlinedButton.icon(
+                onPressed: connected ? () { ref.read(deviceServiceProvider).simulatePowerRestore(); _snack('Simulated power restore — cycle should resume'); } : null,
+                icon: const Icon(Icons.power, color: Colors.green),
+                label: const Text('Simulate Power Restore'),
+              ),
+            ]),
           ]),
           const SizedBox(height: 16),
           Container(
@@ -300,8 +360,10 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     return Icons.wifi_1_bar;
   }
 
-  InputDecoration _dec(String hint) => InputDecoration(
+  InputDecoration _dec(String hint, {String? suffix}) => InputDecoration(
         hintText: hint,
+        suffixText: suffix,
+        suffixStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600, fontSize: 12),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         isDense: true,

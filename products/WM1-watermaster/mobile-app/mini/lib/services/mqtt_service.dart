@@ -191,6 +191,10 @@ class MqttService implements DeviceService {
   @override
   void forceStop() => _publish({'cmd': 'force_stop'});
   @override
+  void pause() => _publish({'cmd': 'pause'});
+  @override
+  void resume() => _publish({'cmd': 'resume'});
+  @override
   void getPrograms() => _publish({'cmd': 'list_programs'});
   @override
   void setPrograms(List<Program> programs) => _publishRetained(_topicProgramsConfig, {

@@ -115,11 +115,22 @@ private:
       ClientHealth* h = _findOrCreateHealth(client->id());
       if (h) h->lastPongMillis = millis();
     } else if (type == WS_EVT_DATA) {
-      String msg((char*)data, len);
-      if (_handler) {
-        _handler->handle(msg, [client](const String& reply) {
-          client->text(reply);
-        });
+      // Bug fix: without checking the frame info, WS_EVT_DATA firing
+      // more than once for what the client sent as a single logical
+      // message (confirmed live — a single wifi_config send produced
+      // TWO "Attempting STA connect" logs and the ESP-IDF driver's
+      // "sta is connecting, return error", because setCredentials()
+      // and its _startStaConnect() actually ran twice) gets dispatched
+      // twice. FG1's real LocalServer.cpp already guards this exact
+      // way — final/single-frame/text messages only.
+      AwsFrameInfo* info = (AwsFrameInfo*)arg;
+      if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+        String msg((char*)data, len);
+        if (_handler) {
+          _handler->handle(msg, [client](const String& reply) {
+            client->text(reply);
+          });
+        }
       }
     }
   }
