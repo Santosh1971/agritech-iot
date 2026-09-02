@@ -156,6 +156,12 @@ public:
     return "";
   }
   uint32_t elapsedRunSec() const { return _elapsedRunSec; }
+  // Volume delivered so far in the CURRENT sequence — the volume-mode
+  // counterpart to elapsedRunSec(), same idea as the dosing delta in
+  // _stopSequence: diffed against the totalizer reading captured once
+  // at _startSequence(), so it covers the whole sequence span including
+  // any pause.
+  float elapsedVolumeLiters() const { return _sensors.flowTotalLiters() - _seqStartVolumeLiters; }
   const Program* activeProgram() const { return _activeProgram; }
   uint8_t activeSeqIndex() const { return _activeSeqIndex; }
 

@@ -126,7 +126,7 @@ class SchematicDiagram extends ConsumerWidget {
     final tiles = <Widget>[
       if (config.hasPressure1) _PipeSensorTile(icon: Icons.speed, label: names.pressure1Display, value: '${status.pressure1Bar.toStringAsFixed(2)} bar'),
       if (config.hasPressure2) _PipeSensorTile(icon: Icons.speed, label: names.pressure2Display, value: '${status.pressure2Bar.toStringAsFixed(2)} bar'),
-      if (config.hasWaterMeter) _PipeSensorTile(icon: Icons.water_damage_outlined, label: names.flowDisplay, value: '${status.flowRateLpm.toStringAsFixed(1)} L/m'),
+      if (config.hasWaterMeter) _PipeSensorTile(icon: Icons.water_damage_outlined, label: names.flowDisplay, value: '${status.flowTotalLiters.toStringAsFixed(1)} L'),
     ];
     return Column(children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: tiles),

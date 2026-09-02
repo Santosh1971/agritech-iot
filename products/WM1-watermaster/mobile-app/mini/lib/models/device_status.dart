@@ -105,6 +105,11 @@ class DeviceStatus {
   final int? activeSeqIndex;
   final int? elapsedSec;
   final int? runTargetSec;
+  // "time" | "volume" — which of the pairs above/below is the one that
+  // actually determines completion for the active sequence.
+  final String? runMode;
+  final int? runTargetLiters;
+  final double? elapsedLiters;
 
   // The soonest future auto-fire across all enabled+autoStart programs
   // — computed device-side (see Scheduler::computeNextRun) since the
@@ -147,6 +152,9 @@ class DeviceStatus {
     this.activeSeqIndex,
     this.elapsedSec,
     this.runTargetSec,
+    this.runMode,
+    this.runTargetLiters,
+    this.elapsedLiters,
     this.nextRunProgramId,
     this.nextRunProgramName,
     this.nextRunEpoch,
@@ -197,6 +205,9 @@ class DeviceStatus {
         activeSeqIndex: (j['active_seq_index'] as num?)?.toInt(),
         elapsedSec: (j['elapsed_sec'] as num?)?.toInt(),
         runTargetSec: (j['run_target_sec'] as num?)?.toInt(),
+        runMode: j['run_mode'] as String?,
+        runTargetLiters: (j['run_target_liters'] as num?)?.toInt(),
+        elapsedLiters: (j['elapsed_liters'] as num?)?.toDouble(),
         nextRunProgramId: (j['next_run_program_id'] as num?)?.toInt(),
         nextRunProgramName: j['next_run_program_name'] as String?,
         nextRunEpoch: (j['next_run_epoch'] as num?)?.toInt(),

@@ -592,6 +592,16 @@ private:
       doc["active_seq_index"] = _scheduler.activeSeqIndex();
       doc["elapsed_sec"] = _scheduler.elapsedRunSec();
       doc["run_target_sec"] = seq.runTargetSec;
+      // Bug fix: run_target_sec above was the ONLY progress field ever
+      // sent, so the app always rendered a time-based progress bar even
+      // for a volume-mode sequence — confirmed live (a volume sequence
+      // showed "5 min" progress that never matched what was actually
+      // happening, since elapsed kept climbing well past that number
+      // with the run still going). run_mode lets the app pick the right
+      // fields; the volume ones are only meaningful when it's "volume".
+      doc["run_mode"] = (seq.runMode == RunMode::TIME_BASED) ? "time" : "volume";
+      doc["run_target_liters"] = seq.runTargetLiters;
+      doc["elapsed_liters"] = _scheduler.elapsedVolumeLiters();
     }
 
     Scheduler::NextRun next = _scheduler.computeNextRun(_clock.now());

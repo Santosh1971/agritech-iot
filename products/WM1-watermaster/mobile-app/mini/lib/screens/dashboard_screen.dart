@@ -284,9 +284,19 @@ class _ActiveRunCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Bug fix: this used to always show elapsed/target SECONDS, even for
+    // a volume-mode sequence — confirmed live (a volume run showed "5
+    // min" progress that had nothing to do with what was actually
+    // happening, since it kept running well past that mark). runMode
+    // says which pair of fields actually determines completion here.
+    final isVolume = status.runMode == 'volume';
+    final elapsedLiters = status.elapsedLiters ?? 0;
+    final targetLiters = (status.runTargetLiters ?? 1).clamp(1, 1 << 30);
     final elapsed = status.elapsedSec ?? 0;
     final target = status.runTargetSec ?? 1;
-    final progress = (elapsed / target).clamp(0.0, 1.0);
+    final progress = isVolume
+        ? (elapsedLiters / targetLiters).clamp(0.0, 1.0)
+        : (elapsed / target).clamp(0.0, 1.0);
     final paused = status.state == SchedulerState.paused;
     final activeIndex = status.activeSeqIndex ?? 0;
 
@@ -328,7 +338,12 @@ class _ActiveRunCard extends ConsumerWidget {
               color: paused ? Colors.orange : Colors.green, backgroundColor: Colors.grey.shade200),
         ),
         const SizedBox(height: 6),
-        Text('${_fmt(elapsed)} / ${_fmt(target)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          isVolume
+              ? '${elapsedLiters.toStringAsFixed(1)} / $targetLiters L'
+              : '${_fmt(elapsed)} / ${_fmt(target)}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         if (activeProgram != null && activeProgram.sequences.length > 1) ...[
           const Divider(height: 24),
           const Text('SEQUENCE TIMELINE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 0.5)),
