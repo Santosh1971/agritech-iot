@@ -149,11 +149,26 @@ void setup() {
   Serial.println("       {\"cmd\":\"wifi_config\",\"ssid\":\"...\",\"password\":\"...\"}");
 }
 
+uint32_t lastFlowLedPulses = 0;
+bool flowLedState = false;
+
 void loop() {
   wifiManager.loop();
   mqtt.loop(wifiManager.isStaConnected());
   localServer.loop();
   sensors.update();
+  // Toggles the board's Flow LED on every new pulse the ISR has
+  // registered — a genuine, firmware-driven "pulses are arriving"
+  // indicator, independent of the app/WiFi entirely. Uses the same
+  // monotonic raw counter the calibration feature diffs against, not
+  // the rate/total (those are K-factor scaled and only meaningful once
+  // calibrated — this just needs to prove the pin is toggling at all).
+  uint32_t currentPulses = sensors.flowCalibrationRawPulses();
+  if (currentPulses != lastFlowLedPulses) {
+    lastFlowLedPulses = currentPulses;
+    flowLedState = !flowLedState;
+    relays.setLed(ShiftRegisterRelayController::LED_FLOW, flowLedState);
+  }
   // Only ever affects scheduling when this installation has actually
   // opted in (Settings > Hardware Configuration > Water Level Sensor,
   // sent down as set_water_level_enabled) — see Sensors.h's doc comment
