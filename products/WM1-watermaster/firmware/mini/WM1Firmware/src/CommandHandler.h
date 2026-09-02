@@ -3,6 +3,7 @@
 #include <functional>
 #include "Scheduler.h"
 #include "IrrigationController.h"
+#include "RelayController.h"
 #include "WiFiManager.h"
 #include "ProgramStore.h"
 #include "DeviceIdentity.h"
@@ -69,6 +70,9 @@
 //   seed_history_test_data / clear_history   — dev/demo only: backfill ~3 months of
 //                         synthetic history to check the History screen's presentation,
 //                         and wipe it again afterward.
+//   test_leds_cycle    — bench-test only: lights each of the 7 status LEDs one at a
+//                         time (500ms) so a real board can confirm firmware has
+//                         independent control over each one.
 //
 // KNOWN GAPS (flagged, not silently guessed at):
 //   - manual_set bypasses the Scheduler's arbitration with an active
@@ -84,10 +88,11 @@ public:
                  WiFiManager& wifi, ProgramStore& store,
                  Program* programSlots[], uint8_t& programCount,
                  Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library, Sensors& sensors,
-                 RunHistory& history)
+                 RunHistory& history, ShiftRegisterRelayController& relays)
     : _scheduler(scheduler), _irrigation(irrigation), _wifi(wifi),
       _store(store), _programSlots(programSlots), _programCount(programCount),
-      _clock(clock), _names(names), _library(library), _sensors(sensors), _history(history) {}
+      _clock(clock), _names(names), _library(library), _sensors(sensors), _history(history),
+      _relays(relays) {}
 
   void handle(const String& jsonIn, ReplyFn reply) {
     // Every command that reaches the firmware, from ANY transport (local
@@ -201,6 +206,9 @@ public:
       reply(_okReply(cmd));
     } else if (cmd == "clear_history") {
       _history.clear();
+      reply(_okReply(cmd));
+    } else if (cmd == "test_leds_cycle") {
+      _testLedsCycle();
       reply(_okReply(cmd));
     } else if (cmd == "start_flow_calibration") {
       _sensors.startFlowCalibration();
@@ -387,6 +395,36 @@ private:
       uint32_t duration = (uint32_t)(_clock.now() - _manualTrack[idx].startEpoch);
       float volumeDelta = _sensors.flowTotalLiters() - _manualTrack[idx].startVolumeLiters;
       _history.record(_manualTrack[idx].startEpoch, duration, channelKey, "manual", volumeDelta);
+    }
+  }
+
+  // Bench-test only: lights each of the 7 status LEDs one at a time
+  // (500ms on, 300ms off) so a real board can be watched to confirm
+  // firmware genuinely has independent control over each one, and that
+  // each bit maps to the LED its name claims — e.g. confirms whether
+  // "Flow" really is a distinct, independently-controllable LED rather
+  // than something stuck on for a wiring/hardware reason outside
+  // firmware's control. Blocking is fine here, same as the boot
+  // self-test — this is a deliberate, rare bench action, not something
+  // that runs during normal operation.
+  void _testLedsCycle() {
+    static const struct { uint8_t bit; const char* name; } leds[] = {
+      {ShiftRegisterRelayController::LED_FLOW, "Flow"},
+      {ShiftRegisterRelayController::LED_PR1, "PR1"},
+      {ShiftRegisterRelayController::LED_PR2, "PR2"},
+      {ShiftRegisterRelayController::LED_IN1, "IN1"},
+      {ShiftRegisterRelayController::LED_IN2, "IN2"},
+      {ShiftRegisterRelayController::LED_IN3, "IN3"},
+      {ShiftRegisterRelayController::LED_LOBATT, "LOBATT"},
+    };
+    _relays.allLedsOff();
+    for (auto& led : leds) {
+      Serial.printf("[LedTest] %s ON\n", led.name);
+      _relays.setLed(led.bit, true);
+      delay(500);
+      _relays.setLed(led.bit, false);
+      Serial.printf("[LedTest] %s OFF\n", led.name);
+      delay(300);
     }
   }
 
@@ -650,6 +688,7 @@ private:
   SequenceLibrary& _library;
   Sensors& _sensors;
   RunHistory& _history;
+  ShiftRegisterRelayController& _relays;
   bool _programsChanged = false;
   bool _libraryChanged = false;
   bool _statusChanged = false;

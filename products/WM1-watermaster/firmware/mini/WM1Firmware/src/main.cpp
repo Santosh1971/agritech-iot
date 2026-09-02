@@ -138,7 +138,8 @@ void setup() {
   wifiManager.begin();
 
   static CommandHandler handler(scheduler, irrigation, wifiManager, programStore,
-                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary, sensors, runHistory);
+                                 programSlots, programCount, rtcClock, relayNames, sequenceLibrary, sensors, runHistory,
+                                 relays);
   commandHandler = &handler;
 
   mqtt.begin(commandHandler);
