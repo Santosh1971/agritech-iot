@@ -28,6 +28,8 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   final _flowNameController = TextEditingController();
   final _waterUpperNameController = TextEditingController();
   final _waterLowerNameController = TextEditingController();
+  final _flowKnownVolumeController = TextEditingController(text: '1.0');
+  final _flowKFactorController = TextEditingController();
 
   StreamSubscription<Map<String, dynamic>>? _responseSub;
   bool _scanning = false;
@@ -55,6 +57,8 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     _flowNameController.dispose();
     _waterUpperNameController.dispose();
     _waterLowerNameController.dispose();
+    _flowKnownVolumeController.dispose();
+    _flowKFactorController.dispose();
     super.dispose();
   }
 
@@ -67,6 +71,26 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   }
 
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+
+  void _calculateAndSaveFlowCalibration() {
+    final knownVolume = double.tryParse(_flowKnownVolumeController.text.trim());
+    final status = ref.read(localDeviceStatusProvider).valueOrNull;
+    if (knownVolume == null || knownVolume <= 0) { _snack('Enter a valid known volume first'); return; }
+    if (status == null || status.flowTotalPulsesRaw <= 0) {
+      _snack('No pulses counted yet — tap Start, then pass water through the meter first');
+      return;
+    }
+    final k = status.flowTotalPulsesRaw / knownVolume;
+    ref.read(deviceServiceProvider).sendRaw({'cmd': 'set_flow_calibration', 'pulsesPerLiter': k});
+    _snack('Saved K-factor: ${k.toStringAsFixed(2)} pulses/L');
+  }
+
+  void _saveFlowKFactorDirect() {
+    final k = double.tryParse(_flowKFactorController.text.trim());
+    if (k == null || k <= 0) { _snack('Enter a valid K-factor first'); return; }
+    ref.read(deviceServiceProvider).sendRaw({'cmd': 'set_flow_calibration', 'pulsesPerLiter': k});
+    _snack('Saved K-factor: ${k.toStringAsFixed(2)} pulses/L');
+  }
 
   void _startScan() {
     setState(() { _scanning = true; _scanResults = []; });
@@ -136,6 +160,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     ref.watch(localDeviceStatusProvider).whenData(_prefillNamesIfNeeded);
     final connected = ref.watch(deviceConnectedProvider);
     final log = ref.watch(localDebugLogProvider);
+    final status = ref.watch(localDeviceStatusProvider).valueOrNull ?? DeviceStatus.empty();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Local Device Setup', style: TextStyle(fontWeight: FontWeight.w600)), centerTitle: true),
@@ -298,6 +323,68 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
               onPressed: connected ? () => ref.read(localServiceProvider).sendRaw({'cmd': 'device_info'}) : null,
               child: const Text('Request Device Info'),
             ),
+          ]),
+          const SizedBox(height: 16),
+          _Card(children: [
+            _Label('Flow Sensor Calibration'),
+            Text(
+              'The pulses-per-liter (K-factor) below is what converts raw '
+              'flow-meter pulses into liters — it varies by meter model, so '
+              'it needs calibrating against the real one rather than trusting '
+              'a factory default. To calibrate: tap Start, pass a known '
+              'volume of water through the meter, enter that volume below, '
+              'then tap Calculate & Save.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: Text('Current K-factor: ${status.flowPulsesPerLiter.toStringAsFixed(2)} pulses/L',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
+              Text('Raw pulses: ${status.flowTotalPulsesRaw}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            ]),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: connected
+                  ? () { ref.read(deviceServiceProvider).sendRaw({'cmd': 'start_flow_calibration'}); _snack('Calibration started — pass water through the meter now'); }
+                  : null,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start Calibration (reset raw pulse count)'),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _flowKnownVolumeController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: _dec('Known volume passed', suffix: 'L'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: connected ? _calculateAndSaveFlowCalibration : null,
+                child: const Text('Calculate & Save'),
+              ),
+            ]),
+            const Divider(height: 24),
+            Text('Or enter a known K-factor directly (from the meter\'s datasheet):',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _flowKFactorController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: _dec('Pulses per liter'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: connected ? _saveFlowKFactorDirect : null,
+                child: const Text('Save'),
+              ),
+            ]),
           ]),
           const SizedBox(height: 16),
           _Card(children: [

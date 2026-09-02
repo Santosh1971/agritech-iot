@@ -159,6 +159,18 @@ public:
   const Program* activeProgram() const { return _activeProgram; }
   uint8_t activeSeqIndex() const { return _activeSeqIndex; }
 
+  // What the Dashboard's "Upcoming" card shows — the single soonest
+  // future firing across every enabled+autoStart program, so the app
+  // doesn't have to (and can't, accurately: it never sees
+  // lastRunStartEpochDay) re-derive interval-day due-ness itself.
+  struct NextRun {
+    bool valid = false;
+    uint8_t programId = 0;
+    char programName[32] = "";
+    time_t epoch = 0;
+  };
+  NextRun computeNextRun(time_t now) const;
+
   // Reboot-survival: call once at boot, AFTER programs are loaded from
   // ProgramStore and registered via addProgram(). If a checkpoint from
   // before the reboot is found and its program id still exists in the

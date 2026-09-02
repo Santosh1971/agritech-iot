@@ -90,6 +90,8 @@ class DeviceStatus {
   final double pressure2Bar;
   final double flowRateLpm;
   final double flowTotalLiters;
+  final double flowPulsesPerLiter;
+  final int flowTotalPulsesRaw;
   final bool waterLevelEnabled;
   final bool waterL1Ok;
   final bool waterL2Ok;
@@ -103,6 +105,15 @@ class DeviceStatus {
   final int? activeSeqIndex;
   final int? elapsedSec;
   final int? runTargetSec;
+
+  // The soonest future auto-fire across all enabled+autoStart programs
+  // — computed device-side (see Scheduler::computeNextRun) since the
+  // app never sees the internal per-day tracking needed to know
+  // whether an interval-days program is actually due today or not.
+  // Absent when nothing is scheduled to run automatically at all.
+  final int? nextRunProgramId;
+  final String? nextRunProgramName;
+  final int? nextRunEpoch; // unix seconds, same wall-clock-as-epoch convention as rtc_sync
 
   const DeviceStatus({
     required this.deviceId,
@@ -123,6 +134,8 @@ class DeviceStatus {
     this.pressure2Bar = 0,
     this.flowRateLpm = 0,
     this.flowTotalLiters = 0,
+    this.flowPulsesPerLiter = 5.5,
+    this.flowTotalPulsesRaw = 0,
     this.waterLevelEnabled = false,
     this.waterL1Ok = true,
     this.waterL2Ok = true,
@@ -134,6 +147,9 @@ class DeviceStatus {
     this.activeSeqIndex,
     this.elapsedSec,
     this.runTargetSec,
+    this.nextRunProgramId,
+    this.nextRunProgramName,
+    this.nextRunEpoch,
   });
 
   factory DeviceStatus.empty() => const DeviceStatus(
@@ -168,6 +184,8 @@ class DeviceStatus {
         pressure2Bar: (j['pressure2_bar'] as num?)?.toDouble() ?? 0,
         flowRateLpm: (j['flow_rate_lpm'] as num?)?.toDouble() ?? 0,
         flowTotalLiters: (j['flow_total_liters'] as num?)?.toDouble() ?? 0,
+        flowPulsesPerLiter: (j['flow_pulses_per_liter'] as num?)?.toDouble() ?? 5.5,
+        flowTotalPulsesRaw: (j['flow_total_pulses_raw'] as num?)?.toInt() ?? 0,
         waterLevelEnabled: j['water_level_enabled'] as bool? ?? false,
         waterL1Ok: j['water_l1_ok'] as bool? ?? true,
         waterL2Ok: j['water_l2_ok'] as bool? ?? true,
@@ -179,5 +197,8 @@ class DeviceStatus {
         activeSeqIndex: (j['active_seq_index'] as num?)?.toInt(),
         elapsedSec: (j['elapsed_sec'] as num?)?.toInt(),
         runTargetSec: (j['run_target_sec'] as num?)?.toInt(),
+        nextRunProgramId: (j['next_run_program_id'] as num?)?.toInt(),
+        nextRunProgramName: j['next_run_program_name'] as String?,
+        nextRunEpoch: (j['next_run_epoch'] as num?)?.toInt(),
       );
 }

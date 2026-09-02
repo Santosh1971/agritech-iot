@@ -37,7 +37,12 @@ public:
   // Incremented by main.cpp's ISR (kept as a free function there, same
   // convention as the rest of this firmware's interrupt handling) —
   // public so the ISR can reach it without any static-instance-pointer
-  // machinery in a header.
+  // machinery in a header. Two independent consumers read this same
+  // counter: update() (below) drains it every second for the real
+  // rate/total, and the calibration counter (_calRawPulses) accumulates
+  // it separately, only reset when a calibration run starts — so
+  // calibrating doesn't disturb the live total, and normal operation
+  // doesn't disturb an in-progress calibration.
   volatile uint32_t pulseCount = 0;
 
   void begin() {
@@ -46,6 +51,7 @@ public:
     pinMode(PIN_WATER_L2, INPUT_PULLUP);
     _prefs.begin("wm1", false);
     _levelEnabled = _prefs.getBool("lvl_en", false);
+    _pulsesPerLiter = _prefs.getFloat("flow_k", DEFAULT_PULSES_PER_LITER);
   }
 
   bool waterLevelEnabled() const { return _levelEnabled; }
@@ -56,7 +62,10 @@ public:
 
   // Call once per loop() — cheap; only actually recomputes once a
   // second, converting the last second's pulses into a rate and adding
-  // to the running total.
+  // to the running total. Also feeds _totalPulsesEver, a raw count that
+  // NEVER resets on its own — that's what calibration (below) diffs
+  // against, so calibrating never disturbs the live volume total and
+  // vice versa.
   void update() {
     uint32_t now = millis();
     if (now - _lastRateCalc < 1000) return;
@@ -67,7 +76,8 @@ public:
     pulseCount = 0;
     interrupts();
 
-    float liters = pulses / PULSES_PER_LITER;
+    _totalPulsesEver += pulses;
+    float liters = pulses / _pulsesPerLiter;
     _flowRateLpm = liters * 60.0f;
     _flowTotalLiters += liters;
   }
@@ -76,6 +86,28 @@ public:
   float pressure2Bar() const { return _adcToBar(analogRead(PIN_PRESS2)); }
   float flowRateLpm() const { return _flowRateLpm; }
   float flowTotalLiters() const { return _flowTotalLiters; }
+
+  // K-factor calibration — persisted, replaces the old compile-time
+  // constant so a real meter can be calibrated from the app instead of
+  // needing a firmware reflash. Rejects <=0 rather than accepting a
+  // value that would make every reading divide-by-zero or negative.
+  float pulsesPerLiter() const { return _pulsesPerLiter; }
+  void setPulsesPerLiter(float k) {
+    if (k <= 0) return;
+    _pulsesPerLiter = k;
+    _prefs.putFloat("flow_k", k);
+  }
+
+  // Calibration workflow: start (baseline the raw counter), pass a
+  // known volume through the meter, read rawPulsesSinceStart(), then
+  // the app computes rawPulses/knownLiters and calls setPulsesPerLiter.
+  // Deliberately separate from _flowTotalLiters/_flowRateLpm above —
+  // running a calibration pass shouldn't perturb the farmer-facing
+  // lifetime total, and normal operation shouldn't perturb an
+  // in-progress calibration either, since both derive independently
+  // from the same monotonic _totalPulsesEver.
+  void startFlowCalibration() { _calBaselinePulses = _totalPulsesEver; }
+  uint32_t flowCalibrationRawPulses() const { return _totalPulsesEver - _calBaselinePulses; }
 
   // Raw per-switch reads — LOW = water present at that level. Only
   // meaningful (and only read) when waterLevelEnabled(); with no
@@ -115,12 +147,15 @@ private:
     return bar < 0 ? 0 : bar;
   }
 
-  static constexpr float PULSES_PER_LITER = 5.5f;   // PLACEHOLDER K-factor — replace with real flow meter spec
-  static constexpr float BATT_DIVIDER_RATIO = 2.0f; // PLACEHOLDER — replace with real resistor divider ratio
+  static constexpr float DEFAULT_PULSES_PER_LITER = 5.5f;  // fallback until the real meter is calibrated
+  static constexpr float BATT_DIVIDER_RATIO = 2.0f;         // PLACEHOLDER — replace with real resistor divider ratio
 
   float _flowRateLpm = 0;
   float _flowTotalLiters = 0;
   uint32_t _lastRateCalc = 0;
+  float _pulsesPerLiter = DEFAULT_PULSES_PER_LITER;
+  uint32_t _totalPulsesEver = 0;
+  uint32_t _calBaselinePulses = 0;
 
   Preferences _prefs;
   bool _levelEnabled = false;

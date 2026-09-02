@@ -1,4 +1,5 @@
 #include "Scheduler.h"
+#include <string.h>
 
 void Scheduler::begin() {
   _irrigation.allOff();
@@ -153,9 +154,14 @@ void Scheduler::_tickRunning(time_t now) {
   if (seq.runMode == RunMode::TIME_BASED) {
     done = (_elapsedRunSec >= seq.runTargetSec);
   } else {
-    // TODO: wire to the real flow totalizer once available; today's
-    // 1-channel flow input can already drive this for real testing.
-    // done = (currentSequenceLiters() >= seq.runTargetLiters);
+    // Bug fix: this was a no-op TODO — done never became true for a
+    // VOLUME_BASED sequence, so it would run forever regardless of
+    // runTargetLiters, waiting on flow hardware that's now wired up and
+    // calibratable (see Sensors.h's flow K-factor). _seqStartVolumeLiters
+    // is captured once in _startSequence(), so this covers the
+    // sequence's whole span even across an internal pause/resume.
+    float litersThisSequence = _sensors.flowTotalLiters() - _seqStartVolumeLiters;
+    done = (litersThisSequence >= (float)seq.runTargetLiters);
   }
 
   if (done) {
@@ -311,6 +317,49 @@ static long daysBetween(const struct tm& a, const struct tm& b) {
   time_t ta = mktime(const_cast<struct tm*>(&a));
   time_t tb = mktime(const_cast<struct tm*>(&b));
   return (long)((tb - ta) / 86400);
+}
+
+Scheduler::NextRun Scheduler::computeNextRun(time_t now) const {
+  NextRun best;
+  for (uint8_t i = 0; i < _programCount; i++) {
+    Program* prog = _programs[i];
+    if (!prog->enabled || !prog->autoStart) continue;
+
+    struct tm baseTm;
+    localtime_r(&now, &baseTm);
+    baseTm.tm_hour = prog->startHour;
+    baseTm.tm_min = prog->startMinute;
+    baseTm.tm_sec = 0;
+    time_t candidate = mktime(&baseTm);
+    if (candidate <= now) candidate += 86400;  // today's slot already passed
+
+    // ROTATION fires every day at its time, and a program that's never
+    // run (lastRunStartEpochDay == 0) is due at its very next
+    // occurrence — candidate as computed above is already right for
+    // both. Only INTERVAL_DAYS with a real prior run needs walking
+    // forward to the next day actually satisfying the interval; bounded
+    // by intervalDays since the modulo condition is guaranteed to hit
+    // within that many days.
+    if (prog->repeatMode == RepeatMode::INTERVAL_DAYS && prog->lastRunStartEpochDay != 0) {
+      for (uint8_t tries = 0; tries < prog->intervalDays; tries++) {
+        long candidateEpochDay = candidate / 86400L;
+        long delta = candidateEpochDay - prog->lastRunStartEpochDay;
+        long mod = delta % (long)prog->intervalDays;
+        if (mod < 0) mod += prog->intervalDays;  // C++'s % can be negative; delta shouldn't be here, but stay defensive
+        if (mod == 0) break;
+        candidate += 86400;
+      }
+    }
+
+    if (!best.valid || candidate < best.epoch) {
+      best.valid = true;
+      best.programId = prog->id;
+      best.epoch = candidate;
+      strncpy(best.programName, prog->name, sizeof(best.programName) - 1);
+      best.programName[sizeof(best.programName) - 1] = '\0';
+    }
+  }
+  return best;
 }
 
 void Scheduler::_checkDuePrograms(time_t now) {

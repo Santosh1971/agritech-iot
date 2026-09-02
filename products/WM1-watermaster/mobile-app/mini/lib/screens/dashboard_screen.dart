@@ -74,6 +74,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
               const SizedBox(height: 16),
             SchematicDiagram(status: status, config: hardwareConfig, connected: connected),
+            if (connected && status.nextRunEpoch != null) ...[
+              const SizedBox(height: 16),
+              _UpcomingScheduleCard(status: status),
+            ],
           ],
         ),
       ),
@@ -195,6 +199,80 @@ class _RtcWarningCard extends StatelessWidget {
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalSetupScreen())),
           child: const Text('Fix'),
         ),
+      ]),
+    );
+  }
+}
+
+/// Next auto-fire across every enabled+autoStart program — the epoch
+/// comes from the device (Scheduler::computeNextRun), not re-derived
+/// here, since the app never sees the per-day tracking needed to know
+/// whether an interval-days program is actually due today. The epoch
+/// uses the same "wall-clock fields reinterpreted as UTC" convention
+/// as rtc_sync/rtc_date/rtc_time elsewhere in this app — decoding it
+/// with isUtc:true recovers those same fields directly, no timezone
+/// math needed.
+class _UpcomingScheduleCard extends StatelessWidget {
+  final DeviceStatus status;
+  const _UpcomingScheduleCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final target = DateTime.fromMillisecondsSinceEpoch(status.nextRunEpoch! * 1000, isUtc: true);
+    final now = DateTime.now();
+    final nowAsDeviceEpoch = DateTime.utc(now.year, now.month, now.day, now.hour, now.minute, now.second);
+    final diff = target.difference(nowAsDeviceEpoch);
+
+    String dayLabel;
+    final sameDay = target.year == nowAsDeviceEpoch.year && target.month == nowAsDeviceEpoch.month && target.day == nowAsDeviceEpoch.day;
+    final tomorrow = nowAsDeviceEpoch.add(const Duration(days: 1));
+    final isTomorrow = target.year == tomorrow.year && target.month == tomorrow.month && target.day == tomorrow.day;
+    if (sameDay) {
+      dayLabel = 'Today';
+    } else if (isTomorrow) {
+      dayLabel = 'Tomorrow';
+    } else {
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      dayLabel = weekdays[target.weekday - 1];
+    }
+    final h12 = target.hour % 12 == 0 ? 12 : target.hour % 12;
+    final period = target.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$h12:${target.minute.toString().padLeft(2, '0')} $period';
+
+    String countdown;
+    if (diff.inMinutes < 1) {
+      countdown = 'starting soon';
+    } else if (diff.inHours < 1) {
+      countdown = 'in ${diff.inMinutes} min';
+    } else if (diff.inHours < 24) {
+      countdown = 'in ${diff.inHours}h ${diff.inMinutes % 60}m';
+    } else {
+      countdown = 'in ${diff.inDays}d';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: const Color(0xFF2196F3).withOpacity(0.12), shape: BoxShape.circle),
+          child: const Icon(Icons.event_available, color: Color(0xFF2196F3), size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('UPCOMING', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: Colors.grey)),
+            const SizedBox(height: 2),
+            Text(status.nextRunProgramName ?? 'Program', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            Text('$dayLabel at $timeStr', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          ]),
+        ),
+        Text(countdown, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2196F3))),
       ]),
     );
   }

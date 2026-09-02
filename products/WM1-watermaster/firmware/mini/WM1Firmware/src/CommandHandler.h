@@ -202,6 +202,14 @@ public:
     } else if (cmd == "clear_history") {
       _history.clear();
       reply(_okReply(cmd));
+    } else if (cmd == "start_flow_calibration") {
+      _sensors.startFlowCalibration();
+      reply(_okReply(cmd));
+    } else if (cmd == "set_flow_calibration") {
+      float k = doc["pulsesPerLiter"] | 0.0f;
+      if (k <= 0) { reply(_errorReply(cmd, "invalid_value")); return; }
+      _sensors.setPulsesPerLiter(k);
+      reply(_okReply(cmd));
     } else {
       reply(_errorReply(cmd, "unknown_command"));
     }
@@ -552,6 +560,12 @@ private:
     doc["pressure2_bar"] = _sensors.pressure2Bar();
     doc["flow_rate_lpm"] = _sensors.flowRateLpm();
     doc["flow_total_liters"] = _sensors.flowTotalLiters();
+    doc["flow_pulses_per_liter"] = _sensors.pulsesPerLiter();
+    // Raw, unscaled lifetime pulse count — lets the app tell "no real
+    // pulses are arriving at all" (a wiring/sensor problem) apart from
+    // "pulses arrive but the K-factor is wrong" (a calibration problem)
+    // without needing a calibration run in progress to check.
+    doc["flow_total_pulses_raw"] = _sensors.flowCalibrationRawPulses();
     doc["water_level_enabled"] = _sensors.waterLevelEnabled();
     doc["water_l1_ok"] = _sensors.waterL1Ok();
     doc["water_l2_ok"] = _sensors.waterL2Ok();
@@ -578,6 +592,13 @@ private:
       doc["active_seq_index"] = _scheduler.activeSeqIndex();
       doc["elapsed_sec"] = _scheduler.elapsedRunSec();
       doc["run_target_sec"] = seq.runTargetSec;
+    }
+
+    Scheduler::NextRun next = _scheduler.computeNextRun(_clock.now());
+    if (next.valid) {
+      doc["next_run_program_id"] = next.programId;
+      doc["next_run_program_name"] = next.programName;
+      doc["next_run_epoch"] = (uint32_t)next.epoch;
     }
 
     String out; serializeJson(doc, out);
