@@ -150,24 +150,38 @@ void setup() {
 }
 
 uint32_t lastFlowLedPulses = 0;
-bool flowLedState = false;
+uint32_t lastFlowActivityMillis = 0;
+uint32_t lastFlowBlinkToggle = 0;
+bool flowLedOn = false;
 
 void loop() {
   wifiManager.loop();
   mqtt.loop(wifiManager.isStaConnected());
   localServer.loop();
   sensors.update();
-  // Toggles the board's Flow LED on every new pulse the ISR has
-  // registered — a genuine, firmware-driven "pulses are arriving"
-  // indicator, independent of the app/WiFi entirely. Uses the same
-  // monotonic raw counter the calibration feature diffs against, not
-  // the rate/total (those are K-factor scaled and only meaningful once
-  // calibrated — this just needs to prove the pin is toggling at all).
-  uint32_t currentPulses = sensors.flowCalibrationRawPulses();
-  if (currentPulses != lastFlowLedPulses) {
-    lastFlowLedPulses = currentPulses;
-    flowLedState = !flowLedState;
-    relays.setLed(ShiftRegisterRelayController::LED_FLOW, flowLedState);
+  // Bug fix: the first version of this only ever TOGGLED the LED when
+  // new pulses arrived, with nothing to turn it back off once flow
+  // stopped — confirmed live (it stayed stuck ON indefinitely after the
+  // last pulse, whether or not more were coming). Now blinks steadily
+  // while pulses have been seen within the last 2s, and forces it OFF
+  // once flow's gone quiet for longer than that, so it actually
+  // reflects current activity instead of "toggled an odd number of
+  // times since boot."
+  uint32_t currentFlowPulses = sensors.flowCalibrationRawPulses();
+  if (currentFlowPulses != lastFlowLedPulses) {
+    lastFlowLedPulses = currentFlowPulses;
+    lastFlowActivityMillis = millis();
+  }
+  bool flowRecentlyActive = (millis() - lastFlowActivityMillis) < 2000;
+  if (flowRecentlyActive) {
+    if (millis() - lastFlowBlinkToggle >= 150) {
+      lastFlowBlinkToggle = millis();
+      flowLedOn = !flowLedOn;
+      relays.setLed(ShiftRegisterRelayController::LED_FLOW, flowLedOn);
+    }
+  } else if (flowLedOn) {
+    flowLedOn = false;
+    relays.setLed(ShiftRegisterRelayController::LED_FLOW, false);
   }
   // Only ever affects scheduling when this installation has actually
   // opted in (Settings > Hardware Configuration > Water Level Sensor,
