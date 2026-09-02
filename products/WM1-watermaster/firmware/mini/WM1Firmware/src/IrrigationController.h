@@ -9,6 +9,12 @@
 // This class is where the rules from the spec that are easy to get
 // subtly wrong live, in one place:
 //   - pump is ON iff at least one valve is ON (never pump-only)
+//   - dosing must never run with every valve closed — dosing into a
+//     line with no flow just dumps concentrate with nowhere to go.
+//     Enforced as a hard invariant here (not just a check on the
+//     manual_set command path) so it holds no matter what turns a
+//     valve off — manual toggle, a sequence ending, force_stop, all
+//     go through setValve/setValveMask/allOff below.
 //   - "all relays off" (fail-safe / IN1 LOW / boot) really means all
 //   - any combination of valves is allowed, no simultaneity limit
 //     enforced here (that's a farmer decision, informed by pressure
@@ -62,7 +68,14 @@ public:
     return mask;
   }
 
-  void setDosing(bool on) { _relays.setChannel(CH_DOSING, on); }
+  // Refuses to turn on with no valve open — see the class-level note.
+  // Silently ignored rather than erroring: callers (manual_set, the
+  // scheduler's dosing timer) don't need special-case handling for a
+  // condition that should just never result in dosing running.
+  void setDosing(bool on) {
+    if (on && getValveMask() == 0) return;
+    _relays.setChannel(CH_DOSING, on);
+  }
   bool getDosing() const { return _relays.getChannel(CH_DOSING); }
 
   bool getPump() const { return _relays.getChannel(CH_PUMP); }
@@ -78,6 +91,11 @@ private:
   void _syncPump() {
     bool anyValveOpen = (getValveMask() != 0);
     _relays.setChannel(CH_PUMP, anyValveOpen);
+    // The other half of the dosing invariant: setDosing() blocks turning
+    // it ON with nothing open, but a valve can close WHILE dosing is
+    // already running (last valve manually shut, a sequence ending,
+    // etc.) — this is what catches that and turns dosing off with it.
+    if (!anyValveOpen) _relays.setChannel(CH_DOSING, false);
   }
 
   RelayController& _relays;

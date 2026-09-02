@@ -73,6 +73,18 @@ uint32_t lastStatusPublish = 0;
 uint32_t lastDiagPrint = 0;
 
 void setup() {
+  // Bug fix (reported live: relays energizing briefly at power-on):
+  // relays.begin() is the first thing that actually LATCHES a defined
+  // (all-zero) state into the 74HC595 driving the relays — a shift
+  // register has no power-on-reset value of its own, so until that
+  // first latch happens, its outputs (and whatever the ULN2003/relays
+  // do with them) are whatever noise/leakage left them at, for as long
+  // as this code takes to get here. This used to run after Serial.begin
+  // + a 500ms delay + Wire.begin — all dead time the relays spent
+  // undefined. Latching zero is now the literal first thing setup()
+  // does, before anything else has a chance to take that long.
+  relays.begin();
+
   Serial.begin(115200);
   delay(500);
   Wire.begin(21, 22);
@@ -84,10 +96,7 @@ void setup() {
   // boot self-test, adapted to this board's LED set. Relays are
   // deliberately NOT included (unlike the LEDs, energizing a pump/valve
   // during a self-test isn't something you want happening automatically
-  // at every boot). Direct pin control here, ahead of each component's
-  // normal begin() below, which will leave everything in its real
-  // starting state once this finishes.
-  relays.begin();
+  // at every boot) — relays.begin() above already latched them off.
   pinMode(StatusLed::PIN, OUTPUT);
   Serial.println("[SelfTest] LEDs ON");
   for (uint8_t bit = 0; bit <= ShiftRegisterRelayController::LED_LOBATT; bit++) relays.setLed(bit, true);

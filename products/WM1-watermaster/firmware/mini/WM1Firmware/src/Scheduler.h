@@ -169,7 +169,21 @@ public:
   bool restoreFromNVS(Program* programSlots[], uint8_t programCount);
 
 private:
-  void _startSequence(Program& prog, uint8_t seqIndex, time_t now);
+  // chainEligible: whether completing THIS sequence should auto-chain
+  // into the program's next one. true for anything that started from
+  // the actual schedule (_checkDuePrograms, the queued-handoff in
+  // _stopSequence, and continuing an already-eligible chain); false
+  // for triggerNow()'s ad-hoc "run just this one sequence" manual
+  // action. Bug fix: this used to always chain regardless of how the
+  // run started — manually running a single mid-program sequence via
+  // the app's "Run Sequence" button would then auto-continue into the
+  // REST of the program on its own, and if the program's own scheduled
+  // start time arrived while that was still running, the real
+  // scheduled run got queued behind it — net effect: sequences ran out
+  // of order and some ran twice, confirmed by tracing exactly the
+  // scenario reported (selecting/running a sequence before a program's
+  // scheduled start disturbed that scheduled run).
+  void _startSequence(Program& prog, uint8_t seqIndex, time_t now, bool chainEligible = true);
   void _stopSequence(bool completed);
   void _tickRunning(time_t now);
   void _checkDuePrograms(time_t now);
@@ -197,6 +211,7 @@ private:
   // What's currently running (or paused mid-run)
   Program* _activeProgram = nullptr;
   uint8_t _activeSeqIndex = 0;
+  bool _activeChainEligible = true;  // see _startSequence's chainEligible param
 
   // Wall-clock start of the CURRENT sequence and the flow totalizer's
   // reading at that instant — captured once in _startSequence(), not
@@ -220,6 +235,7 @@ private:
   // revisit as an actual queue.
   Program* _queuedProgram = nullptr;
   uint8_t _queuedSeqIndex = 0;
+  bool _queuedChainEligible = true;  // matches whichever caller queued it — see _startSequence's chainEligible param
 
   static constexpr uint8_t MAX_PROGRAMS = 10;   // up to 10 programs, per spec
   Program* _programs[MAX_PROGRAMS] = {nullptr};

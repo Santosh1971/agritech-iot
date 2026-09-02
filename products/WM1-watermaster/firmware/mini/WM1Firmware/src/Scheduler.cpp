@@ -198,9 +198,10 @@ void Scheduler::_applyDosingForElapsed(uint32_t elapsedSec) {
   }
 }
 
-void Scheduler::_startSequence(Program& prog, uint8_t seqIndex, time_t now) {
+void Scheduler::_startSequence(Program& prog, uint8_t seqIndex, time_t now, bool chainEligible) {
   _activeProgram = &prog;
   _activeSeqIndex = seqIndex;
+  _activeChainEligible = chainEligible;
   _elapsedRunSec = 0;
   _seqStartEpoch = now;
   _seqStartVolumeLiters = _sensors.flowTotalLiters();
@@ -256,7 +257,7 @@ void Scheduler::_stopSequence(bool completed) {
   // whole point is running exactly ONE sequence per trigger, rotating
   // which one across successive days (§3.3c), so it must NOT chain
   // through the rest of the list in a single run.
-  if (completed && _activeProgram && _activeProgram->repeatMode == RepeatMode::INTERVAL_DAYS &&
+  if (completed && _activeChainEligible && _activeProgram && _activeProgram->repeatMode == RepeatMode::INTERVAL_DAYS &&
       (uint8_t)(_activeSeqIndex + 1) < _activeProgram->sequenceCount) {
     Program* prog = _activeProgram;
     uint8_t nextSeqIndex = _activeSeqIndex + 1;
@@ -268,7 +269,7 @@ void Scheduler::_stopSequence(bool completed) {
     // now does). _lastTickTime is the RTC-accurate `now` update() was
     // just called with, which is exactly what's needed here since
     // _stopSequence only ever runs from within that same tick.
-    _startSequence(*prog, nextSeqIndex, _lastTickTime);
+    _startSequence(*prog, nextSeqIndex, _lastTickTime, /*chainEligible=*/true);
     return;
   }
 
@@ -283,7 +284,10 @@ void Scheduler::_stopSequence(bool completed) {
     Program* next = _queuedProgram;
     uint8_t seqIdx = _queuedSeqIndex;
     _queuedProgram = nullptr;
-    _startSequence(*next, seqIdx, _lastTickTime);
+    // Always schedule-driven — the only thing that ever sets
+    // _queuedProgram is _checkDuePrograms finding a due program while
+    // busy, never triggerNow() — so this always chains normally.
+    _startSequence(*next, seqIdx, _lastTickTime, /*chainEligible=*/true);
   }
 }
 
@@ -351,29 +355,36 @@ void Scheduler::_checkDuePrograms(time_t now) {
     }
 
     if (_state == SchedulerState::IDLE) {
-      _startSequence(*prog, seqIndex, now);
+      _startSequence(*prog, seqIndex, now, /*chainEligible=*/true);
     } else {
       // Busy — queue it rather than overlap or skip (§3.7 worked example).
       _queuedProgram = prog;
       _queuedSeqIndex = seqIndex;
+      _queuedChainEligible = true;
       Serial.printf("[Scheduler] '%s' due but busy — queued\n", prog->name);
     }
   }
 }
 
 void Scheduler::triggerNow(Program* prog, uint8_t seqIndex) {
-  // Test/manual hook — starts a program immediately, bypassing its
-  // schedule entirely. Not part of the spec; purely for bench testing
-  // without waiting on real clock times. Uses _lastTickTime rather than
-  // time(nullptr) for the same reason as the chaining fix above — this
-  // runs outside update()'s call chain so it can be up to one loop()
-  // iteration (tens of ms) stale, which is irrelevant for the history
+  // Manual "Run this sequence" hook from the app's Programs screen —
+  // starts just the ONE requested sequence, bypassing the schedule
+  // entirely. chainEligible=false throughout: this must NOT auto-chain
+  // into the rest of the program on completion (bug fix — see
+  // _startSequence's doc comment for the exact scenario this caused),
+  // and if the scheduler is busy when this is called, the queued entry
+  // must carry the same false so a real due program queued behind an
+  // unrelated manual run doesn't inherit it either. Uses _lastTickTime
+  // rather than time(nullptr) for the same reason as the chaining fix
+  // above — this runs outside update()'s call chain so it can be up to
+  // one loop() iteration (tens of ms) stale, irrelevant for the history
   // record this timestamp ends up in.
   if (_state == SchedulerState::IDLE) {
-    _startSequence(*prog, seqIndex, _lastTickTime);
+    _startSequence(*prog, seqIndex, _lastTickTime, /*chainEligible=*/false);
   } else {
     _queuedProgram = prog;
     _queuedSeqIndex = seqIndex;
+    _queuedChainEligible = false;
     Serial.println("[Scheduler] Busy — queued for when current sequence finishes");
   }
 }

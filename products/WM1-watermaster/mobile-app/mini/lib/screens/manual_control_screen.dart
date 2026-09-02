@@ -12,6 +12,7 @@ class ManualControlScreen extends ConsumerWidget {
     final statusAsync = ref.watch(deviceStatusProvider);
     final status = statusAsync.valueOrNull ?? DeviceStatus.empty();
     final auto = status.state == SchedulerState.running || status.state == SchedulerState.paused;
+    final anyValveOpen = status.valves.any((v) => v);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Manual Control', style: TextStyle(fontWeight: FontWeight.w600)), centerTitle: true),
@@ -50,10 +51,10 @@ class ManualControlScreen extends ConsumerWidget {
             ),
           _RelayTile(
             label: status.relayNames.dosing,
-            subtitle: 'RL2 — fertigation pump',
+            subtitle: anyValveOpen ? 'RL2 — fertigation pump' : 'RL2 — needs a valve open first (won\'t dose into a closed line)',
             icon: Icons.science,
             on: status.dosing,
-            enabled: connected,
+            enabled: connected && anyValveOpen,
             onChanged: (v) => ref.read(deviceServiceProvider).manualSet('dosing', v),
           ),
           const SizedBox(height: 16),

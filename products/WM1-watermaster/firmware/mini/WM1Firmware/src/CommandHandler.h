@@ -328,13 +328,24 @@ private:
     if (channel == "dosing") {
       bool was = _irrigation.getDosing();
       _irrigation.setDosing(state);
-      _trackManual(4, "dosing", was, state);
+      // setDosing() silently refuses ON with no valve open (the
+      // invariant lives there, not here, so it holds for every caller)
+      // — surface that back to the app rather than reporting success
+      // for a command that didn't actually do anything.
+      if (state && !_irrigation.getDosing()) return _errorReply("manual_set", "no_valve_open");
+      _trackManual(4, "dosing", was, _irrigation.getDosing());
     } else if (channel.startsWith("valve")) {
       int idx = _channelFromName(channel);
       if (idx < 0) return _errorReply("manual_set", "unknown_channel");
       bool was = _irrigation.getValve((uint8_t)idx);
+      bool dosingWasOn = _irrigation.getDosing();
       _irrigation.setValve((uint8_t)idx, state);
       _trackManual(idx, channel, was, state);
+      // Closing the last open valve can auto-clear dosing as a side
+      // effect (IrrigationController's invariant, not this handler's
+      // doing) — close its history-tracking window too, otherwise that
+      // run never gets logged even though the relay did turn off.
+      if (dosingWasOn && !_irrigation.getDosing()) _trackManual(4, "dosing", true, false);
     } else {
       return _errorReply("manual_set", "unknown_channel");
     }
