@@ -17,6 +17,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
+#include <esp_task_wdt.h>
 #include "Config.h"
 #include "DeviceIdentity.h"
 #include "RelayController.h"
@@ -106,6 +107,26 @@ void setup() {
   digitalWrite(StatusLed::PIN, LOW);
   Serial.println("[SelfTest] LEDs OFF");
 
+  // Reported live: the device can become fully unresponsive after a
+  // WiFi disconnection — no serial output at all for 5-7 minutes,
+  // recoverable only by a manual power cycle. That symptom (loop()
+  // itself producing nothing, not just WiFi failing to reconnect) means
+  // something is genuinely blocking the main task, and no amount of
+  // WiFi-specific fixing helps if the exact blocking call is never
+  // pinned down. This is the general-purpose backstop: if loop() ever
+  // stops coming back around to feed this within 30s — for ANY reason,
+  // known or not — the task watchdog panics and reboots instead of
+  // sitting frozen forever. 30s comfortably clears every legitimate
+  // blocking operation in this firmware (test_leds_cycle's ~5.6s being
+  // the longest). Errors are logged, not treated as fatal — a
+  // freshly-flashed core may already have the loop task subscribed by
+  // default, which would make a second esp_task_wdt_add() call here
+  // return an (harmless) already-added error rather than ESP_OK.
+  esp_err_t wdtErr = esp_task_wdt_init(30, true);
+  if (wdtErr != ESP_OK) Serial.printf("[WDT] init returned %d (continuing)\n", wdtErr);
+  wdtErr = esp_task_wdt_add(NULL);
+  if (wdtErr != ESP_OK) Serial.printf("[WDT] add returned %d (continuing)\n", wdtErr);
+
   irrigation.begin();
   scheduler.begin();
   rtcClock.begin();
@@ -156,6 +177,7 @@ uint32_t lastFlowBlinkToggle = 0;
 bool flowLedOn = false;
 
 void loop() {
+  esp_task_wdt_reset();
   wifiManager.loop();
   mqtt.loop(wifiManager.isStaConnected());
   localServer.loop();
@@ -193,12 +215,21 @@ void loop() {
     scheduler.onWaterLevelChange(sensors.waterLevelOk());
   }
   scheduler.update(rtcClock.now());
-  // LED reflects "a phone joined the WiFi", not "the app's WebSocket is
-  // open" — this is the WPC precedent this was meant to mirror in the
-  // first place, and it lets the LED confirm the WiFi side is working
-  // even before/without the app ever connecting, which is what it's
-  // actually for as a debugging aid.
-  statusLed.update(wifiManager.apOk(), WiFi.softAPgetStationNum() > 0);
+  // Bug fix: this used to be WiFi.softAPgetStationNum() > 0 ("a phone
+  // joined the WiFi") instead of the WS client count, specifically to
+  // avoid a delay between association and the app's handshake
+  // completing. Reported live: it now causes the OPPOSITE problem — the
+  // fast-blink pattern showing with nobody actually using the device, a
+  // known ESP32 SoftAP quirk where a station that disconnects
+  // uncleanly (phone walks out of range, switches networks, etc.
+  // without a proper disassociation frame) can leave the AP reporting
+  // a stale, no-longer-real station for a long time. localServer's WS
+  // client count didn't have this problem to begin with, and since
+  // then has gained its own ping/pong health check (see LocalServer.h)
+  // that actively detects and prunes a vanished client within ~12-15s
+  // — so it's now both more accurate AND reasonably prompt, unlike when
+  // this was first decided.
+  statusLed.update(wifiManager.apOk(), localServer.clientCount() > 0);
 
   // Heartbeat, every 2s regardless of activity — the single thing to
   // watch on the serial monitor to know what the LED is actually doing

@@ -172,6 +172,13 @@ class LocalService implements DeviceService {
       _connectedController.add(true);
       _log('Connected');
       _startLivenessWatchdog();
+      // Same fix as MqttService.connect(): request programs/library
+      // immediately on every successful connect rather than relying on
+      // whichever screen happens to be freshly mounted — status arrives
+      // fine on its own via the periodic broadcast, but nothing else
+      // pushes these proactively.
+      getPrograms();
+      getLibrary();
       return true;
     } catch (e) {
       // The failure mode this specifically catches: phone shows

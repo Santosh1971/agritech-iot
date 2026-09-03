@@ -140,6 +140,17 @@ class MqttService implements DeviceService {
 
     _isConnecting = false;
     _connectedController.add(true);
+    // Bug fix: programs/library only ever populated if whichever screen
+    // needs them happened to be freshly (re)mounted after connecting —
+    // status arrives fine on its own since that topic is retained, but
+    // programs/library are NOT retained, so a screen that was already
+    // open before this connection (e.g. across a Local->Cloud mode
+    // switch) would just keep showing nothing, easily misread as
+    // "my schedule got deleted" when it was actually never re-fetched.
+    // Requesting both immediately on every successful connect means the
+    // streams have real data regardless of what's mounted when.
+    getPrograms();
+    getLibrary();
     return true;
   }
 

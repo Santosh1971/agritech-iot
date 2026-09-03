@@ -122,8 +122,22 @@ final localDebugLogProvider =
 /// Manual transport switch — Local (SoftAP/LAN) is the default, since
 /// most bench/field setup happens directly against the device before
 /// (or without) a cloud broker being reachable. Persisted across restarts.
+///
+/// Bug fix: switching modes here used to only swap WHICH service
+/// deviceServiceProvider points to — nothing ever called connect() on
+/// the newly-selected one. DashboardScreen's connect() only fires ONCE
+/// per app launch (guarded by _didInitialConnect), so a mode switch
+/// mid-session left the new transport sitting unconnected forever:
+/// confirmed live as "switching to Cloud doesn't update until you
+/// force-close and reopen the app" (the fresh launch is what re-fires
+/// the one-time connect, this time against the now-persisted mode) —
+/// and separately explained an apparent "schedule got deleted" report,
+/// which was actually getPrograms() silently no-op'ing against an
+/// unconnected MqttService, not an actual deletion. Now setMode()
+/// itself triggers connect() on whichever service is newly active.
 class TransportModeNotifier extends StateNotifier<TransportMode> {
-  TransportModeNotifier() : super(TransportMode.local) {
+  final Ref ref;
+  TransportModeNotifier(this.ref) : super(TransportMode.local) {
     _load();
   }
   Future<void> _load() async {
@@ -134,11 +148,12 @@ class TransportModeNotifier extends StateNotifier<TransportMode> {
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_transportPrefsKey, mode == TransportMode.cloud ? 'cloud' : 'local');
+    ref.read(deviceServiceProvider).connect();
   }
 }
 
 final transportModeProvider =
-    StateNotifierProvider<TransportModeNotifier, TransportMode>((ref) => TransportModeNotifier());
+    StateNotifierProvider<TransportModeNotifier, TransportMode>((ref) => TransportModeNotifier(ref));
 
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   final mode = ref.watch(transportModeProvider);

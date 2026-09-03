@@ -39,6 +39,7 @@ public:
       _state = WifiState::SOFTAP_ACTIVE;
       if (_forcedLocal) Serial.println("[WiFi] force_local_mode active — not attempting STA");
     }
+    _lastStaConnectedMillis = millis();
   }
 
   void loop() {
@@ -47,6 +48,7 @@ public:
     if (_state == WifiState::STA_CONNECTING) {
       if (WiFi.status() == WL_CONNECTED) {
         _state = WifiState::STA_CONNECTED;
+        _lastStaConnectedMillis = now;
         Serial.printf("[WiFi] STA connected, IP=%s\n", WiFi.localIP().toString().c_str());
       } else if (now - _staAttemptStart > STA_CONNECT_TIMEOUT_MS) {
         Serial.println("[WiFi] STA connect timed out — staying on SoftAP, will retry in background");
@@ -58,11 +60,33 @@ public:
         Serial.println("[WiFi] STA link dropped — falling back to SoftAP-only, will retry");
         _state = WifiState::SOFTAP_ACTIVE;
         _lastStaRetry = now;
+      } else {
+        _lastStaConnectedMillis = now;
       }
     } else {  // SOFTAP_ACTIVE
       if (!_forcedLocal && _savedSsid.length() && (now - _lastStaRetry > STA_RETRY_INTERVAL_MS)) {
         _startStaConnect();
       }
+    }
+
+    // Reported live: the device can get stuck failing to reconnect
+    // indefinitely after a WiFi drop, recoverable only by a manual
+    // power cycle — a known category of ESP32 WiFi-driver behavior
+    // where the radio gets into a state that repeated WiFi.begin()
+    // calls alone can't clear, but a full reset can. Rather than chase
+    // the exact internal driver state (which may vary), this is a
+    // blunt but reliable backstop: if STA is SUPPOSED to be maintained
+    // (not forced-local, real credentials saved) and hasn't actually
+    // been connected for this long, restart outright — a clean boot
+    // re-initializes the WiFi stack from scratch instead of retrying
+    // WiFi.begin() against whatever bad state it's stuck in. Gated so
+    // it never fires for a deliberate SoftAP-only install (no saved
+    // SSID, or force_local_mode) — those are never "supposed" to be
+    // STA-connected in the first place.
+    if (!_forcedLocal && _savedSsid.length() && (now - _lastStaConnectedMillis > STA_STUCK_REBOOT_MS)) {
+      Serial.println("[WiFi] STA hasn't reconnected in 5 minutes — restarting to clear a possibly stuck WiFi state");
+      delay(100);
+      ESP.restart();
     }
   }
 
@@ -108,6 +132,7 @@ private:
 
   static constexpr uint32_t STA_CONNECT_TIMEOUT_MS = 15000;
   static constexpr uint32_t STA_RETRY_INTERVAL_MS = 30000;
+  static constexpr uint32_t STA_STUCK_REBOOT_MS = 5UL * 60UL * 1000UL;
 
   Preferences _prefs;
   WifiState _state = WifiState::SOFTAP_ACTIVE;
@@ -116,4 +141,5 @@ private:
   String _savedSsid, _savedPass;
   uint32_t _staAttemptStart = 0;
   uint32_t _lastStaRetry = 0;
+  uint32_t _lastStaConnectedMillis = 0;
 };
