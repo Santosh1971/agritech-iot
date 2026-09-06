@@ -27,7 +27,10 @@ uint8_t currentSyncWord = 0x12;   // recomputed from targetMasterId before use
 #define LORA_BW_KHZ   125.0
 #define LORA_SF       9
 #define LORA_CR       7
-#define LORA_TXPOWER  14
+#define LORA_TXPOWER_DEFAULT  14
+#define LORA_TXPOWER_MIN      -9   // SX1262 hard limits, see RadioLib's SX1262::checkOutputPower()
+#define LORA_TXPOWER_MAX      22
+int8_t loraTxPowerDbm = LORA_TXPOWER_DEFAULT;   // runtime/NVS-backed, see handleSetConfig()
 #define LORA_SYNCWORD 0x12
 
 #define PIN_NSS    5
@@ -43,8 +46,16 @@ uint8_t currentSyncWord = 0x12;   // recomputed from targetMasterId before use
 #define PIN_IN1_LED    33
 #define PIN_IN4_LED    13
 #define PIN_RELAY1     32
-#define PIN_PUMP_ON_LED 4
+#define PIN_LORA_LED   4    // matches schematic net "LoRa_LED" -- was wrongly used for Pump_ON below
+#define PIN_PUMP_ON_LED 16  // matches schematic net "Pump_ON_Yellow_LED" (D16) -- was wrongly GPIO4
 #define PIN_WIFI_LED   2   // onboard "WiFi" LED on the dev kit, same as Master
+
+#define LED_VOLTAGE_THRESHOLD_MV 250   // IN1_LED/IN4_LED glow when their channel reads above this
+
+// IN1 and IN4 are both read as raw analog (0-4095) in addition to their
+// existing digital/boolean reads below -- no separate hardware conditioning
+// per channel is assumed, calibration (raw -> real units) deferred. No IN2 --
+// there's no hardware for a second analog channel on this PCB.
 
 #define INPUT_ACTIVE_STATE LOW
 
@@ -52,7 +63,7 @@ uint8_t currentSyncWord = 0x12;   // recomputed from targetMasterId before use
 #define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
 
 // today's bench Master -- override via app/NVS for a different Master
-#define DEFAULT_MASTER_ID 0x86470968UL
+#define DEFAULT_MASTER_ID 0x68A99B20UL
 
 enum MsgType : uint8_t {
   MSG_JOIN_REQUEST = 0x01,
@@ -96,6 +107,51 @@ uint16_t crc16(const uint8_t* data, size_t len) {
   return crc;
 }
 
+// Non-blocking LoRa activity indicator -- identical mechanism to the
+// Master's own loraBlinkSeq (see master_node/main.cpp). 1 blink = this
+// Pump sent something, 2 blinks = it received a message addressed to it
+// (JOIN_ACCEPT for this pump, or a LEVEL_CMD for its assigned slot) --
+// packets that get silently dropped (wrong masterId, wrong pumpId/slot,
+// bad CRC) don't blink, since they're not "related to this PN".
+struct BlinkSequence {
+  uint8_t pin;
+  bool active;
+  uint8_t phaseIdx;
+  uint8_t totalPhases;
+  uint32_t phaseStart;
+  uint16_t onMs;
+  uint16_t offMs;
+};
+BlinkSequence loraBlinkSeq = {PIN_LORA_LED, false, 0, 0, 0, 60, 60};
+
+void startBlinkSequence(BlinkSequence& b, uint8_t pin, int times, int onMs = 60, int offMs = 60) {
+  b.pin = pin;
+  b.active = true;
+  b.phaseIdx = 0;
+  b.totalPhases = (uint8_t)(times * 2);
+  b.phaseStart = millis();
+  b.onMs = onMs;
+  b.offMs = offMs;
+  digitalWrite(pin, HIGH);
+}
+
+void updateBlinkSequence(BlinkSequence& b) {
+  if (!b.active) return;
+  bool onPhase = (b.phaseIdx % 2 == 0);
+  uint16_t dur = onPhase ? b.onMs : b.offMs;
+  if (millis() - b.phaseStart >= dur) {
+    b.phaseIdx++;
+    b.phaseStart = millis();
+    if (b.phaseIdx >= b.totalPhases) {
+      b.active = false;
+      digitalWrite(b.pin, LOW);
+      return;
+    }
+    bool nowOnPhase = (b.phaseIdx % 2 == 0);
+    digitalWrite(b.pin, nowOnPhase ? HIGH : LOW);
+  }
+}
+
 void setRelay(bool on) {
   relayState = on;
   digitalWrite(PIN_RELAY1, on ? HIGH : LOW);
@@ -131,6 +187,34 @@ size_t buildPacket(uint8_t msgType, uint32_t masterId, uint8_t pumpSlot, uint8_t
   return i;
 }
 
+// A single analogRead() on ESP32's GPIO36/39-style ADC1 pins is prone to
+// picking up a brief spike rather than the settled level -- easy to hit if
+// the sensed signal isn't a clean smoothed DC level (e.g. unfiltered
+// rectified ripple), where a multimeter's averaging shows a low reading but
+// an instantaneous single sample can land on the peak. Averaging several
+// samples over a short window brings the raw value back in line with what
+// a multimeter reads.
+uint16_t readAdcAveraged(uint8_t pin, int samples = 16) {
+  uint32_t sum = 0;
+  for (int i = 0; i < samples; i++) {
+    sum += analogRead(pin);
+    delayMicroseconds(200);
+  }
+  return (uint16_t)(sum / samples);
+}
+
+// mV version, using ESP32's own eFuse-calibrated conversion -- used for the
+// LED threshold so LED_VOLTAGE_THRESHOLD_MV means what it says regardless
+// of attenuation setting, rather than needing a raw-count equivalent.
+uint32_t readAdcMilliVoltsAveraged(uint8_t pin, int samples = 16) {
+  uint32_t sum = 0;
+  for (int i = 0; i < samples; i++) {
+    sum += analogReadMilliVolts(pin);
+    delayMicroseconds(200);
+  }
+  return sum / samples;
+}
+
 void sendJoinRequest() {
   uint8_t payload[2] = { (uint8_t)(myPumpId >> 8), (uint8_t)(myPumpId & 0xFF) };
   size_t len = buildPacket(MSG_JOIN_REQUEST, targetMasterId, 0xFF, 0, payload, 2);
@@ -142,6 +226,7 @@ void sendJoinRequest() {
     transmitting = false;
     startReceive();
   } else {
+    startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent something
     Serial.print(F("[JOIN] requesting join, pumpId="));
     Serial.println(myPumpId);
   }
@@ -150,8 +235,16 @@ void sendJoinRequest() {
 bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
   bool in1 = (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE);
   bool in4 = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
-  uint8_t payload[3] = { (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0) };
-  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 3);
+  uint16_t in1Adc = readAdcAveraged(PIN_IN1);
+  uint16_t in4Adc = readAdcAveraged(PIN_IN4);
+  // Payload grew from 3 to 7 bytes to carry the two raw ADC channels --
+  // Master's pollPump() must be updated in lockstep to parse this layout.
+  uint8_t payload[7] = {
+    (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0),
+    (uint8_t)(in1Adc >> 8), (uint8_t)(in1Adc & 0xFF),
+    (uint8_t)(in4Adc >> 8), (uint8_t)(in4Adc & 0xFF),
+  };
+  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 7);
 
   transmitting = true;
   int state = radio.startTransmit(txPacket, len);
@@ -162,6 +255,7 @@ bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
     startReceive();
     return false;
   }
+  startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent something
   return true;
 }
 
@@ -191,6 +285,7 @@ void handlePacket(const uint8_t* buf, int len) {
       myAssignedSlot = buf[10];
       joined = true;
       lastCmdMillis = millis();
+      startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
       Serial.print(F("[JOIN] accepted, assigned slot "));
       Serial.println(myAssignedSlot);
     }
@@ -201,6 +296,7 @@ void handlePacket(const uint8_t* buf, int len) {
 
   bool desired = (buf[8] != 0);
   lastCmdMillis = millis();
+  startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
   setRelay(desired);
   // (The RX-to-TX settling delay tested here turned out not to be the
   // real issue -- the actual bug was on Master's side, a blocking LED
@@ -226,6 +322,10 @@ void handleInfo() {
   doc["targetMasterId"] = idbuf;
   doc["joined"] = joined;
   doc["assignedSlot"] = joined ? myAssignedSlot : -1;
+  doc["relay"] = relayState;
+  doc["in1Adc"] = readAdcAveraged(PIN_IN1);
+  doc["in4Adc"] = readAdcAveraged(PIN_IN4);
+  doc["txPower"] = loraTxPowerDbm;
   String out;
   serializeJson(doc, out);
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -274,6 +374,22 @@ void handleSetConfig() {
     lastJoinAttemptMs = 0;
     Serial.println(F("[CONFIG] identity/target changed -- rejoining"));
   }
+  if (doc["txPower"].is<int>()) {
+    int p = doc["txPower"];
+    if (p >= LORA_TXPOWER_MIN && p <= LORA_TXPOWER_MAX) {
+      // Applied live, no reboot/rejoin needed -- this only changes what THIS
+      // radio transmits at. The Master's own TX power (its side of the link)
+      // is independent and must be set separately via its /config.
+      int state = radio.setOutputPower((int8_t)p);
+      if (state == RADIOLIB_ERR_NONE) {
+        loraTxPowerDbm = (int8_t)p;
+        prefs.putChar("txPower", loraTxPowerDbm);
+      } else {
+        Serial.print(F("[LoRa] setOutputPower failed, code "));
+        Serial.println(state);
+      }
+    }
+  }
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", "{\"ok\":true}");
 }
@@ -282,11 +398,26 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
-  pinMode(PIN_IN1, INPUT);
-  pinMode(PIN_IN4, INPUT);
+  // No pinMode() for PIN_IN1/PIN_IN4 -- left unconfigured (input-only pins
+  // default to a plain input on reset) so analogRead()/digitalRead() are
+  // the only things that touch their mode, at the user's request while
+  // debugging why in1Adc/in4Adc read pegged high despite a driven signal.
+  //
+  // ESP32's default ADC attenuation (11db, ~0-3.9V full scale) is
+  // well-documented as poor/non-linear below ~1V -- exactly the range
+  // measured on these two channels during bench testing (a few hundred mV,
+  // reading correctly near 0V but jumping to full-scale as soon as any
+  // small voltage was introduced). 0db covers 0-1.1V with much better
+  // linearity in that band. Revisit if the real sensor's full-scale output
+  // (once running under actual load, not a bench potentiometer) turns out
+  // to exceed ~1.1V -- these would need a higher attenuation, or a
+  // hardware divider sized to bring the real signal into this range.
+  analogSetPinAttenuation(PIN_IN1, ADC_0db);
+  analogSetPinAttenuation(PIN_IN4, ADC_0db);
   pinMode(PIN_IN1_LED, OUTPUT);
   pinMode(PIN_IN4_LED, OUTPUT);
   pinMode(PIN_RELAY1, OUTPUT);
+  pinMode(PIN_LORA_LED, OUTPUT);
   pinMode(PIN_PUMP_ON_LED, OUTPUT);
   digitalWrite(PIN_RELAY1, LOW);
   digitalWrite(PIN_PUMP_ON_LED, LOW);
@@ -296,6 +427,7 @@ void setup() {
   uint16_t defaultPumpId = (uint16_t)(mac % 10000);
   myPumpId = prefs.getUShort("pumpId", defaultPumpId);
   targetMasterId = prefs.getULong("masterId", DEFAULT_MASTER_ID);
+  loraTxPowerDbm = prefs.getChar("txPower", LORA_TXPOWER_DEFAULT);
 
   Serial.print(F("[PUMP] pumpId="));
   Serial.print(myPumpId);
@@ -312,7 +444,7 @@ void setup() {
   Serial.print(F("[LoRa] syncWord = 0x"));
   Serial.println(currentSyncWord, HEX);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
-                           currentSyncWord, LORA_TXPOWER, 8, 0, false);
+                           currentSyncWord, loraTxPowerDbm, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] radio.begin() failed, code "));
     Serial.println(state);
@@ -386,6 +518,14 @@ void updateWifiLed() {
 void loop() {
   server.handleClient();
   updateWifiLed();
+  updateBlinkSequence(loraBlinkSeq);
+
+  // IN1_LED/IN4_LED simply reflect their own channel's voltage -- glow
+  // above LED_VOLTAGE_THRESHOLD_MV, off below -- independent of join state,
+  // since they're just indicating a live sensor reading, not network status.
+  digitalWrite(PIN_IN1_LED, (readAdcMilliVoltsAveraged(PIN_IN1) > LED_VOLTAGE_THRESHOLD_MV) ? HIGH : LOW);
+  digitalWrite(PIN_IN4_LED, (readAdcMilliVoltsAveraged(PIN_IN4) > LED_VOLTAGE_THRESHOLD_MV) ? HIGH : LOW);
+
   if (operationDone) {
     operationDone = false;
 
@@ -416,12 +556,6 @@ void loop() {
     }
     return;
   }
-
-  digitalWrite(PIN_IN1_LED, (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) ? HIGH : LOW);
-  // IN4 (No Power) fast-blinks while active, matching the Master's
-  // treatment -- an alert, not just an informational reading.
-  bool noPowerActive = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
-  digitalWrite(PIN_IN4_LED, noPowerActive && ((millis() / 150) % 2 == 0) ? HIGH : LOW);
 
   // Fail-safe applies regardless of relay state -- an idle (OFF) pump
   // whose Master forgot it (e.g. Master reboot losing its RAM-only join

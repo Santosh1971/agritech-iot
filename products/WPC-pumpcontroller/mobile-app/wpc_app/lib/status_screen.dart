@@ -16,6 +16,7 @@ class _StatusScreenState extends State<StatusScreen> {
   Map<String, dynamic>? _status;
   String? _error;
   Timer? _timer;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -156,6 +157,22 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
+  Future<void> _setOverride(int slot, bool enabled, {bool? state}) async {
+    setState(() => _busy = true);
+    try {
+      await WpcApi.setPumpOverride(slot, enabled, state: state);
+      await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set override: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _buildLevelBox(
       BuildContext context, int lvl, List<dynamic> levels, List<dynamic> pumps) {
     final active = (lvl - 1) < levels.length && levels[lvl - 1] == true;
@@ -199,22 +216,77 @@ class _StatusScreenState extends State<StatusScreen> {
     final relay = map['relay'] == true;
     final name = (map['name'] as String?) ?? '';
     final displayName = name.isNotEmpty ? name : 'Pump ${map['pumpId']}';
+    final slot = (map['slot'] as num).toInt();
+    final in1Adc = (map['in1Adc'] as num?)?.toInt();
+    final in4Adc = (map['in4Adc'] as num?)?.toInt();
+    final override = map['override'] as Map<String, dynamic>? ?? {};
+    final overrideEnabled = override['enabled'] == true;
+    final overrideState = override['state'] == true;
+
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            relay ? Icons.power : Icons.power_off,
-            size: 18,
-            color: !online ? Colors.red.shade300 : (relay ? Colors.green : Colors.grey),
+          Row(
+            children: [
+              Icon(
+                relay ? Icons.power : Icons.power_off,
+                size: 18,
+                color: !online ? Colors.red.shade300 : (relay ? Colors.green : Colors.grey),
+              ),
+              const SizedBox(width: 6),
+              Expanded(child: Text(displayName)),
+              if (overrideEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(Icons.pan_tool, size: 14, color: Colors.orange.shade700),
+                ),
+              Text(
+                !online ? 'Offline' : (relay ? 'Running' : 'Idle'),
+                style: TextStyle(
+                  color: !online ? Colors.red : (relay ? Colors.green.shade700 : Colors.grey),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          Expanded(child: Text(displayName)),
-          Text(
-            !online ? 'Offline' : (relay ? 'Running' : 'Idle'),
-            style: TextStyle(
-              color: !online ? Colors.red : (relay ? Colors.green.shade700 : Colors.grey),
-              fontWeight: FontWeight.w500,
+          if (in1Adc != null && in4Adc != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 24, top: 2),
+              child: Text(
+                // Raw ADC counts (0-4095) -- calibration to real units is
+                // pending, so shown as-is rather than implying calibrated units.
+                'IN1 raw: $in1Adc   IN4 raw: $in4Adc',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: 4),
+            child: Row(
+              children: [
+                Text('Manual', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                Switch(
+                  value: overrideEnabled,
+                  onChanged: _busy
+                      ? null
+                      : (v) => _setOverride(slot, v, state: v ? relay : null),
+                ),
+                if (overrideEnabled) ...[
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('ON'),
+                    selected: overrideState,
+                    onSelected: _busy ? null : (_) => _setOverride(slot, true, state: true),
+                  ),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    label: const Text('OFF'),
+                    selected: !overrideState,
+                    onSelected: _busy ? null : (_) => _setOverride(slot, true, state: false),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

@@ -17,12 +17,16 @@ class _PumpScreenState extends State<PumpScreen> {
 
   final _masterIdController = TextEditingController();
   Timer? _timer;
+  double? _txPowerSliderValue;   // local while dragging; null = show the server's current value
 
   @override
   void initState() {
     super.initState();
     _fetch();
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _fetch());
+    // 1s, not 3s -- this is a direct WiFi connection to the Pump's own
+    // SoftAP (no LoRa airtime involved), and fast feedback matters here
+    // since this screen is used for live field calibration against IN1/IN4.
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _fetch());
   }
 
   @override
@@ -32,8 +36,12 @@ class _PumpScreenState extends State<PumpScreen> {
     super.dispose();
   }
 
+  // Deliberately doesn't touch _busy -- this runs on every 1s auto-refresh
+  // tick as well as explicit actions, and _busy also gates the Save button
+  // and TX power slider. Toggling it here made those flicker enabled/disabled
+  // once a second. Callers that need a "saving" state (_save(), the TX
+  // slider's onChangeEnd) set _busy themselves around their own await calls.
   Future<void> _fetch() async {
-    setState(() => _busy = true);
     try {
       final info = await WpcApi.getPumpInfo();
       if (!mounted) return;
@@ -50,8 +58,6 @@ class _PumpScreenState extends State<PumpScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = "Not reachable: $e");
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -140,6 +146,16 @@ class _PumpScreenState extends State<PumpScreen> {
                       'Target Master: ${(_info!['targetMasterId'] as String? ?? '').replaceFirst(RegExp(r'^0x', caseSensitive: false), '')}',
                     ),
                     Text('Joined: ${_info!['joined'] == true ? 'Yes' : 'No'}'),
+                    Text('Relay: ${_info!['relay'] == true ? 'ON' : 'OFF'}'),
+                    if (_info!['in1Adc'] != null && _info!['in4Adc'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          // Raw ADC counts (0-4095) -- calibration pending.
+                          'IN1 raw: ${_info!['in1Adc']}   IN4 raw: ${_info!['in4Adc']}',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ),
                     if (_info!['joined'] != true)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -177,6 +193,59 @@ class _PumpScreenState extends State<PumpScreen> {
                     )
                   : const Text('Save'),
             ),
+            const SizedBox(height: 24),
+
+            Text('Pump Radio TX Power', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 2),
+            Text(
+              // Only affects what THIS Pump transmits -- the Master's own TX
+              // power (Status screen, while connected to the Master) needs
+              // raising too for range to change in both directions.
+              'Higher = longer range, more airtime/battery use. Set the Master separately.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 4),
+            Builder(builder: (context) {
+              final serverDbm = ((_info!['txPower'] as num?)?.toDouble() ?? 14).clamp(-9.0, 22.0);
+              final displayDbm = _txPowerSliderValue ?? serverDbm;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${displayDbm.round()} dBm', style: Theme.of(context).textTheme.bodyMedium),
+                  Slider(
+                    min: -9,
+                    max: 22,
+                    divisions: 31,
+                    value: displayDbm,
+                    onChanged: _busy
+                        ? null
+                        : (v) => setState(() => _txPowerSliderValue = v),
+                    onChangeEnd: _busy
+                        ? null
+                        : (v) async {
+                            setState(() => _busy = true);
+                            try {
+                              await WpcApi.setTxPower(v.round());
+                              await _fetch();
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed to set TX power: $e')),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _busy = false;
+                                  _txPowerSliderValue = null;
+                                });
+                              }
+                            }
+                          },
+                  ),
+                ],
+              );
+            }),
           ],
         ],
       ),

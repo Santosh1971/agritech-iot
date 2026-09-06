@@ -44,6 +44,21 @@ class WpcApi {
     if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
   }
 
+  // dBm, valid range -9..22 on the SX1262 -- higher trades battery/duty-cycle
+  // headroom for range. Each node's TX power only affects what THAT radio
+  // transmits, so Master and Pump must each be set independently for a
+  // link's range to change in both directions.
+  static Future<void> setTxPower(int dbm) async {
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/config'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'txPower': dbm}),
+        )
+        .timeout(_timeout);
+    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+  }
+
   static Future<void> setNumLevels(int n) async {
     final res = await http
         .post(
@@ -83,6 +98,22 @@ class WpcApi {
           Uri.parse('$baseUrl/assign'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'slot': slot, 'level': level, 'assigned': assigned}),
+        )
+        .timeout(_timeout);
+    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+  }
+
+  // enabled=false switches the pump back to automatic (level-logic) control.
+  // enabled=true with state set forces the relay to that state until
+  // overridden again or disabled.
+  static Future<void> setPumpOverride(int slot, bool enabled, {bool? state}) async {
+    final body = <String, dynamic>{'slot': slot, 'enabled': enabled};
+    if (state != null) body['state'] = state;
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/override'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
         )
         .timeout(_timeout);
     if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');

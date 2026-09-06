@@ -19,7 +19,7 @@ void applyLevelLogic();
 // accepts Pump Node JOIN_REQUESTs and assigns each a compact wire-slot,
 // then runs a round-robin poll cycle sending LEVEL_CMD to known slots.
 //
-// PROTOCOL (see docs/WPC_LoRa_Protocol_v0.1.md):
+// PROTOCOL (see docs/WPC_LoRa_Protocol_v0.3.md):
 //   [version:1][msgType:1][masterId:4][pumpSlot:1][seq:1][payload...][crc16:2]
 // ---------------------------------------------------------------------
 
@@ -27,7 +27,10 @@ void applyLevelLogic();
 #define LORA_BW_KHZ   125.0
 #define LORA_SF       9
 #define LORA_CR       7
-#define LORA_TXPOWER  14
+#define LORA_TXPOWER_DEFAULT  14
+#define LORA_TXPOWER_MIN      -9   // SX1262 hard limits, see RadioLib's SX1262::checkOutputPower()
+#define LORA_TXPOWER_MAX      22
+int8_t loraTxPowerDbm = LORA_TXPOWER_DEFAULT;   // runtime/NVS-backed, see handleSetConfig()
 #define LORA_SYNCWORD 0x12
 
 #define PIN_NSS    5
@@ -56,9 +59,19 @@ void applyLevelLogic();
 #define DEBOUNCE_MS_MAX       300000UL
 uint32_t levelDebounceMs = DEBOUNCE_MS_DEFAULT;
 #define POLL_TIMEOUT_MS     500   // reverted -- widening to 3000 for a test did not fix ACK detection, so 500 wasn't the problem
-#define HEARTBEAT_INTERVAL_MS 30000UL   // re-confirm state even with no change, keeps Pump's fail-safe from ever tripping under normal quiet operation
 #define POLL_RETRIES        2
-#define STAGGER_MS          5000
+// Fixed floor between the END of one exchange and the START of the next,
+// with ANY pump -- not user-configurable, and not a per-pump "heartbeat"
+// timer. At long range (1-2km target) a round trip can take several
+// seconds, so back-to-back sends risk stepping on a reply still in
+// flight; this is a deliberately conservative placeholder pending real
+// range testing (bench-tested at <1m only so far, see docs). One
+// mechanism does two jobs: it also satisfies the spec's "5s between
+// simultaneous pump starts" requirement as a side effect, since no two
+// sends are ever closer together than this regardless of cause -- no
+// separate stagger logic needed. See pollCycle() for how a full known-pump
+// count naturally determines total refresh time from this one constant.
+#define INTER_POLL_GAP_MS   5000UL
 #define JOIN_WINDOW_MS       2000   // widened -- was missing joins too often against the Pump's 3s retry cadence
 
 enum MsgType : uint8_t {
@@ -256,6 +269,12 @@ struct PumpEntry {
   bool     everAttempted;   // false right after boot/restore -- online defaults false too but that
                              // does NOT mean "confirmed offline", just "not yet checked this session"
   uint32_t lastSendMs;      // last time we attempted a send to this slot -- drives the heartbeat
+  uint16_t in1Adc;          // last reported raw ADC (0-4095), IN1 -- session-only, not persisted
+  uint16_t in4Adc;          // last reported raw ADC (0-4095), IN4 -- session-only, not persisted
+  bool     overrideEnabled; // manual control -- when true, desiredPumpState skips level logic entirely
+  bool     overrideState;   // desired relay state while overrideEnabled -- session-only: a Master reboot
+                             // always comes back in automatic mode rather than risking a pump silently
+                             // stuck in a forgotten manual state
 };
 PumpEntry pumps[MAX_PUMPS];
 
@@ -275,6 +294,10 @@ void initPumpTable() {
     pumps[i].online = false;
     pumps[i].everAttempted = false;
     pumps[i].lastSendMs = 0;
+    pumps[i].in1Adc = 0;
+    pumps[i].in4Adc = 0;
+    pumps[i].overrideEnabled = false;
+    pumps[i].overrideState = false;
   }
 }
 
@@ -431,6 +454,13 @@ void listenForJoin(uint32_t windowMs) {
             // poll (full retries/timeout), not the reduced budget left
             // over from whatever happened to this slot before.
             pumps[slot].everAttempted = false;
+            // A fresh join may be a different physical unit reusing an old
+            // slot -- don't carry forward stale ADC readings or a manual
+            // override that was meant for whatever pump had this slot before.
+            pumps[slot].in1Adc = 0;
+            pumps[slot].in4Adc = 0;
+            pumps[slot].overrideEnabled = false;
+            pumps[slot].overrideState = false;
             savePumpTable();
             Serial.print(F("[JOIN] pumpId "));
             Serial.print(pumpId);
@@ -522,6 +552,13 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
           Serial.print(rxSeq);
           Serial.print(F(" slot="));
           Serial.println(slot);
+          // Payload (7 bytes, starting at buf[8]): relay, in1 bool, in4 bool,
+          // in1Adc (2B), in4Adc (2B) -- see Pump's sendCmdAck(). rlen check
+          // guards against a shorter/legacy ACK that predates the ADC fields.
+          if (rlen >= 17) {
+            pumps[slot].in1Adc = ((uint16_t)buf[11] << 8) | buf[12];
+            pumps[slot].in4Adc = ((uint16_t)buf[13] << 8) | buf[14];
+          }
           startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
         } else {
@@ -553,6 +590,10 @@ bool desiredPumpState[MAX_PUMPS] = { false };
 void applyLevelLogic() {
   for (int slot = 0; slot < MAX_PUMPS; slot++) {
     if (!pumps[slot].known) { desiredPumpState[slot] = false; continue; }
+    if (pumps[slot].overrideEnabled) {
+      desiredPumpState[slot] = pumps[slot].overrideState;
+      continue;
+    }
     bool on = false;
     for (int lvl = 1; lvl <= numLevels; lvl++) {
       // Real float switches close (short) when water RISES and lifts them,
@@ -570,86 +611,86 @@ void applyLevelLogic() {
   }
 }
 
-// Event + heartbeat scheduling -- a slot is only actually sent to when
-// its desired state has genuinely changed, when it has never been
-// attempted yet, or when HEARTBEAT_INTERVAL_MS has elapsed since the
-// last attempt. This is the real fix for the multi-Master collision
-// risk: continuous once-a-second polling of every known slot, whether
-// or not anything changed, is what made airtime collisions likely in
-// the first place. Field level changes are genuinely rare, so this
-// cuts total channel traffic dramatically while keeping full ACK/retry
-// reliability whenever a send does happen. The heartbeat re-sends the
-// SAME LEVEL_CMD/CMD_ACK pair on a timer -- no new message type needed,
-// it doubles as both a liveness check and a state re-sync.
+// Services exactly ONE pump per call, then blocks for INTER_POLL_GAP_MS
+// before returning -- there is no separate "refresh interval" concept.
+// Every known pump gets visited in round-robin order, so a full refresh of
+// N known pumps naturally takes ~N x INTER_POLL_GAP_MS; this is a
+// consequence of pump count and the fixed gap, not something configured
+// separately. A pump whose desired state has genuinely changed jumps the
+// queue and is serviced immediately, so reaction to a real level-crossing
+// event doesn't degrade as pump count grows -- only the idle-telemetry
+// refresh rate scales with N.
+uint8_t pollCursor = 0;   // next slot to consider for the fair round-robin, persists across calls
+int consecutiveFails = 0;   // rolling count since the last ack, across calls -- see loraLinkError below
+
 void pollCycle() {
-  // wasOn tracks each pump's last CONFIRMED (acked) relay state, not
-  // "have we ever commanded it" -- that's what lets us correctly detect
-  // a fresh OFF->ON transition every time, not just the first time ever.
-  static bool wasOn[MAX_PUMPS] = { false };
-  int freshOnCountThisPass = 0;
-  bool anyKnownPump = false;
-  bool anySentThisPass = false;
-  bool anyAckedThisPass = false;
+  int knownCount = 0;
+  for (int i = 0; i < MAX_PUMPS; i++) if (pumps[i].known) knownCount++;
+  if (knownCount == 0) return;
 
-  for (int slot = 0; slot < MAX_PUMPS; slot++) {
-    if (!pumps[slot].known) continue;
-    anyKnownPump = true;
-
-    bool desired = desiredPumpState[slot];
-
-    bool stateChanged = pumps[slot].everAttempted && (desired != pumps[slot].lastRelayState);
-    bool heartbeatDue = (millis() - pumps[slot].lastSendMs) >= HEARTBEAT_INTERVAL_MS;
-    bool neverAttempted = !pumps[slot].everAttempted;
-    if (!stateChanged && !heartbeatDue && !neverAttempted) continue;   // nothing to do this cycle
-
-    bool turningOn = desired && !wasOn[slot];
-
-    // stagger only between MULTIPLE pumps freshly turning ON in the
-    // same pass -- the first one in a pass never waits
-    if (turningOn && freshOnCountThisPass > 0) delayWithLeds(STAGGER_MS);
-    if (turningOn) freshOnCountThisPass++;
-
-    // A slot only gets the short, single-shot check after it has
-    // genuinely been tried and failed at least once THIS session --
-    // online defaults false on every boot (it's never persisted), so
-    // without the everAttempted check every freshly-restored pump would
-    // wrongly get the aggressive short timeout on its very first ever
-    // poll, before it had any real chance to reconnect. Once confirmed
-    // offline by a real generous attempt, reduce the budget so a
-    // known-dead slot doesn't burn ~7.5s/cycle starving the 2s
-    // join-listening window.
-    bool giveFullBudget = pumps[slot].online || !pumps[slot].everAttempted;
-    int maxAttempts = giveFullBudget ? (POLL_RETRIES + 1) : 1;
-    uint32_t txTimeout = giveFullBudget ? 2000 : 500;
-    uint32_t rxTimeout = giveFullBudget ? POLL_TIMEOUT_MS : 200;
-
-    anySentThisPass = true;
-    pumps[slot].lastSendMs = millis();
-
-    bool acked = false;
-    for (int attempt = 0; attempt < maxAttempts && !acked; attempt++) {
-      acked = pollPump(slot, desired, txTimeout, rxTimeout);
-    }
-
-    pumps[slot].everAttempted = true;
-    pumps[slot].online = acked;
-    if (acked) {
-      pumps[slot].lastRelayState = desired;
-      wasOn[slot] = desired;
-      anyAckedThisPass = true;
-    } else {
-      Serial.print(F("[POLL] slot "));
-      Serial.print(slot);
-      Serial.println(F(" NOT ACKED -- marked offline"));
+  // Priority 1: a pump whose desired state doesn't match its last
+  // confirmed relay state -- service now, regardless of round-robin turn.
+  int slot = -1;
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    if (pumps[i].known && pumps[i].everAttempted && desiredPumpState[i] != pumps[i].lastRelayState) {
+      slot = i;
+      break;
     }
   }
 
-  // Only judge link health on cycles where we actually tried to send
-  // something -- otherwise a normal quiet cycle (nothing due) would
-  // wrongly look identical to "every known pump just failed to ack".
-  if (anySentThisPass) {
-    loraLinkError = anyKnownPump && !anyAckedThisPass;
+  // Priority 2: otherwise, the next pump due in round-robin order (this is
+  // what refreshes online/offline status and IN1/IN4 telemetry for pumps
+  // with nothing new to command).
+  if (slot < 0) {
+    for (int i = 0; i < MAX_PUMPS; i++) {
+      int idx = (pollCursor + i) % MAX_PUMPS;
+      if (pumps[idx].known) { slot = idx; pollCursor = (idx + 1) % MAX_PUMPS; break; }
+    }
   }
+
+  bool desired = desiredPumpState[slot];
+
+  // A slot only gets the short, single-shot check after it has
+  // genuinely been tried and failed at least once THIS session --
+  // online defaults false on every boot (it's never persisted), so
+  // without the everAttempted check every freshly-restored pump would
+  // wrongly get the aggressive short timeout on its very first ever
+  // poll, before it had any real chance to reconnect. Once confirmed
+  // offline by a real generous attempt, reduce the budget so a
+  // known-dead slot doesn't burn extra time on retries that won't help.
+  bool giveFullBudget = pumps[slot].online || !pumps[slot].everAttempted;
+  int maxAttempts = giveFullBudget ? (POLL_RETRIES + 1) : 1;
+  uint32_t txTimeout = giveFullBudget ? 2000 : 500;
+  uint32_t rxTimeout = giveFullBudget ? POLL_TIMEOUT_MS : 200;
+
+  pumps[slot].lastSendMs = millis();
+
+  bool acked = false;
+  for (int attempt = 0; attempt < maxAttempts && !acked; attempt++) {
+    acked = pollPump(slot, desired, txTimeout, rxTimeout);
+  }
+
+  pumps[slot].everAttempted = true;
+  pumps[slot].online = acked;
+  if (acked) {
+    pumps[slot].lastRelayState = desired;
+    consecutiveFails = 0;
+  } else {
+    Serial.print(F("[POLL] slot "));
+    Serial.print(slot);
+    Serial.println(F(" NOT ACKED -- marked offline"));
+    consecutiveFails++;
+  }
+  // Only a full rotation's worth of consecutive misses (every known pump,
+  // not just one) counts as "link is down" -- one dead/out-of-range pump
+  // shouldn't flag the whole link while others are acking fine.
+  loraLinkError = consecutiveFails >= knownCount;
+
+  // Fixed pacing before the next exchange (see INTER_POLL_GAP_MS above).
+  // Reused as a JOIN_REQUEST listening window instead of idling -- this is
+  // "dead" radio time either way, so newly-booting pumps get a chance to
+  // join far more often than the one JOIN_WINDOW_MS burst per loop() pass.
+  listenForJoin(INTER_POLL_GAP_MS);
 }
 
 // GET /status -- JSON snapshot of sump levels + known pumps, for the
@@ -661,6 +702,7 @@ void handleStatus() {
   doc["masterId"] = idbuf;
   doc["numLevels"] = numLevels;
   doc["debounceMs"] = levelDebounceMs;
+  doc["txPower"] = loraTxPowerDbm;
 
   JsonArray levelsArr = doc["levels"].to<JsonArray>();
   for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
@@ -680,6 +722,11 @@ void handleStatus() {
       if (pumps[i].assignedLevels & (1 << (lvl - 1))) lvls.add(lvl);
     }
     p["name"] = pumps[i].name;
+    p["in1Adc"] = pumps[i].in1Adc;
+    p["in4Adc"] = pumps[i].in4Adc;
+    JsonObject ov = p["override"].to<JsonObject>();
+    ov["enabled"] = pumps[i].overrideEnabled;
+    ov["state"] = pumps[i].overrideState;
   }
 
   String out;
@@ -712,6 +759,22 @@ void handleSetConfig() {
     if (d >= DEBOUNCE_MS_MIN && d <= DEBOUNCE_MS_MAX) {
       levelDebounceMs = (uint32_t)d;
       prefs.putULong("debounceMs", levelDebounceMs);
+    }
+  }
+  if (doc["txPower"].is<int>()) {
+    int p = doc["txPower"];
+    if (p >= LORA_TXPOWER_MIN && p <= LORA_TXPOWER_MAX) {
+      // Applied live, no reboot needed -- but this only changes what THIS
+      // radio transmits at. The Pump Node's own TX power (its side of the
+      // link) is independent and must be set separately via its /config.
+      int state = radio.setOutputPower((int8_t)p);
+      if (state == RADIOLIB_ERR_NONE) {
+        loraTxPowerDbm = (int8_t)p;
+        prefs.putChar("txPower", loraTxPowerDbm);
+      } else {
+        Serial.print(F("[LoRa] setOutputPower failed, code "));
+        Serial.println(state);
+      }
     }
   }
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -776,6 +839,45 @@ void handleSetName() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
+// POST /override  body: {"slot": N, "enabled": true/false, "state": true/false}
+// Manual control -- when enabled, this pump's ON/OFF is driven directly by
+// "state" instead of the level-assignment logic in applyLevelLogic(). Lets
+// an operator force a pump on/off (bring-up testing, or an emergency)
+// without touching its level assignments. Deliberately session-only, see
+// PumpEntry.overrideEnabled.
+void handleSetOverride() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  int slot = doc["slot"] | -1;
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
+    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
+    return;
+  }
+  bool enabled = doc["enabled"] | false;
+  pumps[slot].overrideEnabled = enabled;
+  if (enabled && doc["state"].is<bool>()) {
+    pumps[slot].overrideState = doc["state"];
+  }
+  applyLevelLogic();   // apply immediately rather than waiting for next loop pass
+  Serial.print(F("[OVERRIDE] slot "));
+  Serial.print(slot);
+  if (enabled) {
+    Serial.println(pumps[slot].overrideState ? F(" -> MANUAL ON") : F(" -> MANUAL OFF"));
+  } else {
+    Serial.println(F(" -> AUTO"));
+  }
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 // POST /forget  body: {"slot": N}
 // Clears a slot entirely -- for removing a stale/orphaned pump entry
 // (e.g. one that was reprovisioned to a different pumpId and will never
@@ -802,6 +904,10 @@ void handleForget() {
   pumps[slot].name[0] = '\0';
   pumps[slot].lastRelayState = false;
   pumps[slot].online = false;
+  pumps[slot].in1Adc = 0;
+  pumps[slot].in4Adc = 0;
+  pumps[slot].overrideEnabled = false;
+  pumps[slot].overrideState = false;
   savePumpTable();
   Serial.print(F("[FORGET] slot "));
   Serial.println(slot);
@@ -842,6 +948,7 @@ void setup() {
   prefs.begin("wpc", false);
   numLevels = prefs.getUChar("numLevels", 3);
   levelDebounceMs = prefs.getULong("debounceMs", DEBOUNCE_MS_DEFAULT);
+  loraTxPowerDbm = prefs.getChar("txPower", LORA_TXPOWER_DEFAULT);
   // Seed each input's lastChangeMs so the very first real reading at
   // boot is treated as immediately eligible, not locked out for up to
   // a full debounce period right after power-on.
@@ -865,7 +972,7 @@ void setup() {
   Serial.print(F("[LoRa] syncWord = 0x"));
   Serial.println(mySyncWord, HEX);
   int state = radio.begin(LORA_FREQ_MHZ, LORA_BW_KHZ, LORA_SF, LORA_CR,
-                           mySyncWord, LORA_TXPOWER, 8, 0, false);
+                           mySyncWord, loraTxPowerDbm, 8, 0, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print(F("[LoRa] radio.begin() failed, code "));
     Serial.println(state);
@@ -892,6 +999,7 @@ void setup() {
   server.on("/status", handleStatus);
   server.on("/config", HTTP_POST, handleSetConfig);
   server.on("/assign", HTTP_POST, handleAssign);
+  server.on("/override", HTTP_POST, handleSetOverride);
   server.on("/name", HTTP_POST, handleSetName);
   server.on("/forget", HTTP_POST, handleForget);
   server.begin();
@@ -931,7 +1039,11 @@ void printDebugSummary() {
     if (firstLvl) Serial.print(F("-"));
     Serial.print(F("):"));
     Serial.print(pumps[i].lastRelayState ? F("ON") : F("OFF"));
-    Serial.print(F(" "));
+    Serial.print(F("[A1:"));
+    Serial.print(pumps[i].in1Adc);
+    Serial.print(F(",A4:"));
+    Serial.print(pumps[i].in4Adc);
+    Serial.print(F("] "));
   }
   if (!any) Serial.print(F("(no pumps joined)"));
   Serial.println();

@@ -13,6 +13,7 @@ class _AssignScreenState extends State<AssignScreen> {
   String? _error;
   bool _busy = false;
   double? _debounceSliderValue;   // local while dragging; null = show the server's current value
+  double? _txPowerSliderValue;    // local while dragging; null = show the server's current value
 
   @override
   void initState() {
@@ -218,6 +219,59 @@ class _AssignScreenState extends State<AssignScreen> {
                               setState(() {
                                 _busy = false;
                                 _debounceSliderValue = null;
+                              });
+                            }
+                          }
+                        },
+                ),
+              ],
+            );
+          }),
+          const SizedBox(height: 24),
+
+          Text('Master Radio TX Power', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 2),
+          Text(
+            // Only affects what THIS Master transmits -- range depends on
+            // both ends, so each Pump's own TX power (Provision screen,
+            // while connected to that Pump's SoftAP) needs raising too.
+            'Higher = longer range, more airtime/battery use. Set each Pump separately.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 4),
+          Builder(builder: (context) {
+            final serverDbm = ((_status!['txPower'] as num?)?.toDouble() ?? 14).clamp(-9.0, 22.0);
+            final displayDbm = _txPowerSliderValue ?? serverDbm;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${displayDbm.round()} dBm', style: Theme.of(context).textTheme.bodyMedium),
+                Slider(
+                  min: -9,
+                  max: 22,
+                  divisions: 31,
+                  value: displayDbm,
+                  onChanged: _busy
+                      ? null
+                      : (v) => setState(() => _txPowerSliderValue = v),
+                  onChangeEnd: _busy
+                      ? null
+                      : (v) async {
+                          setState(() => _busy = true);
+                          try {
+                            await WpcApi.setTxPower(v.round());
+                            await _fetch();
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to set TX power: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _busy = false;
+                                _txPowerSliderValue = null;
                               });
                             }
                           }
