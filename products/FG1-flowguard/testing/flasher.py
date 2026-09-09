@@ -6,6 +6,7 @@ on a DUT plugged in via USB.
 import subprocess
 import sys
 from pathlib import Path
+from typing import Iterator
 
 FIRMWARE_DIR = Path(__file__).resolve().parent.parent / "firmware"
 
@@ -34,6 +35,46 @@ def flash(env: str = "esp32dev", port: str | None = None, timeout_s: int = 120) 
     output = result.stdout + result.stderr
     success = result.returncode == 0 and "SUCCESS" in output.upper()
     return success, output
+
+
+def flash_stream(env: str = "esp32dev", port: str | None = None, timeout_s: int = 120) -> Iterator[str]:
+    """Same as flash(), but yields output line-by-line as PlatformIO
+    produces it (for a live-progress UI, e.g. flash_bridge.py) instead
+    of blocking until completion. The last yielded line is always
+    exactly "FLASH:PASS" or "FLASH:FAIL" so callers can detect the end
+    without waiting on process exit separately.
+    """
+    cmd = ["pio", "run", "-e", env, "-t", "upload"]
+    if port:
+        cmd += ["--upload-port", port]
+
+    try:
+        proc = subprocess.Popen(
+            cmd, cwd=FIRMWARE_DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1,
+        )
+    except FileNotFoundError:
+        yield "`pio` not found on PATH -- install PlatformIO CLI first."
+        yield "FLASH:FAIL"
+        return
+
+    output_lines: list[str] = []
+    assert proc.stdout is not None
+    try:
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            output_lines.append(line)
+            yield line
+        proc.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        yield f"Flash timed out after {timeout_s}s"
+        yield "FLASH:FAIL"
+        return
+
+    output = "\n".join(output_lines)
+    success = proc.returncode == 0 and "SUCCESS" in output.upper()
+    yield "FLASH:PASS" if success else "FLASH:FAIL"
 
 
 if __name__ == "__main__":

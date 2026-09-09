@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FG1 Flash Bridge</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1rem; margin-top: 2rem; }
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.5rem 0; }
+  input { padding: 0.4rem; font-family: monospace; }
+  button { padding: 0.5rem 1rem; cursor: pointer; }
+  #health { font-weight: bold; }
+  .ok { color: #1a7f37; }
+  .fail { color: #c62828; }
+  #addressBanner { background: #1a7f3722; border: 2px solid #1a7f37; border-radius: 8px; padding: 0.75rem 1rem; margin: 0.5rem 0 1.5rem; }
+  #addressBanner .addr { font-family: monospace; font-size: 1.4rem; font-weight: bold; user-select: all; }
+  #addressBanner .hint { font-size: 0.8rem; opacity: 0.8; }
+  pre#log { background: #111; color: #ddd; padding: 1rem; height: 300px; overflow-y: auto; font-size: 0.8rem; border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  th, td { border-bottom: 1px solid #8883; padding: 0.4rem; text-align: left; }
+  .pass { color: #1a7f37; font-weight: bold; }
+  .failtxt { color: #c62828; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>FG1 Flash Bridge</h1>
+<div id="addressBanner">
+  Enter this into the phone app's Settings &rarr; Flash Bridge host:port &mdash;
+  it changes whenever this laptop's WiFi reconnects, so re-check here if the app says unreachable:<br>
+  <span class="addr" id="addr">checking...</span>
+  <div class="hint">(tap/select the address to copy it)</div>
+</div>
+<div class="row">Bridge status: <span id="health">checking...</span></div>
+
+<h2>1. Flash</h2>
+<div class="row">
+  <label>Env <input id="env" value="esp32dev" size="14"></label>
+  <label>DUT port (optional) <input id="port" placeholder="/dev/cu.usbserial-0001" size="24"></label>
+  <button id="flashBtn" onclick="doFlash()">Flash</button>
+</div>
+<pre id="log"></pre>
+
+<h2>2. Boot log</h2>
+<div class="row">
+  <label>DUT port <input id="bootPort" placeholder="/dev/cu.usbserial-0001" size="24"></label>
+  <label>Window (s) <input id="bootWindow" value="10" size="4"></label>
+  <button onclick="doBootLog()">Capture boot log</button>
+</div>
+<pre id="bootLog"></pre>
+
+<h2>Recent results</h2>
+<button onclick="loadResults()">Refresh</button>
+<table id="resultsTable">
+  <thead><tr><th>Time (UTC)</th><th>Device ID</th><th>Tier</th><th>Result</th><th>Steps</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<script>
+async function checkHealth() {
+  const el = document.getElementById('health');
+  const addr = document.getElementById('addr');
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    el.innerHTML = d.pio_found
+      ? '<span class="ok">OK — PlatformIO found, firmware at ' + d.firmware_dir + '</span>'
+      : '<span class="fail">Bridge is up but `pio` was NOT found on PATH — install PlatformIO CLI</span>';
+    addr.textContent = d.lan_ip ? (d.lan_ip + ':' + d.port) : '(could not detect LAN IP — check WiFi)';
+  } catch (e) {
+    el.innerHTML = '<span class="fail">Unreachable: ' + e + '</span>';
+  }
+}
+
+// Re-check periodically -- the IP can change while this page stays
+// open (laptop WiFi reconnect), so don't make the operator reload.
+setInterval(checkHealth, 15000);
+
+async function doFlash() {
+  const env = document.getElementById('env').value;
+  const port = document.getElementById('port').value;
+  const log = document.getElementById('log');
+  const btn = document.getElementById('flashBtn');
+  log.textContent = '';
+  btn.disabled = true;
+  const qs = new URLSearchParams({ env, ...(port ? { port } : {}) });
+  try {
+    const resp = await fetch('/flash?' + qs.toString(), { method: 'POST' });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const obj = JSON.parse(line);
+        if (obj.type === 'log') {
+          log.textContent += obj.line + '\n';
+          log.scrollTop = log.scrollHeight;
+        } else if (obj.type === 'result') {
+          log.textContent += '\n=== FLASH ' + (obj.passed ? 'PASS' : 'FAIL') + ' ===\n';
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    }
+  } catch (e) {
+    log.textContent += '\nERROR: ' + e;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doBootLog() {
+  const port = document.getElementById('bootPort').value;
+  const windowS = document.getElementById('bootWindow').value;
+  const out = document.getElementById('bootLog');
+  out.textContent = 'capturing...';
+  const qs = new URLSearchParams({ port, window_s: windowS });
+  try {
+    const r = await fetch('/boot_log?' + qs.toString());
+    const d = await r.json();
+    if (!d.ok) { out.textContent = 'ERROR: ' + d.error; return; }
+    let text = 'Device ID: ' + (d.device_id || '(none found)') + '\n';
+    text += 'Overall: ' + (d.passed ? 'PASS' : 'FAIL') + '\n\n';
+    text += 'Markers:\n';
+    for (const [k, v] of Object.entries(d.markers_seen)) {
+      text += '  ' + (v ? 'OK     ' : 'MISSING') + '  ' + k + '\n';
+    }
+    if (d.unexpected_errors.length) {
+      text += '\nUnexpected errors:\n' + d.unexpected_errors.map(e => '  ' + e).join('\n') + '\n';
+    }
+    text += '\n--- raw log ---\n' + d.raw_log;
+    out.textContent = text;
+  } catch (e) {
+    out.textContent = 'ERROR: ' + e;
+  }
+}
+
+async function loadResults() {
+  const tbody = document.querySelector('#resultsTable tbody');
+  tbody.innerHTML = '<tr><td colspan="5">loading...</td></tr>';
+  try {
+    const r = await fetch('/results?limit=50');
+    const d = await r.json();
+    tbody.innerHTML = '';
+    for (const row of d.rows) {
+      const tr = document.createElement('tr');
+      const passed = row.passed === 'True' || row.passed === true;
+      const stepsSummary = Object.entries(row.steps || {})
+        .map(([k, v]) => k + ':' + (v && (v.passed === undefined ? v : v.passed) ? '✓' : '✗'))
+        .join(' ');
+      tr.innerHTML = `<td>${row.timestamp_utc || ''}</td><td>${row.device_id || ''}</td>` +
+        `<td>${row.tier || ''}</td><td class="${passed ? 'pass' : 'failtxt'}">${passed ? 'PASS' : 'FAIL'}</td>` +
+        `<td>${stepsSummary}</td>`;
+      tbody.appendChild(tr);
+    }
+    if (!d.rows.length) tbody.innerHTML = '<tr><td colspan="5">No results logged yet.</td></tr>';
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5">ERROR: ' + e + '</td></tr>';
+  }
+}
+
+checkHealth();
+loadResults();
+</script>
+</body>
+</html>

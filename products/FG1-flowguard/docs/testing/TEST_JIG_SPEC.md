@@ -1,5 +1,15 @@
 # FG1 Test Jig & Automated Test Specification
 
+> **Superseded (transport layer only) by [`PRODUCTION_TOOL_SPEC.md`](PRODUCTION_TOOL_SPEC.md).**
+> That doc covers the actual production tool: a phone app (not the
+> Python scripts below) driving flashing via a laptop-side bridge, and
+> a WiFi-based (not USB-serial) jig controller. The test **content**
+> here — Tier 1 (§5) and Tier 2/PT (§6) step-by-step checklists, the
+> relay sense circuit (§2.4), and DUT connections (§2.2) — is still the
+> authoritative procedural reference; only "how the jig is commanded"
+> (§2.3, §4) and "what runs the flash" change. The Python modules in
+> §3 remain useful for bench debugging/dev even after the app exists.
+
 Status: Draft v1 — written before the physical jig exists. The flash +
 boot-log automation (Stage 1 / `test_production.py --flash-only`) is real,
 runnable code today. Everything that depends on the jig controller
@@ -63,6 +73,16 @@ serial-command surface (`PULSE:<n>`, `RELAY?`, `LED?`) the Python test
 scripts drive directly.
 
 ### 2.4 Relay sense circuit
+
+> **Superseded** — see PRODUCTION_TOOL_SPEC.md §6.1. The divider below
+> assumed a powered "relay output" node sized for a 12V supply; it
+> risks exceeding the sense pin's voltage limit at other supply
+> voltages and needs re-deriving every time the supply changes.
+> Replaced during first bench bring-up with a dry contact off the
+> relay's own mechanical switch (COM → jig GND, NO → a GPIO read via
+> internal pull-up) — no external voltage or resistors needed at all.
+> Left here for historical reference only.
+
 ```
 DUT relay output ──┬── 220Ω ── LED ── GND
                     └── 10kΩ ── Jig controller ADC pin

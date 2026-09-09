@@ -3,7 +3,7 @@ See docs/testing/TEST_JIG_SPEC.md section 6 for the full spec this
 implements.
 
 Usage:
-    python test_production.py --port /dev/cu.usbserial-0001 --jig-port /dev/cu.usbmodem1101
+    python test_production.py --port /dev/cu.usbserial-0001 --jig-host fg1jig.local
 
 Steps 1-2 (flash + boot log) run today without the jig. Steps 5-6
 (relay, flow) need the jig controller. Steps 7-8 (WiFi/MQTT, RTC) run
@@ -28,7 +28,7 @@ FLOW_TEST_PULSE_COUNT = 450  # expect ~1.00 L reported at EXPECTED_CALIBRATION_P
 FLOW_TOLERANCE_FRACTION = 0.02  # +/- 2%
 
 
-def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
+def run(serial_port: str, jig_host: str | None, env: str = "esp32dev") -> bool:
     steps: dict[str, bool] = {}
     device_id = None
 
@@ -72,9 +72,9 @@ def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
     step("dut_connect", True)
 
     jig = None
-    if jig_port:
+    if jig_host:
         try:
-            jig = JigController(jig_port)
+            jig = JigController(jig_host)
             step("jig_connect", jig.ping())
         except Exception as e:
             step("jig_connect", False, str(e))
@@ -167,9 +167,9 @@ def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True, help="DUT serial port")
-    parser.add_argument("--jig-port", default=None, help="Jig controller serial port (optional)")
+    parser.add_argument("--jig-host", default=None, help="Jig controller host, e.g. fg1jig.local (optional)")
     parser.add_argument("--env", default="esp32dev", help="PlatformIO environment")
     args = parser.parse_args()
 
-    passed = run(args.port, args.jig_port, args.env)
+    passed = run(args.port, args.jig_host, args.env)
     sys.exit(0 if passed else 1)

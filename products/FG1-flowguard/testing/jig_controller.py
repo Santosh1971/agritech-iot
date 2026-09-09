@@ -1,63 +1,73 @@
-"""Serial client for the test jig's controller (Arduino Nano/ESP8266) --
-see docs/testing/TEST_JIG_SPEC.md section 4 for the protocol, and
-jig_firmware/jig_controller.ino for the sketch that implements it.
+"""HTTP client for the test jig's controller (ESP8266, WiFi) -- see
+docs/testing/PRODUCTION_TOOL_SPEC.md section 6.3 for the protocol, and
+jig_firmware/esp8266_wifi/src/main.cpp for the firmware that implements
+it.
 
-The protocol and interface here are final; whether the calls actually
-succeed depends on the physical jig existing and being wired up.
+Supersedes the original USB-serial version (still archived at
+jig_firmware/serial_legacy/jig_controller.ino for reference) -- the jig
+now joins the DUT's own SoftAP as a WiFi station (see spec section 6.2),
+so this test PC needs to be on that same network to reach it, same as
+DutClient.
+
+Real, runnable once the jig is flashed and has joined a DUT's SoftAP.
+Requires: pip install requests
 """
 import time
 
-import serial
+import requests
 
 
 class JigController:
-    def __init__(self, port: str, baud: int = 115200, timeout_s: float = 3.0):
-        self.ser = serial.Serial(port, baud, timeout=timeout_s)
-        time.sleep(2)  # allow the jig's own MCU to finish its boot/reset
-        self.ser.reset_input_buffer()
+    def __init__(self, host: str = "fg1jig.local", timeout_s: float = 5.0):
+        self.host = host
+        self.timeout_s = timeout_s
 
     def close(self):
-        self.ser.close()
+        pass  # no persistent connection to tear down (plain HTTP)
 
-    def _command(self, cmd: str) -> str:
-        self.ser.write((cmd + "\n").encode("ascii"))
-        response = self.ser.readline().decode("ascii", errors="replace").strip()
-        return response
+    def _get(self, path: str, timeout_s: float | None = None, **params) -> dict | None:
+        try:
+            resp = requests.get(f"http://{self.host}{path}", params=params, timeout=timeout_s or self.timeout_s)
+            return resp.json()
+        except requests.RequestException:
+            return None
+
+    def _post(self, path: str, timeout_s: float | None = None, **params) -> dict | None:
+        try:
+            resp = requests.post(f"http://{self.host}{path}", params=params, timeout=timeout_s or self.timeout_s)
+            return resp.json()
+        except requests.RequestException:
+            return None
 
     def ping(self) -> bool:
-        return self._command("PING") == "PONG"
+        result = self._get("/ping")
+        return bool(result and result.get("ok"))
 
     def pulse(self, count: int) -> bool:
         """Emit exactly `count` pulses on the flow-sim output. Blocks
-        until the jig confirms it's done.
+        (server-side) until the jig confirms it's done -- timeout scales
+        with count since a large pulse train takes real time to emit.
         """
-        response = self._command(f"PULSE:{count}")
-        return response == f"OK:{count}"
+        result = self._post("/pulse", timeout_s=max(self.timeout_s, 5 + count / 200), n=count)
+        return bool(result and result.get("ok") and result.get("emitted") == count)
 
     def relay_state(self) -> bool:
         """True if the jig currently senses the DUT's relay output as
         closed/energized.
         """
-        return self._command("RELAY?") == "RELAY:ON"
+        result = self._get("/relay")
+        return bool(result and result.get("state") == "on")
 
-    def led_state(self, name: str) -> bool | None:
-        """True/False if the jig has a photosensor for this LED
-        populated, None if unsupported (see spec section 2.3 -- LED
-        sensing is optional).
-        """
-        response = self._command(f"LED:{name}?")
-        if response == f"LED:ON":
-            return True
-        if response == f"LED:OFF":
-            return False
-        return None
+    def status(self) -> dict | None:
+        """Debug info: which DUT SoftAP the jig thinks it's joined to."""
+        return self._get("/status")
 
 
 if __name__ == "__main__":
     import sys
 
-    port_arg = sys.argv[1] if len(sys.argv) > 1 else "/dev/cu.usbmodem1101"
-    jig = JigController(port_arg)
+    host_arg = sys.argv[1] if len(sys.argv) > 1 else "fg1jig.local"
+    jig = JigController(host_arg)
     print("PING:", "OK" if jig.ping() else "FAIL")
+    print("Status:", jig.status())
     print("Relay state:", "ON" if jig.relay_state() else "OFF")
-    jig.close()

@@ -8,7 +8,7 @@ one fixed rate), a real cloud set_cycles round-trip, a full cycle
 lifecycle with matching flow injection, and a SoftAP fallback check.
 
 Usage:
-    python test_full.py --port /dev/cu.usbserial-0001 --jig-port /dev/cu.usbmodem1101
+    python test_full.py --port /dev/cu.usbserial-0001 --jig-host fg1jig.local
 """
 import argparse
 import json
@@ -31,7 +31,7 @@ FLOW_SWEEP_PULSE_COUNT = 450
 FLOW_TOLERANCE_FRACTION = 0.02
 
 
-def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
+def run(serial_port: str, jig_host: str | None, env: str = "esp32dev") -> bool:
     steps: dict[str, bool] = {}
     device_id = None
 
@@ -60,7 +60,7 @@ def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
     time.sleep(3)
     dut = DutClient()
     dut.connect()
-    jig = JigController(jig_port) if jig_port else None
+    jig = JigController(jig_host) if jig_host else None
     if jig:
         step("jig_connect", jig.ping())
 
@@ -155,7 +155,7 @@ def run(serial_port: str, jig_port: str | None, env: str = "esp32dev") -> bool:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True)
-    parser.add_argument("--jig-port", default=None)
+    parser.add_argument("--jig-host", default=None)
     parser.add_argument("--env", default="esp32dev")
     args = parser.parse_args()
-    sys.exit(0 if run(args.port, args.jig_port, args.env) else 1)
+    sys.exit(0 if run(args.port, args.jig_host, args.env) else 1)

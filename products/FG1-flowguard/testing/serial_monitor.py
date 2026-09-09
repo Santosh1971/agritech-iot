@@ -20,10 +20,21 @@ REQUIRED_MARKERS = [
 # [E]-tagged lines that are EXPECTED on a freshly-flashed or factory-reset
 # unit (no MQTT config saved yet) -- not failures. Any [E] line not
 # matching one of these is treated as a real defect.
+#
+# The wifi_ssid/wifi_pass/rs_liters/rs_by entries only ever show up on a
+# genuinely blank NVS partition (a real erase, not just re-flashing the
+# app partition -- see the erase-vs-reflash difference that surfaced
+# during first production-bench testing 2026-09-07, PRODUCTION_TOOL_SPEC.md).
+# Every actual production unit starts from a blank chip, so these are
+# the common case in the field, not an edge case.
 BENIGN_ERROR_PATTERNS = [
     r"nvs_get_str len fail: mqtt_broker NOT_FOUND",
     r"nvs_get_str len fail: mqtt_user NOT_FOUND",
     r"nvs_get_str len fail: mqtt_pass NOT_FOUND",
+    r"nvs_get_str len fail: wifi_ssid NOT_FOUND",
+    r"nvs_get_str len fail: wifi_pass NOT_FOUND",
+    r"nvs_get_blob len fail: rs_liters NOT_FOUND",
+    r"nvs_get_str len fail: rs_by NOT_FOUND",
     r"Bus already started in Master Mode",  # I2C re-init warning, harmless
 ]
 

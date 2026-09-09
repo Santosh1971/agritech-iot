@@ -1,0 +1,5 @@
+# Real production test data -- never commit actual unit results.
+test_results.csv
+
+__pycache__/
+*.pyc

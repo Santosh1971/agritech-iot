@@ -1,2 +1,4 @@
 pyserial>=3.5
 websocket-client>=1.7
+flask>=3.0
+requests>=2.31
