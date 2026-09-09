@@ -1,4 +1,4 @@
-package com.farmflow.smart_water_controller
+package com.nbagri.automation
 
 import io.flutter.embedding.android.FlutterActivity
 
