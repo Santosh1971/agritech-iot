@@ -122836,7 +122836,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "LED_SMD:LED_1206_3216Metric"
 			(at 204.47 200.66 0)
 			(effects
 				(font
@@ -123437,7 +123437,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "LED_SMD:LED_1206_3216Metric"
 			(at 92.71 210.82 0)
 			(effects
 				(font
@@ -123937,7 +123937,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10mfd,10V tentalum"
+		(property "Value" "10mfd,10V Tent"
 			(at 200.152 63.754 0)
 			(effects
 				(font
@@ -123946,7 +123946,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 208.28 55.88 0)
 			(effects
 				(font
@@ -124526,7 +124526,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10mfd,10V tentalum"
+		(property "Value" "10mfd,10V Tent"
 			(at 172.72 64.516 0)
 			(effects
 				(font
@@ -124535,7 +124535,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
 			(at 177.8 57.15 0)
 			(effects
 				(font
@@ -124620,7 +124620,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "LED_SMD:LED_1206_3216Metric"
 			(at 163.83 55.88 0)
 			(effects
 				(font
@@ -125414,7 +125414,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "LED_SMD:LED_1206_3216Metric"
 			(at 93.98 157.48 0)
 			(effects
 				(font
@@ -125575,7 +125575,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "LED_SMD:LED_1206_3216Metric"
 			(at 93.98 104.14 0)
 			(effects
 				(font
@@ -126521,7 +126521,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-882"
+		(property "Footprint" "Diode_SMD:D_0603_1608Metric"
 			(at 105.41 173.99 0)
 			(effects
 				(font
@@ -126761,7 +126761,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-882"
+		(property "Footprint" "Diode_SMD:D_0603_1608Metric"
 			(at 215.9 217.17 0)
 			(effects
 				(font
@@ -127152,7 +127152,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-882"
+		(property "Footprint" "Diode_SMD:D_0603_1608Metric"
 			(at 104.14 227.33 0)
 			(effects
 				(font
@@ -127960,7 +127960,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-882"
+		(property "Footprint" "Diode_SMD:D_0603_1608Metric"
 			(at 105.41 120.65 0)
 			(effects
 				(font
