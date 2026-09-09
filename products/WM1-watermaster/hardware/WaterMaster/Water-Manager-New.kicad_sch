@@ -6562,6 +6562,18 @@
 		)
 		(uuid "a66fa618-e7fa-4ae2-982a-5ac1da534ab7")
 	)
+	(text "X"
+		(exclude_from_sim no)
+		(at 26.67 234.442 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+				(thickness 0.508)
+				(bold yes)
+			)
+		)
+		(uuid "aa893c38-a82d-41dd-86f1-9cf555c77de2")
+	)
 	(text "Close to connector"
 		(exclude_from_sim no)
 		(at 184.15 174.752 0)
@@ -6595,6 +6607,18 @@
 			)
 		)
 		(uuid "c14b7d42-d2f4-4839-944b-c7e887195871")
+	)
+	(text "Put RC to delay the output \nof relay to avoid startup ON"
+		(exclude_from_sim no)
+		(at -43.18 224.536 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+				(thickness 0.508)
+				(bold yes)
+			)
+		)
+		(uuid "c5f32161-d6da-48a0-850f-d367c655a619")
 	)
 	(text "RL1"
 		(exclude_from_sim no)
@@ -6835,6 +6859,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "512587d2-1c70-4d8a-a1b6-77b44726d5bf")
+	)
+	(junction
+		(at 2.54 226.06)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "54a63801-a47a-4840-828f-154bd0668b57")
 	)
 	(junction
 		(at 78.74 173.99)
@@ -7229,6 +7259,16 @@
 			(type default)
 		)
 		(uuid "04a28a84-dc32-4f94-a091-a0dffc1fa0c1")
+	)
+	(wire
+		(pts
+			(xy 2.54 223.52) (xy 2.54 226.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0569f370-3c72-43cb-9ea1-560f63c1506a")
 	)
 	(wire
 		(pts
@@ -8502,6 +8542,16 @@
 	)
 	(wire
 		(pts
+			(xy 2.54 210.82) (xy 2.54 215.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "453a77d8-0ee8-4e01-bb2a-3ff7a915eefd")
+	)
+	(wire
+		(pts
 			(xy 312.547 182.372) (xy 323.215 182.372)
 		)
 		(stroke
@@ -9712,6 +9762,16 @@
 	)
 	(wire
 		(pts
+			(xy 2.54 236.22) (xy 2.54 240.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "88896430-5c15-4aaf-9a93-4419b5a39228")
+	)
+	(wire
+		(pts
 			(xy 213.36 157.48) (xy 213.36 160.02)
 		)
 		(stroke
@@ -10119,6 +10179,16 @@
 			(type default)
 		)
 		(uuid "99dfc666-dd3d-4100-8879-4fd7d6d001ea")
+	)
+	(wire
+		(pts
+			(xy 2.54 226.06) (xy 8.89 226.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9ad9ef36-5edb-4e9f-af1d-44d758cb3b76")
 	)
 	(wire
 		(pts
@@ -11469,6 +11539,16 @@
 			(type default)
 		)
 		(uuid "e693c9f7-d467-499e-a96f-3221ecbae879")
+	)
+	(wire
+		(pts
+			(xy 2.54 226.06) (xy 2.54 228.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e6d8bddf-ee75-4cb5-9102-f69430c5f5a4")
 	)
 	(wire
 		(pts
@@ -128373,6 +128453,16 @@
 		)
 		(uuid "3bc7d7ae-056e-4a82-9e71-5e14af23ef8d")
 	)
+	(label "OE"
+		(at 3.81 226.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3c0a512d-8e9a-4f10-b94f-709a326e512c")
+	)
 	(label "RELAY3_MCU"
 		(at 49.53 215.9 0)
 		(effects
@@ -131514,6 +131604,75 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 2.54 219.71 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2ca3d786-294a-44ee-b308-7e9104e28eed")
+		(property "Reference" "C?"
+			(at -3.937 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10Mfd"
+			(at -4.699 222.25 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 3.5052 223.52 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 2.54 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 2.54 219.71 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "9ce2776e-8db6-4537-b452-45e7852674b5")
+		)
+		(pin "2"
+			(uuid "b5a7cb27-5d6c-4c87-8560-f39ddc334369")
+		)
+		(instances
+			(project "Water-Manager-New"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "C?")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Relay:SANYOU_SRD_Form_C")
 		(at 146.05 182.88 0)
 		(unit 1)
@@ -134134,6 +134293,73 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 2.54 232.41 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5df27bf2-f45d-4ba7-a42f-ab3a9e4f4681")
+		(property "Reference" "R?"
+			(at -0.508 232.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100K"
+			(at -1.143 234.315 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 0.762 232.41 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 2.54 232.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 2.54 232.41 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "69332840-0b3d-4fd4-85cf-bc2508cd973a")
+		)
+		(pin "2"
+			(uuid "d16d9dee-9f6b-4fb0-9f21-97fdae9012f5")
+		)
+		(instances
+			(project "Water-Manager-New"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "R?")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:+3.3VP")
 		(at 73.66 72.39 0)
 		(unit 1)
@@ -135983,6 +136209,72 @@
 			(project "Water-Manager-New"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "R22")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3.3V")
+		(at 2.54 210.82 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7e35998a-9e9e-47a9-a49f-a91cf598deb8")
+		(property "Reference" "#PWR030"
+			(at 2.54 214.63 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "+3.3V"
+			(at 2.54 205.74 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 2.54 210.82 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 2.54 210.82 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
+			(at 2.54 210.82 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "664c43ab-8204-48eb-90c7-1cd749747081")
+		)
+		(instances
+			(project "Water-Manager-New"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "#PWR030")
 					(unit 1)
 				)
 			)
@@ -138460,6 +138752,71 @@
 			(project "Water-Manager-New"
 				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
 					(reference "U1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 2.54 240.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b1c5fa02-5d83-4091-8f55-6416065e9563")
+		(property "Reference" "#PWR052"
+			(at 2.54 246.38 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 6.477 241.427 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 2.54 240.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 2.54 240.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 2.54 240.03 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "593d6704-4d4a-4f71-9df0-4a5ce70dc7d4")
+		)
+		(instances
+			(project "Water-Manager-New"
+				(path "/00ea9009-1039-4827-8fe4-64ceea0f3b86"
+					(reference "#PWR052")
 					(unit 1)
 				)
 			)
