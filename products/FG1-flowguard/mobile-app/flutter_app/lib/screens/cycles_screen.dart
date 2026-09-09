@@ -6,7 +6,7 @@ import '../providers/providers.dart';
 import '../models/cycle.dart';
 import 'add_cycle_screen.dart';
 
-const String _kCyclesCacheKey = 'cached_cycles';
+const String _kCyclesCacheKeyPrefix = 'cached_cycles_';
 
 class CyclesScreen extends ConsumerStatefulWidget {
   const CyclesScreen({super.key});
@@ -24,22 +24,14 @@ class _CyclesScreenState extends ConsumerState<CyclesScreen> {
   void initState() {
     super.initState();
     _loadFromCache();
-    // NOTE: no eager _requestCycles() here anymore — with all screens now
-    // built at once (IndexedStack), this used to fire before the
-    // connection was actually established and got silently dropped, with
-    // nothing to retry it. See the ref.listen in build() instead, which
-    // reacts to the connection actually coming up.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(deviceServiceProvider).cyclesStream.listen((cycles) {
-        if (mounted) setState(() { _cycles = cycles; _loading = false; });
-        _saveToCache(cycles);
-      });
-    });
   }
+
+  String _cacheKeyForCurrentDevice() =>
+      '$_kCyclesCacheKeyPrefix${ref.read(deviceSuffixProvider)}';
 
   Future<void> _loadFromCache() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kCyclesCacheKey);
+    final raw = prefs.getString(_cacheKeyForCurrentDevice());
     if (raw == null || !mounted) return;
     try {
       final list = (jsonDecode(raw) as List)
@@ -57,7 +49,7 @@ class _CyclesScreenState extends ConsumerState<CyclesScreen> {
   Future<void> _saveToCache(List<Cycle> cycles) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(cycles.map((c) => c.toJson()).toList());
-    await prefs.setString(_kCyclesCacheKey, raw);
+    await prefs.setString(_cacheKeyForCurrentDevice(), raw);
   }
 
   void _requestCycles() {
@@ -105,6 +97,33 @@ class _CyclesScreenState extends ConsumerState<CyclesScreen> {
   @override
   Widget build(BuildContext context) {
     final connected = ref.watch(deviceConnectedProvider);
+
+    // Reset to a clean slate the moment the target device changes — the
+    // previous device's cycles (live or cached) must never linger, even
+    // transiently, while waiting for the new device's data. Confirmed as
+    // a real bug on hardware: switching devices without an app restart
+    // carried the old device's cycles over, and a save made shortly
+    // after switching would merge them onto the NEW device's saved
+    // config — which then leaked back the other way on the next switch.
+    ref.listen<String>(deviceSuffixProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        setState(() { _cycles = []; _loading = true; _didInitialRequest = false; });
+        _loadFromCache();
+      }
+    });
+
+    // React to fresh cycles data via ref.listen on the provider itself
+    // (not a stored stream subscription captured once in initState) —
+    // this automatically follows cyclesProvider's own rebuilds, which
+    // already correctly happen whenever deviceServiceProvider changes
+    // (e.g. after a device switch), rather than staying pinned to
+    // whichever service instance existed when the screen first mounted.
+    ref.listen<AsyncValue<List<Cycle>>>(cyclesProvider, (previous, next) {
+      next.whenData((cycles) {
+        if (mounted) setState(() { _cycles = cycles; _loading = false; });
+        _saveToCache(cycles);
+      });
+    });
 
     // Re-request cycles the moment the connection is (re)established —
     // covers first launch, reconnects after a transport switch, and

@@ -8,7 +8,7 @@ import '../models/history_entry.dart';
 import '../models/cycle.dart';
 import 'history_graph_screen.dart';
 
-const String _kHistoryCacheKey = 'cached_history';
+const String _kHistoryCacheKeyPrefix = 'cached_history_';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -56,14 +56,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         .getHistoryRange(now.subtract(const Duration(days: 30)), now);
   }
 
+  String _cacheKeyForCurrentDevice() =>
+      '$_kHistoryCacheKeyPrefix${ref.read(deviceSuffixProvider)}';
+
   Future<void> _loadFromCache() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_kHistoryCacheKey);
+    final raw = prefs.getString(_cacheKeyForCurrentDevice());
     if (raw == null || !mounted) return;
     try {
       final list = (jsonDecode(raw) as List)
           .map((e) => HistoryEntry.fromJson(e as Map<String, dynamic>))
           .toList();
+      // Only apply cached data if we haven't already received something live
       if (mounted && _entries.isEmpty) {
         setState(() { _entries = list; _loading = false; });
       }
@@ -75,7 +79,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Future<void> _saveToCache(List<HistoryEntry> entries) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(entries.map((e) => e.toJson()).toList());
-    await prefs.setString(_kHistoryCacheKey, raw);
+    await prefs.setString(_cacheKeyForCurrentDevice(), raw);
   }
 
   @override
@@ -90,6 +94,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // regardless of which transport was in use, since the bug was purely
     // about request timing, not the transport itself.
     final connected = ref.watch(deviceConnectedProvider);
+
+    // Reset to a clean slate the moment the target device changes — the
+    // previous device's history (live or cached) must never linger, even
+    // transiently, while waiting for the new device's data. Same bug (and
+    // fix) as CyclesScreen: switching devices without an app restart used
+    // to carry the old device's entries over, which then got written back
+    // out under the new device's cache key too.
+    ref.listen<String>(deviceSuffixProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        setState(() { _entries = []; _loading = true; _didInitialRequest = false; });
+        _loadFromCache();
+      }
+    });
 
     // THE actual fix for "History stuck in MQTT mode, catches up after
     // switching to SoftAP": mqttServiceProvider rebuilds (a fresh
