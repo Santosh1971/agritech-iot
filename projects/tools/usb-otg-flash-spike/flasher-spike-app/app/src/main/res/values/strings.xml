@@ -3,4 +3,5 @@
     <string name="status_no_device">No USB device connected — plug in the OTG cable.</string>
     <string name="flash_button">Flash bench ESP32</string>
     <string name="log_placeholder">Log output appears here. The full esp-serial-flasher trace also goes to Logcat (tag: flasherspike).</string>
+    <string name="progress_idle">idle</string>
 </resources>

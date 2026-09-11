@@ -8,7 +8,9 @@ import android.content.IntentFilter
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.hoho.android.usbserial.driver.UsbSerialDriver
@@ -30,6 +32,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
     private lateinit var logText: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var progressText: TextView
     private lateinit var usbManager: UsbManager
 
     private val permissionReceiver = object : BroadcastReceiver() {
@@ -48,8 +52,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Bench testing means many back-to-back flashes while looking at the
+        // phone — a screen lock mid-flash means re-authenticating and losing
+        // the on-screen log. This is a bench tool, not something Kamta-facing,
+        // so keeping the screen on unconditionally is the right tradeoff here.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         statusText = findViewById(R.id.statusText)
         logText = findViewById(R.id.logText)
+        progressBar = findViewById(R.id.progressBar)
+        progressText = findViewById(R.id.progressText)
         usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
 
         val filter = IntentFilter(ACTION_USB_PERMISSION)
@@ -99,7 +111,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         statusText.text = "Flashing…"
+        progressBar.progress = 0
+        progressText.text = getString(R.string.progress_idle)
         log("---- flash attempt starting ----")
+
+        var lastLoggedStage: String? = null
+        val listener = FlashProgressListener { stage, percent ->
+            runOnUiThread {
+                progressBar.progress = percent
+                progressText.text = "$stage $percent%"
+                // Stage transitions and completions are useful bench context;
+                // the other ~900 in-between ticks for a 935KB firmware write
+                // would just flood this on-screen log (Logcat still has all of them).
+                if (stage != lastLoggedStage || percent == 100) {
+                    log("$stage: $percent%")
+                    lastLoggedStage = stage
+                }
+            }
+        }
 
         Thread {
             val connection = usbManager.openDevice(driver.device)
@@ -132,7 +161,8 @@ class MainActivity : AppCompatActivity() {
                 transport,
                 bootloader, BOOTLOADER_OFFSET,
                 partitions, PARTITIONS_OFFSET,
-                app, APP_OFFSET
+                app, APP_OFFSET,
+                listener
             )
             transport.close()
 
