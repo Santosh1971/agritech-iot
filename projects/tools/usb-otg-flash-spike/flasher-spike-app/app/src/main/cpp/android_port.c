@@ -29,9 +29,20 @@
  */
 #define DIAG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 
-/* esp-serial-flasher/CMakeLists.txt SERIAL_FLASHER_RESET_HOLD_TIME_MS / _BOOT_HOLD_TIME_MS defaults. */
-#define RESET_HOLD_MS 100
-#define BOOT_HOLD_MS  50
+/*
+ * esp-serial-flasher's own defaults (100ms/50ms, see CMakeLists.txt
+ * SERIAL_FLASHER_RESET_HOLD_TIME_MS / _BOOT_HOLD_TIME_MS) produced a
+ * consistent silent timeout on-device — the chip never entered the ROM
+ * bootloader across 4 independent reset attempts (confirmed via DIAG
+ * logging: continuous successful reads the whole time, meaning the app's
+ * own firmware kept running and talking instead of going quiet). Bumped
+ * well past the defaults as a cheap experiment to rule out marginal
+ * Android USB control-transfer latency before suspecting the OTG
+ * cable/adapter itself. Revert to 100/50 once this is understood — these
+ * values are not meant to ship as the final answer, just a wider net.
+ */
+#define RESET_HOLD_MS 300
+#define BOOT_HOLD_MS  150
 
 static int64_t now_ms(void)
 {
