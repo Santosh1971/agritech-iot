@@ -1,4 +1,5 @@
 #include "LocalServer.h"
+#include <ElegantOTA.h>
 
 void LocalServer::begin() {
     _ws.onEvent([this](AsyncWebSocket* server, AsyncWebSocketClient* client,
@@ -55,12 +56,36 @@ void LocalServer::begin() {
             }
         });
 
+    // Bench-only OTA: reachable at /update over whichever interface is up
+    // (SoftAP or STA), same as everything else this class serves. No auth —
+    // trusted local network, physically-present developer. A field-facing
+    // OTA path (Kamta's flasher app, over the internet-reachable STA link)
+    // will need the short-lived server-issued token described in the NB
+    // Agri Flasher plan before it ships; don't reuse this endpoint for that
+    // without adding it.
+    ElegantOTA.begin(&_server);
+    ElegantOTA.onStart([]() {
+        Serial.println("[LocalServer] OTA update starting");
+    });
+    ElegantOTA.onProgress([](size_t current, size_t total) {
+        static uint32_t lastLog = 0;
+        if (millis() - lastLog > 1000) {
+            lastLog = millis();
+            Serial.printf("[LocalServer] OTA progress: %u / %u bytes\n", current, total);
+        }
+    });
+    ElegantOTA.onEnd([](bool success) {
+        Serial.printf("[LocalServer] OTA update %s\n", success ? "succeeded — rebooting" : "failed");
+    });
+
     _server.begin();
     Serial.println("[LocalServer] HTTP+WS server started on port 80 (all interfaces)");
+    Serial.println("[LocalServer] OTA update portal at /update");
 }
 
 void LocalServer::loop() {
     _ws.cleanupClients();
+    ElegantOTA.loop();
 }
 
 void LocalServer::closeAllClients() {

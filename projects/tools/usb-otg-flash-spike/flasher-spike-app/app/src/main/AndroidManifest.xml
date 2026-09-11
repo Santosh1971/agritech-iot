@@ -3,10 +3,16 @@
 
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 
+    <!-- For the WiFi/SoftAP OTA path (ElegantOTA over HTTP) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
     <application
         android:allowBackup="false"
         android:label="@string/app_name"
-        android:theme="@style/Theme.FlasherSpike">
+        android:theme="@style/Theme.FlasherSpike"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"

@@ -6,8 +6,7 @@
 #include "Config.h"
 
 // Always-on local server — reachable over whichever interface is currently
-// up (SoftAP, STA/home-WiFi, or both concurrently). Two jobs, both replacing
-// what used to be two separate transports:
+// up (SoftAP, STA/home-WiFi, or both concurrently). Three jobs:
 //
 //   1. Provisioning (formerly BLE): wifi_config, mqtt_config, rtc_sync,
 //      calibrate, relay_test, factory_reset, wifi_scan, device_info.
@@ -16,6 +15,12 @@
 //   2. Operational control (formerly MQTT-only): stop_cycle, manual_on,
 //      set_cycles, get_history_range, etc. — reaches the device locally
 //      whether or not the cloud/MQTT path is currently up.
+//
+//   3. Firmware OTA via ElegantOTA at /update — bench convenience so a
+//      unit on the SoftAP (or the bench WiFi) can be reflashed without
+//      pulling it off the board for USB. No auth: see the note in
+//      begin()'s implementation before reusing this for anything
+//      field-facing.
 //
 // onCommand returns a JSON String response (unlike the old MQTT-only
 // handler, which was fire-and-forget) so provisioning commands like

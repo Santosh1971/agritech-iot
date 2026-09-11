@@ -21,12 +21,15 @@ import java.io.InputStream
 /**
  * Single-screen bench harness for the USB-OTG flash spike — see
  * projects/tools/usb-otg-flash-spike/SPIKE_SPEC.md for what this is proving
- * and the go/no-go criteria it feeds into.
+ * and the go/no-go criteria it feeds into. Two independent flash paths, both
+ * from the same bundled assets bin files (see assets/README.md), not wired
+ * to any backend or auth (SPIKE_SPEC.md §2):
  *
- * Flashes whichever of assets/bootloader.bin, assets/partitions.bin,
- * assets/firmware.bin are present (see assets/README.md) to a connected
- * ESP32 over USB-OTG. Not wired to any backend or auth — bin files are
- * bundled locally, per the spike's scope (SPIKE_SPEC.md §2).
+ *  - USB-OTG (startFlash/NativeFlasher): the spike's actual subject — talks
+ *    to the ROM bootloader directly.
+ *  - WiFi/SoftAP (startWifiFlash/WifiOtaFlasher): a bench-convenience
+ *    bonus once LocalServer.cpp had ElegantOTA wired up — no bootloader
+ *    handshake, no USB, just an HTTP upload to a board already running.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -73,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.flashButton).setOnClickListener { requestFlash() }
+        findViewById<Button>(R.id.wifiFlashButton).setOnClickListener { startWifiFlash() }
     }
 
     override fun onDestroy() {
@@ -174,6 +178,46 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    /**
+     * Flashes over the board's SoftAP via ElegantOTA (LocalServer.cpp) — no USB
+     * involved. Only touches assets/firmware.bin: OTA replaces just the running
+     * app image, not the bootloader/partition table, so there's nothing for the
+     * other two assets to do here.
+     */
+    private fun startWifiFlash() {
+        val firmware = readAsset("firmware.bin")
+        if (firmware == null) {
+            log("No firmware.bin in assets/ — see assets/README.md.")
+            return
+        }
+
+        statusText.text = "Flashing over WiFi…"
+        progressBar.progress = 0
+        progressText.text = getString(R.string.progress_idle)
+        log("---- WiFi flash attempt starting (host $SOFTAP_HOST) ----")
+
+        Thread {
+            val result = WifiOtaFlasher(this).flash(SOFTAP_HOST, firmware) { percent ->
+                runOnUiThread {
+                    progressBar.progress = percent
+                    progressText.text = "firmware $percent%"
+                }
+            }
+            runOnUiThread {
+                when (result) {
+                    is WifiOtaFlasher.Result.Success -> {
+                        log("Result: SUCCESS — board is rebooting into the new firmware")
+                        statusText.text = "WiFi flash succeeded"
+                    }
+                    is WifiOtaFlasher.Result.Failure -> {
+                        log("Result: FAILED — ${result.message}")
+                        statusText.text = "WiFi flash failed"
+                    }
+                }
+            }
+        }.start()
+    }
+
     private fun readAsset(name: String): ByteArray? = try {
         assets.open(name).use(InputStream::readBytes)
     } catch (e: IOException) {
@@ -188,6 +232,11 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val ACTION_USB_PERMISSION = "com.nbagri.flasherspike.USB_PERMISSION"
         private const val BAUD_RATE = 115200
+
+        // ESP32 SoftAP's default gateway IP — matches LocalServer's boot-log
+        // "Local fallback active — SSID: ... IP: 192.168.4.1". Would need to
+        // change if targeting a board reachable over STA WiFi instead.
+        private const val SOFTAP_HOST = "192.168.4.1"
 
         // Standard ESP32/Arduino-PlatformIO flash layout — matches
         // products/FG1-flowguard/firmware's min_spiffs.csv partition table.
