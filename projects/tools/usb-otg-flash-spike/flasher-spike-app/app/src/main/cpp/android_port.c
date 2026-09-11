@@ -9,6 +9,7 @@
  * needed here (SERIAL_FLASHER_*_INVERT both default to false).
  */
 #include <stdarg.h>
+#include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -28,6 +29,27 @@
  * diagnostic-only scaffolding for the spike, not meant to ship as-is.
  */
 #define DIAG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+
+/*
+ * Byte-count logging alone couldn't tell "genuine SYNC response" apart from
+ * "the app's own Serial.print() output arriving because it never left run
+ * mode" — both look like a stream of successfully-read bytes. This renders
+ * up to 16 bytes as hex + a printable-ASCII gloss (non-printable as '.'), so
+ * a capture can be read directly: SLIP/sync traffic looks like binary noise
+ * (0xC0 framing, high bit set variants), ordinary app log output reads as
+ * plain text.
+ */
+static void hex_preview(const uint8_t *data, uint16_t size, char *out, size_t out_size)
+{
+    char hex[3 * 16 + 1] = {0};
+    char ascii[16 + 1] = {0};
+    uint16_t n = size > 16 ? 16 : size;
+    for (uint16_t i = 0; i < n; i++) {
+        snprintf(hex + i * 3, 4, "%02X ", data[i]);
+        ascii[i] = (data[i] >= 0x20 && data[i] < 0x7F) ? (char)data[i] : '.';
+    }
+    snprintf(out, out_size, "%s| %s%s", hex, ascii, size > 16 ? "..." : "");
+}
 
 /*
  * esp-serial-flasher's own defaults (100ms/50ms, see CMakeLists.txt
@@ -131,7 +153,9 @@ static esp_loader_error_t android_write(esp_loader_port_t *port, const uint8_t *
     jboolean ok = (*env)->CallBooleanMethod(env, p->transport, p->mWrite, arr, (jint)size, (jint)timeout);
     (*env)->DeleteLocalRef(env, arr);
 
-    DIAG("write: size=%u timeout=%ums -> %s", size, timeout, ok ? "ok" : "FAILED");
+    char preview[80];
+    hex_preview(data, size, preview, sizeof(preview));
+    DIAG("write: size=%u timeout=%ums -> %s | %s", size, timeout, ok ? "ok" : "FAILED", preview);
     return ok ? ESP_LOADER_SUCCESS : ESP_LOADER_ERROR_TIMEOUT;
 }
 
@@ -146,7 +170,16 @@ static esp_loader_error_t android_read(esp_loader_port_t *port, uint8_t *data, u
     }
 
     jint n = (*env)->CallIntMethod(env, p->transport, p->mRead, arr, (jint)size, (jint)timeout);
-    DIAG("read: requested=%u timeout=%ums -> got=%d", size, timeout, (int)n);
+    if (n > 0) {
+        uint8_t got[16];
+        uint16_t peek = (uint16_t)((n < 16) ? n : 16);
+        (*env)->GetByteArrayRegion(env, arr, 0, peek, (jbyte *)got);
+        char preview[80];
+        hex_preview(got, (uint16_t)n, preview, sizeof(preview));
+        DIAG("read: requested=%u timeout=%ums -> got=%d | %s", size, timeout, (int)n, preview);
+    } else {
+        DIAG("read: requested=%u timeout=%ums -> got=%d", size, timeout, (int)n);
+    }
     if (n == (jint)size) {
         (*env)->GetByteArrayRegion(env, arr, 0, size, (jbyte *)data);
     }
