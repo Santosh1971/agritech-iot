@@ -66,6 +66,20 @@ void LocalServer::begin() {
     ElegantOTA.begin(&_server);
     ElegantOTA.onStart([]() {
         Serial.println("[LocalServer] OTA update starting");
+        // Update.write() erases flash in up to 64KB blocks (Updater.cpp)
+        // directly inside the AsyncTCP task's own call stack — a slow-flash
+        // erase can run long enough to starve that core's IDLE task past
+        // the default ~5s task-watchdog timeout, aborting/rebooting
+        // mid-transfer. Bench-verified: this is exactly the community-
+        // documented failure (ESP32Async/AsyncTCP#107, ElegantOTA#47 —
+        // same "task_wdt...Aborting" signature), not something specific to
+        // this project. Disabling the idle-task watchdogs for the OTA
+        // window (Arduino-ESP32's standard mitigation for a long blocking
+        // call) is safe here: LEDs/relay/scheduler still run every loop()
+        // tick regardless, and a stuck OTA now hangs instead of silently
+        // rebooting into a half-written partition.
+        disableCore0WDT();
+        disableCore1WDT();
     });
     ElegantOTA.onProgress([](size_t current, size_t total) {
         static uint32_t lastLog = 0;
@@ -76,6 +90,8 @@ void LocalServer::begin() {
     });
     ElegantOTA.onEnd([](bool success) {
         Serial.printf("[LocalServer] OTA update %s\n", success ? "succeeded — rebooting" : "failed");
+        enableCore0WDT();
+        enableCore1WDT();
     });
 
     _server.begin();
