@@ -106,6 +106,15 @@ class WifiOtaFlasher(private val context: Context) {
                 while (offset < firmware.size) {
                     val len = minOf(CHUNK_SIZE, firmware.size - offset)
                     out.write(firmware, offset, len)
+                    out.flush()
+                    // Several attempts died mid-transfer with "Broken pipe" or
+                    // "unexpected end of stream" well past 50% written — a fast
+                    // sender outrunning Update.write()'s NOR flash writes on the
+                    // ESP32 side, which can starve its main loop long enough to
+                    // trip the task watchdog (worse on SoftAP: the chip is also
+                    // running the AP itself). Small chunks + a pause give it room
+                    // to keep up instead of relying on TCP backpressure alone.
+                    Thread.sleep(CHUNK_DELAY_MS)
                     offset += len
                     onProgress((offset * 100) / firmware.size)
                 }
@@ -119,6 +128,7 @@ class WifiOtaFlasher(private val context: Context) {
     }
 
     companion object {
-        private const val CHUNK_SIZE = 4096
+        private const val CHUNK_SIZE = 1024
+        private const val CHUNK_DELAY_MS = 15L
     }
 }
