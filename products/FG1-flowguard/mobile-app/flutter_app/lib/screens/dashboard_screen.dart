@@ -96,12 +96,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (mounted) setState(() => _retrying = false);
   }
 
+  // Device's own clock when known, phone's only as a fallback before the
+  // first status arrives — same reasoning as HistoryScreen's identically-
+  // named helper: a phone/device clock mismatch would otherwise disagree
+  // with the device about which entries are "today's".
+  DateTime _referenceNow() =>
+      ref.read(deviceStatusProvider).valueOrNull?.currentTime ?? DateTime.now();
+
   void _requestData() {
     final svc = ref.read(deviceServiceProvider);
     svc.getCycles();
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    svc.getHistoryRange(startOfToday, now);
+    // Same 30-day, device-clock-anchored range HistoryScreen requests —
+    // deliberately NOT a narrower "just today" range. Both screens share
+    // the same underlying historyProvider stream, so a narrower/
+    // differently-scoped request here would silently clobber whatever
+    // HistoryScreen had already fetched the moment this one's response
+    // arrives (confirmed on hardware: Dashboard's old phone-day-scoped
+    // request racing with History's request made History's own data
+    // flap in and out depending on which response landed last).
+    final deviceNow = _referenceNow();
+    svc.getHistoryRange(deviceNow.subtract(const Duration(days: 30)), deviceNow);
   }
 
   @override
@@ -187,8 +201,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       bool connected, bool online, bool hasLiveHistory) {
     // Today's real totals, computed from history — not the live
     // current-cycle field, which is legitimately 0 whenever nothing is
-    // actively running right now.
-    final now = DateTime.now();
+    // actively running right now. Anchored to the DEVICE's own clock
+    // (s.currentTime), not the phone's — same reasoning as HistoryScreen:
+    // a phone/device clock mismatch would otherwise disagree with the
+    // device about which entries are "today's".
+    final now = s.currentTime ?? DateTime.now();
     double todayTotal;
     double manualTotal;
     int todayCycleCount;

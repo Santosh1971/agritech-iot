@@ -79,9 +79,19 @@ class LocalService implements DeviceService {
         },
         cancelOnError: false,
       );
-      // WebSocketChannel.connect() doesn't await the handshake — give it
-      // a brief moment before declaring success.
-      await Future.delayed(const Duration(milliseconds: 300));
+      // WebSocketChannel.connect() doesn't await the handshake -- it used
+      // to be declared "connected" after a fixed 300ms guess instead of
+      // confirming the handshake actually finished. On the SoftAP link
+      // (already flaky in practice -- see local_setup_screen.dart's
+      // comment on connecting/dropping repeatedly), that guess can be too
+      // optimistic: connectedStream fires true, _requestHistory() sends
+      // get_history_range immediately after, and if the socket wasn't
+      // really open yet that send is silently lost -- with nothing to
+      // retry it until the next real reconnect (an app restart forces
+      // exactly that, which is why restarting "fixed" a stuck-empty
+      // History). Awaiting the channel's own `ready` future instead of a
+      // guessed delay removes the race at its root.
+      await _channel!.ready;
       _connected = true;
       _connectedController.add(true);
       return true;

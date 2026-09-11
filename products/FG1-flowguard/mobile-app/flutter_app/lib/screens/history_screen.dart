@@ -19,13 +19,21 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _filter = 'All';
   // Placeholder until the device's own clock is known (see build()'s
-  // one-time snap to deviceStatusProvider's currentTime) — "today" for
-  // History must be the DEVICE's today, not the phone's: a phone/device
-  // clock mismatch (RTC drift, no NTP, or a deliberately-set test time)
-  // would otherwise silently disagree with the device about which day
-  // its own entries belong to.
+  // continuous tracking of deviceStatusProvider's currentTime) — "today"
+  // for History must be the DEVICE's today, not the phone's: a
+  // phone/device clock mismatch (RTC drift, no NTP, or a deliberately-set
+  // test time) would otherwise silently disagree with the device about
+  // which day its own entries belong to.
   DateTime _date = DateTime.now();
-  bool _dateInitializedFromDevice = false;
+  // Whether _date should keep following the device's "today" as it
+  // changes, vs. being pinned to a day the user explicitly navigated to.
+  // MUST be continuous, not a one-time snap on first status: a session
+  // that's been connected since before midnight needs _date to follow
+  // the device across that rollover too, or an entry that's genuinely
+  // "today" (post-midnight) silently stops matching a _date that's
+  // stuck on yesterday — confirmed on hardware, see the commit this
+  // comment landed in.
+  bool _followingToday = true;
   List<HistoryEntry> _entries = [];
   bool _loading = true;
   bool _didInitialRequest = false;
@@ -54,7 +62,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   DateTime _referenceNow() =>
       ref.read(deviceStatusProvider).valueOrNull?.currentTime ?? DateTime.now();
 
-  void _requestHistory() {
+  void _requestHistory({bool force = false}) {
     // Debounced on REAL elapsed time (not device time) — the actual cause
     // of the out-of-order-response race was firing a fresh request on
     // every single reconnect, and with reconnects sometimes happening in
@@ -62,15 +70,51 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // flight before the first response ever came back. Skipping a
     // request that's within 5s of the last one makes that overlap very
     // unlikely without needing to guess at which response is "newer" on
-    // the receiving end.
+    // the receiving end. An explicit user-triggered refresh (force:true)
+    // always goes through regardless — the whole point of a refresh
+    // button is "ask again right now," not "maybe, if it's been a while."
     final nowReal = DateTime.now();
-    if (_lastRequestAt != null && nowReal.difference(_lastRequestAt!) < const Duration(seconds: 5)) {
+    if (!force && _lastRequestAt != null &&
+        nowReal.difference(_lastRequestAt!) < const Duration(seconds: 5)) {
       return;
     }
     _lastRequestAt = nowReal;
     final deviceNow = _referenceNow();
     ref.read(deviceServiceProvider)
         .getHistoryRange(deviceNow.subtract(const Duration(days: 30)), deviceNow);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  // Any manual date navigation pins _date there — UNLESS it lands back on
+  // the device's current day, in which case _date resumes following it
+  // (so tapping forward back to "today" behaves like you'd expect).
+  void _selectDate(DateTime newDate, DateTime deviceToday) {
+    setState(() {
+      _date = newDate;
+      _followingToday = _isSameDay(newDate, deviceToday);
+    });
+  }
+
+  void _onRefreshPressed() {
+    // Refresh also snaps back to today and resumes following the device's
+    // clock — a refresh that silently leaves you pinned on a day you'd
+    // manually navigated to (or that got pinned there by the old
+    // chevron off-by-one) isn't what "refresh" means to anyone tapping it.
+    final deviceNow = _referenceNow();
+    setState(() {
+      _loading = true;
+      _date = deviceNow;
+      _followingToday = true;
+    });
+    _requestHistory(force: true);
+    // Same fallback pattern as the initial load — fall back to whatever
+    // arrived (or nothing) if no response shows up within 3s, rather
+    // than spinning forever.
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _loading) setState(() => _loading = false);
+    });
   }
 
   String _cacheKeyForCurrentDevice() =>
@@ -113,13 +157,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final connected = ref.watch(deviceConnectedProvider);
 
     // Anchor "today" to the DEVICE's own clock, not the phone's — see
-    // _date's field comment. Snap once, the first time a real status
-    // arrives, so it doesn't stomp on the user's own navigation on every
-    // later status tick.
+    // _date's field comment. Keeps tracking on EVERY status update, not
+    // just the first — a session connected since before midnight must
+    // still follow the device across that rollover. Stops the moment the
+    // user manually picks a different day (see the chevron/date-picker
+    // handlers below, which clear _followingToday).
     final deviceCurrentTime = ref.watch(deviceStatusProvider).valueOrNull?.currentTime;
     final referenceNow = deviceCurrentTime ?? DateTime.now();
-    if (!_dateInitializedFromDevice && deviceCurrentTime != null) {
-      _dateInitializedFromDevice = true;
+    if (_followingToday && deviceCurrentTime != null) {
       _date = deviceCurrentTime;
     }
 
@@ -135,7 +180,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           _entries = [];
           _loading = true;
           _didInitialRequest = false;
-          _dateInitializedFromDevice = false;
+          _followingToday = true;
         });
         _loadFromCache();
       }
@@ -178,6 +223,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: Icon(Icons.refresh, color: Theme.of(context).colorScheme.onSurface),
+            tooltip: 'Refresh',
+            onPressed: connected ? _onRefreshPressed : null,
+          ),
+          IconButton(
             icon: Icon(Icons.show_chart, color: Theme.of(context).colorScheme.onSurface),
             tooltip: 'Usage trend',
             onPressed: () {
@@ -199,7 +249,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 firstDate: DateTime(2024),
                 lastDate: referenceNow,
               );
-              if (picked != null) setState(() => _date = picked);
+              if (picked != null) _selectDate(picked, referenceNow);
             },
           ),
         ],
@@ -225,8 +275,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: Row(children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
-              onPressed: () => setState(() =>
-                  _date = _date.subtract(const Duration(days: 1))),
+              onPressed: () => _selectDate(
+                  _date.subtract(const Duration(days: 1)), referenceNow),
             ),
             Expanded(
               child: Center(
@@ -237,10 +287,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
-              onPressed: _date.isBefore(referenceNow.subtract(
-                  const Duration(days: 1)))
-                  ? () => setState(
-                        () => _date = _date.add(const Duration(days: 1)))
+              // Pre-existing off-by-one: comparing against
+              // referenceNow.subtract(1 day) disabled this the moment
+              // _date reached YESTERDAY, making "today" structurally
+              // unreachable by tapping forward at all. Proper calendar-day
+              // comparison instead — enabled up to and including the step
+              // that lands exactly on the device's today.
+              onPressed: !_isSameDay(_date, referenceNow)
+                  ? () => _selectDate(
+                        _date.add(const Duration(days: 1)), referenceNow)
                   : null,
             ),
           ]),
