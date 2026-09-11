@@ -46,6 +46,31 @@ terminal app reading the same phone+cable+board cleanly).
 Still open: SPIKE_SPEC.md §5.3's actual repeatability run (20 consecutive
 flashes, ≥18/20 to go) — only one flash has been done so far.
 
+## Bonus: WiFi/SoftAP flash (2026-09-11)
+
+Once the USB path proved out, the same session wired up ElegantOTA on the
+FG1 firmware itself (`LocalServer.cpp`, `/update` portal — see
+`products/FG1-flowguard/firmware`'s commit history) and added a second
+button, **"Flash over WiFi (SoftAP)"**, so a unit already on the bench
+doesn't need USB at all: connect the phone to the board's SoftAP, tap the
+button, `WifiOtaFlasher.kt` does a plain HTTP multipart upload to
+`/ota/upload` (no native code needed — ElegantOTA's own protocol). This
+was Avinash's actual pain point (pulling the PCB for every firmware
+iteration), not the spike's original subject.
+
+**Status: unreliable, not ready to rely on.** Repeated bench attempts
+stall partway through the ~935KB upload (12–100% written, then the
+connection dies) — real forward progress was made (a background WiFi STA
+retry racing the SoftAP for the ESP32's one radio was found and fixed,
+`main.cpp`'s `!Update.isRunning()` guard), but a transfer still stalled at
+75% even with that fixed. Leading remaining suspect: `Update.write()`'s
+synchronous NOR flash writes blocking the main loop long enough to starve
+the board's own TCP stack — a known category of issue with
+ElegantOTA/AsyncWebServer OTA on SoftAP, where the same core also runs the
+access point. Needs live target debugging (task-watchdog/heap-fragmentation
+visibility) this session didn't have tools for. USB-OTG remains the
+reliable path; don't hand this to Avinash as "just works" yet.
+
 ## Building
 
 ```bash
