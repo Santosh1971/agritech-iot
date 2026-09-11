@@ -32,21 +32,19 @@ files each part was ported from):
 - The connect → flash bootloader/partitions/app → reset sequence, ported
   from `esp-serial-flasher/examples/common/example_common.c`
 
-**Not yet run against real hardware** — this is scaffolding, not a validated
-result. `./gradlew :app:assembleDebug` builds clean end to end (Kotlin,
-resources, and the CMake/NDK native module linking against the vendored
-`esp-serial-flasher`, for all four ABIs) — see `app/build/outputs/apk/debug/app-debug.apk`.
-That resolves half of SPIKE_SPEC.md §4b (the JNI build itself); the real
-unknowns left are:
+**Bench-validated as of 2026-09-11** — see [SPIKE_SPEC.md §8](SPIKE_SPEC.md#8-bench-result-2026-09-11--first-successful-phone-native-flash)
+for the full story. First real flash succeeded end to end: connect → sync
+→ stub upload → flash bootloader/partitions/firmware → MD5 verify → reset,
+~57s. Getting there required one real fix beyond the JNI build itself:
+`UsbSerialTransport.read()` now buffers — it pulls up to 256 bytes per
+underlying driver `read()` call into a queue and hands the SLIP decoder one
+byte at a time out of that queue, instead of asking the CP210x driver for
+exactly 1 byte per call (which was producing a stuck repeated byte instead
+of a real response — confirmed not a hardware/cable issue by a third-party
+terminal app reading the same phone+cable+board cleanly).
 
-1. Does the DTR/RTS timing actually work against this specific CP2102 +
-   Android USB Host stack (the default 100ms/50ms hold times are esptool's
-   generic defaults, not verified against FG1's board)?
-2. Does `esp_loader_connect_with_stub()` actually sync and flash correctly
-   over that link in practice — a clean compile says nothing about runtime
-   protocol correctness.
-
-Both require the test plan in SPIKE_SPEC.md §5 on a bench FG1 board.
+Still open: SPIKE_SPEC.md §5.3's actual repeatability run (20 consecutive
+flashes, ≥18/20 to go) — only one flash has been done so far.
 
 ## Building
 

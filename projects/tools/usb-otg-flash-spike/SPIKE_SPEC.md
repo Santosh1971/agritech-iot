@@ -82,18 +82,19 @@ Do **not** revisit the browser/WebSerial route (`esptool-js` in a WebView) — `
 
 A short written result (pass/fail against §6, actual numbers from §5) plus the spike app's code, kept in this folder. This feeds directly back into the [NB Agri Flasher plan](https://claude.ai/code/artifact/8f1bca38-c2d4-45b3-9431-5f62633308fe) phase 1 kickoff decision.
 
-## 8. Bench result, 2026-09-11 — trending no-go, root cause still open
+## 8. Bench result, 2026-09-11 — first successful phone-native flash
 
-First bench session against a real FG1 board and one Android phone (OPPO/OnePlus CPH2585). Every attempt returned `ESP_LOADER_ERROR_TIMEOUT`. Ruled out, in order:
+First bench session against a real FG1 board and one Android phone (OPPO/OnePlus CPH2585). Early attempts all returned `ESP_LOADER_ERROR_TIMEOUT`; root-caused and fixed over several iterations, in order:
 
-- **The board, cable, CP2102, and bin files** — a plain `pio run -t upload` from this Mac's own USB port flashed the same board in 14s without issue.
-- **A read-framing bug in the JNI port** — `UsbSerialPort.read()` doesn't guarantee filling the requested length in one call; fixed to loop until the deadline, no change in outcome.
-- **DTR/RTS sequence/values/order** — checked byte-for-byte against `esp-serial-flasher`'s own `port/linux_port.c` reference; identical. Widened `RESET_HOLD_MS`/`BOOT_HOLD_MS` from 100/50 to 300/150 as a timing-margin experiment; no change in outcome.
-- **The CP210x driver clobbering DTR/RTS state against each other** — checked `usb-serial-for-android`'s `Cp21xxSerialDriver` source; each line uses an independent masked write, can't interfere with the other.
-- **The write payload itself** — added hex+ASCII byte logging; confirmed the exact, correctly-framed `esp_loader` SYNC command (`07 07 12 20 55 55...`) goes out identically on every retry.
+- **The board, cable, CP2102, and bin files** — a plain `pio run -t upload` from this Mac's own USB port flashed the same board in 14s without issue. Ruled out.
+- **A read-framing bug in the JNI port** — `UsbSerialPort.read()` doesn't guarantee filling the requested length in one call; fixed to loop until the deadline. Necessary but not sufficient on its own.
+- **DTR/RTS sequence/values/order** — checked byte-for-byte against `esp-serial-flasher`'s own `port/linux_port.c` reference; identical. Widened `RESET_HOLD_MS`/`BOOT_HOLD_MS` from 100/50 to 300/150ms as a timing-margin experiment. Ruled out as the blocker.
+- **The CP210x driver clobbering DTR/RTS state against each other** — checked `usb-serial-for-android`'s `Cp21xxSerialDriver` source; each line uses an independent masked write. Ruled out.
+- **The RX path / cable / phone hardware** — briefly suspected after reads kept returning a single stuck repeated byte (`0x0A`) instead of a real response. **Conclusively ruled out**: a generic third-party serial terminal app, run on the exact same phone and cable, read a full clean live boot log straight off the board. The hardware chain was never the problem.
+- **The actual bug**: `esp_loader`'s SLIP decoder pulls one byte at a time from the port, matching `port/linux_port.c`'s own reference decode loop — so `UsbSerialTransport.read()` asked `usb-serial-for-android`'s CP210x driver for exactly 1 byte per call, every call. The terminal app (and every other normal use of that driver) reads in ordinary chunk sizes. Whatever the CP210x driver does differently for single-byte reads was producing that stuck repeated byte. Fix: buffer — pull up to 256 bytes per underlying `read()` call into a queue, hand the SLIP decoder one byte at a time out of that queue, refill only when empty. First attempt after this fix: connect → sync → stub upload → flash bootloader+partitions+firmware (935KB) → MD5 verify → reset target, **`Result: SUCCESS (0)`**, ~57 seconds end to end (no baud-rate bump after connect — see below).
 
-What's left unexplained: reads never show a real SLIP-framed response. Sometimes a short burst of a single repeated byte (`0x0A`) right after the reset sequence, sometimes clean silence throughout — never anything resembling a genuine sync ACK. Swapping to a second OTG adapter regressed further (device stopped enumerating at all), then reverting to the original adapter restored detection but not a working flash. This pattern is more consistent with the **RX path (phone → chip) not reliably reaching the ESP32** than with a remaining logic bug — write leaves the phone correctly (confirmed by content), but nothing resembling a real reply ever comes back.
+**Status: 1/1 successful flash.** This proves the mechanism works end to end on real hardware — the core phase-0 question is answered. What's still open before calling §6's go/no-go:
 
-**Not yet tried:** a second phone (isolates this specific device's USB Host stack/OEM quirks), or a known-good branded OTG cable rather than the two already tried. Both are physical, not code, next steps — see `README.md` for the full "what's implemented vs. what needs hardware iteration" list, which now includes this.
-
-Given the time invested without a working flash, this session is a **leaning no-go on phone-only USB-OTG** pending one of those two untried physical variables. If they don't resolve it, §6's fallback — a small always-on bridge device (e.g. Raspberry Pi Zero) running the same `pio upload`/`esptool` mechanism already proven in `products/FG1-flowguard/testing/flasher.py`, with the phone triggering it over WiFi instead of touching the ROM bootloader directly — is the next real option to scope.
+- The actual repeatability run (§5.3: 20 consecutive flashes, ≥18/20 to go) hasn't been done yet — only one flash so far.
+- No baud-rate bump after connect (`esp_loader_change_transmission_rate()` is never called) — 57s/flash is workable for a spike but slow for repeated field use; the Mac's `pio upload` did the same job in 14s partly via compression and a higher post-connect baud. Worth adding before this becomes anything Kamta-facing.
+- The interrupted-flash-recovery and cable/adapter-variation parts of §5 are still untested.
