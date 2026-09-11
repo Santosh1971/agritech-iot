@@ -123,6 +123,36 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     ref.read(localServiceProvider).sendRaw(payload);
   }
 
+  // Bench/repro tool — lets an operator set the device's clock to an
+  // arbitrary date/time (e.g. "tomorrow") instead of only "now", to
+  // reproduce day-rollover History bugs on demand rather than waiting
+  // for real overnight elapsed time.
+  Future<void> _pickAndSetCustomTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2035),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    if (time == null || !mounted) return;
+
+    // Same encoding as "Sync Time From Phone" above: the chosen wall-clock
+    // fields are sent AS IF they were UTC, matching how the DS1307/DS3231
+    // stores them directly — not a real UTC conversion.
+    final deviceEpoch = DateTime.utc(
+      date.year, date.month, date.day, time.hour, time.minute,
+    ).millisecondsSinceEpoch ~/ 1000;
+    _send({'cmd': 'rtc_sync', 'unix': deviceEpoch});
+    _snack('Device time set to ${date.year}-${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')} ${time.format(context)}');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -258,6 +288,12 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
             },
             icon: const Icon(Icons.access_time),
             label: const Text('Sync Time From Phone'),
+          ))),
+          const SizedBox(height: 8),
+          _card(child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: _pickAndSetCustomTime,
+            icon: const Icon(Icons.edit_calendar),
+            label: const Text('Set Custom Time...'),
           ))),
           const SizedBox(height: 16),
 
