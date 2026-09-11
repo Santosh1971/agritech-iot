@@ -18,7 +18,14 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _filter = 'All';
+  // Placeholder until the device's own clock is known (see build()'s
+  // one-time snap to deviceStatusProvider's currentTime) — "today" for
+  // History must be the DEVICE's today, not the phone's: a phone/device
+  // clock mismatch (RTC drift, no NTP, or a deliberately-set test time)
+  // would otherwise silently disagree with the device about which day
+  // its own entries belong to.
   DateTime _date = DateTime.now();
+  bool _dateInitializedFromDevice = false;
   List<HistoryEntry> _entries = [];
   bool _loading = true;
   bool _didInitialRequest = false;
@@ -38,22 +45,32 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   DateTime? _lastRequestAt;
 
+  // Best-known "now" for anything history-related: the device's own
+  // clock when we have it (from the latest status message), falling back
+  // to the phone's only until the first status arrives. See _date's
+  // field comment for why this matters — using the phone's clock here
+  // let a device that's ahead (drift, or a deliberately-set test time)
+  // silently clip its own most recent entries out of the requested range.
+  DateTime _referenceNow() =>
+      ref.read(deviceStatusProvider).valueOrNull?.currentTime ?? DateTime.now();
+
   void _requestHistory() {
-    // Debounced — the actual cause of the out-of-order-response race
-    // was firing a fresh request on every single reconnect, and with
-    // reconnects sometimes happening in quick succession (WiFi
-    // flapping), more than one request could be in flight before the
-    // first response ever came back. Skipping a request that's within
-    // 5s of the last one makes that overlap very unlikely without
-    // needing to guess at which response is "newer" on the receiving
-    // end.
-    final now = DateTime.now();
-    if (_lastRequestAt != null && now.difference(_lastRequestAt!) < const Duration(seconds: 5)) {
+    // Debounced on REAL elapsed time (not device time) — the actual cause
+    // of the out-of-order-response race was firing a fresh request on
+    // every single reconnect, and with reconnects sometimes happening in
+    // quick succession (WiFi flapping), more than one request could be in
+    // flight before the first response ever came back. Skipping a
+    // request that's within 5s of the last one makes that overlap very
+    // unlikely without needing to guess at which response is "newer" on
+    // the receiving end.
+    final nowReal = DateTime.now();
+    if (_lastRequestAt != null && nowReal.difference(_lastRequestAt!) < const Duration(seconds: 5)) {
       return;
     }
-    _lastRequestAt = now;
+    _lastRequestAt = nowReal;
+    final deviceNow = _referenceNow();
     ref.read(deviceServiceProvider)
-        .getHistoryRange(now.subtract(const Duration(days: 30)), now);
+        .getHistoryRange(deviceNow.subtract(const Duration(days: 30)), deviceNow);
   }
 
   String _cacheKeyForCurrentDevice() =>
@@ -95,6 +112,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // about request timing, not the transport itself.
     final connected = ref.watch(deviceConnectedProvider);
 
+    // Anchor "today" to the DEVICE's own clock, not the phone's — see
+    // _date's field comment. Snap once, the first time a real status
+    // arrives, so it doesn't stomp on the user's own navigation on every
+    // later status tick.
+    final deviceCurrentTime = ref.watch(deviceStatusProvider).valueOrNull?.currentTime;
+    final referenceNow = deviceCurrentTime ?? DateTime.now();
+    if (!_dateInitializedFromDevice && deviceCurrentTime != null) {
+      _dateInitializedFromDevice = true;
+      _date = deviceCurrentTime;
+    }
+
     // Reset to a clean slate the moment the target device changes — the
     // previous device's history (live or cached) must never linger, even
     // transiently, while waiting for the new device's data. Same bug (and
@@ -103,7 +131,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // out under the new device's cache key too.
     ref.listen<String>(deviceSuffixProvider, (previous, next) {
       if (previous != null && previous != next) {
-        setState(() { _entries = []; _loading = true; _didInitialRequest = false; });
+        setState(() {
+          _entries = [];
+          _loading = true;
+          _didInitialRequest = false;
+          _dateInitializedFromDevice = false;
+        });
         _loadFromCache();
       }
     });
@@ -148,12 +181,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             icon: Icon(Icons.show_chart, color: Theme.of(context).colorScheme.onSurface),
             tooltip: 'Usage trend',
             onPressed: () {
-              final now = DateTime.now();
               Navigator.push(context, MaterialPageRoute(
                 builder: (_) => HistoryGraphScreen(
                   initialEntries: _entries,
-                  initialRangeStart: now.subtract(const Duration(days: 30)),
-                  initialRangeEnd: now,
+                  initialRangeStart: referenceNow.subtract(const Duration(days: 30)),
+                  initialRangeEnd: referenceNow,
                 ),
               ));
             },
@@ -165,7 +197,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 context: context,
                 initialDate: _date,
                 firstDate: DateTime(2024),
-                lastDate: DateTime.now(),
+                lastDate: referenceNow,
               );
               if (picked != null) setState(() => _date = picked);
             },
@@ -205,7 +237,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
-              onPressed: _date.isBefore(DateTime.now().subtract(
+              onPressed: _date.isBefore(referenceNow.subtract(
                   const Duration(days: 1)))
                   ? () => setState(
                         () => _date = _date.add(const Duration(days: 1)))

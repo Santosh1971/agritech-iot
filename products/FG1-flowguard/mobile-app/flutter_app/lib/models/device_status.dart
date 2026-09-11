@@ -47,6 +47,29 @@ class DeviceStatus {
       ? DateTime.fromMillisecondsSinceEpoch(cycleStartUnix * 1000, isUtc: true)
       : null;
 
+  // The device's own current wall-clock time, parsed from rtc_date/rtc_time
+  // — same "reinterpret as UTC" convention as cycleStartTime above, so it
+  // compares directly against HistoryEntry.dateTime with no phone-vs-device
+  // clock/timezone mismatch. This is what "today" should mean for anything
+  // history-related: the phone's own DateTime.now() can silently disagree
+  // with the device (RTC drift, no NTP, or a deliberately-set test time),
+  // and using the phone's clock as the boundary can clip out entries the
+  // device considers perfectly current. Null until a real status has been
+  // received (rtcSet false, or still the placeholder '--:--'/'--/--/----').
+  DateTime? get currentTime {
+    if (!rtcSet) return null;
+    final dateParts = rtcDate.split('/');
+    final timeParts = rtcTime.split(':');
+    if (dateParts.length != 3 || timeParts.length != 2) return null;
+    final day    = int.tryParse(dateParts[0]);
+    final month  = int.tryParse(dateParts[1]);
+    final year   = int.tryParse(dateParts[2]);
+    final hour   = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+    if (day == null || month == null || year == null || hour == null || minute == null) return null;
+    return DateTime.utc(year, month, day, hour, minute);
+  }
+
   factory DeviceStatus.fromJson(Map<String, dynamic> j) => DeviceStatus(
         deviceId:        j['device_id']        ?? '',
         firmware:        j['firmware']          ?? '',
