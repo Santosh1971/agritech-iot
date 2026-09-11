@@ -31,7 +31,7 @@ FLOW_SWEEP_PULSE_COUNT = 450
 FLOW_TOLERANCE_FRACTION = 0.02
 
 
-def run(serial_port: str, jig_host: str | None, env: str = "esp32dev") -> bool:
+def run(serial_port: str, jig_host: str | None, env: str = "esp32dev_ds1307") -> bool:
     steps: dict[str, bool] = {}
     device_id = None
 
@@ -156,6 +156,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True)
     parser.add_argument("--jig-host", default=None)
-    parser.add_argument("--env", default="esp32dev")
+    parser.add_argument("--env", default="esp32dev_ds1307")
     args = parser.parse_args()
     sys.exit(0 if run(args.port, args.jig_host, args.env) else 1)

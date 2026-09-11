@@ -11,7 +11,7 @@ from typing import Iterator
 FIRMWARE_DIR = Path(__file__).resolve().parent.parent / "firmware"
 
 
-def flash(env: str = "esp32dev", port: str | None = None, timeout_s: int = 120) -> tuple[bool, str]:
+def flash(env: str = "esp32dev_ds1307", port: str | None = None, timeout_s: int = 120) -> tuple[bool, str]:
     """Run `pio run -e <env> -t upload`. Returns (success, combined_output).
 
     env: PlatformIO environment name -- "esp32dev" (DS3231, field build)
@@ -37,7 +37,7 @@ def flash(env: str = "esp32dev", port: str | None = None, timeout_s: int = 120) 
     return success, output
 
 
-def flash_stream(env: str = "esp32dev", port: str | None = None, timeout_s: int = 120) -> Iterator[str]:
+def flash_stream(env: str = "esp32dev_ds1307", port: str | None = None, timeout_s: int = 120) -> Iterator[str]:
     """Same as flash(), but yields output line-by-line as PlatformIO
     produces it (for a live-progress UI, e.g. flash_bridge.py) instead
     of blocking until completion. The last yielded line is always
@@ -78,7 +78,7 @@ def flash_stream(env: str = "esp32dev", port: str | None = None, timeout_s: int 
 
 
 if __name__ == "__main__":
-    env_arg = sys.argv[1] if len(sys.argv) > 1 else "esp32dev"
+    env_arg = sys.argv[1] if len(sys.argv) > 1 else "esp32dev_ds1307"
     ok, log = flash(env_arg)
     print(log)
     print("FLASH:", "PASS" if ok else "FAIL")

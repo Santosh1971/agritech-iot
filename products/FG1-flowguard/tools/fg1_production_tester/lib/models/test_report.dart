@@ -55,7 +55,7 @@ class TestReport {
 
   factory TestReport.fromJson(Map<String, dynamic> json) => TestReport(
         deviceId: json['device_id'] as String?,
-        firmwareEnv: json['firmware_env'] as String? ?? 'esp32dev',
+        firmwareEnv: json['firmware_env'] as String? ?? 'esp32dev_ds1307',
         timestampUtc: DateTime.parse(json['timestamp_utc'] as String),
         operator: json['operator'] as String? ?? '',
         station: json['station'] as String? ?? '',

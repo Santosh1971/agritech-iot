@@ -20,7 +20,7 @@ class BenchConfig {
     // client doesn't resolve mDNS hostnames (see jig firmware's
     // header comment). mDNS is still up for laptop-side debugging.
     this.jigHost = '192.168.4.50',
-    this.firmwareEnv = 'esp32dev',
+    this.firmwareEnv = 'esp32dev_ds1307',
     this.testApSsid = 'FG1-TEST-STATION',
     this.testApPassword = '',
     this.expectedCalibrationPpl = 450,

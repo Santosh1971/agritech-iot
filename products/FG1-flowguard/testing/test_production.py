@@ -28,7 +28,7 @@ FLOW_TEST_PULSE_COUNT = 450  # expect ~1.00 L reported at EXPECTED_CALIBRATION_P
 FLOW_TOLERANCE_FRACTION = 0.02  # +/- 2%
 
 
-def run(serial_port: str, jig_host: str | None, env: str = "esp32dev") -> bool:
+def run(serial_port: str, jig_host: str | None, env: str = "esp32dev_ds1307") -> bool:
     steps: dict[str, bool] = {}
     device_id = None
 
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True, help="DUT serial port")
     parser.add_argument("--jig-host", default=None, help="Jig controller host, e.g. fg1jig.local (optional)")
-    parser.add_argument("--env", default="esp32dev", help="PlatformIO environment")
+    parser.add_argument("--env", default="esp32dev_ds1307", help="PlatformIO environment")
     args = parser.parse_args()
 
     passed = run(args.port, args.jig_host, args.env)

@@ -103,7 +103,7 @@ def get_lan_ip() -> str | None:
     finally:
         s.close()
 
-DEFAULT_ENV = "esp32dev"
+DEFAULT_ENV = "esp32dev_ds1307"
 BRIDGE_PORT = 8787
 
 
