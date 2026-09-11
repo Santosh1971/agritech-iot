@@ -1,6 +1,6 @@
 # USB-OTG Flash Spike — Specification
 
-Status: Draft — phase 0 of the [NB Agri Flasher plan](https://claude.ai/code/artifact/8f1bca38-c2d4-45b3-9431-5f62633308fe) (Kamta field-update app). Not yet built.
+Status: Builds clean (Kotlin + CMake/NDK native module), not yet run against hardware — phase 0 of the [NB Agri Flasher plan](https://claude.ai/code/artifact/8f1bca38-c2d4-45b3-9431-5f62633308fe) (Kamta field-update app). App skeleton lives in [`flasher-spike-app/`](flasher-spike-app/) — see [its README](README.md) for what's implemented vs. what still needs a bench FG1 board.
 
 ## 1. Purpose
 

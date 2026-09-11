@@ -1,0 +1,17 @@
+# Build outputs
+/build/
+app/build/
+app/.cxx/
+app/src/main/assets/*.bin
+
+# Local machine config — not portable, never commit
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Gradle wrapper distribution cache (fetched on first run, not the wrapper scripts themselves)
+.gradle/
+.kotlin/
