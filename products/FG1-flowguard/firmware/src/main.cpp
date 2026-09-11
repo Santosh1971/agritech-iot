@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <Update.h>
 #include <nvs_flash.h>
 #include "Config.h"
 #include "RTCManager.h"
@@ -678,8 +679,16 @@ void loop() {
     // background — fully non-blocking, so LEDs/local WS/scheduler keep
     // running normally during a retry attempt instead of freezing for
     // up to RETRY_CONNECT_TIMEOUT_MS every cycle.
+    //
+    // Skip while an OTA update is in flight: WiFi.begin() still has to
+    // scan/associate on the STA interface even in AP+STA concurrent mode,
+    // and ESP32 has exactly one radio — a scan mid-transfer was observed
+    // stalling an in-progress /ota/upload (bench testing, 2026-09-11: a
+    // clean single-attempt OTA stopped dead around 12% right as this log
+    // line fired). AP+STA concurrency avoids most disruption for short
+    // local-server traffic; it doesn't hold up for a sustained ~1MB write.
     if (connMode == CONN_LOCAL_FALLBACK && retryState == RETRY_IDLE &&
-        !wifiScanInProgress && !forcedLocalMode &&
+        !wifiScanInProgress && !forcedLocalMode && !Update.isRunning() &&
         millis() - lastWiFiRetry >= WIFI_RETRY_INTERVAL_MS) {
         lastWiFiRetry = millis();
         beginBackgroundRetry();
