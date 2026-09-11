@@ -18,6 +18,17 @@
 
 #define LOG_TAG "flasherspike"
 
+/*
+ * esp-serial-flasher's own LOADER_LOGx macros are silent for a sync/connect
+ * timeout (grep the vendored src/esp_loader.c: the only LOADER_LOGI in that
+ * path is the success message "Connected - target: %s" — there's nothing on
+ * the failure branch at any level). DIAG bypasses those macros entirely so a
+ * timeout is actually visible: what DTR/RTS did, and how many bytes (if any)
+ * came back from each read. Unconditional and verbose on purpose — this is
+ * diagnostic-only scaffolding for the spike, not meant to ship as-is.
+ */
+#define DIAG(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+
 /* esp-serial-flasher/CMakeLists.txt SERIAL_FLASHER_RESET_HOLD_TIME_MS / _BOOT_HOLD_TIME_MS defaults. */
 #define RESET_HOLD_MS 100
 #define BOOT_HOLD_MS  50
@@ -61,14 +72,17 @@ static uint32_t android_remaining_time(esp_loader_port_t *port)
 
 static void set_dtr_rts(android_port_t *p, jboolean dtr, jboolean rts)
 {
+    int64_t t0 = now_ms();
     (*p->env)->CallVoidMethod(p->env, p->transport, p->mSetDTR, dtr);
     (*p->env)->CallVoidMethod(p->env, p->transport, p->mSetRTS, rts);
+    DIAG("DTR=%d RTS=%d (call took %lldms)", (int)dtr, (int)rts, (long long)(now_ms() - t0));
 }
 
 static void android_enter_bootloader(esp_loader_port_t *port)
 {
     android_port_t *p = container_of(port, android_port_t, port);
 
+    DIAG("enter_bootloader: begin");
     /* esptool UnixTightReset: through (1,1) to avoid a (0,0) glitch, then
      * hold BOOT low across the reset pulse, then release BOOT after RESET
      * comes back up. */
@@ -79,14 +93,17 @@ static void android_enter_bootloader(esp_loader_port_t *port)
     set_dtr_rts(p, JNI_TRUE,  JNI_FALSE);  /* RESET released while BOOT still low */
     android_delay_ms(port, BOOT_HOLD_MS);
     set_dtr_rts(p, JNI_FALSE, JNI_FALSE);  /* BOOT released — chip is in the ROM bootloader */
+    DIAG("enter_bootloader: done");
 }
 
 static void android_reset_target(esp_loader_port_t *port)
 {
     android_port_t *p = container_of(port, android_port_t, port);
+    DIAG("reset_target: begin");
     (*p->env)->CallVoidMethod(p->env, p->transport, p->mSetRTS, JNI_TRUE);
     android_delay_ms(port, RESET_HOLD_MS);
     (*p->env)->CallVoidMethod(p->env, p->transport, p->mSetRTS, JNI_FALSE);
+    DIAG("reset_target: done");
 }
 
 static esp_loader_error_t android_write(esp_loader_port_t *port, const uint8_t *data, uint16_t size, uint32_t timeout)
@@ -103,6 +120,7 @@ static esp_loader_error_t android_write(esp_loader_port_t *port, const uint8_t *
     jboolean ok = (*env)->CallBooleanMethod(env, p->transport, p->mWrite, arr, (jint)size, (jint)timeout);
     (*env)->DeleteLocalRef(env, arr);
 
+    DIAG("write: size=%u timeout=%ums -> %s", size, timeout, ok ? "ok" : "FAILED");
     return ok ? ESP_LOADER_SUCCESS : ESP_LOADER_ERROR_TIMEOUT;
 }
 
@@ -117,6 +135,7 @@ static esp_loader_error_t android_read(esp_loader_port_t *port, uint8_t *data, u
     }
 
     jint n = (*env)->CallIntMethod(env, p->transport, p->mRead, arr, (jint)size, (jint)timeout);
+    DIAG("read: requested=%u timeout=%ums -> got=%d", size, timeout, (int)n);
     if (n == (jint)size) {
         (*env)->GetByteArrayRegion(env, arr, 0, size, (jbyte *)data);
     }
