@@ -67,31 +67,34 @@ class UsbSerialTransport(private val port: UsbSerialPort) {
         false
     }
 
-    /**
-     * Called from native: android_read(). android_port.c requires exactly `len` bytes
-     * back (or a reported failure) — but UsbSerialPort.read() is a single USB transfer,
-     * like a raw read(2): it returns as soon as *some* bytes arrive within the timeout,
-     * not necessarily all `len` of them. A CP2102 trickling in a SLIP-framed response a
-     * few bytes at a time would otherwise make nearly every read here report short,
-     * which android_port.c has no choice but to treat as ESP_LOADER_ERROR_TIMEOUT. Loop
-     * until the full amount arrives or the deadline passes, same as esp-serial-flasher's
-     * own reference port (port/linux_port.c's read_data()).
-     */
+    // esp-serial-flasher's SLIP decoder pulls bytes one at a time (matching its own
+    // reference port, port/linux_port.c's read_data()), but a bench terminal app proves
+    // this exact phone/cable/board reads cleanly when polling in normal-sized chunks —
+    // strongly suggesting the CP210x driver has a quirk specific to being asked for
+    // literally 1 byte per underlying read() call. rxQueue decouples the two: pull a
+    // real chunk from the driver, hand bytes out of this queue one at a time, refill
+    // only when it runs dry.
+    private val rxQueue = ArrayDeque<Byte>()
+    private val rxChunk = ByteArray(256)
+
+    /** Called from native: android_read(). See rxQueue's comment for why this buffers. */
     fun read(buffer: ByteArray, len: Int, timeoutMs: Int): Int {
         val deadline = SystemClock.elapsedRealtime() + timeoutMs
-        val chunk = ByteArray(len)
         var offset = 0
         while (offset < len) {
-            val remaining = (deadline - SystemClock.elapsedRealtime()).toInt()
-            if (remaining <= 0) break
-            val n = try {
-                port.read(chunk, len - offset, remaining)
-            } catch (e: IOException) {
-                -1
+            if (rxQueue.isEmpty()) {
+                val remaining = (deadline - SystemClock.elapsedRealtime()).toInt()
+                if (remaining <= 0) break
+                val n = try {
+                    port.read(rxChunk, rxChunk.size, remaining)
+                } catch (e: IOException) {
+                    -1
+                }
+                if (n <= 0) break
+                for (i in 0 until n) rxQueue.addLast(rxChunk[i])
             }
-            if (n <= 0) break
-            System.arraycopy(chunk, 0, buffer, offset, n)
-            offset += n
+            buffer[offset] = rxQueue.removeFirst()
+            offset++
         }
         return offset
     }
