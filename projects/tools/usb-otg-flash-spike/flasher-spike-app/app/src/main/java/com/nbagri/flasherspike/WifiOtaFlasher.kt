@@ -96,7 +96,11 @@ class WifiOtaFlasher(private val context: Context) {
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
         conn.connectTimeout = 5000
-        conn.readTimeout = 30000
+        // Firmware-side stalls during a flash-erase pause have run past 30s in bench
+        // testing (see LocalServer.cpp / platformio.ini's AsyncTCP/RX-timeout fixes) --
+        // matching this to the same 30s would silently re-impose the limit those fixes
+        // just removed, from the other end of the same connection.
+        conn.readTimeout = 120000
         conn.setFixedLengthStreamingMode(head.size + firmware.size + tail.size)
 
         return try {
