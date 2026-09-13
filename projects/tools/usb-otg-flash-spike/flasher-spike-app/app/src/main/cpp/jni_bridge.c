@@ -105,6 +105,12 @@ Java_com_nbagri_flasherspike_NativeFlasher_readMac(
 
     uint8_t mac[6];
     err = esp_loader_read_mac(&loader, mac);
+    /* Without this, the chip is left mid-stub from this connect session —
+       flash()'s connect_with_stub() moments later then gets INVALID_RESPONSE
+       instead of a clean ROM-bootloader handshake. Reset regardless of
+       whether the read itself succeeded, so a subsequent flash() attempt
+       always starts from a known-good state. */
+    esp_loader_reset_target(&loader);
     esp_loader_deinit(&loader);
     if (err != ESP_LOADER_SUCCESS) {
         return NULL;
