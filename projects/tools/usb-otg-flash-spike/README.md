@@ -58,18 +58,53 @@ button, `WifiOtaFlasher.kt` does a plain HTTP multipart upload to
 was Avinash's actual pain point (pulling the PCB for every firmware
 iteration), not the spike's original subject.
 
-**Status: unreliable, not ready to rely on.** Repeated bench attempts
-stall partway through the ~935KB upload (12–100% written, then the
-connection dies) — real forward progress was made (a background WiFi STA
-retry racing the SoftAP for the ESP32's one radio was found and fixed,
-`main.cpp`'s `!Update.isRunning()` guard), but a transfer still stalled at
-75% even with that fixed. Leading remaining suspect: `Update.write()`'s
-synchronous NOR flash writes blocking the main loop long enough to starve
-the board's own TCP stack — a known category of issue with
-ElegantOTA/AsyncWebServer OTA on SoftAP, where the same core also runs the
-access point. Needs live target debugging (task-watchdog/heap-fragmentation
-visibility) this session didn't have tools for. USB-OTG remains the
-reliable path; don't hand this to Avinash as "just works" yet.
+**Status: still unreliable after fixing three real, confirmed bugs across
+two more sessions (2026-09-12/13) — don't hand this to Avinash yet.**
+Each was root-caused precisely, cross-referenced against community reports
+with the identical symptom, and each measurably improved how far a
+transfer got before failing:
+
+1. **Task watchdog crash** (`main.cpp`/`LocalServer.cpp`): `Update.write()`'s
+   flash erase (up to 64KB blocks, see `Updater.cpp`) runs inside the
+   `async_tcp` task's own call stack; a slow erase can block it long enough
+   to starve that core's IDLE task past the default ~5s watchdog timeout,
+   rebooting mid-transfer. Matches [ESP32Async/AsyncTCP#107](https://github.com/ESP32Async/AsyncTCP/issues/107)
+   and [ElegantOTA#47](https://github.com/ayushsharma82/ElegantOTA/issues/47)
+   exactly (`task_wdt...Aborting`). Fixed: `disableCore0WDT()`/
+   `disableCore1WDT()` (Arduino-ESP32's own standard mitigation) around the
+   OTA window.
+2. **AsyncTCP ACK timeout** (`platformio.ini`): `CONFIG_ASYNC_TCP_MAX_ACK_TIME`
+   defaults to 5000ms — if the ESP32's own transmitted data goes
+   unacknowledged that long (exactly what a blocked flash write causes),
+   `AsyncWebServerRequest::_onTimeout()` closes the connection outright,
+   independent of the watchdog. Raised to 30000 via a build flag.
+3. **ESPAsyncWebServer's hardcoded 3s RX timeout** (`scripts/patch_asyncwebserver_rx_timeout.py`):
+   set once per connection in the `AsyncWebServer` constructor with no
+   build-flag override, cleared only when the response is sent — not
+   during a large request body. If no new bytes arrive for 3s (again,
+   exactly what a blocked flash write causes on the receiving end), the
+   connection is closed. No override hook exists, so this is a PlatformIO
+   pre-build script that patches the fetched library source directly
+   (durable, idempotent, warns rather than fails if the library changes).
+
+A clean single attempt with all three fixes survived multi-second silent
+gaps that would have killed it before, and got measurably further, but
+still eventually failed — sometimes past 40%, sometimes with an
+`Broken pipe`/`unexpected end of stream` right at 100% written. Also
+raised `WifiOtaFlasher.kt`'s client-side `readTimeout` from 30s to 120s,
+since it coincidentally matched the just-raised firmware timeouts and
+could have been the side actually giving up first.
+
+**New wrinkle, 2026-09-13:** during one stalled attempt, the board's USB
+connection to the bench Mac dropped entirely (not just an ESP32 reset —
+the whole CP2102 serial device disappeared and had to be reconnected).
+That's consistent with a power brownout under sustained SoftAP + flash-
+write load, a hardware/power-supply question distinct from all of the
+above — not yet confirmed, next thing to rule out (try a different cable/
+power source before further firmware changes).
+
+USB-OTG remains the reliable, validated path regardless of how this
+resolves.
 
 ## Building
 
