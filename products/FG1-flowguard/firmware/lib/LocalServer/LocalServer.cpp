@@ -1,5 +1,6 @@
 #include "LocalServer.h"
 #include <ElegantOTA.h>
+#include <Update.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -7,6 +8,18 @@
 // below. Not a global disable: this only widens the safety margin for the
 // few seconds flash erase can hog a core, then puts it straight back.
 static uint32_t s_savedBrownoutReg = 0;
+
+// Bench-verified 2026-09-14: a weak WiFi link (client TCP connection dying
+// without a clean FIN reaching us) leaves Update.isRunning() stuck true
+// forever — onEnd() only fires on a clean finish/error, never on a client
+// that just vanishes. With watchdogs and the brownout detector both still
+// disabled from onStart() (see above), that's an open-ended safety gap, not
+// just a stuck upload. Worse, the whole local server hung — not just OTA —
+// for the ~30s it took AsyncTCP's own (deliberately raised) timeouts to
+// notice the dead socket on their own. Track last-progress time and force
+// an abort proactively instead of waiting on that generic timeout.
+static uint32_t s_lastOtaProgressMs = 0;
+static const uint32_t OTA_STALL_TIMEOUT_MS = 20000;
 
 void LocalServer::begin() {
     _ws.onEvent([this](AsyncWebSocket* server, AsyncWebSocketClient* client,
@@ -97,8 +110,10 @@ void LocalServer::begin() {
         // this safety net permanently.
         s_savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
         WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+        s_lastOtaProgressMs = millis();
     });
     ElegantOTA.onProgress([](size_t current, size_t total) {
+        s_lastOtaProgressMs = millis();
         static uint32_t lastLog = 0;
         if (millis() - lastLog > 1000) {
             lastLog = millis();
@@ -120,6 +135,17 @@ void LocalServer::begin() {
 void LocalServer::loop() {
     _ws.cleanupClients();
     ElegantOTA.loop();
+
+    // See the OTA_STALL_TIMEOUT_MS comment above — a dead client otherwise
+    // leaves this open indefinitely with watchdogs/brownout protection off.
+    if (Update.isRunning() && millis() - s_lastOtaProgressMs > OTA_STALL_TIMEOUT_MS) {
+        Serial.printf("[LocalServer] OTA stalled — no progress for %lus, aborting and restoring safety\n",
+                      (unsigned long)(OTA_STALL_TIMEOUT_MS / 1000));
+        Update.abort();
+        WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, s_savedBrownoutReg);
+        enableCore0WDT();
+        enableCore1WDT();
+    }
 }
 
 void LocalServer::closeAllClients() {
