@@ -7,7 +7,7 @@
 
 */
 -- DropIndex
-DROP INDEX "OtpCode_phone_expiresAt_idx";
+DROP INDEX IF EXISTS "OtpCode_phone_expiresAt_idx";
 
 -- AlterTable
 ALTER TABLE "OtpCode" DROP COLUMN "phone",
