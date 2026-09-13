@@ -7,7 +7,7 @@ import java.net.URL
 
 /**
  * Talks to agrisense-webapp's NB Agri Flasher API (see
- * webapp/agrisense-webapp/app/api/flasher and /api/auth) — phone+OTP login
+ * webapp/agrisense-webapp/app/api/flasher and /api/auth) — email+OTP login
  * (shared with the main AgriSense dashboard), then grant/builds/download/
  * report. Session cookie and server URL persist in SharedPreferences so
  * re-launching the app doesn't require logging in again every time.
@@ -36,15 +36,15 @@ class ApiClient(context: Context) {
         prefs.edit().remove(PREF_SESSION).apply()
     }
 
-    fun requestOtp(phone: String) {
+    fun requestOtp(email: String) {
         val conn = openConnection("/api/auth/request-otp", "POST")
-        writeJson(conn, mapOf("phone" to phone))
+        writeJson(conn, mapOf("email" to email))
         readJson(conn)
     }
 
-    fun verifyOtp(phone: String, code: String) {
+    fun verifyOtp(email: String, code: String) {
         val conn = openConnection("/api/auth/verify-otp", "POST")
-        writeJson(conn, mapOf("phone" to phone, "code" to code))
+        writeJson(conn, mapOf("email" to email, "code" to code))
         val code200 = conn.responseCode
         val cookie = conn.headerFields["Set-Cookie"]
             ?.firstOrNull { it.startsWith("$SESSION_COOKIE_NAME=") }

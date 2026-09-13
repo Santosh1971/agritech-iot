@@ -26,7 +26,7 @@ import java.io.InputStream
  * engine (NativeFlasher/UsbSerialTransport/android_port.c, proven in the
  * USB-OTG spike, see SPIKE_SPEC.md):
  *
- *  - **Real flow** (login section → picker section): phone+OTP login against
+ *  - **Real flow** (login section → picker section): email+OTP login against
  *    agrisense-webapp's NB Agri Flasher API, fetches the caller's live grant,
  *    lists builds for a granted product, downloads the selected one fresh
  *    (never cached — see ApiClient's doc comment) and flashes it to the app
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loginSection: android.view.View
     private lateinit var pickerSection: android.view.View
     private lateinit var serverUrlInput: EditText
-    private lateinit var phoneInput: EditText
+    private lateinit var emailInput: EditText
     private lateinit var otpInput: EditText
     private lateinit var verifyCodeButton: Button
     private lateinit var grantLabelText: TextView
@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         loginSection = findViewById(R.id.loginSection)
         pickerSection = findViewById(R.id.pickerSection)
         serverUrlInput = findViewById(R.id.serverUrlInput)
-        phoneInput = findViewById(R.id.phoneInput)
+        emailInput = findViewById(R.id.emailInput)
         otpInput = findViewById(R.id.otpInput)
         verifyCodeButton = findViewById(R.id.verifyCodeButton)
         grantLabelText = findViewById(R.id.grantLabelText)
@@ -152,18 +152,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendCode() {
         api.baseUrl = serverUrlInput.text.toString().trim()
-        val phone = phoneInput.text.toString().trim()
-        if (phone.isEmpty()) {
-            log("Enter a phone number first.")
+        val email = emailInput.text.toString().trim()
+        if (email.isEmpty()) {
+            log("Enter an email address first.")
             return
         }
         Thread {
             try {
-                api.requestOtp(phone)
+                api.requestOtp(email)
                 runOnUiThread {
                     otpInput.visibility = android.view.View.VISIBLE
                     verifyCodeButton.visibility = android.view.View.VISIBLE
-                    log("Code sent to $phone.")
+                    log("Code sent to $email.")
                 }
             } catch (e: Exception) {
                 runOnUiThread { log("Could not send code: ${e.message}") }
@@ -172,15 +172,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun verifyCode() {
-        val phone = phoneInput.text.toString().trim()
+        val email = emailInput.text.toString().trim()
         val code = otpInput.text.toString().trim()
         if (code.isEmpty()) {
-            log("Enter the code from the SMS.")
+            log("Enter the code from the email.")
             return
         }
         Thread {
             try {
-                api.verifyOtp(phone, code)
+                api.verifyOtp(email, code)
                 runOnUiThread {
                     log("Logged in.")
                     showPickerSection()

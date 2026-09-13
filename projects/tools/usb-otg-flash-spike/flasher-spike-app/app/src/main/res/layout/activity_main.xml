@@ -34,13 +34,13 @@
             android:autofillHints="" />
 
         <EditText
-            android:id="@+id/phoneInput"
+            android:id="@+id/emailInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="@string/hint_phone"
-            android:inputType="phone"
-            android:autofillHints="phone" />
+            android:hint="@string/hint_email"
+            android:inputType="textEmailAddress"
+            android:autofillHints="emailAddress" />
 
         <Button
             android:id="@+id/sendCodeButton"

@@ -7,7 +7,7 @@
     <string name="progress_idle">idle</string>
 
     <string name="hint_server_url">Server address (e.g. https://agrisenseandcontrol.in)</string>
-    <string name="hint_phone">Phone number</string>
+    <string name="hint_email">Email address</string>
     <string name="send_code_button">Send code</string>
     <string name="hint_otp">Code from SMS</string>
     <string name="verify_code_button">Verify</string>
