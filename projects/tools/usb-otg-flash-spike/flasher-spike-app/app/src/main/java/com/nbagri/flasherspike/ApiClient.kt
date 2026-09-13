@@ -12,18 +12,16 @@ import java.net.URL
  * report. Session cookie and server URL persist in SharedPreferences so
  * re-launching the app doesn't require logging in again every time.
  *
- * The server URL is a user-set field, not hardcoded to the eventual
- * production domain (agrisenseandcontrol.in) — as of this app's first
- * version, that backend isn't deployed yet (see agrisense-webapp/README.md's
- * "before the VPS is reachable" section). Point this at a local dev server
- * (e.g. via `adb reverse tcp:3000 tcp:3000` + http://localhost:3000) until
- * it is.
+ * The server URL is a user-editable field, defaulting to the production
+ * domain (agrisenseandcontrol.in) now that it's deployed there. Override it
+ * (e.g. to http://localhost:3000 via `adb reverse tcp:3000 tcp:3000`) for
+ * local backend testing.
  */
 class ApiClient(context: Context) {
     private val prefs = context.getSharedPreferences("nbagri_flasher", Context.MODE_PRIVATE)
 
     var baseUrl: String
-        get() = prefs.getString(PREF_BASE_URL, "") ?: ""
+        get() = prefs.getString(PREF_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
         set(value) = prefs.edit().putString(PREF_BASE_URL, value.trimEnd('/')).apply()
 
     private var sessionCookie: String?
@@ -153,5 +151,6 @@ class ApiClient(context: Context) {
         private const val PREF_BASE_URL = "base_url"
         private const val PREF_SESSION = "session_cookie"
         private const val SESSION_COOKIE_NAME = "agrisense_session"
+        private const val DEFAULT_BASE_URL = "https://agrisenseandcontrol.in"
     }
 }
