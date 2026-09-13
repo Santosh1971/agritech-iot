@@ -16,10 +16,16 @@ async function getSession() {
 // to fetch fresh on every flash attempt rather than reusing a saved copy.
 //
 // Also gates on the physical device itself: only units already provisioned
-// as a Device row (shipped/known hardware) can be flashed. A fresh/unknown
-// chip's MAC has no matching Device, so the download is refused until an
-// admin registers it (the same "+ Add Device" flow used for provisioning) —
-// this is the "give access from Server" step for brand-new units.
+// as a Device row (shipped/known hardware) can be flashed by a non-admin
+// grantee (dealer/customer) — a fresh/unknown chip's MAC has no matching
+// Device, so their download is refused until an admin registers it.
+//
+// Admins (Santosh, Avinash) are the exception: they're the ones doing
+// production, so flashing a brand-new chip's first build IS the
+// registration event — auto-create its Device row rather than requiring
+// someone to add it by hand first. Dealers still can't touch unregistered
+// hardware; only an admin flash (or the existing +Add Device flow) creates
+// that first record.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,10 +52,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
   const device = await prisma.device.findFirst({ where: { deviceId, product: build.product } });
   if (!device) {
-    return NextResponse.json(
-      { error: `This device (${deviceId}) isn't registered. Ask admin to add it under Devices before flashing.` },
-      { status: 403 }
-    );
+    if (session.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: `This device (${deviceId}) isn't registered. Ask admin to add it under Devices before flashing.` },
+        { status: 403 }
+      );
+    }
+    // First time this unit has ever been flashed — this admin flash is the
+    // production record for it, matching the app-facing "+ Add Device" flow.
+    await prisma.device.create({
+      data: { deviceId, product: build.product, name: deviceId },
+    });
   }
 
   const bytes = await readFirmwareBuild(build.storagePath);
