@@ -106,6 +106,15 @@ power source before further firmware changes).
 USB-OTG remains the reliable, validated path regardless of how this
 resolves.
 
+**Parked as of 2026-09-13.** Decided to stop chasing WiFi OTA reliability
+for now — USB-OTG is proven and sufficient, and this had become a much
+deeper rabbit hole (four real, confirmed bugs fixed, still not fully
+working, a possible hardware/power issue on top) than a bonus convenience
+feature warranted continuing overnight. All four fixes above are real and
+committed regardless of what's still open. Picking this back up should
+start with the power/cable check (untried at parking time) before
+assuming any further firmware changes are needed.
+
 ## Building
 
 ```bash
