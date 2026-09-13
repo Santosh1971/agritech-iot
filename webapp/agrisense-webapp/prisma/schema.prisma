@@ -39,6 +39,8 @@ model User {
   ownedDevices    Device[] @relation("DeviceOwner")
   dealerDevices   Device[] @relation("DeviceDealer")
   commandsSent    Command[]
+  buildsUploaded  FirmwareBuild[] @relation("BuildsUploaded")
+  grantsIssued    FlasherGrant[]  @relation("GrantsIssued")
 }
 
 model OtpCode {
@@ -98,4 +100,63 @@ model Command {
   ackPayload Json?
 
   @@index([deviceId, sentAt])
+}
+
+// NB Agri Flasher backend — see the project's memory note
+// "kamta_flasher_app_initiative" and the published plan artifact for the
+// full design. Firmware bins live on local disk (FIRMWARE_STORAGE_DIR),
+// same "local on this VPS" pattern as everything else here — these three
+// models are just the metadata/access-control layer on top.
+model FirmwareBuild {
+  id           String   @id @default(cuid())
+  product      Product
+  version      String
+  variant      String   @default("esp32dev") // PlatformIO env name, e.g. esp32dev_ds1307
+  storagePath  String   // path relative to FIRMWARE_STORAGE_DIR
+  sha256       String
+  sizeBytes    Int
+  notes        String?
+  uploadedById String
+  uploadedBy   User     @relation("BuildsUploaded", fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  flashEvents  FlashEvent[]
+
+  @@index([product, version])
+}
+
+// A grant, not a role — kept separate from Role/DEALER so access to the
+// flasher can be switched off for one person without touching their main
+// dashboard account. `active = false` is the entire revoke action, and it's
+// checked live on every request from the app, never cached.
+model FlasherGrant {
+  id          String     @id @default(cuid())
+  phone       String?
+  email       String?
+  label       String     // e.g. "Kamta — Bihar dealer"
+  products    Product[]  // which products this grantee can see/flash
+  active      Boolean    @default(true)
+  grantedById String
+  grantedBy   User       @relation("GrantsIssued", fields: [grantedById], references: [id])
+  createdAt   DateTime   @default(now())
+  revokedAt   DateTime?
+
+  flashEvents FlashEvent[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+model FlashEvent {
+  id         String        @id @default(cuid())
+  grantId    String
+  grant      FlasherGrant  @relation(fields: [grantId], references: [id])
+  buildId    String
+  build      FirmwareBuild @relation(fields: [buildId], references: [id])
+  deviceId   String?       // FG1's own reported device ID, if the app can read it
+  result     String        // "downloaded" | "flash_ok" | "flash_failed"
+  detail     String?
+  occurredAt DateTime      @default(now())
+
+  @@index([grantId, occurredAt])
 }

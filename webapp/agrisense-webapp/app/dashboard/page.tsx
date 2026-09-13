@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import DevicesClient from "./devices/DevicesClient";
@@ -9,7 +10,10 @@ export default async function DashboardPage() {
 
   return (
     <main style={{ maxWidth: 960, margin: "40px auto", padding: "0 16px", fontFamily: "sans-serif" }}>
-      <h1>Devices ({session.role})</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <h1>Devices ({session.role})</h1>
+        {session.role === "ADMIN" && <Link href="/dashboard/flasher">NB Agri Flasher admin →</Link>}
+      </div>
       <DevicesClient role={session.role} />
     </main>
   );
