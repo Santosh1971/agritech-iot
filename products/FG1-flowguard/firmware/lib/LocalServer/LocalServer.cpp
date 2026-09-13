@@ -1,5 +1,12 @@
 #include "LocalServer.h"
 #include <ElegantOTA.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
+// Saved/restored around the OTA window — see ElegantOTA.onStart()/onEnd()
+// below. Not a global disable: this only widens the safety margin for the
+// few seconds flash erase can hog a core, then puts it straight back.
+static uint32_t s_savedBrownoutReg = 0;
 
 void LocalServer::begin() {
     _ws.onEvent([this](AsyncWebSocket* server, AsyncWebSocketClient* client,
@@ -80,6 +87,16 @@ void LocalServer::begin() {
         // rebooting into a half-written partition.
         disableCore0WDT();
         disableCore1WDT();
+        // Flash erase also draws a brief current spike large enough to sag
+        // a marginal supply below the brownout threshold (2.43V default) —
+        // a very plausible match for the "board disappeared off USB
+        // mid-transfer" seen in earlier bench testing: a brownout reset
+        // power-cycles the whole board, including its USB-serial chip,
+        // which looks from the host side exactly like a cable disconnect.
+        // Widen the margin for just the OTA window rather than disabling
+        // this safety net permanently.
+        s_savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+        WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     });
     ElegantOTA.onProgress([](size_t current, size_t total) {
         static uint32_t lastLog = 0;
@@ -90,6 +107,7 @@ void LocalServer::begin() {
     });
     ElegantOTA.onEnd([](bool success) {
         Serial.printf("[LocalServer] OTA update %s\n", success ? "succeeded — rebooting" : "failed");
+        WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, s_savedBrownoutReg);
         enableCore0WDT();
         enableCore1WDT();
     });
