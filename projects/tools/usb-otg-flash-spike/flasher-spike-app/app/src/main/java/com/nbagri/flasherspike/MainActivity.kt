@@ -247,11 +247,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun downloadAndFlash(build: ApiClient.Build) {
-        statusText.text = "Downloading ${build.product} ${build.version}…"
-        log("---- downloading ${build.product} ${build.version} (${build.variant}) ----")
+        statusText.text = "Identifying device…"
+        log("---- identifying device for ${build.product} ${build.version} (${build.variant}) ----")
         Thread {
+            val mac = readMacHex()
+            if (mac == null) {
+                runOnUiThread { log("Could not read the chip's MAC — check the OTG connection and try again.") }
+                return@Thread
+            }
+            runOnUiThread { log("Device MAC: ${mac.chunked(2).joinToString(":")}") }
+
             val bytes = try {
-                api.downloadBuild(build.id)
+                api.downloadBuild(build.id, mac)
             } catch (e: Exception) {
                 runOnUiThread { log("Download failed: ${e.message}") }
                 return@Thread
@@ -263,6 +270,7 @@ class MainActivity : AppCompatActivity() {
                     api.reportResult(
                         build.id,
                         result = if (ok) "flash_ok" else "flash_failed",
+                        mac = mac,
                         detail = if (ok) null else FlashResult.describe(result),
                     )
                 }
@@ -274,6 +282,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun findDriver(): UsbSerialDriver? =
         UsbSerialProber.getDefaultProber().findAllDrivers(usbManager).firstOrNull()
+
+    /** Opens its own short-lived connect session to read the chip's MAC — call off the main thread. */
+    private fun readMacHex(): String? {
+        val driver = findDriver() ?: return null
+        val connection = usbManager.openDevice(driver.device) ?: return null
+        val transport = UsbSerialTransport(driver.ports.first())
+        if (!transport.open(connection, BAUD_RATE)) return null
+        val mac = NativeFlasher.readMac(transport)
+        transport.close()
+        return mac?.joinToString("") { "%02X".format(it) }
+    }
 
     private fun ensureUsbPermission(onGranted: () -> Unit) {
         val driver = findDriver()

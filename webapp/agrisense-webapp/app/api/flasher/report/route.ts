@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { findActiveGrant } from "@/lib/flasherGrant";
+import { deriveDeviceId } from "@/lib/deviceIdentity";
 
 async function getSession() {
   const token = (await cookies()).get("agrisense_session")?.value;
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No active flasher access for this account" }, { status: 403 });
   }
 
-  const { buildId, result, deviceId, detail } = await req.json();
+  const { buildId, result, mac, detail } = await req.json();
   if (typeof buildId !== "string" || !VALID_RESULTS.includes(result)) {
     return NextResponse.json({ error: `buildId and result (${VALID_RESULTS.join(" | ")}) are required` }, { status: 400 });
   }
@@ -31,11 +32,13 @@ export async function POST(req: NextRequest) {
   const build = await prisma.firmwareBuild.findUnique({ where: { id: buildId } });
   if (!build) return NextResponse.json({ error: "Unknown buildId" }, { status: 404 });
 
+  const deviceId = typeof mac === "string" ? deriveDeviceId(build.product, mac) : null;
+
   const event = await prisma.flashEvent.create({
     data: {
       grantId: grant.id,
       buildId,
-      deviceId: typeof deviceId === "string" ? deviceId : null,
+      deviceId,
       result,
       detail: typeof detail === "string" ? detail : null,
     },

@@ -71,6 +71,50 @@ static esp_loader_error_t flash_one(esp_loader_t *loader, const uint8_t *bin, ui
     return esp_loader_flash_finish(loader, &cfg);
 }
 
+/*
+ * Reads the target chip's burned-in MAC (works on a blank/unflashed chip
+ * too, since it's an eFuse value, not something firmware reports) so the
+ * app can identify which physical unit is connected before downloading a
+ * build for it — see NB Agri Flasher's device-allowlist check.
+ */
+JNIEXPORT jbyteArray JNICALL
+Java_com_nbagri_flasherspike_NativeFlasher_readMac(
+    JNIEnv *env, jobject thiz,
+    jobject transport)
+{
+    (void)thiz;
+
+    android_port_t aport;
+    esp_loader_error_t err = android_port_bind(&aport, env, transport);
+    if (err != ESP_LOADER_SUCCESS) {
+        return NULL;
+    }
+
+    esp_loader_t loader;
+    err = esp_loader_init_serial(&loader, &aport.port);
+    if (err != ESP_LOADER_SUCCESS) {
+        return NULL;
+    }
+
+    esp_loader_connect_args_t connect_args = ESP_LOADER_CONNECT_DEFAULT();
+    err = esp_loader_connect_with_stub(&loader, &connect_args);
+    if (err != ESP_LOADER_SUCCESS) {
+        esp_loader_deinit(&loader);
+        return NULL;
+    }
+
+    uint8_t mac[6];
+    err = esp_loader_read_mac(&loader, mac);
+    esp_loader_deinit(&loader);
+    if (err != ESP_LOADER_SUCCESS) {
+        return NULL;
+    }
+
+    jbyteArray result = (*env)->NewByteArray(env, 6);
+    (*env)->SetByteArrayRegion(env, result, 0, 6, (const jbyte *)mac);
+    return result;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_nbagri_flasherspike_NativeFlasher_flash(
     JNIEnv *env, jobject thiz,

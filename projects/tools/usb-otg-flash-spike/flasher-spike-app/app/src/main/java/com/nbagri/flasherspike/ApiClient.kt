@@ -87,8 +87,10 @@ class ApiClient(context: Context) {
         }
     }
 
-    fun downloadBuild(buildId: String): ByteArray {
-        val conn = authedConnection("/api/flasher/download/$buildId", "GET")
+    /** `mac` is the connected chip's raw MAC (hex, no separators) — the server checks it against
+     *  provisioned Device rows and refuses unknown/unprovisioned hardware. */
+    fun downloadBuild(buildId: String, mac: String): ByteArray {
+        val conn = authedConnection("/api/flasher/download/$buildId?mac=$mac", "GET")
         val code = conn.responseCode
         if (code !in 200..299) {
             throw IllegalStateException(errorMessage(conn, code))
@@ -97,10 +99,10 @@ class ApiClient(context: Context) {
     }
 
     /** Best-effort — a failed report shouldn't itself be treated as a flash failure. */
-    fun reportResult(buildId: String, result: String, deviceId: String? = null, detail: String? = null) {
+    fun reportResult(buildId: String, result: String, mac: String? = null, detail: String? = null) {
         runCatching {
             val conn = authedConnection("/api/flasher/report", "POST")
-            writeJson(conn, mapOf("buildId" to buildId, "result" to result, "deviceId" to deviceId, "detail" to detail))
+            writeJson(conn, mapOf("buildId" to buildId, "result" to result, "mac" to mac, "detail" to detail))
             readJson(conn)
         }
     }

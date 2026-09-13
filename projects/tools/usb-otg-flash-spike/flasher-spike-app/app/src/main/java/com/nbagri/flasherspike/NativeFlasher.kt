@@ -24,6 +24,14 @@ object NativeFlasher {
         app: ByteArray?, appOffset: Int,
         listener: FlashProgressListener
     ): Int
+
+    /**
+     * Reads the connected chip's burned-in MAC (6 bytes), or null if the
+     * connect/read handshake fails. Works on a blank chip — it's an eFuse
+     * value, not something firmware has to report. Opens and closes its
+     * own connect session, separate from [flash]'s.
+     */
+    external fun readMac(transport: UsbSerialTransport): ByteArray?
 }
 
 fun interface FlashProgressListener {
