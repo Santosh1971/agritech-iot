@@ -7,6 +7,9 @@ app/src/main/assets/*.bin
 # Local machine config — not portable, never commit
 local.properties
 
+# Release signing credentials — never commit, matches the other NB Agri apps' convention
+key.properties
+
 # IDE
 .idea/
 *.iml
