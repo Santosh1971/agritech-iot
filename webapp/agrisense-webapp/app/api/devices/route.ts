@@ -23,8 +23,8 @@ export async function GET() {
     where,
     orderBy: { createdAt: "desc" },
     include: {
-      owner: { select: { name: true, phone: true } },
-      dealer: { select: { name: true, phone: true } },
+      owner: { select: { name: true, email: true } },
+      dealer: { select: { name: true, email: true } },
     },
   });
 

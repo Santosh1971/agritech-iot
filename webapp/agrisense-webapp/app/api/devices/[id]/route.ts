@@ -24,29 +24,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (session.role === "ADMIN") {
     if (typeof body.name === "string") data.name = body.name;
-    if ("ownerPhone" in body) {
-      if (!body.ownerPhone) data.ownerId = null;
+    if ("ownerEmail" in body) {
+      if (!body.ownerEmail) data.ownerId = null;
       else {
-        const owner = await prisma.user.findUnique({ where: { phone: body.ownerPhone } });
-        if (!owner) return NextResponse.json({ error: "No user with that phone number" }, { status: 400 });
+        const owner = await prisma.user.findUnique({ where: { email: body.ownerEmail } });
+        if (!owner) return NextResponse.json({ error: "No user with that email" }, { status: 400 });
         data.ownerId = owner.id;
       }
     }
-    if ("dealerPhone" in body) {
-      if (!body.dealerPhone) data.dealerId = null;
+    if ("dealerEmail" in body) {
+      if (!body.dealerEmail) data.dealerId = null;
       else {
-        const dealer = await prisma.user.findUnique({ where: { phone: body.dealerPhone } });
-        if (!dealer) return NextResponse.json({ error: "No user with that phone number" }, { status: 400 });
+        const dealer = await prisma.user.findUnique({ where: { email: body.dealerEmail } });
+        if (!dealer) return NextResponse.json({ error: "No user with that email" }, { status: 400 });
         data.dealerId = dealer.id;
       }
     }
   } else if (session.role === "DEALER" && device.dealerId === session.userId) {
     if (typeof body.name === "string") data.name = body.name;
-    if ("ownerPhone" in body) {
-      if (!body.ownerPhone) data.ownerId = null;
+    if ("ownerEmail" in body) {
+      if (!body.ownerEmail) data.ownerId = null;
       else {
-        const owner = await prisma.user.findUnique({ where: { phone: body.ownerPhone } });
-        if (!owner) return NextResponse.json({ error: "No user with that phone number" }, { status: 400 });
+        const owner = await prisma.user.findUnique({ where: { email: body.ownerEmail } });
+        if (!owner) return NextResponse.json({ error: "No user with that email" }, { status: 400 });
         data.ownerId = owner.id;
       }
     }

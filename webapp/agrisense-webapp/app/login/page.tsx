@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [step, setStep] = useState<"email" | "otp">("email");
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -14,17 +14,17 @@ export default function LoginPage() {
     setError("");
     const res = await fetch("/api/auth/request-otp", {
       method: "POST",
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ email }),
     });
     if (res.ok) setStep("otp");
-    else setError("Could not send code. Check the number and try again.");
+    else setError("Could not send code. Check the address and try again.");
   }
 
   async function verifyOtp() {
     setError("");
     const res = await fetch("/api/auth/verify-otp", {
       method: "POST",
-      body: JSON.stringify({ phone, code }),
+      body: JSON.stringify({ email, code }),
     });
     if (res.ok) router.push("/dashboard");
     else {
@@ -37,12 +37,12 @@ export default function LoginPage() {
     <main style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
       <h1>Agri Sense and Control</h1>
 
-      {step === "phone" && (
+      {step === "email" && (
         <>
           <input
-            placeholder="Phone number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={{ width: "100%", padding: 8, marginBottom: 8 }}
           />
           <button onClick={requestOtp} style={{ width: "100%", padding: 8 }}>

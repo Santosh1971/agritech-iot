@@ -9,8 +9,8 @@ type Device = {
   name: string;
   lastSeenAt: string | null;
   lastStatus: unknown;
-  owner: { name: string; phone: string } | null;
-  dealer: { name: string; phone: string } | null;
+  owner: { name: string; email: string } | null;
+  dealer: { name: string; email: string } | null;
 };
 
 const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH"];
@@ -27,7 +27,7 @@ export default function DevicesPage({ role }: { role: string }) {
   const [newDevice, setNewDevice] = useState({ deviceId: "", product: "FG1", name: "" });
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [ownerPhone, setOwnerPhone] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/devices");
@@ -62,11 +62,11 @@ export default function DevicesPage({ role }: { role: string }) {
     setError("");
     const res = await fetch(`/api/devices/${deviceId}`, {
       method: "PATCH",
-      body: JSON.stringify({ ownerPhone }),
+      body: JSON.stringify({ ownerEmail }),
     });
     if (res.ok) {
       setEditingId(null);
-      setOwnerPhone("");
+      setOwnerEmail("");
       load();
     } else {
       const data = await res.json();
@@ -155,7 +155,7 @@ export default function DevicesPage({ role }: { role: string }) {
               </td>
               {role !== "CUSTOMER" && (
                 <td style={{ padding: 8 }}>
-                  {d.owner ? `${d.owner.name} (${d.owner.phone})` : "Unassigned"}
+                  {d.owner ? `${d.owner.name} (${d.owner.email})` : "Unassigned"}
                 </td>
               )}
               {role === "ADMIN" && (
@@ -163,9 +163,9 @@ export default function DevicesPage({ role }: { role: string }) {
                   {editingId === d.id ? (
                     <>
                       <input
-                        placeholder="Owner phone"
-                        value={ownerPhone}
-                        onChange={(e) => setOwnerPhone(e.target.value)}
+                        placeholder="Owner email"
+                        value={ownerEmail}
+                        onChange={(e) => setOwnerEmail(e.target.value)}
                         style={{ padding: 4, marginRight: 4 }}
                       />
                       <button onClick={() => assignOwner(d.id)}>Save</button>

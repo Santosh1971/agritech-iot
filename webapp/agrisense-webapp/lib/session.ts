@@ -4,7 +4,7 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET as string);
 
 export type SessionPayload = {
   userId: string;
-  phone: string;
+  email: string;
   role: "ADMIN" | "DEALER" | "CUSTOMER";
 };
 

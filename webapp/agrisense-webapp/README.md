@@ -28,10 +28,10 @@ One app, role-based — no separate admin app needed (same call WM1-Mini's spec 
 
 ## Decisions locked in
 
-- **Auth: phone number + OTP**, not email/password. Fits the farmer/dealer customer base better than
-  Bridge's email/password NextAuth setup — no password to remember, matches how they already use
-  WhatsApp/UPI. SMS OTP via an India-focused gateway (MSG91 or Fast2SMS, TBD which). `OtpCode` model
-  added to the schema; `User.phone` is now the unique login identifier, email is optional/notification-only.
+- **Auth: email + OTP**, not phone/SMS or email/password. Started as phone+SMS, but switched since
+  SMS gateways (MSG91/Fast2SMS) cost per message while email (Resend, free tier) doesn't — no
+  password to remember either way. `OtpCode` model keyed by email; `User.email` is the unique login
+  identifier, phone is now optional/contact-only (still used for `FlasherGrant` lookups).
 - **All AgriTech products migrate** to the new broker + unified topic scheme (FG1, FM1, WM1, WPC, TH) —
   Girish may be an exception if he goes ahead with his own software instead.
 - **MQTT-to-Postgres bridge is a separate standalone Node process**, PM2-managed, independent from the
@@ -44,8 +44,8 @@ One app, role-based — no separate admin app needed (same call WM1-Mini's spec 
   list, server-rendered), `middleware.ts` protecting all routes except login/auth API
 - `app/api/auth/request-otp`, `app/api/auth/verify-otp` — OTP flow, session issued as an httpOnly
   JWT cookie (`lib/session.ts`)
-- `lib/sms.ts` — stub for the SMS gateway call; has a dev-mode console.log fallback so you can test
-  the whole login flow locally before a real gateway (MSG91/Fast2SMS) is wired in
+- `lib/email.ts` — sends the OTP email via Resend; has a dev-mode console.log fallback (when
+  `RESEND_API_KEY` is unset) so you can test the whole login flow locally with no real account
 - `bridge/` — standalone MQTT-to-Postgres service (see decisions above), separate `package.json` so
   it runs as its own PM2 process independent of the Next.js app
 - Note: **users are provisioned by Admin, not self-signup** — matches the WM1-Mini access model
@@ -64,11 +64,12 @@ npx prisma migrate dev --name init
 npm run dev
 ```
 
-OTP codes print to the terminal in dev mode (see `lib/sms.ts`) — no SMS gateway needed to test the
-login flow end-to-end. You'll need at least one `User` row in the DB to actually log in past OTP
+OTP codes print to the terminal in dev mode (see `lib/email.ts`) — no Resend account needed to test
+the login flow end-to-end. You'll need at least one `User` row in the DB to actually log in past OTP
 (Prisma Studio — `npx prisma studio` — is the quickest way to add yourself as an ADMIN for testing).
 
 ## Still open
 
-- Which SMS OTP gateway (MSG91 vs Fast2SMS) — pick once we're setting up env vars on the VPS
+- Verify agrisenseandcontrol.in as a sending domain in Resend (or keep the shared `onboarding@resend.dev`
+  sender until that's done — works immediately, just less branded)
 - Whether TH Monitor and FG1's existing MQTT topics migrate immediately or at their next firmware update
