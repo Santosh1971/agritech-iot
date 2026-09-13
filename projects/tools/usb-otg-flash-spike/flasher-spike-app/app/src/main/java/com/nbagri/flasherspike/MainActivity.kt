@@ -256,14 +256,16 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { log("Download failed: ${e.message}") }
                 return@Thread
             }
-            runOnUiThread { log("Downloaded ${bytes.size / 1024} KB, flashing…") }
-            flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
-                val ok = result == 0
-                api.reportResult(
-                    build.id,
-                    result = if (ok) "flash_ok" else "flash_failed",
-                    detail = if (ok) null else FlashResult.describe(result),
-                )
+            runOnUiThread {
+                log("Downloaded ${bytes.size / 1024} KB, flashing…")
+                flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
+                    val ok = result == 0
+                    api.reportResult(
+                        build.id,
+                        result = if (ok) "flash_ok" else "flash_failed",
+                        detail = if (ok) null else FlashResult.describe(result),
+                    )
+                }
             }
         }.start()
     }
