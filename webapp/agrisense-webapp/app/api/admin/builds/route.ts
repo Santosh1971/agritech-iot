@@ -10,6 +10,25 @@ async function getSession() {
   return token ? await verifySession(token) : null;
 }
 
+// Upload accepts two callers: a human admin session (email-OTP, same as
+// every other admin route), or CI — GitHub Actions has no inbox to receive
+// an OTP in, so it authenticates instead with a static bearer token
+// (CI_UPLOAD_TOKEN, set in the server's .env and as a GitHub Actions repo
+// secret — never committed). Attributed to a dedicated "CI Bot" User row
+// rather than leaving uploadedById null, so the Builds table still shows
+// who/what produced each one.
+async function authorizedUploader(req: NextRequest): Promise<{ userId: string } | null> {
+  const authHeader = req.headers.get("authorization");
+  const ciToken = process.env.CI_UPLOAD_TOKEN;
+  if (ciToken && authHeader === `Bearer ${ciToken}`) {
+    const ciUser = await prisma.user.findUnique({ where: { email: "ci@agrisenseandcontrol.in" } });
+    if (ciUser) return { userId: ciUser.id };
+  }
+  const session = await getSession();
+  if (session && session.role === "ADMIN") return { userId: session.userId };
+  return null;
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
@@ -23,12 +42,12 @@ export async function GET() {
   return NextResponse.json({ builds });
 }
 
-// Admin-only build upload. multipart/form-data: product, version, variant,
-// notes (optional), file. The checksum is computed here, server-side, from
-// the bytes actually received — never trusted from the client.
+// multipart/form-data: product, version, variant, notes (optional), file.
+// The checksum is computed here, server-side, from the bytes actually
+// received — never trusted from the client.
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
+  const authorized = await authorizedUploader(req);
+  if (!authorized) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -62,7 +81,7 @@ export async function POST(req: NextRequest) {
       sha256,
       sizeBytes,
       notes: typeof notes === "string" && notes.length > 0 ? notes : null,
-      uploadedById: session.userId,
+      uploadedById: authorized.userId,
     },
   });
 
