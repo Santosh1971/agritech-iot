@@ -6,12 +6,18 @@
     <string name="log_placeholder">Log output appears here. The full esp-serial-flasher trace also goes to Logcat (tag: flasherspike).</string>
     <string name="progress_idle">idle</string>
 
-    <string name="hint_server_url">Server address (e.g. https://agrisenseandcontrol.in)</string>
     <string name="hint_email">Email address</string>
     <string name="send_code_button">Send code</string>
-    <string name="hint_otp">Code from SMS</string>
+    <string name="hint_otp">Code from email</string>
     <string name="verify_code_button">Verify</string>
     <string name="logout_button">Log out</string>
     <string name="check_updates_button">Check for updates</string>
     <string name="bench_section_title">Bench tools (local test builds)</string>
+    <string name="share_log_button">Share log (for support)</string>
+    <string name="choose_transport_title">Flash method</string>
+    <string name="choose_transport_usb">USB cable</string>
+    <string name="choose_transport_wifi">WiFi (SoftAP)</string>
+    <string name="wifi_transport_instruction">Now switch this phone\'s WiFi to the device\'s own network (shown on its label), then tap Continue.</string>
+    <string name="continue_button">Continue</string>
+    <string name="cancel_button">Cancel</string>
 </resources>

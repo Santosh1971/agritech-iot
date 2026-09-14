@@ -15,6 +15,7 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.hoho.android.usbserial.driver.UsbSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialProber
@@ -29,15 +30,14 @@ import java.io.InputStream
  *  - **Real flow** (login section → picker section): email+OTP login against
  *    agrisense-webapp's NB Agri Flasher API, fetches the caller's live grant,
  *    lists builds for a granted product, downloads the selected one fresh
- *    (never cached — see ApiClient's doc comment) and flashes it to the app
- *    partition only. This is what ships to Kamta.
+ *    (never cached — see ApiClient's doc comment). Identifying the device
+ *    still needs the OTG cable connected (to read its MAC for the server's
+ *    provisioning check), but the actual flash write can then go either way
+ *    — USB serial or WiFi/SoftAP — user's choice, via promptTransportChoice().
+ *    This is what ships to Kamta/Avinash.
  *  - **Bench tools** (bottom section, unchanged from the spike): local
- *    local .bin files under assets/, no backend involved — kept for bench testing without
- *    needing a server running.
- *
- * WiFi/SoftAP flashing (startWifiFlash/WifiOtaFlasher) stays bench-only and
- * isn't wired into the real flow — see the parked status in
- * projects/tools/usb-otg-flash-spike/README.md.
+ *    .bin files under assets/, no backend involved — kept for bench testing
+ *    without needing a server running.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -51,7 +51,6 @@ class MainActivity : AppCompatActivity() {
     // Real flow views
     private lateinit var loginSection: android.view.View
     private lateinit var pickerSection: android.view.View
-    private lateinit var serverUrlInput: EditText
     private lateinit var emailInput: EditText
     private lateinit var otpInput: EditText
     private lateinit var verifyCodeButton: Button
@@ -98,7 +97,6 @@ class MainActivity : AppCompatActivity() {
 
         loginSection = findViewById(R.id.loginSection)
         pickerSection = findViewById(R.id.pickerSection)
-        serverUrlInput = findViewById(R.id.serverUrlInput)
         emailInput = findViewById(R.id.emailInput)
         otpInput = findViewById(R.id.otpInput)
         verifyCodeButton = findViewById(R.id.verifyCodeButton)
@@ -106,7 +104,12 @@ class MainActivity : AppCompatActivity() {
         productSpinner = findViewById(R.id.productSpinner)
         buildListContainer = findViewById(R.id.buildListContainer)
 
-        serverUrlInput.setText(api.baseUrl)
+        // First line of every session's log — the four things needed to make sense of
+        // a field report without asking follow-up questions: app version (did they
+        // update?), phone/Android version (OEM WiFi/USB quirks vary a lot), and which
+        // server it's actually talking to.
+        val versionName = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+        log("NB Agri Flasher v$versionName — ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE}, server ${api.baseUrl}")
 
         val filter = IntentFilter(ACTION_USB_PERMISSION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -126,6 +129,7 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.flashButton).setOnClickListener { ensureUsbPermission { startFlash() } }
         findViewById<Button>(R.id.wifiFlashButton).setOnClickListener { startWifiFlash() }
+        findViewById<Button>(R.id.shareLogButton).setOnClickListener { shareLog() }
 
         if (api.isLoggedIn) showPickerSection() else showLoginSection()
     }
@@ -151,7 +155,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendCode() {
-        api.baseUrl = serverUrlInput.text.toString().trim()
         val email = emailInput.text.toString().trim()
         if (email.isEmpty()) {
             log("Enter an email address first.")
@@ -264,18 +267,92 @@ class MainActivity : AppCompatActivity() {
                 return@Thread
             }
             runOnUiThread {
-                log("Downloaded ${bytes.size / 1024} KB, flashing…")
-                flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
-                    val ok = result == 0
-                    api.reportResult(
-                        build.id,
-                        result = if (ok) "flash_ok" else "flash_failed",
-                        mac = mac,
-                        detail = if (ok) null else FlashResult.describe(result),
-                    )
+                log("Downloaded ${bytes.size / 1024} KB.")
+                promptTransportChoice(build, mac, bytes)
+            }
+        }.start()
+    }
+
+    /** After a build is downloaded and the device identified, let the user pick how
+     *  to actually write it — the cable is still needed to get here (MAC read above),
+     *  but the bulk transfer itself can go either way from this point on. */
+    private fun promptTransportChoice(build: ApiClient.Build, mac: String, bytes: ByteArray) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_transport_title)
+            .setItems(arrayOf(getString(R.string.choose_transport_usb), getString(R.string.choose_transport_wifi))) { _, which ->
+                if (which == 0) {
+                    flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
+                        reportFlashResult(build, mac, result)
+                    }
+                } else {
+                    promptWifiSwitchThenFlash(build, mac, bytes)
+                }
+            }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    private fun promptWifiSwitchThenFlash(build: ApiClient.Build, mac: String, bytes: ByteArray) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_transport_wifi)
+            .setMessage(R.string.wifi_transport_instruction)
+            .setPositiveButton(R.string.continue_button) { _, _ -> flashOverWifiReal(build, mac, bytes) }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    private fun flashOverWifiReal(build: ApiClient.Build, mac: String, bytes: ByteArray) {
+        statusText.text = "Flashing over WiFi…"
+        progressBar.progress = 0
+        progressText.text = getString(R.string.progress_idle)
+        log("---- WiFi flash attempt starting (host $SOFTAP_HOST) for ${build.product} ${build.version} ----")
+
+        Thread {
+            val result = WifiOtaFlasher(this).flash(SOFTAP_HOST, bytes) { percent ->
+                runOnUiThread {
+                    progressBar.progress = percent
+                    progressText.text = "firmware $percent%"
+                }
+            }
+            runOnUiThread {
+                when (result) {
+                    is WifiOtaFlasher.Result.Success -> {
+                        log("Result: SUCCESS — board is rebooting into the new firmware")
+                        statusText.text = "WiFi flash succeeded"
+                        reportFlashResult(build, mac, 0)
+                    }
+                    is WifiOtaFlasher.Result.Failure -> {
+                        log("Result: FAILED — ${result.message}")
+                        statusText.text = "WiFi flash failed"
+                        api.reportResult(build.id, result = "flash_failed", mac = mac, detail = result.message)
+                    }
                 }
             }
         }.start()
+    }
+
+    private fun reportFlashResult(build: ApiClient.Build, mac: String, usbResultCode: Int) {
+        val ok = usbResultCode == 0
+        api.reportResult(
+            build.id,
+            result = if (ok) "flash_ok" else "flash_failed",
+            mac = mac,
+            detail = if (ok) null else FlashResult.describe(usbResultCode),
+        )
+    }
+
+    /** Opens Android's share sheet with the full on-screen log — the fastest way for
+     *  Kamta/Avinash to get a field failure in front of us without dictating it over
+     *  a call. The startup line (app version, phone model, server) plus every
+     *  download/MAC/flash-result line already logged should be enough to diagnose
+     *  most issues without a follow-up question. */
+    private fun shareLog() {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "NB Agri Flasher log")
+            putExtra(Intent.EXTRA_TEXT, logText.text.toString())
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.share_log_button)))
     }
 
     // ==================== Shared USB plumbing ====================

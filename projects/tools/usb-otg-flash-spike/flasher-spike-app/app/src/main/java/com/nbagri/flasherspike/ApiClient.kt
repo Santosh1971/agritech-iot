@@ -12,10 +12,10 @@ import java.net.URL
  * report. Session cookie and server URL persist in SharedPreferences so
  * re-launching the app doesn't require logging in again every time.
  *
- * The server URL is a user-editable field, defaulting to the production
- * domain (agrisenseandcontrol.in) now that it's deployed there. Override it
- * (e.g. to http://localhost:3000 via `adb reverse tcp:3000 tcp:3000`) for
- * local backend testing.
+ * The server URL is hardcoded to the production domain — there's no reason
+ * for Kamta/Avinash to ever see or change it in the UI. For local backend
+ * testing, temporarily call the baseUrl setter from a debug build instead
+ * of exposing a field for it.
  */
 class ApiClient(context: Context) {
     private val prefs = context.getSharedPreferences("nbagri_flasher", Context.MODE_PRIVATE)
