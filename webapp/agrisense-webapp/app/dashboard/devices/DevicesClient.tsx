@@ -17,7 +17,15 @@ const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH"];
 
 function isOnline(lastSeenAt: string | null): boolean {
   if (!lastSeenAt) return false;
-  return Date.now() - new Date(lastSeenAt).getTime() < 5 * 60 * 1000; // online if seen in last 5 min
+  // "Recently seen" is a heuristic, not a real-time signal — a device that's
+  // just lost power still shows Online for up to this long, since there's no
+  // way to know it stopped talking without waiting out some timeout (MQTT's
+  // Last Will would give a real-time signal instead, but that has to be
+  // registered by the device itself at connect time, so it needs a firmware
+  // change we're not making right now — see STATUS_PUBLISH_INTERVAL_MS in
+  // each product's Config.h, ~5s, so 2 min is ~24 missed heartbeats, not a
+  // hair trigger on one dropped packet).
+  return Date.now() - new Date(lastSeenAt).getTime() < 2 * 60 * 1000;
 }
 
 export default function DevicesPage({ role }: { role: string }) {
