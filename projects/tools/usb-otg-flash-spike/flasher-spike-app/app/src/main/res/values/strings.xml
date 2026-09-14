@@ -1,8 +1,6 @@
 <resources>
     <string name="app_name">NB Agri Flasher</string>
-    <string name="status_no_device">No USB device connected — plug in the OTG cable.</string>
-    <string name="flash_button">Flash bench ESP32</string>
-    <string name="wifi_flash_button">Flash over WiFi (SoftAP)</string>
+    <string name="status_idle">Ready.</string>
     <string name="log_placeholder">Log output appears here. The full esp-serial-flasher trace also goes to Logcat (tag: flasherspike).</string>
     <string name="progress_idle">idle</string>
 
@@ -12,7 +10,6 @@
     <string name="verify_code_button">Verify</string>
     <string name="logout_button">Log out</string>
     <string name="check_updates_button">Check for updates</string>
-    <string name="bench_section_title">Bench tools (local test builds)</string>
     <string name="share_log_button">Share log (for support)</string>
     <string name="choose_transport_title">Flash method</string>
     <string name="choose_transport_usb">USB cable</string>

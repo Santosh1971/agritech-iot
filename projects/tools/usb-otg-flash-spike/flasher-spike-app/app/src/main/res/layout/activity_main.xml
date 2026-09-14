@@ -109,35 +109,14 @@
             android:layout_marginTop="8dp" />
     </LinearLayout>
 
-    <!-- ============ Bench tools (local bundled bin files — see assets/README.md) ============ -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/bench_section_title"
-        android:textStyle="bold"
-        android:paddingTop="20dp"
-        android:paddingBottom="4dp" />
-
     <TextView
         android:id="@+id/statusText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/status_no_device"
+        android:text="@string/status_idle"
         android:textSize="16sp"
+        android:paddingTop="20dp"
         android:paddingBottom="12dp" />
-
-    <Button
-        android:id="@+id/flashButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/flash_button" />
-
-    <Button
-        android:id="@+id/wifiFlashButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/wifi_flash_button" />
 
     <LinearLayout
         android:layout_width="match_parent"

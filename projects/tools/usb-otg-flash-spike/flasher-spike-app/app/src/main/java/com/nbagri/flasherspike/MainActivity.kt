@@ -19,25 +19,25 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.hoho.android.usbserial.driver.UsbSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialProber
-import java.io.IOException
-import java.io.InputStream
 
 /**
- * NB Agri Flasher — two independent flows sharing the same USB-OTG flashing
- * engine (NativeFlasher/UsbSerialTransport/android_port.c, proven in the
- * USB-OTG spike, see SPIKE_SPEC.md):
+ * NB Agri Flasher — login (email+OTP against agrisense-webapp's NB Agri
+ * Flasher API) → product/build picker → flash, using the USB-OTG flashing
+ * engine proven in the USB-OTG spike (NativeFlasher/UsbSerialTransport/
+ * android_port.c, see SPIKE_SPEC.md). Every build is fetched fresh per
+ * flash, never cached (see ApiClient's doc comment). Identifying the device
+ * still needs the OTG cable connected (to read its MAC for the server's
+ * provisioning check), but the actual flash write can then go either way —
+ * USB serial or WiFi/SoftAP — user's choice, via promptTransportChoice().
  *
- *  - **Real flow** (login section → picker section): email+OTP login against
- *    agrisense-webapp's NB Agri Flasher API, fetches the caller's live grant,
- *    lists builds for a granted product, downloads the selected one fresh
- *    (never cached — see ApiClient's doc comment). Identifying the device
- *    still needs the OTG cable connected (to read its MAC for the server's
- *    provisioning check), but the actual flash write can then go either way
- *    — USB serial or WiFi/SoftAP — user's choice, via promptTransportChoice().
- *    This is what ships to Kamta/Avinash.
- *  - **Bench tools** (bottom section, unchanged from the spike): local
- *    .bin files under assets/, no backend involved — kept for bench testing
- *    without needing a server running.
+ * The earlier "Bench tools" section (flashing local .bin files bundled in
+ * the app itself, no backend involved) was removed 2026-09-14 — it predated
+ * this real flow, had no build-history/version safeguards, and was already
+ * causing mix-ups (e.g. someone hitting "Flash over WiFi" here by mistake
+ * instead of picking a build above). A blank/new chip's initial full
+ * (bootloader+partitions+app) flash still happens separately during
+ * production (products/FG1-flowguard/tools/fg1_production_tester), not
+ * from this app.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -127,8 +127,6 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.checkUpdatesButton).setOnClickListener { checkUpdates() }
 
-        findViewById<Button>(R.id.flashButton).setOnClickListener { ensureUsbPermission { startFlash() } }
-        findViewById<Button>(R.id.wifiFlashButton).setOnClickListener { startWifiFlash() }
         findViewById<Button>(R.id.shareLogButton).setOnClickListener { shareLog() }
 
         if (api.isLoggedIn) showPickerSection() else showLoginSection()
@@ -392,22 +390,9 @@ class MainActivity : AppCompatActivity() {
         usbManager.requestPermission(driver.device, permissionIntent)
     }
 
-    /** Bench button: flashes bootloader+partitions+app from local assets. */
-    private fun startFlash() {
-        val bootloader = readAsset("bootloader.bin")
-        val partitions = readAsset("partitions.bin")
-        val app = readAsset("firmware.bin")
-        if (bootloader == null && partitions == null && app == null) {
-            log(
-                "No .bin files in assets/. See assets/README.md — copy a build from " +
-                    "products/FG1-flowguard/firmware/.pio/build/esp32dev_ds1307/ before running."
-            )
-            return
-        }
-        flashOverUsb(bootloader, BOOTLOADER_OFFSET, partitions, PARTITIONS_OFFSET, app, APP_OFFSET, null)
-    }
-
-    /** Real flow: only ever writes the app partition — bootloader/partitions came from Avinash's bench flash. */
+    /** Real flow: only ever writes the app partition — a blank/new chip's initial full
+     *  (bootloader+partitions+app) flash is done separately during production, not from
+     *  this app (see products/FG1-flowguard/tools/fg1_production_tester). */
     private fun flashOverUsb(
         bootloader: ByteArray?, partitions: ByteArray?, app: ByteArray?, appOffset: Int,
         onDone: ((Int) -> Unit)?,
@@ -493,52 +478,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }.start()
-    }
-
-    /**
-     * Flashes over the board's SoftAP via ElegantOTA (LocalServer.cpp) — no USB
-     * involved. Only touches assets/firmware.bin: OTA replaces just the running
-     * app image, not the bootloader/partition table, so there's nothing for the
-     * other two assets to do here.
-     */
-    private fun startWifiFlash() {
-        val firmware = readAsset("firmware.bin")
-        if (firmware == null) {
-            log("No firmware.bin in assets/ — see assets/README.md.")
-            return
-        }
-
-        statusText.text = "Flashing over WiFi…"
-        progressBar.progress = 0
-        progressText.text = getString(R.string.progress_idle)
-        log("---- WiFi flash attempt starting (host $SOFTAP_HOST) ----")
-
-        Thread {
-            val result = WifiOtaFlasher(this).flash(SOFTAP_HOST, firmware) { percent ->
-                runOnUiThread {
-                    progressBar.progress = percent
-                    progressText.text = "firmware $percent%"
-                }
-            }
-            runOnUiThread {
-                when (result) {
-                    is WifiOtaFlasher.Result.Success -> {
-                        log("Result: SUCCESS — board is rebooting into the new firmware")
-                        statusText.text = "WiFi flash succeeded"
-                    }
-                    is WifiOtaFlasher.Result.Failure -> {
-                        log("Result: FAILED — ${result.message}")
-                        statusText.text = "WiFi flash failed"
-                    }
-                }
-            }
-        }.start()
-    }
-
-    private fun readAsset(name: String): ByteArray? = try {
-        assets.open(name).use(InputStream::readBytes)
-    } catch (e: IOException) {
-        null
     }
 
     private fun log(message: String) {

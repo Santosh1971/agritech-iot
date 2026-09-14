@@ -35,5 +35,22 @@ export async function GET(req: NextRequest) {
     select: { id: true, product: true, version: true, variant: true, sizeBytes: true, sha256: true, notes: true, createdAt: true },
   });
 
-  return NextResponse.json({ builds });
+  if (session.role === "ADMIN") {
+    return NextResponse.json({ builds });
+  }
+
+  // Non-admin (dealer/field) accounts: only the latest deliberately-cut
+  // release per variant -- never CI's automatic "dev-<sha>" builds (those
+  // land on every push, so "latest overall" would almost always BE a dev
+  // build otherwise) and never older releases sitting around to be picked
+  // by mistake. WPC's master_node/pump_node are both real, needed variants
+  // -- not alternates of each other -- so this is latest-per-variant, not
+  // just the single latest row.
+  const latestByVariant = new Map<string, (typeof builds)[number]>();
+  for (const build of builds) {
+    if (build.version.startsWith("dev-")) continue;
+    if (!latestByVariant.has(build.variant)) latestByVariant.set(build.variant, build);
+  }
+
+  return NextResponse.json({ builds: Array.from(latestByVariant.values()) });
 }
