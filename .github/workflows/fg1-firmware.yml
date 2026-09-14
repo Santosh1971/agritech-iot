@@ -45,4 +45,6 @@ jobs:
             -F "version=dev-${SHORT_SHA}" \
             -F "variant=esp32dev_ds1307" \
             -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
-            -F "file=@.pio/build/esp32dev_ds1307/firmware.bin;type=application/octet-stream"
+            -F "file=@.pio/build/esp32dev_ds1307/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@.pio/build/esp32dev_ds1307/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@.pio/build/esp32dev_ds1307/partitions.bin;type=application/octet-stream"

@@ -51,14 +51,14 @@ class ApiClient(context: Context) {
         sessionCookie = cookie ?: error("Login succeeded but no session was returned")
     }
 
-    data class Grant(val label: String, val products: List<String>)
+    data class Grant(val label: String, val products: List<String>, val isAdmin: Boolean)
 
     fun fetchGrant(): Grant {
         val conn = authedConnection("/api/flasher/grant", "GET")
         val json = readJson(conn)
         val productsArr = json.getJSONArray("products")
         val products = (0 until productsArr.length()).map { productsArr.getString(it) }
-        return Grant(json.getString("label"), products)
+        return Grant(json.getString("label"), products, json.optString("role") == "ADMIN")
     }
 
     data class Build(
@@ -68,6 +68,10 @@ class ApiClient(context: Context) {
         val variant: String,
         val sizeBytes: Long,
         val notes: String?,
+        /** True when this build also has a bootloader.bin/partitions.bin uploaded — only then
+         *  can it flash a genuinely blank chip (see downloadBuildPart), not just update an
+         *  already-provisioned one. Admin-only regardless (server-enforced). */
+        val hasFullFlash: Boolean,
     )
 
     fun fetchBuilds(product: String): List<Build> {
@@ -83,6 +87,7 @@ class ApiClient(context: Context) {
                 variant = b.getString("variant"),
                 sizeBytes = b.getLong("sizeBytes"),
                 notes = b.optString("notes").takeIf { it.isNotBlank() },
+                hasFullFlash = b.optBoolean("hasFullFlash", false),
             )
         }
     }
@@ -123,6 +128,18 @@ class ApiClient(context: Context) {
             }
         }
         return out.toByteArray()
+    }
+
+    /** Fetches the bootloader or partitions companion for a full (blank-chip) flash — only
+     *  valid when [Build.hasFullFlash] is true, and only ever for admin accounts (server
+     *  rejects anyone else). These are small (tens of KB), no progress reporting needed. */
+    fun downloadBuildPart(buildId: String, part: String, mac: String): ByteArray {
+        val conn = authedConnection("/api/flasher/download/$buildId?part=$part&mac=$mac", "GET")
+        val code = conn.responseCode
+        if (code !in 200..299) {
+            throw IllegalStateException(errorMessage(conn, code))
+        }
+        return conn.inputStream.use { it.readBytes() }
     }
 
     /** `deviceId` is for the WiFi flow — read off the board's own /status after flashing

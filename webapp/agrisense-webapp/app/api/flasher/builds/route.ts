@@ -29,11 +29,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: `Not granted access to ${product}` }, { status: 403 });
   }
 
-  const builds = await prisma.firmwareBuild.findMany({
+  const rows = await prisma.firmwareBuild.findMany({
     where: { product: product as Product },
     orderBy: { createdAt: "desc" },
-    select: { id: true, product: true, version: true, variant: true, sizeBytes: true, sha256: true, notes: true, createdAt: true },
+    select: {
+      id: true, product: true, version: true, variant: true, sizeBytes: true, sha256: true, notes: true, createdAt: true,
+      bootloaderPath: true, partitionsPath: true,
+    },
   });
+  // hasFullFlash tells the app whether this build can also do a genuinely
+  // blank chip's first flash (bootloader+partitions+app), not just an
+  // app-only update to an already-provisioned device — see
+  // /api/flasher/download's ?part= handling. Raw storage paths never leave
+  // the server.
+  const builds = rows.map(({ bootloaderPath, partitionsPath, ...b }) => ({
+    ...b,
+    hasFullFlash: Boolean(bootloaderPath && partitionsPath),
+  }));
 
   if (session.role === "ADMIN") {
     return NextResponse.json({ builds });

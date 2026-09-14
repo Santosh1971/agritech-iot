@@ -264,10 +264,32 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.choose_transport_title)
             .setItems(arrayOf(getString(R.string.choose_transport_usb), getString(R.string.choose_transport_wifi))) { _, which ->
                 if (which == 0) {
-                    ensureUsbPermission { downloadAndFlashUsb(build) }
+                    ensureUsbPermission { onUsbChosen(build) }
                 } else {
                     downloadAndFlashWifi(build)
                 }
+            }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    /** USB was chosen — for an admin on a build that has full-flash companions, ask whether
+     *  this is a brand-new chip (dealers never see this: they only ever update devices that
+     *  are already provisioned, see [[kamta_flasher_app_initiative]]). Everyone else goes
+     *  straight to the ordinary app-only update, same as always. */
+    private fun onUsbChosen(build: ApiClient.Build) {
+        if (currentGrant?.isAdmin == true && build.hasFullFlash) {
+            promptChipType(build)
+        } else {
+            downloadAndFlashUsb(build)
+        }
+    }
+
+    private fun promptChipType(build: ApiClient.Build) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_chip_type_title)
+            .setItems(arrayOf(getString(R.string.chip_type_existing), getString(R.string.chip_type_blank))) { _, which ->
+                if (which == 0) downloadAndFlashUsb(build) else downloadAndFullFlashUsb(build)
             }
             .setNegativeButton(R.string.cancel_button, null)
             .show()
@@ -298,6 +320,54 @@ class MainActivity : AppCompatActivity() {
                         result = if (ok) "flash_ok" else "flash_failed",
                         mac = mac,
                         detail = if (ok) null else FlashResult.describe(result),
+                    )
+                }
+            }
+        }.start()
+    }
+
+    /** Blank-chip path (admin only, USB only — a never-flashed chip has no WiFi/SoftAP to
+     *  connect to yet, so this option only exists alongside the USB transport): fetches
+     *  bootloader+partitions+app and writes all three, same as a real production tool would. */
+    private fun downloadAndFullFlashUsb(build: ApiClient.Build) {
+        statusText.text = "Identifying device…"
+        log("---- identifying device for FULL FLASH of ${build.product} ${build.version} (${build.variant}) ----")
+        Thread {
+            val mac = readMacHex()
+            if (mac == null) {
+                runOnUiThread {
+                    log("Could not read the chip's MAC — check the OTG connection and try again.")
+                    statusText.text = "Identification failed"
+                }
+                return@Thread
+            }
+            runOnUiThread { log("Device MAC: ${mac.chunked(2).joinToString(":")}") }
+
+            val bootloader = try {
+                runOnUiThread { statusText.text = "Downloading bootloader…" }
+                api.downloadBuildPart(build.id, "bootloader", mac)
+            } catch (e: Exception) {
+                runOnUiThread { log("Bootloader download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed" }
+                return@Thread
+            }
+            val partitions = try {
+                runOnUiThread { statusText.text = "Downloading partition table…" }
+                api.downloadBuildPart(build.id, "partitions", mac)
+            } catch (e: Exception) {
+                runOnUiThread { log("Partition table download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed" }
+                return@Thread
+            }
+            val app = downloadWithProgress(build, mac) ?: return@Thread
+
+            runOnUiThread {
+                log("Full flash: bootloader ${bootloader.size / 1024} KB, partitions ${partitions.size} bytes, app ${app.size / 1024} KB.")
+                flashOverUsb(bootloader = bootloader, partitions = partitions, app = app, appOffset = APP_OFFSET) { result ->
+                    val ok = result == 0
+                    api.reportResult(
+                        build.id,
+                        result = if (ok) "flash_ok" else "flash_failed",
+                        mac = mac,
+                        detail = if (ok) null else "full flash: ${FlashResult.describe(result)}",
                     )
                 }
             }
@@ -473,9 +543,10 @@ class MainActivity : AppCompatActivity() {
         usbManager.requestPermission(driver.device, permissionIntent)
     }
 
-    /** Real flow: only ever writes the app partition — a blank/new chip's initial full
-     *  (bootloader+partitions+app) flash is done separately during production, not from
-     *  this app (see products/FG1-flowguard/tools/fg1_production_tester). */
+    /** Real flow: app-only overload — bootloader/partitions null, meaning "this chip is
+     *  already provisioned, just update its app image." downloadAndFullFlashUsb() calls the
+     *  full-args overload below directly with real bootloader/partitions bytes instead, for
+     *  a genuinely blank chip. */
     private fun flashOverUsb(
         bootloader: ByteArray?, partitions: ByteArray?, app: ByteArray?, appOffset: Int,
         onDone: ((Int) -> Unit)?,

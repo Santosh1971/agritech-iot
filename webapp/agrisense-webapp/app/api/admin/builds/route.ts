@@ -43,6 +43,9 @@ export async function GET() {
 }
 
 // multipart/form-data: product, version, variant, notes (optional), file.
+// bootloader/partitions are optional companion files — when both are
+// present, the app can offer a full (blank-chip) flash for this build, not
+// just an app-only update; see /api/flasher/download's ?part= handling.
 // The checksum is computed here, server-side, from the bytes actually
 // received — never trusted from the client.
 export async function POST(req: NextRequest) {
@@ -57,6 +60,8 @@ export async function POST(req: NextRequest) {
   const variant = form.get("variant") || "esp32dev";
   const notes = form.get("notes");
   const file = form.get("file");
+  const bootloaderFile = form.get("bootloader");
+  const partitionsFile = form.get("partitions");
 
   if (typeof product !== "string" || typeof version !== "string" || !(file instanceof File)) {
     return NextResponse.json({ error: "product, version, and file are required" }, { status: 400 });
@@ -72,12 +77,25 @@ export async function POST(req: NextRequest) {
 
   const { storagePath, sha256, sizeBytes } = await saveFirmwareBuild(bytes);
 
+  let bootloaderPath: string | null = null;
+  let partitionsPath: string | null = null;
+  if (bootloaderFile instanceof File && partitionsFile instanceof File) {
+    const bootloaderBytes = Buffer.from(await bootloaderFile.arrayBuffer());
+    const partitionsBytes = Buffer.from(await partitionsFile.arrayBuffer());
+    if (bootloaderBytes.length > 0 && partitionsBytes.length > 0) {
+      bootloaderPath = (await saveFirmwareBuild(bootloaderBytes)).storagePath;
+      partitionsPath = (await saveFirmwareBuild(partitionsBytes)).storagePath;
+    }
+  }
+
   const build = await prisma.firmwareBuild.create({
     data: {
       product: product as Product,
       version,
       variant: variant as string,
       storagePath,
+      bootloaderPath,
+      partitionsPath,
       sha256,
       sizeBytes,
       notes: typeof notes === "string" && notes.length > 0 ? notes : null,

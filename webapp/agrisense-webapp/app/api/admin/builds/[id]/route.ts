@@ -34,5 +34,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   await deleteFirmwareBuild(build.storagePath);
+  if (build.bootloaderPath) await deleteFirmwareBuild(build.bootloaderPath);
+  if (build.partitionsPath) await deleteFirmwareBuild(build.partitionsPath);
   return NextResponse.json({ ok: true });
 }

@@ -109,17 +109,19 @@ model Command {
 // same "local on this VPS" pattern as everything else here — these three
 // models are just the metadata/access-control layer on top.
 model FirmwareBuild {
-  id           String   @id @default(cuid())
-  product      Product
-  version      String
-  variant      String   @default("esp32dev") // PlatformIO env name, e.g. esp32dev_ds1307
-  storagePath  String   // path relative to FIRMWARE_STORAGE_DIR
-  sha256       String
-  sizeBytes    Int
-  notes        String?
-  uploadedById String
-  uploadedBy   User     @relation("BuildsUploaded", fields: [uploadedById], references: [id])
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  product         Product
+  version         String
+  variant         String   @default("esp32dev") // PlatformIO env name, e.g. esp32dev_ds1307
+  storagePath     String   // app image — path relative to FIRMWARE_STORAGE_DIR
+  bootloaderPath  String?  // present only for builds that support flashing a genuinely
+  partitionsPath  String?  // blank chip (bootloader+partitions+app), not just an app-only update
+  sha256          String
+  sizeBytes       Int
+  notes           String?
+  uploadedById    String
+  uploadedBy      User     @relation("BuildsUploaded", fields: [uploadedById], references: [id])
+  createdAt       DateTime @default(now())
 
   flashEvents  FlashEvent[]
 

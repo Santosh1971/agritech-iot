@@ -42,6 +42,34 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: `Not granted access to ${build.product}` }, { status: 403 });
   }
 
+  const url = new URL(req.url);
+
+  // bootloader/partitions are the full-flash companions to the app image —
+  // for genuinely blank chips that have never been given a bootloader or
+  // partition table at all, not an app-only update to an already-running
+  // device. Admin-only: we deliberately don't want dealers provisioning
+  // blank hardware (see [[kamta_flasher_app_initiative]]). No per-device
+  // check here — this is chip-agnostic firmware, identical for every unit
+  // of this build, and no FlashEvent is logged for these (the app's ?part=
+  // "app" request in the same flash session already logs one).
+  const part = url.searchParams.get("part");
+  if (part === "bootloader" || part === "partitions") {
+    if (session.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Only admins can flash a blank chip's bootloader/partitions" },
+        { status: 403 }
+      );
+    }
+    const path = part === "bootloader" ? build.bootloaderPath : build.partitionsPath;
+    if (!path) {
+      return NextResponse.json({ error: `This build has no ${part}.bin available` }, { status: 404 });
+    }
+    const partBytes = await readFirmwareBuild(path);
+    return new NextResponse(new Uint8Array(partBytes), {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+  }
+
   // mac is optional for everyone — the WiFi-flash flow can't read it (no USB
   // involved at all), and dealers/field techs flashing a device already
   // deployed on a farm are exactly who has no easy USB access, which is the
@@ -51,7 +79,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // absent, for any role — the board identifies itself from its own
   // /status once flashed instead (see the app's promptSwitchBackAndFinish),
   // reported after the fact via /api/flasher/report's deviceId field.
-  const mac = new URL(req.url).searchParams.get("mac");
+  const mac = url.searchParams.get("mac");
 
   let deviceId: string | null = null;
   if (mac) {

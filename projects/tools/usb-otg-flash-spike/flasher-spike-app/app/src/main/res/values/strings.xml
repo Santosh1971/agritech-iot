@@ -20,4 +20,7 @@
     <string name="switch_back_title">Almost done</string>
     <string name="switch_back_instruction">Switch this phone\'s WiFi back to your normal network or mobile data, then tap Finish to record the result.</string>
     <string name="finish_button">Finish</string>
+    <string name="choose_chip_type_title">Chip type</string>
+    <string name="chip_type_existing">Existing device (app update only)</string>
+    <string name="chip_type_blank">Blank/new chip (full flash)</string>
 </resources>

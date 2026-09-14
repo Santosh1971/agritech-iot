@@ -19,5 +19,8 @@ export async function GET() {
     return NextResponse.json({ error: "No active flasher access for this account" }, { status: 403 });
   }
 
-  return NextResponse.json({ label: grant.label, products: grant.products });
+  // role is included so the app can show admin-only options (e.g. flashing
+  // a genuinely blank chip's bootloader+partitions, never offered to
+  // dealers) — server-enforced regardless, this is just for a clean UI.
+  return NextResponse.json({ label: grant.label, products: grant.products, role: session.role });
 }
