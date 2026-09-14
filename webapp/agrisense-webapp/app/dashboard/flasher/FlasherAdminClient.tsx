@@ -52,6 +52,14 @@ export default function FlasherAdminClient() {
   const [grantProducts, setGrantProducts] = useState<string[]>([]);
   const [creatingGrant, setCreatingGrant] = useState(false);
 
+  // Editing an existing grant's products in place — separate from the "create
+  // a new grant" form above, since adding a product to someone who already
+  // has access means updating their one grant row, not creating a second one
+  // (findActiveGrant only ever looks at the first match for an account).
+  const [editingGrantId, setEditingGrantId] = useState<string | null>(null);
+  const [editingProducts, setEditingProducts] = useState<string[]>([]);
+  const [savingProducts, setSavingProducts] = useState(false);
+
   const load = useCallback(async () => {
     const [buildsRes, grantsRes, eventsRes] = await Promise.all([
       fetch("/api/admin/builds"),
@@ -134,6 +142,31 @@ export default function FlasherAdminClient() {
 
   function toggleProduct(p: string) {
     setGrantProducts((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  }
+
+  function startEditingProducts(grant: Grant) {
+    setEditingGrantId(grant.id);
+    setEditingProducts(grant.products);
+  }
+
+  function toggleEditingProduct(p: string) {
+    setEditingProducts((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  }
+
+  async function saveEditingProducts(id: string) {
+    setError("");
+    setSavingProducts(true);
+    const res = await fetch(`/api/admin/grants/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ products: editingProducts }),
+    });
+    setSavingProducts(false);
+    if (res.ok) {
+      setEditingGrantId(null);
+      load();
+    } else {
+      setError((await res.json()).error || "Failed to update products");
+    }
   }
 
   if (loading) return <p>Loading…</p>;
@@ -267,7 +300,24 @@ export default function FlasherAdminClient() {
                 <tr key={g.id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: 8 }}>{g.label}</td>
                   <td style={{ padding: 8 }}>{g.phone || g.email}</td>
-                  <td style={{ padding: 8 }}>{g.products.join(", ")}</td>
+                  <td style={{ padding: 8 }}>
+                    {editingGrantId === g.id ? (
+                      <div>
+                        {PRODUCTS.map((p) => (
+                          <label key={p} style={{ marginRight: 10, whiteSpace: "nowrap" }}>
+                            <input
+                              type="checkbox"
+                              checked={editingProducts.includes(p)}
+                              onChange={() => toggleEditingProduct(p)}
+                            />{" "}
+                            {p}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      g.products.join(", ")
+                    )}
+                  </td>
                   <td style={{ padding: 8 }}>
                     <span
                       style={{
@@ -281,8 +331,20 @@ export default function FlasherAdminClient() {
                     />
                     {g.active ? "Active" : "Revoked"}
                   </td>
-                  <td style={{ padding: 8 }}>
-                    <button onClick={() => toggleGrant(g.id, !g.active)}>{g.active ? "Revoke" : "Restore"}</button>
+                  <td style={{ padding: 8, whiteSpace: "nowrap" }}>
+                    {editingGrantId === g.id ? (
+                      <>
+                        <button onClick={() => saveEditingProducts(g.id)} disabled={savingProducts}>
+                          {savingProducts ? "Saving…" : "Save"}
+                        </button>{" "}
+                        <button onClick={() => setEditingGrantId(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => startEditingProducts(g)}>Edit products</button>{" "}
+                        <button onClick={() => toggleGrant(g.id, !g.active)}>{g.active ? "Revoke" : "Restore"}</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
