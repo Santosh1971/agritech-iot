@@ -137,6 +137,14 @@ export default function FlasherAdminClient() {
     else setError((await res.json()).error || "Failed to update access");
   }
 
+  async function deleteGrant(id: string, label: string) {
+    if (!window.confirm(`Delete "${label}"'s access entirely? This can't be undone — use Revoke instead if they might come back.`)) return;
+    setError("");
+    const res = await fetch(`/api/admin/grants/${id}`, { method: "DELETE" });
+    if (res.ok) load();
+    else setError((await res.json()).error || "Failed to delete grant");
+  }
+
   function toggleProduct(p: string) {
     setGrantProducts((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   }
@@ -333,7 +341,8 @@ export default function FlasherAdminClient() {
                     ) : (
                       <>
                         <button onClick={() => startEditingProducts(g)}>Edit products</button>{" "}
-                        <button onClick={() => toggleGrant(g.id, !g.active)}>{g.active ? "Revoke" : "Restore"}</button>
+                        <button onClick={() => toggleGrant(g.id, !g.active)}>{g.active ? "Revoke" : "Restore"}</button>{" "}
+                        <button onClick={() => deleteGrant(g.id, g.label)}>Delete</button>
                       </>
                     )}
                   </td>

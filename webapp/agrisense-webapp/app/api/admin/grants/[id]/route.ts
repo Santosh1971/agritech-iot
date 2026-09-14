@@ -50,3 +50,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ grant: updated });
 }
+
+// Admin-only. For removing a grant entirely (a one-off test account, a typo,
+// someone who should never have had access) rather than just revoking it —
+// revoke is still the right call for anyone who might come back. A grant
+// with real flash history is protected by the FK constraint (FlashEvent.
+// grantId is required, default RESTRICT): that surfaces as a 409 instead of
+// silently erasing the activity log or failing as a generic 500.
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const grant = await prisma.flasherGrant.findUnique({ where: { id } });
+  if (!grant) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  try {
+    await prisma.flasherGrant.delete({ where: { id } });
+  } catch {
+    return NextResponse.json(
+      { error: "Can't delete — this grant has download/flash history. Revoke it instead." },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
