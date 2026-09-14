@@ -128,7 +128,17 @@ class WifiOtaFlasher(private val context: Context) {
                 out.write(tail)
             }
             val code = conn.responseCode
-            if (code == 200) Result.Success else Result.Failure("/ota/upload returned HTTP $code")
+            if (code == 200) {
+                Result.Success
+            } else {
+                // ElegantOTA's response body carries the actual reason (e.g. a specific
+                // Update.h error string, "not enough space", a bad-magic-byte complaint) --
+                // surfacing only the status code was hiding exactly the detail needed to
+                // diagnose a real failure instead of guessing at it.
+                val body = conn.errorStream?.bufferedReader()?.use { it.readText() }?.trim()
+                val detail = body?.takeIf { it.isNotBlank() } ?: "(no response body)"
+                Result.Failure("/ota/upload returned HTTP $code — $detail")
+            }
         } finally {
             conn.disconnect()
         }
