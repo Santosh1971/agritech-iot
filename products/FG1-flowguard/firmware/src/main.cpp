@@ -2,6 +2,8 @@
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <nvs_flash.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "Config.h"
 #include "RTCManager.h"
 #include "FlowSensor.h"
@@ -562,6 +564,16 @@ void setup() {
     Serial.begin(115200);
     Serial.println("[BOOT] SmartWaterController starting...");
 
+    // A cold boot right after flashing packs RTC/I2C/relay init, radio power-up
+    // and a WiFi join attempt into a few hundred ms — same current-spike brownout
+    // risk as the WiFi-OTA flash window (see LocalServer.cpp's onStart/onEnd),
+    // but this path runs on every boot, USB-flashed or not. Confirmed on real
+    // hardware via the app's post-flash boot-log capture: 100+ rapid resets
+    // before it happened to clear this window and boot cleanly. Restored once
+    // WiFi/MQTT setup below is past its own current-hungry moments.
+    uint32_t savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
         ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -642,6 +654,8 @@ void setup() {
         Serial.println("[MQTT] No saved config — using Config.h defaults");
         mqtt.begin(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASS, macSuffix);
     }
+
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
     Serial.println("[BOOT] Setup complete");
 }
 

@@ -18,6 +18,8 @@
 #include <Wire.h>
 #include <Preferences.h>
 #include <esp_task_wdt.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "Config.h"
 #include "DeviceIdentity.h"
 #include "RelayController.h"
@@ -74,6 +76,15 @@ uint32_t lastStatusPublish = 0;
 uint32_t lastDiagPrint = 0;
 
 void setup() {
+  // WiFi/SoftAP init + relay/RTC/I2C bring-up below all draw a current
+  // spike right after reset — same brownout-reset-loop risk confirmed on
+  // FG1 via its post-flash boot log (see FG1's main.cpp setup() for the
+  // full story). Restored once wifiManager.begin() below is past its own
+  // current-hungry moment. Placed before relays.begin() so it also covers
+  // that latch, not just for symmetry with FG1/WPC's placement.
+  uint32_t savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   // Bug fix (reported live: relays energizing briefly at power-on):
   // relays.begin() is the first thing that actually LATCHES a defined
   // (all-zero) state into the 74HC595 driving the relays — a shift
@@ -166,6 +177,7 @@ void setup() {
   mqtt.begin(commandHandler);
   localServer.begin(commandHandler);  // called AFTER wifiManager.begin() — see LocalServer.h note
 
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
   Serial.println("[Main] Setup complete");
   Serial.println("[Main] Serial commands: 's' = status, or paste a raw JSON command line, e.g.:");
   Serial.println("       {\"cmd\":\"wifi_config\",\"ssid\":\"...\",\"password\":\"...\"}");

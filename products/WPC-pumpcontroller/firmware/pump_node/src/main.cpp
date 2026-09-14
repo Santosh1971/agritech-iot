@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
 bool wifiApOk = false;
@@ -395,6 +397,13 @@ void handleSetConfig() {
 }
 
 void setup() {
+  // LoRa radio init + WiFi softAP below both draw a current spike right
+  // after reset, same brownout-reset-loop risk confirmed on FG1 via its
+  // post-flash boot log (see FG1's main.cpp setup() for the full story).
+  // Restored once both radios are up.
+  uint32_t savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   Serial.begin(115200);
   delay(500);
 
@@ -472,6 +481,8 @@ void setup() {
   server.on("/info", handleInfo);
   server.on("/config", HTTP_POST, handleSetConfig);
   server.begin();
+
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
 }
 
 // Same three-pattern indicator as the Master: slow double-blink-then-pause

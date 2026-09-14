@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 // Forward declarations -- several early helper functions (delayWithLeds,
 // listenForJoin, etc.) call these before their real definitions appear
@@ -916,6 +918,13 @@ void handleForget() {
 }
 
 void setup() {
+  // LoRa radio init + WiFi softAP below both draw a current spike right
+  // after reset, same brownout-reset-loop risk confirmed on FG1 via its
+  // post-flash boot log (see FG1's main.cpp setup() for the full story).
+  // Restored once both radios are up.
+  uint32_t savedBrownoutReg = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
   Serial.begin(115200);
   delay(500);
 
@@ -1003,6 +1012,8 @@ void setup() {
   server.on("/name", HTTP_POST, handleSetName);
   server.on("/forget", HTTP_POST, handleForget);
   server.begin();
+
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
 }
 
 // One-line status summary each cycle: level states, No-Power alert
