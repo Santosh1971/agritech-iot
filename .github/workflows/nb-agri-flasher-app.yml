@@ -37,7 +37,9 @@ jobs:
             "ndk;27.0.12077973" "cmake;3.22.1"
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          ./gradlew :app:assembleDebug --no-daemon -PappVersionName="dev-${SHORT_SHA}"
 
       - name: Upload to NB Agri Flasher
         env:

@@ -27,7 +27,11 @@ android {
         minSdk = 26 // USB Host API needs API 12+; 26 matches the phones this bench app targets
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0.0"
+        // CI passes -PappVersionName=dev-<shortsha>, matching the same string it uploads
+        // to /api/admin/app-builds — so what's on screen (MainActivity's startup log
+        // line) always matches the dashboard's Version column exactly. A local manual
+        // build (no property passed) falls back to a plain "1.0.0".
+        versionName = (project.findProperty("appVersionName") as String?) ?: "1.0.0"
 
         externalNativeBuild {
             cmake {
