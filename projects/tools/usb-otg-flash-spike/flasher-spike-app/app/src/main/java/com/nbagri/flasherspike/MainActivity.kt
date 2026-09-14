@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var grantLabelText: TextView
     private lateinit var productSpinner: Spinner
     private lateinit var buildListContainer: android.widget.LinearLayout
+    private lateinit var eraseChipButton: Button
 
     private var currentGrant: ApiClient.Grant? = null
     private var currentBuilds: List<ApiClient.Build> = emptyList()
@@ -113,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         grantLabelText = findViewById(R.id.grantLabelText)
         productSpinner = findViewById(R.id.productSpinner)
         buildListContainer = findViewById(R.id.buildListContainer)
+        eraseChipButton = findViewById(R.id.eraseChipButton)
 
         // First line of every session's log — the four things needed to make sense of
         // a field report without asking follow-up questions: app version (did they
@@ -138,6 +140,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.checkUpdatesButton).setOnClickListener { checkUpdates() }
 
         findViewById<Button>(R.id.shareLogButton).setOnClickListener { shareLog() }
+        eraseChipButton.setOnClickListener { ensureUsbPermission { promptEraseConfirm() } }
 
         if (api.isLoggedIn) showPickerSection() else showLoginSection()
     }
@@ -214,6 +217,7 @@ class MainActivity : AppCompatActivity() {
                     productSpinner.adapter = ArrayAdapter(
                         this, android.R.layout.simple_spinner_dropdown_item, grant.products
                     )
+                    eraseChipButton.visibility = if (grant.isAdmin) android.view.View.VISIBLE else android.view.View.GONE
                 }
             } catch (e: Exception) {
                 runOnUiThread { log("Could not load access: ${friendlyErrorMessage(e)}") }
@@ -520,6 +524,40 @@ class MainActivity : AppCompatActivity() {
         val mac = NativeFlasher.readMac(transport)
         transport.close()
         return mac?.joinToString("") { "%02X".format(it) }
+    }
+
+    private fun promptEraseConfirm() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.erase_confirm_title)
+            .setMessage(R.string.erase_confirm_message)
+            .setPositiveButton(R.string.erase_button) { _, _ -> eraseChip() }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    private fun eraseChip() {
+        statusText.text = "Erasing chip…"
+        log("---- erasing chip ----")
+        Thread {
+            val driver = findDriver()
+            val connection = driver?.let { usbManager.openDevice(it.device) }
+            if (driver == null || connection == null) {
+                runOnUiThread { log("Device disappeared before erase could start."); statusText.text = "Erase failed" }
+                return@Thread
+            }
+            val transport = UsbSerialTransport(driver.ports.first())
+            if (!transport.open(connection, BAUD_RATE)) {
+                runOnUiThread { log("Failed to open serial port at $BAUD_RATE baud."); statusText.text = "Erase failed" }
+                return@Thread
+            }
+            val result = NativeFlasher.eraseChip(transport)
+            transport.close()
+            runOnUiThread {
+                val description = FlashResult.describe(result)
+                log("Erase result: $description ($result)")
+                statusText.text = if (result == 0) "Chip erased — now blank" else "Erase failed: $description"
+            }
+        }.start()
     }
 
     private fun ensureUsbPermission(onGranted: () -> Unit) {

@@ -121,6 +121,48 @@ Java_com_nbagri_flasherspike_NativeFlasher_readMac(
     return result;
 }
 
+/*
+ * Erases the whole flash chip — makes an already-provisioned board behave
+ * exactly like a factory-fresh one again, for repeat testing of the
+ * blank-chip full-flash path without needing a laptop (see
+ * downloadAndFullFlashUsb() / MainActivity's admin-only "Erase chip"
+ * button). Returns an esp_loader_error_t value, same convention as flash().
+ */
+JNIEXPORT jint JNICALL
+Java_com_nbagri_flasherspike_NativeFlasher_eraseChip(
+    JNIEnv *env, jobject thiz,
+    jobject transport)
+{
+    (void)thiz;
+
+    android_port_t aport;
+    esp_loader_error_t err = android_port_bind(&aport, env, transport);
+    if (err != ESP_LOADER_SUCCESS) {
+        return (jint)err;
+    }
+
+    esp_loader_t loader;
+    err = esp_loader_init_serial(&loader, &aport.port);
+    if (err != ESP_LOADER_SUCCESS) {
+        return (jint)err;
+    }
+
+    esp_loader_connect_args_t connect_args = ESP_LOADER_CONNECT_DEFAULT();
+    err = esp_loader_connect_with_stub(&loader, &connect_args);
+    if (err != ESP_LOADER_SUCCESS) {
+        esp_loader_deinit(&loader);
+        return (jint)err;
+    }
+
+    err = esp_loader_flash_erase(&loader);
+
+    /* Reset regardless of outcome, same reasoning as readMac()'s comment —
+       leaves the chip in a known-good state for whatever's attempted next. */
+    esp_loader_reset_target(&loader);
+    esp_loader_deinit(&loader);
+    return (jint)err;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_nbagri_flasherspike_NativeFlasher_flash(
     JNIEnv *env, jobject thiz,

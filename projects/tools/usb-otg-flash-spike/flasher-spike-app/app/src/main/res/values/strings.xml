@@ -23,4 +23,8 @@
     <string name="choose_chip_type_title">Chip type</string>
     <string name="chip_type_existing">Existing device (app update only)</string>
     <string name="chip_type_blank">Blank/new chip (full flash)</string>
+    <string name="erase_chip_button">Erase chip (make it fresh)</string>
+    <string name="erase_confirm_title">Erase this chip?</string>
+    <string name="erase_confirm_message">This wipes the entire flash — firmware, WiFi/MQTT config, everything. The board will behave exactly like a brand-new, never-flashed chip afterward. This can\'t be undone.</string>
+    <string name="erase_button">Erase</string>
 </resources>

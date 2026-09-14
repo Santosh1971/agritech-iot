@@ -32,6 +32,14 @@ object NativeFlasher {
      * own connect session, separate from [flash]'s.
      */
     external fun readMac(transport: UsbSerialTransport): ByteArray?
+
+    /**
+     * Erases the whole flash chip — makes an already-provisioned board behave like a
+     * factory-fresh one again, for repeat testing of the full-flash path without a
+     * laptop. Returns an esp_loader_error_t value — see [FlashResult.describe]. Opens
+     * and closes its own connect session, separate from [flash]'s.
+     */
+    external fun eraseChip(transport: UsbSerialTransport): Int
 }
 
 fun interface FlashProgressListener {

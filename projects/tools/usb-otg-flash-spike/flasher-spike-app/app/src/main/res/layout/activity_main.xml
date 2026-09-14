@@ -107,6 +107,17 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginTop="8dp" />
+
+        <!-- Admin-only (visibility set in code, see loadGrant()) — makes an
+             already-provisioned test board behave like factory-fresh again,
+             for repeat full-flash testing without a laptop. -->
+        <Button
+            android:id="@+id/eraseChipButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/erase_chip_button"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView
