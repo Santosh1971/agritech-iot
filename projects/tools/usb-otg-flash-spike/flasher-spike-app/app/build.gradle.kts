@@ -17,6 +17,10 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.nbagri.flasherspike"
     compileSdk = 35
+    // Pinned so CI's auto-installed NDK matches what's on dev machines exactly
+    // (the native lib in src/main/cpp is otherwise built against whatever
+    // NDK happens to be resolved, which can silently drift between machines).
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.nbagri.flasherspike"
