@@ -563,6 +563,7 @@ void publishStatusNow() {
 void setup() {
     Serial.begin(115200);
     Serial.println("[BOOT] SmartWaterController starting...");
+    Serial.printf("[BOOT] Firmware version: %s\n", FIRMWARE_VERSION);
 
     // A cold boot right after flashing packs RTC/I2C/relay init, radio power-up
     // and a WiFi join attempt into a few hundred ms — same current-spike brownout

@@ -2,7 +2,12 @@
 
 // ---------- Device ----------
 #define DEVICE_ID           "SWC_001"
-#define FIRMWARE_VERSION    "1.0.0"
+// CI overrides this via scripts/inject_firmware_version.py (FIRMWARE_VERSION_OVERRIDE
+// env var, set to dev-<shortsha> for auto-builds) — bump this by hand to match
+// whenever cutting an actual dashboard release, e.g. "1.1.0".
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION    "1.1.0"
+#endif
 
 // ---------- BLE ----------
 #define BLE_DEVICE_NAME     "SmartWaterCtrl"
