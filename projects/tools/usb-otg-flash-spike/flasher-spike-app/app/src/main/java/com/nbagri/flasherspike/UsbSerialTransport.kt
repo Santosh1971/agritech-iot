@@ -99,6 +99,27 @@ class UsbSerialTransport(private val port: UsbSerialPort) {
         return offset
     }
 
+    /** Kotlin-side only (not called from native) — reads whatever the target prints for
+     *  durationMs, on the same port/baud already used for flashing. Used right after a
+     *  successful flash, while the port esp_loader_reset_target() just reset into run mode
+     *  is still open, to capture the boot log for the field-report share sheet. */
+    fun captureBootLog(durationMs: Long): String {
+        val sb = StringBuilder()
+        val buffer = ByteArray(512)
+        val deadline = SystemClock.elapsedRealtime() + durationMs
+        while (true) {
+            val remaining = (deadline - SystemClock.elapsedRealtime()).toInt()
+            if (remaining <= 0) break
+            val n = read(buffer, buffer.size, minOf(remaining, 1000))
+            if (n <= 0) continue
+            for (i in 0 until n) {
+                val b = buffer[i].toInt().toChar()
+                if (b == '\n' || b == '\r' || b == '\t' || b.code in 0x20..0x7E) sb.append(b)
+            }
+        }
+        return sb.toString()
+    }
+
     companion object {
         private const val TAG = "UsbSerialTransport"
     }

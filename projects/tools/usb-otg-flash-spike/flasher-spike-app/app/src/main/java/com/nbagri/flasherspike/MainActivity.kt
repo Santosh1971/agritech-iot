@@ -462,14 +462,36 @@ class MainActivity : AppCompatActivity() {
                 app, appOffset,
                 listener
             )
+
+            val description = FlashResult.describe(result)
+            runOnUiThread {
+                log("Result: $description ($result)")
+                statusText.text = if (result == 0) {
+                    "Flash succeeded — capturing boot log…"
+                } else {
+                    "Flash failed: $description"
+                }
+            }
+            onDone?.invoke(result)
+
+            // Only on success — on failure the chip isn't reset into run mode (see
+            // jni_bridge.c), so there's nothing meaningful to capture here.
+            val bootLog = if (result == 0) transport.captureBootLog(BOOT_LOG_DURATION_MS) else ""
             transport.close()
 
             runOnUiThread {
-                val description = FlashResult.describe(result)
-                log("Result: $description ($result)")
-                statusText.text = if (result == 0) "Flash succeeded" else "Flash failed: $description"
+                if (result == 0) {
+                    log(
+                        if (bootLog.isNotBlank()) {
+                            "---- boot log (${BOOT_LOG_DURATION_MS / 1000}s) ----\n${bootLog.trim()}\n---- end boot log ----"
+                        } else {
+                            "(no boot log output captured in ${BOOT_LOG_DURATION_MS / 1000}s — board may need a " +
+                                "manual reset, or isn't printing at $BAUD_RATE baud)"
+                        }
+                    )
+                    statusText.text = "Flash succeeded"
+                }
             }
-            onDone?.invoke(result)
         }.start()
     }
 
@@ -527,6 +549,11 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val ACTION_USB_PERMISSION = "com.nbagri.flasherspike.USB_PERMISSION"
         private const val BAUD_RATE = 115200
+
+        // How long to listen on the just-flashed port for boot output before giving up —
+        // long enough to cover WiFi connect + MQTT connect on a normal boot (see the
+        // "Local fallback active" / MQTT connect lines each product's firmware prints).
+        private const val BOOT_LOG_DURATION_MS = 30_000L
 
         // ESP32 SoftAP's default gateway IP — matches LocalServer's boot-log
         // "Local fallback active — SSID: ... IP: 192.168.4.1". Would need to
