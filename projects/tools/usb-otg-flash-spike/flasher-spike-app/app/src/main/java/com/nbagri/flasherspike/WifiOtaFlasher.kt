@@ -32,20 +32,30 @@ class WifiOtaFlasher(private val context: Context) {
         data class Failure(val message: String) : Result()
     }
 
-    fun flash(host: String, firmware: ByteArray, onProgress: (Int) -> Unit): Result {
+    /** `onLog`, if given, gets a line for every notable step — same idea as the app's own
+     *  on-screen log, but with detail that's only useful for diagnosing a failure (which
+     *  network we actually bound to, response headers, etc.), so it's opt-in rather than
+     *  always shown. */
+    fun flash(host: String, firmware: ByteArray, onProgress: (Int) -> Unit, onLog: ((String) -> Unit)? = null): Result {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = bindToWifi(cm)
             ?: return Result.Failure("No WiFi network available to bind to — connect to the board's SoftAP first.")
+
+        val linkProps = cm.getLinkProperties(network)
+        onLog?.invoke(
+            "Bound to network ${network} — interface ${linkProps?.interfaceName}, " +
+                "addresses ${linkProps?.linkAddresses?.joinToString { it.address.hostAddress ?: "?" }}"
+        )
 
         return try {
             val startCode = httpGet(network, "http://$host/ota/start?mode=firmware")
             if (startCode != 200) {
                 Result.Failure("/ota/start returned HTTP $startCode — is $host reachable and running the OTA portal?")
             } else {
-                uploadMultipart(network, "http://$host/ota/upload", firmware, onProgress)
+                uploadMultipart(network, "http://$host/ota/upload", firmware, onProgress, onLog)
             }
         } catch (e: IOException) {
-            Result.Failure("Network error: ${e.message}")
+            Result.Failure("Network error: ${e.javaClass.simpleName}: ${e.message}")
         } finally {
             cm.bindProcessToNetwork(null)
         }
@@ -83,7 +93,7 @@ class WifiOtaFlasher(private val context: Context) {
     }
 
     private fun uploadMultipart(
-        network: Network, urlStr: String, firmware: ByteArray, onProgress: (Int) -> Unit
+        network: Network, urlStr: String, firmware: ByteArray, onProgress: (Int) -> Unit, onLog: ((String) -> Unit)?
     ): Result {
         val boundary = "----flasherspike${System.currentTimeMillis()}"
         val head = (
@@ -134,8 +144,15 @@ class WifiOtaFlasher(private val context: Context) {
                 // ElegantOTA's response body carries the actual reason (e.g. a specific
                 // Update.h error string, "not enough space", a bad-magic-byte complaint) --
                 // surfacing only the status code was hiding exactly the detail needed to
-                // diagnose a real failure instead of guessing at it.
-                val body = conn.errorStream?.bufferedReader()?.use { it.readText() }?.trim()
+                // diagnose a real failure instead of guessing at it. Try both streams and
+                // log every response header too -- if the body really is empty, the headers
+                // (Server, Connection, Content-Length) at least confirm whether this is
+                // genuinely ElegantOTA responding or something else entirely intercepting
+                // the request before it ever reaches the board.
+                val body = (conn.errorStream ?: runCatching { conn.inputStream }.getOrNull())
+                    ?.bufferedReader()?.use { it.readText() }?.trim()
+                val headers = conn.headerFields.entries.joinToString { (k, v) -> "$k=$v" }
+                onLog?.invoke("Response headers: $headers")
                 val detail = body?.takeIf { it.isNotBlank() } ?: "(no response body)"
                 Result.Failure("/ota/upload returned HTTP $code — $detail")
             }

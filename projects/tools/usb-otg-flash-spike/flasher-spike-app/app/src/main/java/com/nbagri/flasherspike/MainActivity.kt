@@ -433,12 +433,16 @@ class MainActivity : AppCompatActivity() {
         log("---- WiFi flash attempt starting (host $SOFTAP_HOST) for ${build.product} ${build.version} ----")
 
         Thread {
-            val result = WifiOtaFlasher(this).flash(SOFTAP_HOST, bytes) { percent ->
-                runOnUiThread {
-                    progressBar.progress = percent
-                    progressText.text = "firmware $percent%"
-                }
-            }
+            val result = WifiOtaFlasher(this).flash(
+                SOFTAP_HOST, bytes,
+                onProgress = { percent ->
+                    runOnUiThread {
+                        progressBar.progress = percent
+                        progressText.text = "firmware $percent%"
+                    }
+                },
+                onLog = { line -> runOnUiThread { log(line) } },
+            )
             // Still on the SoftAP right now, whether the flash succeeded or not — this is
             // the only moment the board's own /status is reachable, so identify it here
             // rather than asking the user to reconnect to the SoftAP a second time.
