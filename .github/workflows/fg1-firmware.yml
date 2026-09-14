@@ -1,0 +1,48 @@
+name: FG1 firmware — build and upload
+
+# Auto-build on push, replacing the manual "pio run, then curl/UI upload"
+# step — see the NB Agri Flasher dev-workflow discussion (2026-09-14).
+# Builds both environments (field DS3231 + bench DS1307) and uploads each
+# to the flasher server, tagged with the commit it came from so a build
+# here always traces back to exact source.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "products/FG1-flowguard/firmware/**"
+      - ".github/workflows/fg1-firmware.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [esp32dev, esp32dev_ds1307]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build (${{ matrix.env }})
+        working-directory: products/FG1-flowguard/firmware
+        run: pio run -e ${{ matrix.env }}
+
+      - name: Upload to NB Agri Flasher
+        working-directory: products/FG1-flowguard/firmware
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=FG1" \
+            -F "version=dev-${SHORT_SHA}" \
+            -F "variant=${{ matrix.env }}" \
+            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@.pio/build/${{ matrix.env }}/firmware.bin;type=application/octet-stream"

@@ -1,0 +1,40 @@
+name: WM1 firmware — build and upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "products/WM1-watermaster/firmware/mini/WM1Firmware/**"
+      - ".github/workflows/wm1-firmware.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build
+        working-directory: products/WM1-watermaster/firmware/mini/WM1Firmware
+        run: pio run -e esp32dev
+
+      - name: Upload to NB Agri Flasher
+        working-directory: products/WM1-watermaster/firmware/mini/WM1Firmware
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=WM1_MINI" \
+            -F "version=dev-${SHORT_SHA}" \
+            -F "variant=esp32dev" \
+            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@.pio/build/esp32dev/firmware.bin;type=application/octet-stream"

@@ -1,0 +1,51 @@
+name: WPC firmware — build and upload
+
+# master_node and pump_node are separate PlatformIO projects (not just
+# different environments of one project, unlike FG1's DS3231/DS1307 split),
+# so this matrixes over directories instead.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "products/WPC-pumpcontroller/firmware/master_node/**"
+      - "products/WPC-pumpcontroller/firmware/pump_node/**"
+      - ".github/workflows/wpc-firmware.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - dir: products/WPC-pumpcontroller/firmware/master_node
+            variant: master_node
+          - dir: products/WPC-pumpcontroller/firmware/pump_node
+            variant: pump_node
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build (${{ matrix.variant }})
+        working-directory: ${{ matrix.dir }}
+        run: pio run -e esp32dev
+
+      - name: Upload to NB Agri Flasher
+        working-directory: ${{ matrix.dir }}
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=WPC" \
+            -F "version=dev-${SHORT_SHA}" \
+            -F "variant=${{ matrix.variant }}" \
+            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@.pio/build/esp32dev/firmware.bin;type=application/octet-stream"
