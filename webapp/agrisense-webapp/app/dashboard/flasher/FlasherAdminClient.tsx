@@ -46,7 +46,6 @@ export default function FlasherAdminClient() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const [grantPhone, setGrantPhone] = useState("");
   const [grantEmail, setGrantEmail] = useState("");
   const [grantLabel, setGrantLabel] = useState("");
   const [grantProducts, setGrantProducts] = useState<string[]>([]);
@@ -103,8 +102,8 @@ export default function FlasherAdminClient() {
   }
 
   async function createGrant() {
-    if ((!grantPhone && !grantEmail) || !grantLabel || grantProducts.length === 0) {
-      setError("Label, at least one product, and a phone or email are required.");
+    if (!grantEmail || !grantLabel || grantProducts.length === 0) {
+      setError("Label, at least one product, and an email are required.");
       return;
     }
     setCreatingGrant(true);
@@ -112,15 +111,13 @@ export default function FlasherAdminClient() {
     const res = await fetch("/api/admin/grants", {
       method: "POST",
       body: JSON.stringify({
-        phone: grantPhone || undefined,
-        email: grantEmail || undefined,
+        email: grantEmail,
         label: grantLabel,
         products: grantProducts,
       }),
     });
     setCreatingGrant(false);
     if (res.ok) {
-      setGrantPhone("");
       setGrantEmail("");
       setGrantLabel("");
       setGrantProducts([]);
@@ -260,13 +257,7 @@ export default function FlasherAdminClient() {
             style={{ width: "100%", padding: 8, marginBottom: 8 }}
           />
           <input
-            placeholder="Phone (verified via OTP at login)"
-            value={grantPhone}
-            onChange={(e) => setGrantPhone(e.target.value)}
-            style={{ width: "100%", padding: 8, marginBottom: 8 }}
-          />
-          <input
-            placeholder="Email (alternative to phone)"
+            placeholder="Email (verified via OTP at login)"
             value={grantEmail}
             onChange={(e) => setGrantEmail(e.target.value)}
             style={{ width: "100%", padding: 8, marginBottom: 8 }}
