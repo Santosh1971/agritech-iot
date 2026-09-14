@@ -15,17 +15,17 @@ async function getSession() {
 // the phone, is what "revoke access" actually controls. The app is expected
 // to fetch fresh on every flash attempt rather than reusing a saved copy.
 //
-// Also gates on the physical device itself: only units already provisioned
-// as a Device row (shipped/known hardware) can be flashed by a non-admin
-// grantee (dealer/customer) — a fresh/unknown chip's MAC has no matching
-// Device, so their download is refused until an admin registers it.
+// When a mac IS provided (the USB flow), also gates on the physical device
+// itself: only units already provisioned as a Device row (shipped/known
+// hardware) can be flashed by a non-admin grantee (dealer/customer) — a
+// fresh/unknown chip's MAC has no matching Device, so their download is
+// refused until an admin registers it. Admins (Santosh, Avinash) are the
+// exception: they're the ones doing production, so flashing a brand-new
+// chip's first build IS the registration event — auto-create its Device
+// row rather than requiring someone to add it by hand first.
 //
-// Admins (Santosh, Avinash) are the exception: they're the ones doing
-// production, so flashing a brand-new chip's first build IS the
-// registration event — auto-create its Device row rather than requiring
-// someone to add it by hand first. Dealers still can't touch unregistered
-// hardware; only an admin flash (or the existing +Add Device flow) creates
-// that first record.
+// When mac is absent (the WiFi flow — see its comment below), none of this
+// runs, for any role.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,18 +42,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: `Not granted access to ${build.product}` }, { status: 403 });
   }
 
-  // mac is optional for admins only — the WiFi-flash flow can't read it (no
-  // USB involved at all), and there's no easy USB access to a device already
-  // deployed in the field, which is the whole point of that flow existing.
-  // Admins skip the per-device provisioning check entirely in that case; the
-  // board identifies itself from its own /status once flashed instead (see
-  // the app's promptSwitchBackAndFinish), reported after the fact via
-  // /api/flasher/report's deviceId field. Dealers/customers still can't
-  // download without a mac — that check stays load-bearing for them.
+  // mac is optional for everyone — the WiFi-flash flow can't read it (no USB
+  // involved at all), and dealers/field techs flashing a device already
+  // deployed on a farm are exactly who has no easy USB access, which is the
+  // whole point of that flow existing (confirmed: originally admin-only
+  // here, broke the WiFi flow entirely for the dealer test account). The
+  // per-device provisioning check below simply doesn't run when mac is
+  // absent, for any role — the board identifies itself from its own
+  // /status once flashed instead (see the app's promptSwitchBackAndFinish),
+  // reported after the fact via /api/flasher/report's deviceId field.
   const mac = new URL(req.url).searchParams.get("mac");
-  if (!mac && session.role !== "ADMIN") {
-    return NextResponse.json({ error: "Device MAC is required" }, { status: 400 });
-  }
 
   let deviceId: string | null = null;
   if (mac) {

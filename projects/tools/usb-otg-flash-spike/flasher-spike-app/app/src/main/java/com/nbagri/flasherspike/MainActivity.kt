@@ -281,7 +281,10 @@ class MainActivity : AppCompatActivity() {
         Thread {
             val mac = readMacHex()
             if (mac == null) {
-                runOnUiThread { log("Could not read the chip's MAC — check the OTG connection and try again.") }
+                runOnUiThread {
+                    log("Could not read the chip's MAC — check the OTG connection and try again.")
+                    statusText.text = "Identification failed"
+                }
                 return@Thread
             }
             runOnUiThread { log("Device MAC: ${mac.chunked(2).joinToString(":")}") }
@@ -331,7 +334,11 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { log("Downloaded ${bytes.size / 1024} KB.") }
             bytes
         } catch (e: Exception) {
-            runOnUiThread { log("Download failed: ${friendlyErrorMessage(e)}") }
+            runOnUiThread {
+                log("Download failed: ${friendlyErrorMessage(e)}")
+                statusText.text = "Download failed"
+                progressText.text = getString(R.string.progress_idle)
+            }
             null
         }
     }
