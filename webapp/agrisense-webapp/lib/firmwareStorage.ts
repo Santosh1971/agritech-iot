@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "crypto";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import path from "path";
 
 // Firmware bins live on local disk, same "local on this VPS" pattern as
@@ -26,4 +26,9 @@ export async function saveFirmwareBuild(
 
 export async function readFirmwareBuild(storagePath: string): Promise<Buffer> {
   return readFile(firmwareStoragePath(storagePath));
+}
+
+/** Best-effort — a missing file (already gone, or never written) isn't an error here. */
+export async function deleteFirmwareBuild(storagePath: string): Promise<void> {
+  await unlink(firmwareStoragePath(storagePath)).catch(() => {});
 }

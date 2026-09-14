@@ -127,6 +127,14 @@ export default function FlasherAdminClient() {
     }
   }
 
+  async function deleteBuild(id: string, label: string) {
+    if (!window.confirm(`Delete build ${label}? This can't be undone.`)) return;
+    setError("");
+    const res = await fetch(`/api/admin/builds/${id}`, { method: "DELETE" });
+    if (res.ok) load();
+    else setError((await res.json()).error || "Failed to delete build");
+  }
+
   async function toggleGrant(id: string, active: boolean) {
     setError("");
     const res = await fetch(`/api/admin/grants/${id}`, {
@@ -237,6 +245,7 @@ export default function FlasherAdminClient() {
                 <th style={{ padding: 8 }}>Size</th>
                 <th style={{ padding: 8 }}>Uploaded by</th>
                 <th style={{ padding: 8 }}>When</th>
+                <th style={{ padding: 8 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -248,6 +257,11 @@ export default function FlasherAdminClient() {
                   <td style={{ padding: 8 }}>{(b.sizeBytes / 1024).toFixed(0)} KB</td>
                   <td style={{ padding: 8 }}>{b.uploadedBy.name}</td>
                   <td style={{ padding: 8 }}>{new Date(b.createdAt).toLocaleString()}</td>
+                  <td style={{ padding: 8 }}>
+                    <button onClick={() => deleteBuild(b.id, `${b.product} ${b.version} (${b.variant})`)}>
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
