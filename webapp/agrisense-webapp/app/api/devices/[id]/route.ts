@@ -59,3 +59,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.device.update({ where: { id }, data });
   return NextResponse.json({ device: updated });
 }
+
+// Admin-only. Meant for cleaning up bogus/test entries (e.g. a bench unit
+// that auto-registered during flasher testing) — a device with real
+// Reading/Command history is protected by the FK constraint (both relations
+// are required, default RESTRICT), so this can't silently erase field data;
+// it surfaces as a 409 instead of a generic 500.
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const device = await prisma.device.findUnique({ where: { id } });
+  if (!device) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  try {
+    await prisma.device.delete({ where: { id } });
+  } catch {
+    return NextResponse.json(
+      { error: "Can't delete — this device has recorded readings or commands." },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}

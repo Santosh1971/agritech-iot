@@ -74,6 +74,18 @@ export default function DevicesPage({ role }: { role: string }) {
     }
   }
 
+  async function deleteDevice(id: string, label: string) {
+    if (!window.confirm(`Delete ${label}? This can't be undone.`)) return;
+    setError("");
+    const res = await fetch(`/api/devices/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      load();
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to delete device");
+    }
+  }
+
   if (loading) return <p>Loading devices…</p>;
 
   return (
@@ -159,7 +171,7 @@ export default function DevicesPage({ role }: { role: string }) {
                 </td>
               )}
               {role === "ADMIN" && (
-                <td style={{ padding: 8 }}>
+                <td style={{ padding: 8, whiteSpace: "nowrap" }}>
                   {editingId === d.id ? (
                     <>
                       <input
@@ -171,7 +183,10 @@ export default function DevicesPage({ role }: { role: string }) {
                       <button onClick={() => assignOwner(d.id)}>Save</button>
                     </>
                   ) : (
-                    <button onClick={() => setEditingId(d.id)}>Assign</button>
+                    <>
+                      <button onClick={() => setEditingId(d.id)}>Assign</button>{" "}
+                      <button onClick={() => deleteDevice(d.id, d.deviceId)}>Delete</button>
+                    </>
                   )}
                 </td>
               )}
