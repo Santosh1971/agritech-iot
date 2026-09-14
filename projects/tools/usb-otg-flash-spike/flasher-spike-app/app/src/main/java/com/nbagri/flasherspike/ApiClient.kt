@@ -88,14 +88,38 @@ class ApiClient(context: Context) {
     }
 
     /** `mac` is the connected chip's raw MAC (hex, no separators) — the server checks it against
-     *  provisioned Device rows and refuses unknown/unprovisioned hardware. */
-    fun downloadBuild(buildId: String, mac: String): ByteArray {
+     *  provisioned Device rows and refuses unknown/unprovisioned hardware. `expectedSize` should
+     *  be the build's already-known `sizeBytes` (from [fetchBuilds]) — the server always responds
+     *  chunked with no Content-Length (confirmed against production, nginx/Next.js strips it),
+     *  so that can't be relied on; the size we already know from the build listing can.
+     *  `onProgress` (0-100) is best-effort and simply never fires if `expectedSize` is omitted. */
+    fun downloadBuild(
+        buildId: String, mac: String, expectedSize: Long? = null, onProgress: ((Int) -> Unit)? = null
+    ): ByteArray {
         val conn = authedConnection("/api/flasher/download/$buildId?mac=$mac", "GET")
         val code = conn.responseCode
         if (code !in 200..299) {
             throw IllegalStateException(errorMessage(conn, code))
         }
-        return conn.inputStream.use { it.readBytes() }
+        val total = expectedSize ?: conn.contentLength.toLong().takeIf { it > 0 } ?: -1L
+        val out = java.io.ByteArrayOutputStream(if (total > 0) total.toInt() else 8192)
+        val buffer = ByteArray(8192)
+        conn.inputStream.use { input ->
+            var lastPercent = -1
+            while (true) {
+                val n = input.read(buffer)
+                if (n < 0) break
+                out.write(buffer, 0, n)
+                if (total > 0) {
+                    val percent = (out.size() * 100L / total).toInt()
+                    if (percent != lastPercent) {
+                        lastPercent = percent
+                        onProgress?.invoke(percent)
+                    }
+                }
+            }
+        }
+        return out.toByteArray()
     }
 
     /** Best-effort — a failed report shouldn't itself be treated as a flash failure. */

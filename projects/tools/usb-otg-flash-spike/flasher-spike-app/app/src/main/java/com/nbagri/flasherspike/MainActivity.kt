@@ -258,8 +258,18 @@ class MainActivity : AppCompatActivity() {
             }
             runOnUiThread { log("Device MAC: ${mac.chunked(2).joinToString(":")}") }
 
+            runOnUiThread {
+                statusText.text = "Downloading build…"
+                progressBar.progress = 0
+                progressText.text = "download 0%"
+            }
             val bytes = try {
-                api.downloadBuild(build.id, mac)
+                api.downloadBuild(build.id, mac, expectedSize = build.sizeBytes) { percent ->
+                    runOnUiThread {
+                        progressBar.progress = percent
+                        progressText.text = "download $percent%"
+                    }
+                }
             } catch (e: Exception) {
                 runOnUiThread { log("Download failed: ${friendlyErrorMessage(e)}") }
                 return@Thread
