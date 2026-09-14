@@ -20,6 +20,8 @@ jobs:
         working-directory: projects/tools/usb-otg-flash-spike/flasher-spike-app
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-java@v4
         with:
