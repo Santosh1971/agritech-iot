@@ -6,7 +6,7 @@
 // env var, set to dev-<shortsha> for auto-builds) — bump this by hand to match
 // whenever cutting an actual dashboard release, e.g. "1.1.0".
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION    "1.1.0"
+#define FIRMWARE_VERSION    "1.1.1"
 #endif
 
 // ---------- BLE ----------
