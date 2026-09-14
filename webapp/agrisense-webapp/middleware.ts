@@ -10,13 +10,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // CI (GitHub Actions) has no inbox to receive an email-OTP code in, so build
-  // uploads authenticate with a static bearer token instead of a session
-  // cookie — see the matching check in app/api/admin/builds/route.ts. This
-  // only ever bypasses the cookie check for that one path, and only with the
-  // exact secret; every other route is unaffected.
+  // CI (GitHub Actions) has no inbox to receive an email-OTP code in, so
+  // firmware and app-build uploads authenticate with a static bearer token
+  // instead of a session cookie — see the matching check in each route's own
+  // authorizedUploader(). Only bypasses the cookie check for these two exact
+  // upload paths, and only with the exact secret; every other route
+  // (including DELETE on either of these, and GET) is unaffected.
+  const CI_BYPASS_PATHS = ["/api/admin/builds", "/api/admin/app-builds"];
   const ciToken = process.env.CI_UPLOAD_TOKEN;
-  if (ciToken && pathname === "/api/admin/builds" && req.headers.get("authorization") === `Bearer ${ciToken}`) {
+  if (
+    ciToken &&
+    CI_BYPASS_PATHS.includes(pathname) &&
+    req.headers.get("authorization") === `Bearer ${ciToken}`
+  ) {
     return NextResponse.next();
   }
 

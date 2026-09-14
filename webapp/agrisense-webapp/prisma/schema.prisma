@@ -39,7 +39,8 @@ model User {
   ownedDevices    Device[] @relation("DeviceOwner")
   dealerDevices   Device[] @relation("DeviceDealer")
   commandsSent    Command[]
-  buildsUploaded  FirmwareBuild[] @relation("BuildsUploaded")
+  buildsUploaded  FirmwareBuild[]  @relation("BuildsUploaded")
+  appBuildsUploaded MobileAppBuild[] @relation("AppBuildsUploaded")
   grantsIssued    FlasherGrant[]  @relation("GrantsIssued")
 }
 
@@ -123,6 +124,27 @@ model FirmwareBuild {
   flashEvents  FlashEvent[]
 
   @@index([product, version])
+}
+
+// The NB Agri Flasher Android app itself — separate from FirmwareBuild since
+// one app build serves every product, so it doesn't fit under any single
+// product's heading. buildType distinguishes CI's auto-built, debug-signed
+// APKs (see .github/workflows/nb-agri-flasher-app.yml) from the manually
+// built, release-signed ones meant to actually reach Kamta — CI never has
+// the release keystore, by design (it lives only on a dev machine).
+model MobileAppBuild {
+  id           String   @id @default(cuid())
+  versionName  String
+  buildType    String   @default("debug") // "debug" | "release"
+  storagePath  String   // path relative to FIRMWARE_STORAGE_DIR, same disk as firmware
+  sha256       String
+  sizeBytes    Int
+  notes        String?
+  uploadedById String
+  uploadedBy   User     @relation("AppBuildsUploaded", fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // A grant, not a role — kept separate from Role/DEALER so access to the

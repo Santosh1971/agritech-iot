@@ -30,12 +30,22 @@ type FlashEventRow = {
   build: { product: string; version: string; variant: string };
 };
 
+type AppBuild = {
+  id: string;
+  versionName: string;
+  buildType: string;
+  sizeBytes: number;
+  createdAt: string;
+  uploadedBy: { name: string };
+};
+
 const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH"];
 
 export default function FlasherAdminClient() {
   const [builds, setBuilds] = useState<Build[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [events, setEvents] = useState<FlashEventRow[]>([]);
+  const [appBuilds, setAppBuilds] = useState<AppBuild[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -60,14 +70,16 @@ export default function FlasherAdminClient() {
   const [savingProducts, setSavingProducts] = useState(false);
 
   const load = useCallback(async () => {
-    const [buildsRes, grantsRes, eventsRes] = await Promise.all([
+    const [buildsRes, grantsRes, eventsRes, appBuildsRes] = await Promise.all([
       fetch("/api/admin/builds"),
       fetch("/api/admin/grants"),
       fetch("/api/admin/events"),
+      fetch("/api/admin/app-builds"),
     ]);
     if (buildsRes.ok) setBuilds((await buildsRes.json()).builds);
     if (grantsRes.ok) setGrants((await grantsRes.json()).grants);
     if (eventsRes.ok) setEvents((await eventsRes.json()).events);
+    if (appBuildsRes.ok) setAppBuilds((await appBuildsRes.json()).appBuilds);
     setLoading(false);
   }, []);
 
@@ -133,6 +145,14 @@ export default function FlasherAdminClient() {
     const res = await fetch(`/api/admin/builds/${id}`, { method: "DELETE" });
     if (res.ok) load();
     else setError((await res.json()).error || "Failed to delete build");
+  }
+
+  async function deleteAppBuild(id: string, label: string) {
+    if (!window.confirm(`Delete app build ${label}? This can't be undone.`)) return;
+    setError("");
+    const res = await fetch(`/api/admin/app-builds/${id}`, { method: "DELETE" });
+    if (res.ok) load();
+    else setError((await res.json()).error || "Failed to delete app build");
   }
 
   async function toggleGrant(id: string, active: boolean) {
@@ -259,6 +279,49 @@ export default function FlasherAdminClient() {
                   <td style={{ padding: 8 }}>{new Date(b.createdAt).toLocaleString()}</td>
                   <td style={{ padding: 8 }}>
                     <button onClick={() => deleteBuild(b.id, `${b.product} ${b.version} (${b.variant})`)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section style={{ marginTop: 32 }}>
+        <h2>Mobile App (NB Agri Flasher)</h2>
+        <p style={{ color: "#666" }}>
+          One app serves every product, so it lives here rather than under any single product above.
+          Debug builds are produced automatically on every push (see the GitHub Actions workflow);
+          release (signed) builds — the ones that actually go to Kamta — are still uploaded by hand.
+        </p>
+        {appBuilds.length === 0 && <p>No app builds uploaded yet.</p>}
+        {appBuilds.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                <th style={{ padding: 8 }}>Version</th>
+                <th style={{ padding: 8 }}>Type</th>
+                <th style={{ padding: 8 }}>Size</th>
+                <th style={{ padding: 8 }}>Uploaded by</th>
+                <th style={{ padding: 8 }}>When</th>
+                <th style={{ padding: 8 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {appBuilds.map((a) => (
+                <tr key={a.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: 8, fontFamily: "monospace" }}>{a.versionName}</td>
+                  <td style={{ padding: 8 }}>{a.buildType}</td>
+                  <td style={{ padding: 8 }}>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</td>
+                  <td style={{ padding: 8 }}>{a.uploadedBy.name}</td>
+                  <td style={{ padding: 8 }}>{new Date(a.createdAt).toLocaleString()}</td>
+                  <td style={{ padding: 8, whiteSpace: "nowrap" }}>
+                    <a href={`/api/admin/app-builds/${a.id}`}>
+                      <button>Download</button>
+                    </a>{" "}
+                    <button onClick={() => deleteAppBuild(a.id, `${a.versionName} (${a.buildType})`)}>
                       Delete
                     </button>
                   </td>

@@ -2,9 +2,11 @@ import { createHash, randomUUID } from "crypto";
 import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import path from "path";
 
-// Firmware bins live on local disk, same "local on this VPS" pattern as
+// Firmware bins (and, reusing this same generic byte-store, MobileAppBuild's
+// APKs — the on-disk name is always a random UUID either way, never the
+// original filename) live on local disk, same "local on this VPS" pattern as
 // Postgres and Mosquitto (see .env.example) — no S3/object storage needed
-// for what's a handful of admins uploading builds a few KB to ~1MB each.
+// for what's a handful of admins uploading builds a few KB to ~10MB each.
 const STORAGE_ROOT = process.env.FIRMWARE_STORAGE_DIR || path.join(process.cwd(), "storage", "firmware");
 
 export function firmwareStoragePath(relativePath: string): string {
