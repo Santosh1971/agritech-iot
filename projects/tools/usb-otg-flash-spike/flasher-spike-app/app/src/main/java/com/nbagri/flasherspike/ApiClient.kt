@@ -88,15 +88,18 @@ class ApiClient(context: Context) {
     }
 
     /** `mac` is the connected chip's raw MAC (hex, no separators) — the server checks it against
-     *  provisioned Device rows and refuses unknown/unprovisioned hardware. `expectedSize` should
-     *  be the build's already-known `sizeBytes` (from [fetchBuilds]) — the server always responds
-     *  chunked with no Content-Length (confirmed against production, nginx/Next.js strips it),
-     *  so that can't be relied on; the size we already know from the build listing can.
-     *  `onProgress` (0-100) is best-effort and simply never fires if `expectedSize` is omitted. */
+     *  provisioned Device rows and refuses unknown/unprovisioned hardware. Null for the WiFi
+     *  flow (no USB involved, so no MAC to read) — the server only accepts that from admin
+     *  accounts; see the download route's own comment. `expectedSize` should be the build's
+     *  already-known `sizeBytes` (from [fetchBuilds]) — the server always responds chunked with
+     *  no Content-Length (confirmed against production, nginx/Next.js strips it), so that can't
+     *  be relied on; the size we already know from the build listing can. `onProgress` (0-100)
+     *  is best-effort and simply never fires if `expectedSize` is omitted. */
     fun downloadBuild(
-        buildId: String, mac: String, expectedSize: Long? = null, onProgress: ((Int) -> Unit)? = null
+        buildId: String, mac: String?, expectedSize: Long? = null, onProgress: ((Int) -> Unit)? = null
     ): ByteArray {
-        val conn = authedConnection("/api/flasher/download/$buildId?mac=$mac", "GET")
+        val path = "/api/flasher/download/$buildId" + (mac?.let { "?mac=$it" } ?: "")
+        val conn = authedConnection(path, "GET")
         val code = conn.responseCode
         if (code !in 200..299) {
             throw IllegalStateException(errorMessage(conn, code))
@@ -122,11 +125,15 @@ class ApiClient(context: Context) {
         return out.toByteArray()
     }
 
-    /** Best-effort — a failed report shouldn't itself be treated as a flash failure. */
-    fun reportResult(buildId: String, result: String, mac: String? = null, detail: String? = null) {
+    /** `deviceId` is for the WiFi flow — read off the board's own /status after flashing
+     *  (there's no MAC to derive it from there); `mac` is for the USB flow, same as always.
+     *  Best-effort overall — a failed report shouldn't itself be treated as a flash failure. */
+    fun reportResult(
+        buildId: String, result: String, mac: String? = null, deviceId: String? = null, detail: String? = null
+    ) {
         runCatching {
             val conn = authedConnection("/api/flasher/report", "POST")
-            writeJson(conn, mapOf("buildId" to buildId, "result" to result, "mac" to mac, "detail" to detail))
+            writeJson(conn, mapOf("buildId" to buildId, "result" to result, "mac" to mac, "deviceId" to deviceId, "detail" to detail))
             readJson(conn)
         }
     }

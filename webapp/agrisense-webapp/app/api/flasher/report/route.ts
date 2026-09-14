@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No active flasher access for this account" }, { status: 403 });
   }
 
-  const { buildId, result, mac, detail } = await req.json();
+  const { buildId, result, mac, deviceId: providedDeviceId, detail } = await req.json();
   if (typeof buildId !== "string" || !VALID_RESULTS.includes(result)) {
     return NextResponse.json({ error: `buildId and result (${VALID_RESULTS.join(" | ")}) are required` }, { status: 400 });
   }
@@ -32,7 +32,13 @@ export async function POST(req: NextRequest) {
   const build = await prisma.firmwareBuild.findUnique({ where: { id: buildId } });
   if (!build) return NextResponse.json({ error: "Unknown buildId" }, { status: 404 });
 
-  const deviceId = typeof mac === "string" ? deriveDeviceId(build.product, mac) : null;
+  // deviceId comes pre-derived from the WiFi flow (read off the board's own
+  // /status after flashing, since there's no MAC to derive it from there —
+  // see the download route's comment); the USB flow still only ever has a
+  // raw mac, derived here same as always.
+  const deviceId = typeof providedDeviceId === "string" && providedDeviceId.length > 0
+    ? providedDeviceId
+    : typeof mac === "string" ? deriveDeviceId(build.product, mac) : null;
 
   const event = await prisma.flashEvent.create({
     data: {

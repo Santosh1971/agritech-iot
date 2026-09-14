@@ -42,27 +42,39 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: `Not granted access to ${build.product}` }, { status: 403 });
   }
 
+  // mac is optional for admins only — the WiFi-flash flow can't read it (no
+  // USB involved at all), and there's no easy USB access to a device already
+  // deployed in the field, which is the whole point of that flow existing.
+  // Admins skip the per-device provisioning check entirely in that case; the
+  // board identifies itself from its own /status once flashed instead (see
+  // the app's promptSwitchBackAndFinish), reported after the fact via
+  // /api/flasher/report's deviceId field. Dealers/customers still can't
+  // download without a mac — that check stays load-bearing for them.
   const mac = new URL(req.url).searchParams.get("mac");
-  if (!mac) {
+  if (!mac && session.role !== "ADMIN") {
     return NextResponse.json({ error: "Device MAC is required" }, { status: 400 });
   }
-  const deviceId = deriveDeviceId(build.product, mac);
-  if (!deviceId) {
-    return NextResponse.json({ error: `Cannot identify ${build.product} devices yet` }, { status: 400 });
-  }
-  const device = await prisma.device.findFirst({ where: { deviceId, product: build.product } });
-  if (!device) {
-    if (session.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: `This device (${deviceId}) isn't registered. Ask admin to add it under Devices before flashing.` },
-        { status: 403 }
-      );
+
+  let deviceId: string | null = null;
+  if (mac) {
+    deviceId = deriveDeviceId(build.product, mac);
+    if (!deviceId) {
+      return NextResponse.json({ error: `Cannot identify ${build.product} devices yet` }, { status: 400 });
     }
-    // First time this unit has ever been flashed — this admin flash is the
-    // production record for it, matching the app-facing "+ Add Device" flow.
-    await prisma.device.create({
-      data: { deviceId, product: build.product, name: deviceId },
-    });
+    const device = await prisma.device.findFirst({ where: { deviceId, product: build.product } });
+    if (!device) {
+      if (session.role !== "ADMIN") {
+        return NextResponse.json(
+          { error: `This device (${deviceId}) isn't registered. Ask admin to add it under Devices before flashing.` },
+          { status: 403 }
+        );
+      }
+      // First time this unit has ever been flashed — this admin flash is the
+      // production record for it, matching the app-facing "+ Add Device" flow.
+      await prisma.device.create({
+        data: { deviceId, product: build.product, name: deviceId },
+      });
+    }
   }
 
   const bytes = await readFirmwareBuild(build.storagePath);

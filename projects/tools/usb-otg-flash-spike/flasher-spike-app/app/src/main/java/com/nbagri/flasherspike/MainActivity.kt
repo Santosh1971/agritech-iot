@@ -19,16 +19,26 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.hoho.android.usbserial.driver.UsbSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialProber
+import java.net.URL
 
 /**
  * NB Agri Flasher — login (email+OTP against agrisense-webapp's NB Agri
  * Flasher API) → product/build picker → flash, using the USB-OTG flashing
  * engine proven in the USB-OTG spike (NativeFlasher/UsbSerialTransport/
  * android_port.c, see SPIKE_SPEC.md). Every build is fetched fresh per
- * flash, never cached (see ApiClient's doc comment). Identifying the device
- * still needs the OTG cable connected (to read its MAC for the server's
- * provisioning check), but the actual flash write can then go either way —
- * USB serial or WiFi/SoftAP — user's choice, via promptTransportChoice().
+ * flash, never cached (see ApiClient's doc comment).
+ *
+ * promptTransportChoice() asks USB vs WiFi *before* touching the cable at
+ * all — the WiFi path (downloadAndFlashWifi) needs no USB whatsoever,
+ * matching its actual point: flashing a board already deployed in the
+ * field, where USB access may not be practical at all. It downloads with
+ * no device MAC (the server only allows that for admin accounts — see the
+ * download route's comment), and identifies the board from its own
+ * /status endpoint (fetchSoftApDeviceId()) while still joined to its
+ * SoftAP, right after flashing — not beforehand, and not by asking the
+ * user to reconnect to the SoftAP a second time. The USB path
+ * (downloadAndFlashUsb) is unchanged: reads the MAC over the cable first,
+ * same as always.
  *
  * The earlier "Bench tools" section (flashing local .bin files bundled in
  * the app itself, no backend involved) was removed 2026-09-14 — it predated
@@ -242,12 +252,30 @@ class MainActivity : AppCompatActivity() {
             val button = Button(this)
             val sizeKb = build.sizeBytes / 1024
             button.text = "${build.product} ${build.version} (${build.variant}) — ${sizeKb} KB"
-            button.setOnClickListener { ensureUsbPermission { downloadAndFlash(build) } }
+            button.setOnClickListener { promptTransportChoice(build) }
             buildListContainer.addView(button)
         }
     }
 
-    private fun downloadAndFlash(build: ApiClient.Build) {
+    /** Entry point once a build is tapped — asks USB vs WiFi *before* touching the cable
+     *  at all, so the WiFi path genuinely never needs USB (see downloadAndFlashWifi). */
+    private fun promptTransportChoice(build: ApiClient.Build) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.choose_transport_title)
+            .setItems(arrayOf(getString(R.string.choose_transport_usb), getString(R.string.choose_transport_wifi))) { _, which ->
+                if (which == 0) {
+                    ensureUsbPermission { downloadAndFlashUsb(build) }
+                } else {
+                    downloadAndFlashWifi(build)
+                }
+            }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
+    }
+
+    /** USB path: read the chip's MAC first (needed for the server's per-device
+     *  provisioning check), then download and write straight over the same cable. */
+    private fun downloadAndFlashUsb(build: ApiClient.Build) {
         statusText.text = "Identifying device…"
         log("---- identifying device for ${build.product} ${build.version} (${build.variant}) ----")
         Thread {
@@ -258,58 +286,66 @@ class MainActivity : AppCompatActivity() {
             }
             runOnUiThread { log("Device MAC: ${mac.chunked(2).joinToString(":")}") }
 
+            val bytes = downloadWithProgress(build, mac) ?: return@Thread
             runOnUiThread {
-                statusText.text = "Downloading build…"
-                progressBar.progress = 0
-                progressText.text = "download 0%"
-            }
-            val bytes = try {
-                api.downloadBuild(build.id, mac, expectedSize = build.sizeBytes) { percent ->
-                    runOnUiThread {
-                        progressBar.progress = percent
-                        progressText.text = "download $percent%"
-                    }
+                flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
+                    val ok = result == 0
+                    api.reportResult(
+                        build.id,
+                        result = if (ok) "flash_ok" else "flash_failed",
+                        mac = mac,
+                        detail = if (ok) null else FlashResult.describe(result),
+                    )
                 }
-            } catch (e: Exception) {
-                runOnUiThread { log("Download failed: ${friendlyErrorMessage(e)}") }
-                return@Thread
-            }
-            runOnUiThread {
-                log("Downloaded ${bytes.size / 1024} KB.")
-                promptTransportChoice(build, mac, bytes)
             }
         }.start()
     }
 
-    /** After a build is downloaded and the device identified, let the user pick how
-     *  to actually write it — the cable is still needed to get here (MAC read above),
-     *  but the bulk transfer itself can go either way from this point on. */
-    private fun promptTransportChoice(build: ApiClient.Build, mac: String, bytes: ByteArray) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.choose_transport_title)
-            .setItems(arrayOf(getString(R.string.choose_transport_usb), getString(R.string.choose_transport_wifi))) { _, which ->
-                if (which == 0) {
-                    flashOverUsb(bootloader = null, partitions = null, app = bytes, appOffset = APP_OFFSET) { result ->
-                        reportFlashResult(build, mac, result)
-                    }
-                } else {
-                    promptWifiSwitchThenFlash(build, mac, bytes)
-                }
-            }
-            .setNegativeButton(R.string.cancel_button, null)
-            .show()
+    /** WiFi path: no USB at all. Downloads with no MAC (server only accepts that from
+     *  admin accounts — see the download route's comment), then walks through the
+     *  SoftAP switch → flash → switch back → report sequence. */
+    private fun downloadAndFlashWifi(build: ApiClient.Build) {
+        statusText.text = "Downloading build…"
+        log("---- downloading ${build.product} ${build.version} (${build.variant}) for WiFi flash — no USB needed ----")
+        Thread {
+            val bytes = downloadWithProgress(build, mac = null) ?: return@Thread
+            runOnUiThread { promptWifiSwitchThenFlash(build, bytes) }
+        }.start()
     }
 
-    private fun promptWifiSwitchThenFlash(build: ApiClient.Build, mac: String, bytes: ByteArray) {
+    /** Shared by both paths — off the main thread already when called. Returns null (and
+     *  has already logged) on failure. */
+    private fun downloadWithProgress(build: ApiClient.Build, mac: String?): ByteArray? {
+        runOnUiThread {
+            statusText.text = "Downloading build…"
+            progressBar.progress = 0
+            progressText.text = "download 0%"
+        }
+        return try {
+            val bytes = api.downloadBuild(build.id, mac, expectedSize = build.sizeBytes) { percent ->
+                runOnUiThread {
+                    progressBar.progress = percent
+                    progressText.text = "download $percent%"
+                }
+            }
+            runOnUiThread { log("Downloaded ${bytes.size / 1024} KB.") }
+            bytes
+        } catch (e: Exception) {
+            runOnUiThread { log("Download failed: ${friendlyErrorMessage(e)}") }
+            null
+        }
+    }
+
+    private fun promptWifiSwitchThenFlash(build: ApiClient.Build, bytes: ByteArray) {
         AlertDialog.Builder(this)
             .setTitle(R.string.choose_transport_wifi)
             .setMessage(R.string.wifi_transport_instruction)
-            .setPositiveButton(R.string.continue_button) { _, _ -> flashOverWifiReal(build, mac, bytes) }
+            .setPositiveButton(R.string.continue_button) { _, _ -> flashOverWifiReal(build, bytes) }
             .setNegativeButton(R.string.cancel_button, null)
             .show()
     }
 
-    private fun flashOverWifiReal(build: ApiClient.Build, mac: String, bytes: ByteArray) {
+    private fun flashOverWifiReal(build: ApiClient.Build, bytes: ByteArray) {
         statusText.text = "Flashing over WiFi…"
         progressBar.progress = 0
         progressText.text = getString(R.string.progress_idle)
@@ -322,31 +358,61 @@ class MainActivity : AppCompatActivity() {
                     progressText.text = "firmware $percent%"
                 }
             }
+            // Still on the SoftAP right now, whether the flash succeeded or not — this is
+            // the only moment the board's own /status is reachable, so identify it here
+            // rather than asking the user to reconnect to the SoftAP a second time.
+            val deviceId = fetchSoftApDeviceId()
             runOnUiThread {
                 when (result) {
                     is WifiOtaFlasher.Result.Success -> {
                         log("Result: SUCCESS — board is rebooting into the new firmware")
+                        log(if (deviceId != null) "Device ID: $deviceId" else "(could not read device ID from the board's own /status)")
                         statusText.text = "WiFi flash succeeded"
-                        reportFlashResult(build, mac, 0)
+                        promptSwitchBackAndFinish(build, deviceId, ok = true, detail = null)
                     }
                     is WifiOtaFlasher.Result.Failure -> {
                         log("Result: FAILED — ${result.message}")
                         statusText.text = "WiFi flash failed"
-                        api.reportResult(build.id, result = "flash_failed", mac = mac, detail = result.message)
+                        promptSwitchBackAndFinish(build, deviceId, ok = false, detail = result.message)
                     }
                 }
             }
         }.start()
     }
 
-    private fun reportFlashResult(build: ApiClient.Build, mac: String, usbResultCode: Int) {
-        val ok = usbResultCode == 0
-        api.reportResult(
-            build.id,
-            result = if (ok) "flash_ok" else "flash_failed",
-            mac = mac,
-            detail = if (ok) null else FlashResult.describe(usbResultCode),
-        )
+    /** GET http://<SoftAP>/status while still joined to it — see LocalServer.cpp's
+     *  handler and main.cpp's doc["device_id"]. Best-effort: null on any failure. */
+    private fun fetchSoftApDeviceId(): String? = try {
+        val conn = (URL("http://$SOFTAP_HOST/status").openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 3000
+            readTimeout = 3000
+        }
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        org.json.JSONObject(body).optString("device_id").takeIf { it.isNotBlank() }
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Last step of the WiFi flow — the phone needs to be back on real internet for this
+     *  report call to reach the server, so ask for that explicitly rather than trying to
+     *  guess/detect it. */
+    private fun promptSwitchBackAndFinish(build: ApiClient.Build, deviceId: String?, ok: Boolean, detail: String?) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.switch_back_title)
+            .setMessage(R.string.switch_back_instruction)
+            .setPositiveButton(R.string.finish_button) { _, _ ->
+                Thread {
+                    api.reportResult(
+                        build.id,
+                        result = if (ok) "flash_ok" else "flash_failed",
+                        deviceId = deviceId,
+                        detail = detail,
+                    )
+                    runOnUiThread { log("Reported result to server.") }
+                }.start()
+            }
+            .setNegativeButton(R.string.cancel_button, null)
+            .show()
     }
 
     /** Opens Android's share sheet with the full on-screen log — the fastest way for

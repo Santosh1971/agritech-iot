@@ -17,4 +17,7 @@
     <string name="wifi_transport_instruction">Now switch this phone\'s WiFi to the device\'s own network (shown on its label), then tap Continue.</string>
     <string name="continue_button">Continue</string>
     <string name="cancel_button">Cancel</string>
+    <string name="switch_back_title">Almost done</string>
+    <string name="switch_back_instruction">Switch this phone\'s WiFi back to your normal network or mobile data, then tap Finish to record the result.</string>
+    <string name="finish_button">Finish</string>
 </resources>
