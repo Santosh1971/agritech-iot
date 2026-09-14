@@ -26,6 +26,18 @@
 #define WIFI_CONNECT_TIMEOUT_MS 15000        // boot-time connect attempt
 #define WIFI_RETRY_INTERVAL_MS  60000        // background retry while in fallback
 
+// ---------- OTA (bench SoftAP flash + WiFi flash from the app) ----------
+// Gates /update (ElegantOTA's own portal + upload endpoint) so that once a
+// device is reachable over a customer's home WiFi (Cloud mode), anyone else
+// on that same network can't reflash it — reachable-but-unauthenticated was
+// an acceptable bench tradeoff on an isolated SoftAP with a developer
+// physically present; it stopped being one the moment WiFi OTA started
+// working over STA. Must match WifiOtaFlasher.kt's OTA_USERNAME/PASSWORD on
+// the app side — same TODO as SOFTAP_PASSWORD above about deriving this
+// per-device before this ships to a dealer network.
+#define OTA_USERNAME            "nbagri"
+#define OTA_PASSWORD            "flash-nb-2026"
+
 // ---------- GPIO ----------
 // Pin assignments per current FG1 schematic (ESP32-30pin dev kit sheet).
 #define RELAY_PIN           19    // D19 — RELAY1_MCU (relay driver input via ULN2003)

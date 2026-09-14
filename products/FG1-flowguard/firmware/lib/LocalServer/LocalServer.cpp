@@ -84,6 +84,11 @@ void LocalServer::begin() {
     // Agri Flasher plan before it ships; don't reuse this endpoint for that
     // without adding it.
     ElegantOTA.begin(&_server);
+    // Required now that OTA is confirmed working over a customer's home WiFi
+    // (Cloud mode), not just an isolated bench SoftAP — see the comment by
+    // OTA_USERNAME/OTA_PASSWORD in Config.h for why this stopped being
+    // optional. Must stay in sync with WifiOtaFlasher.kt on the app side.
+    ElegantOTA.setAuth(OTA_USERNAME, OTA_PASSWORD);
     ElegantOTA.onStart([]() {
         Serial.println("[LocalServer] OTA update starting");
         // Update.write() erases flash in up to 64KB blocks (Updater.cpp)

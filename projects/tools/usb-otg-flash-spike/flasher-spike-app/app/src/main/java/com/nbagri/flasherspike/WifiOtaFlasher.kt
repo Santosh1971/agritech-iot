@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.util.Base64
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -73,6 +74,7 @@ class WifiOtaFlasher(private val context: Context) {
         val conn = network.openConnection(URL(urlStr)) as HttpURLConnection
         conn.connectTimeout = 5000
         conn.readTimeout = 5000
+        conn.setRequestProperty("Authorization", basicAuthHeader())
         return try {
             conn.responseCode
         } finally {
@@ -95,6 +97,7 @@ class WifiOtaFlasher(private val context: Context) {
         conn.doOutput = true
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        conn.setRequestProperty("Authorization", basicAuthHeader())
         conn.connectTimeout = 5000
         // Firmware-side stalls during a flash-erase pause have run past 30s in bench
         // testing (see LocalServer.cpp / platformio.ini's AsyncTCP/RX-timeout fixes) --
@@ -131,8 +134,16 @@ class WifiOtaFlasher(private val context: Context) {
         }
     }
 
+    private fun basicAuthHeader(): String {
+        val creds = Base64.encodeToString("$OTA_USERNAME:$OTA_PASSWORD".toByteArray(), Base64.NO_WRAP)
+        return "Basic $creds"
+    }
+
     companion object {
         private const val CHUNK_SIZE = 1024
         private const val CHUNK_DELAY_MS = 15L
+        // Must match Config.h's OTA_USERNAME/OTA_PASSWORD on the firmware side.
+        private const val OTA_USERNAME = "nbagri"
+        private const val OTA_PASSWORD = "flash-nb-2026"
     }
 }
