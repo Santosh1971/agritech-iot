@@ -167,7 +167,7 @@ class MainActivity : AppCompatActivity() {
                     log("Code sent to $email.")
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Could not send code: ${e.message}") }
+                runOnUiThread { log("Could not send code: ${friendlyErrorMessage(e)}") }
             }
         }.start()
     }
@@ -187,7 +187,7 @@ class MainActivity : AppCompatActivity() {
                     showPickerSection()
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Login failed: ${e.message}") }
+                runOnUiThread { log("Login failed: ${friendlyErrorMessage(e)}") }
             }
         }.start()
     }
@@ -206,7 +206,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Could not load access: ${e.message}") }
+                runOnUiThread { log("Could not load access: ${friendlyErrorMessage(e)}") }
             }
         }.start()
     }
@@ -227,7 +227,7 @@ class MainActivity : AppCompatActivity() {
                     renderBuildList(builds)
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Could not fetch builds: ${e.message}") }
+                runOnUiThread { log("Could not fetch builds: ${friendlyErrorMessage(e)}") }
             }
         }.start()
     }
@@ -261,7 +261,7 @@ class MainActivity : AppCompatActivity() {
             val bytes = try {
                 api.downloadBuild(build.id, mac)
             } catch (e: Exception) {
-                runOnUiThread { log("Download failed: ${e.message}") }
+                runOnUiThread { log("Download failed: ${friendlyErrorMessage(e)}") }
                 return@Thread
             }
             runOnUiThread {
@@ -483,6 +483,23 @@ class MainActivity : AppCompatActivity() {
     private fun log(message: String) {
         android.util.Log.i("flasherspike", message)
         logText.append("\n$message")
+    }
+
+    /** Turns a raw network exception into something a field user can act on — the most
+     *  common cause by far is still being joined to the device's own SoftAP (which has
+     *  no internet route) when the app needs to reach the server, which otherwise
+     *  surfaces as a cryptic DNS/connect failure that looks like the app did nothing. */
+    private fun friendlyErrorMessage(e: Exception): String {
+        val isNetworkError = e is java.net.UnknownHostException ||
+            e is java.net.ConnectException ||
+            e is java.net.SocketTimeoutException
+        return if (isNetworkError) {
+            "No internet connection. If this phone is already joined to the device's own " +
+                "WiFi network, switch back to your normal WiFi or mobile data first, then " +
+                "try again. (${e.javaClass.simpleName})"
+        } else {
+            e.message ?: e.javaClass.simpleName
+        }
     }
 
     companion object {

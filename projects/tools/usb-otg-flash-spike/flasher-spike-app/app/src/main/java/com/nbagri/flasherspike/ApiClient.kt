@@ -113,8 +113,11 @@ class ApiClient(context: Context) {
         check(baseUrl.isNotBlank()) { "Set the server address first." }
         val conn = URL(baseUrl + path).openConnection() as HttpURLConnection
         conn.requestMethod = method
-        conn.connectTimeout = 8000
-        conn.readTimeout = 15000
+        // Short enough that a no-internet mistake (still joined to the device's own
+        // SoftAP, which has no internet route) fails fast instead of looking like the
+        // app just did nothing — still generous for a normal, slow mobile connection.
+        conn.connectTimeout = 5000
+        conn.readTimeout = 10000
         if (method == "POST") {
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
