@@ -1,0 +1,4 @@
+assets/*.bin
+__pycache__/
+*.pyc
+.venv/

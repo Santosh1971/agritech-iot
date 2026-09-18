@@ -204,6 +204,7 @@ void onWiFiConnected() {
 bool tryConnectSTA(uint32_t timeoutMs) {
     char ssid[64], pass[64];
     if (!nvs.loadWiFi(ssid, pass)) return false;
+    Serial.printf("[WiFi] Connecting to \"%s\"...\n", ssid);
     WiFi.begin(ssid, pass);
     uint32_t start = millis();
     // Service the LED state machine during this wait instead of a blind
@@ -254,7 +255,7 @@ void startLocalFallback() {
 void beginBackgroundRetry() {
     char ssid[64], pass[64];
     if (!nvs.loadWiFi(ssid, pass)) return;  // nothing saved yet — don't bother
-    Serial.println("[WiFi] Local fallback active — retrying saved WiFi (non-blocking)...");
+    Serial.printf("[WiFi] Local fallback active — retrying saved WiFi \"%s\" (non-blocking)...\n", ssid);
     WiFi.begin(ssid, pass);
     retryState   = RETRY_CONNECTING;
     retryStartMs = millis();
@@ -702,7 +703,20 @@ void loop() {
     // clean single-attempt OTA stopped dead around 12% right as this log
     // line fired). AP+STA concurrency avoids most disruption for short
     // local-server traffic; it doesn't hold up for a sustained ~1MB write.
+    //
+    // Also skip while already connected (WiFi.status() == WL_CONNECTED):
+    // this timer used to fire unconditionally every WIFI_RETRY_INTERVAL_MS
+    // whenever connMode was still CONN_LOCAL_FALLBACK -- including the
+    // whole WIFI_STABLE_HOLD_MS window updateConnMode() spends waiting out
+    // before actually leaving fallback. Calling WiFi.begin() while already
+    // associated forces ESP32 to disconnect and reassociate (visible as
+    // "Reason: 8 - ASSOC_LEAVE"), which reset wifiUpSinceMs and prevented
+    // the stability window from ever completing -- a self-inflicted,
+    // infinite reconnect loop that never left fallback mode. Bench-
+    // confirmed 2026-09-18: repeated ASSOC_LEAVE + MQTT rc=-2 drops every
+    // ~60s, exactly WIFI_RETRY_INTERVAL_MS, for the life of the test.
     if (connMode == CONN_LOCAL_FALLBACK && retryState == RETRY_IDLE &&
+        WiFi.status() != WL_CONNECTED &&
         !wifiScanInProgress && !forcedLocalMode && !Update.isRunning() &&
         millis() - lastWiFiRetry >= WIFI_RETRY_INTERVAL_MS) {
         lastWiFiRetry = millis();
