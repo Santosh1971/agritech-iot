@@ -15,6 +15,18 @@ from typing import Optional
 
 import serial
 
+# tail()'s own read() call below blocks for up to this long before it even
+# gets back around to checking coordinator.is_paused -- every settle sleep
+# after coordinator.pause() (here and in cli.py's _flash_and_boot()) must
+# be strictly longer than this, or the pause can still be racing an
+# in-flight read when the caller tries to open the port itself. 2026-09-19
+# bench finding: a 0.15s settle (under this value) worked on macOS but
+# reliably failed ESP32 MAC reads on Windows -- Windows holds a COM port
+# far more exclusively than macOS does, so the same race that macOS
+# happened to tolerate hard-failed there instead.
+TAIL_READ_TIMEOUT_S = 0.3
+TAIL_SETTLE_S = TAIL_READ_TIMEOUT_S + 0.2
+
 
 class TailCoordinator:
     """Coordinates tail() (a best-effort live-view background reader)
@@ -57,7 +69,7 @@ def capture(
     the actual test step if the capture itself doesn't work."""
     if coordinator is not None:
         coordinator.pause()
-        time.sleep(0.15)  # give tail()'s loop a moment to actually close its handle
+        time.sleep(TAIL_SETTLE_S)  # give tail()'s loop a moment to actually close its handle
     try:
         ser = serial.Serial(port, baud, timeout=0.5)
     except serial.SerialException:
@@ -101,7 +113,7 @@ def tail(
             continue
         if ser is None:
             try:
-                ser = serial.Serial(port, baud, timeout=0.3)
+                ser = serial.Serial(port, baud, timeout=TAIL_READ_TIMEOUT_S)
             except serial.SerialException:
                 time.sleep(retry_delay_s)
                 continue

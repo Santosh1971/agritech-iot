@@ -279,7 +279,7 @@ def _flash_and_boot(run: TestRun, api: ApiClient, build: Build) -> None:
     # back -- consistent with every other coordinator use in this file.
     if run.dut_tail_coordinator is not None:
         run.dut_tail_coordinator.pause()
-        time.sleep(0.15)
+        time.sleep(dut_serial.TAIL_SETTLE_S)
     try:
         mac = flasher.read_mac(run.dut_port)
         if mac is None:
