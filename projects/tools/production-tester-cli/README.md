@@ -74,6 +74,14 @@ Windows COM ports (`COM3`, `COM4`, ...) work the same way as macOS's
 `/dev/cu.usbserial-*` -- `pyserial`'s port enumeration handles this
 automatically, nothing to configure per-machine.
 
+**One-click start:** once this repo is cloned, double-click
+`start_bench.bat` in this folder (make a desktop shortcut to it) instead
+of typing commands by hand -- it pulls the latest code, installs any new
+dependencies, starts the server, and opens the browser automatically.
+This is the recommended way to start each day's testing on Windows; it
+also means you never have to remember to `git pull` or restart the
+server yourself after an update.
+
 ## Running it -- Web UI (recommended for the bench)
 
 ```bash
