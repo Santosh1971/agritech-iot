@@ -59,19 +59,37 @@ def _run_with_retry(
     return FlashResult(False, f"{last.detail} (failed after {attempts} attempts)")
 
 
-def read_mac(port: str, baud: int = 115200) -> Optional[str]:
+def read_mac(port: str, baud: int = 115200, attempts: int = 3) -> tuple[Optional[str], str]:
     """Reads the connected chip's burned-in MAC. Works on a blank chip too
     -- it's an eFuse value, not something firmware has to report. Returns
-    hex with no separators (e.g. "3076F593B468"), matching what the
-    backend's device-allowlist check expects."""
-    try:
-        result = _run(port, baud, ["read-mac"], timeout_s=20)
-    except (subprocess.TimeoutExpired, OSError):
-        return None
-    match = MAC_PATTERN.search(result.stdout)
-    if not match:
-        return None
-    return match.group(1).replace(":", "").upper()
+    (hex with no separators e.g. "3076F593B468", "") on success, matching
+    what the backend's device-allowlist check expects, or (None, detail)
+    on failure.
+
+    2026-09-19 bench finding: this used to swallow the actual error
+    entirely (any OSError/TimeoutExpired -- including esptool simply not
+    being on PATH, a totally different problem from a busy port -- all
+    collapsed into a bare None) and never retried, unlike erase_chip()/
+    write_firmware() right below, which already retry for the exact same
+    class of transient USB/serial noise. A Windows bench hit a persistent
+    "could not read chip MAC" with zero further clue why -- surface the
+    real esptool output/exception text so a failure is actually
+    diagnosable, and retry like its siblings instead of a single shot."""
+    last_detail = "never attempted"
+    for attempt in range(1, attempts + 1):
+        try:
+            result = _run(port, baud, ["read-mac"], timeout_s=20)
+        except subprocess.TimeoutExpired as e:
+            last_detail = f"esptool timed out: {e}"
+            continue
+        except OSError as e:
+            last_detail = f"could not run esptool: {e}"
+            continue
+        match = MAC_PATTERN.search(result.stdout)
+        if match:
+            return match.group(1).replace(":", "").upper(), ""
+        last_detail = result.stderr.strip() or result.stdout.strip() or "no MAC found in esptool output"
+    return None, f"{last_detail} (failed after {attempts} attempts)"
 
 
 def erase_chip(port: str, baud: int = 115200) -> FlashResult:

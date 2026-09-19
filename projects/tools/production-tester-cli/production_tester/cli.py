@@ -281,9 +281,9 @@ def _flash_and_boot(run: TestRun, api: ApiClient, build: Build) -> None:
         run.dut_tail_coordinator.pause()
         time.sleep(dut_serial.TAIL_SETTLE_S)
     try:
-        mac = flasher.read_mac(run.dut_port)
+        mac, mac_detail = flasher.read_mac(run.dut_port)
         if mac is None:
-            run.set_step("flash", False, "could not read chip MAC -- check the USB connection")
+            run.set_step("flash", False, f"could not read chip MAC -- {mac_detail}")
             return
         print(f"Device MAC: {mac}")
 

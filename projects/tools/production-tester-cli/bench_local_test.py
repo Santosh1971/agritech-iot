@@ -38,8 +38,8 @@ def run_local_unit() -> TestRun:
     print(f"Jig on {hw.jig_port}, DUT on {hw.dut_port}.")
     run.jig.leave_wifi()
 
-    mac = flasher.read_mac(run.dut_port)
-    print(f"Device MAC: {mac}")
+    mac, mac_detail = flasher.read_mac(run.dut_port)
+    print(f"Device MAC: {mac}" if mac else f"Could not read MAC: {mac_detail}")
     bootloader = ASSETS_DIR / "bootloader.bin"
     partitions = ASSETS_DIR / "partitions.bin"
 
