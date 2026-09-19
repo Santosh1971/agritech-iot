@@ -28,34 +28,6 @@ TAIL_READ_TIMEOUT_S = 0.3
 TAIL_SETTLE_S = TAIL_READ_TIMEOUT_S + 0.2
 
 
-def _open_passive(port: str, baud: int, timeout: float) -> serial.Serial:
-    """Opens [port] for passive/read-only listening without asserting
-    DTR/RTS. Constructing with no port yet and setting dtr/rts False
-    BEFORE calling open() (rather than opening with pyserial's one-shot
-    Serial(port, baud, ...) and changing them after) avoids the transient
-    pulse on open that many USB-serial drivers wire straight into the
-    ESP32's own EN/GPIO0 auto-reset circuit -- the same one esptool
-    deliberately drives, on purpose, to reset the chip for flashing.
-
-    2026-09-19 bench finding: a Windows (CP210x) bench was seeing
-    genuine POWERON_RESET reboots on the DUT, clustered specifically
-    around repeated serial reconnects from tail()/capture() below --
-    while the same physical board, at the same time, could be commanded
-    fine over WiFi via the phone app, which never opens a USB-serial
-    connection to it at all. That ruled out a power/cable problem and
-    pointed squarely at this open-triggers-reset behavior instead --
-    invisible all session on macOS, whose driver doesn't assert these
-    lines the same way (or care as much when it does)."""
-    ser = serial.Serial()
-    ser.port = port
-    ser.baudrate = baud
-    ser.timeout = timeout
-    ser.dtr = False
-    ser.rts = False
-    ser.open()
-    return ser
-
-
 class TailCoordinator:
     """Coordinates tail() (a best-effort live-view background reader)
     with capture()'s exclusive, timed reads elsewhere in this module --
@@ -99,7 +71,7 @@ def capture(
         coordinator.pause()
         time.sleep(TAIL_SETTLE_S)  # give tail()'s loop a moment to actually close its handle
     try:
-        ser = _open_passive(port, baud, 0.5)
+        ser = serial.Serial(port, baud, timeout=0.5)
     except serial.SerialException:
         return ""
     try:
@@ -141,7 +113,7 @@ def tail(
             continue
         if ser is None:
             try:
-                ser = _open_passive(port, baud, TAIL_READ_TIMEOUT_S)
+                ser = serial.Serial(port, baud, timeout=TAIL_READ_TIMEOUT_S)
             except serial.SerialException:
                 time.sleep(retry_delay_s)
                 continue
