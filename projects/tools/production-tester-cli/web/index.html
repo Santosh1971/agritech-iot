@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FG1 Production Tester</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2c;
+    --panel-border: #2a3348;
+    --text: #e6e9f2;
+    --text-dim: #8892a8;
+    --accent: #4f8cff;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --mono: "SF Mono", "Consolas", "Menlo", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 60px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .wrap { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; align-items: center; justify-content: space-between; }
+  h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; background: #555; }
+  .dot.on { background: var(--green); }
+  .status-pill { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; }
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 14px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--panel-border);
+    background: #0d1220; color: var(--text); font-size: 14px; margin-bottom: 12px;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  button {
+    background: var(--accent); color: white; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.secondary { background: #2a3348; }
+  button.big { width: 100%; padding: 14px; font-size: 16px; }
+  .hidden { display: none !important; }
+  .field-note { font-size: 12px; color: var(--text-dim); margin-top: -8px; margin-bottom: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+
+  .banner {
+    border-radius: 10px; padding: 12px 16px; font-weight: 700; font-size: 15px;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .banner.running { background: rgba(79,140,255,.12); color: var(--accent); }
+  .banner.pass { background: rgba(52,211,153,.12); color: var(--green); }
+  .banner.fail { background: rgba(248,113,113,.12); color: var(--red); }
+  .banner.stopped { background: rgba(251,191,36,.12); color: var(--amber); }
+  button.danger { background: var(--red); }
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(79,140,255,.3);
+    border-top-color: var(--accent); animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .checkbox-row input[type="checkbox"] { width: auto; margin: 0; }
+  .checkbox-row label { margin: 0; cursor: pointer; font-size: 13px; color: var(--text); }
+  #skipFlashPanel { margin-top: 10px; }
+
+  .step { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid #1d2436; }
+  .step:last-child { border-bottom: none; }
+  .step .icon { width: 20px; flex-shrink: 0; text-align: center; font-size: 14px; margin-top: 1px; }
+  .step .icon.pending { color: var(--text-dim); }
+  .step .icon.pass { color: var(--green); }
+  .step .icon.fail { color: var(--red); }
+  .step .icon.running { color: var(--accent); }
+  .step .body { flex: 1; }
+  .step .label { font-size: 14px; }
+  .step .detail { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+
+  .log-toggle { font-size: 13px; color: var(--text-dim); cursor: pointer; user-select: none; margin-top: 14px; display: inline-block; }
+  #logConsole {
+    background: #0a0e18; border-radius: 8px; border: 1px solid var(--panel-border);
+    font-family: var(--mono); font-size: 12px; color: #a9b4c9; padding: 10px 12px;
+    height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    margin-top: 8px;
+  }
+
+  .serial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  @media (max-width: 620px) { .serial-grid { grid-template-columns: 1fr; } }
+  .serial-label { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .serial-console {
+    background: #0a0e18; border-radius: 8px; border: 1px solid var(--panel-border);
+    font-family: var(--mono); font-size: 11px; color: #a9b4c9; padding: 8px 10px;
+    height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #1d2436; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.pass { background: rgba(52,211,153,.15); color: var(--green); }
+  .badge.fail { background: rgba(248,113,113,.15); color: var(--red); }
+  .error-msg { color: var(--red); font-size: 13px; margin-top: -6px; margin-bottom: 10px; min-height: 1em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>FG1 Production Tester</h1>
+    <div class="status-pill"><span class="dot" id="loginDot"></span><span id="loginText">checking…</span></div>
+  </header>
+
+  <!-- LOGIN -->
+  <div class="card hidden" id="loginCard">
+    <h2>Sign in</h2>
+    <div id="loginStep1">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com">
+      <div class="error-msg" id="loginError1"></div>
+      <button onclick="requestOtp()">Send code</button>
+    </div>
+    <div id="loginStep2" class="hidden">
+      <label for="otpCode">Code sent to your email</label>
+      <input id="otpCode" type="text" placeholder="6-digit code">
+      <div class="error-msg" id="loginError2"></div>
+      <button onclick="verifyOtp()">Verify</button>
+      <button class="secondary" onclick="backToEmail()">Back</button>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="card hidden" id="setupCard">
+    <h2>Bench settings</h2>
+    <div class="grid2">
+      <div>
+        <label>Office WiFi SSID</label>
+        <input id="cfgSsid">
+      </div>
+      <div>
+        <label>Office WiFi password</label>
+        <input id="cfgPass" type="password">
+      </div>
+      <div>
+        <label>Operator name</label>
+        <input id="cfgOperator">
+      </div>
+      <div>
+        <label>Station name</label>
+        <input id="cfgStation">
+      </div>
+      <div>
+        <label>Calibration (pulses/L)</label>
+        <input id="cfgPpl" type="number">
+      </div>
+      <div>
+        <label>Flow test pulse count</label>
+        <input id="cfgPulses" type="number">
+      </div>
+    </div>
+    <button class="secondary" onclick="saveSettings()">Save settings</button>
+    <div class="error-msg" id="settingsSaved"></div>
+
+    <h2 style="margin-top:22px">Build</h2>
+    <div class="row">
+      <div>
+        <label>Product</label>
+        <select id="productSelect" onchange="loadBuilds()"></select>
+      </div>
+      <div>
+        <label>Build</label>
+        <select id="buildSelect"></select>
+      </div>
+    </div>
+    <button class="secondary" onclick="selectBuild()">Use this build</button>
+    <span id="selectedBuildNote" class="field-note"></span>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="skipFlashCheck" onchange="toggleSkipFlash()">
+      <label for="skipFlashCheck">Skip flashing — reuse the unit already on the bench (debug loop)</label>
+    </div>
+    <div class="hidden" id="skipFlashPanel">
+      <label>Device ID (must already be flashed and sitting in SoftAP mode)</label>
+      <input id="skipFlashDeviceId" placeholder="e.g. SWC_001_B468" oninput="updateStartButton()">
+      <div class="field-note">The guided flow still joins this unit's SoftAP for real before doing anything else —
+        if it's not reachable under this ID, the run fails fast on that step instead of assuming.</div>
+    </div>
+
+    <div style="margin-top:18px">
+      <button class="big" id="startBtn" onclick="startRun()" disabled>Plug in the unit, then Start Test</button>
+    </div>
+  </div>
+
+  <!-- LIVE RUN -->
+  <div class="card hidden" id="runCard">
+    <h2>Test run</h2>
+    <div class="banner running" id="runBanner"><span class="spinner" id="runSpinner"></span><span id="runBannerText">Running…</span></div>
+    <button class="danger hidden" id="stopBtn" onclick="stopRun()">Stop test</button>
+    <div id="stepList"></div>
+    <div class="serial-grid">
+      <div>
+        <div class="serial-label">DUT serial (live)</div>
+        <div id="dutConsole" class="serial-console"></div>
+      </div>
+      <div>
+        <div class="serial-label">Jig serial (live)</div>
+        <div id="jigConsole" class="serial-console"></div>
+      </div>
+    </div>
+    <span class="log-toggle" onclick="toggleLog()">▸ Show raw log</span>
+    <div id="logConsole" class="hidden"></div>
+    <div style="margin-top:16px">
+      <button class="big hidden" id="anotherBtn" onclick="startRun()">Test another unit</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="card hidden" id="historyCard">
+    <h2>Recent results</h2>
+    <table id="historyTable">
+      <thead><tr><th>Time (UTC)</th><th>Device</th><th>Build</th><th>Result</th></tr></thead>
+      <tbody id="historyBody"></tbody>
+    </table>
+    <div style="margin-top:12px">
+      <button class="secondary" onclick="window.location='/api/history/export.csv'">Export CSV</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentEmail = "";
+let logVisible = false;
+let stream = null;
+let buildSelected = false;
+
+function toggleSkipFlash() {
+  el("skipFlashPanel").classList.toggle("hidden", !el("skipFlashCheck").checked);
+  updateStartButton();
+}
+
+// Single source of truth for whether Start Test should be enabled --
+// called from every place that changes readiness (build picked, skip-
+// flash toggled, device ID typed, a run finishing) instead of each of
+// them setting .disabled directly and drifting out of sync with each
+// other.
+function updateStartButton() {
+  const ready = el("skipFlashCheck").checked
+    ? el("skipFlashDeviceId").value.trim().length > 0
+    : buildSelected;
+  el("startBtn").disabled = !ready;
+}
+
+async function api(path, opts) {
+  const resp = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
+  return resp.json();
+}
+
+function el(id) { return document.getElementById(id); }
+function show(id) { el(id).classList.remove("hidden"); }
+function hide(id) { el(id).classList.add("hidden"); }
+
+// Full refresh -- populates the settings fields and build dropdowns, so
+// it's only run once on page load. Re-running it on a timer would stomp
+// whatever the user is currently typing into the settings fields, or
+// yank their in-progress product/build dropdown choice out from under
+// them, every few seconds.
+async function refreshState() {
+  const state = await applyLiteState();
+  if (!state.logged_in) return;
+
+  el("cfgSsid").value = state.config.office_wifi_ssid || "";
+  el("cfgPass").value = state.config.office_wifi_password || "";
+  el("cfgOperator").value = state.config.operator_name || "";
+  el("cfgStation").value = state.config.station_name || "";
+  el("cfgPpl").value = state.config.expected_calibration_ppl;
+  el("cfgPulses").value = state.config.flow_test_pulse_count;
+
+  await loadProducts();
+  await loadHistory();
+}
+
+// Lightweight poll -- login status, whether a run is in progress
+// (re-attaching the live stream if this page just loaded mid-run), and
+// each step's pass/fail once done. Deliberately leaves the settings
+// fields and build dropdowns alone.
+async function applyLiteState() {
+  const state = await api("/api/state");
+  el("loginDot").classList.toggle("on", state.logged_in);
+  el("loginText").textContent = state.logged_in ? "Signed in" : "Not signed in";
+  if (!state.logged_in) {
+    show("loginCard"); hide("setupCard"); hide("runCard"); hide("historyCard");
+    return state;
+  }
+  hide("loginCard"); show("setupCard"); show("historyCard");
+
+  if (state.selected_build) {
+    el("selectedBuildNote").textContent = "Selected: " + state.selected_build.label;
+    buildSelected = true;
+  }
+  if (state.running) {
+    el("startBtn").disabled = true;
+    el("startBtn").textContent = "Test running…";
+  } else {
+    updateStartButton();
+    el("startBtn").textContent = "Plug in the unit, then Start Test";
+  }
+  if (state.last_result && state.last_result.device_id && !el("skipFlashDeviceId").value) {
+    el("skipFlashDeviceId").value = state.last_result.device_id;
+  }
+
+  window.STEP_ORDER = state.step_order;
+  window.STEP_LABELS = state.step_labels;
+
+  if (state.running && !stream) {
+    // Only (re)attach if nothing is already listening -- e.g. this page
+    // just loaded while a run kicked off elsewhere was still going.
+    show("runCard");
+    hide("anotherBtn");
+    setBanner("running", "Running…", true);
+    renderSteps({});
+    show("stopBtn");
+    el("stopBtn").disabled = false;
+    el("stopBtn").textContent = "Stop test";
+    attachStream();
+  }
+  return state;
+}
+
+async function requestOtp() {
+  const email = el("email").value.trim();
+  el("loginError1").textContent = "";
+  const r = await api("/api/login/request-otp", { method: "POST", body: JSON.stringify({ email }) });
+  if (!r.ok) { el("loginError1").textContent = r.error || "Failed to send code."; return; }
+  currentEmail = email;
+  hide("loginStep1"); show("loginStep2");
+}
+
+async function verifyOtp() {
+  const code = el("otpCode").value.trim();
+  el("loginError2").textContent = "";
+  const r = await api("/api/login/verify-otp", { method: "POST", body: JSON.stringify({ email: currentEmail, code }) });
+  if (!r.ok) { el("loginError2").textContent = r.error || "Invalid code."; return; }
+  await refreshState();
+}
+
+function backToEmail() { hide("loginStep2"); show("loginStep1"); }
+
+async function saveSettings() {
+  const body = {
+    office_wifi_ssid: el("cfgSsid").value, office_wifi_password: el("cfgPass").value,
+    operator_name: el("cfgOperator").value, station_name: el("cfgStation").value,
+    expected_calibration_ppl: el("cfgPpl").value, flow_test_pulse_count: el("cfgPulses").value,
+  };
+  await api("/api/settings", { method: "POST", body: JSON.stringify(body) });
+  el("settingsSaved").style.color = "var(--green)";
+  el("settingsSaved").textContent = "Saved.";
+  setTimeout(() => { el("settingsSaved").textContent = ""; }, 2000);
+}
+
+async function loadProducts() {
+  const r = await api("/api/products");
+  if (r.error) return;
+  const sel = el("productSelect");
+  const current = sel.value;
+  sel.innerHTML = r.products.map(p => `<option value="${p}">${p}</option>`).join("");
+  if (current && r.products.includes(current)) sel.value = current;
+  await loadBuilds();
+}
+
+async function loadBuilds() {
+  const product = el("productSelect").value;
+  if (!product) return;
+  const r = await api("/api/builds?product=" + encodeURIComponent(product));
+  if (r.error) return;
+  el("buildSelect").innerHTML = r.builds.map(b =>
+    `<option value="${b.id}">${b.version} (${b.variant}) — ${Math.round(b.size_bytes/1024)} KB${b.notes ? " — " + b.notes : ""}</option>`
+  ).join("");
+}
+
+async function selectBuild() {
+  const product = el("productSelect").value;
+  const build_id = el("buildSelect").value;
+  if (!build_id) return;
+  const r = await api("/api/select-build", { method: "POST", body: JSON.stringify({ product, build_id }) });
+  if (!r.ok) { alert(r.error || "Could not select build."); return; }
+  el("selectedBuildNote").textContent = "Selected: " + r.build.label;
+  buildSelected = true;
+  updateStartButton();
+}
+
+function renderSteps(known) {
+  const list = el("stepList");
+  list.innerHTML = window.STEP_ORDER.map(name => {
+    const s = known[name];
+    let iconClass = "pending", icon = "⏳";
+    if (s) {
+      iconClass = s.passed ? "pass" : "fail";
+      icon = s.passed ? "✓" : "✗";
+    }
+    const detail = s && s.detail ? `<div class="detail">${escapeHtml(s.detail)}</div>` : "";
+    return `<div class="step" data-step="${name}">
+      <div class="icon ${iconClass}">${icon}</div>
+      <div class="body"><div class="label">${window.STEP_LABELS[name] || name}</div>${detail}</div>
+    </div>`;
+  }).join("");
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function toggleLog() {
+  logVisible = !logVisible;
+  el("logConsole").classList.toggle("hidden", !logVisible);
+  document.querySelector(".log-toggle").textContent = (logVisible ? "▾ Hide" : "▸ Show") + " raw log";
+}
+
+// Mutates only runBanner's two stable children -- never the banner's own
+// innerHTML/textContent, which would delete #runSpinner/#runBannerText
+// out from under the next run and crash it (bug found 2026-09-18: the
+// second "Test another unit" click threw "Cannot set properties of null"
+// because finishRun() had replaced them with plain PASS/FAIL text).
+function setBanner(kind, text, showSpinner) {
+  el("runBanner").className = "banner " + kind;
+  el("runSpinner").style.display = showSpinner ? "" : "none";
+  el("runBannerText").textContent = text;
+}
+
+async function startRun() {
+  hide("anotherBtn");
+  show("runCard");
+  setBanner("running", "Running…", true);
+  el("logConsole").innerHTML = "";
+  el("dutConsole").innerHTML = "";
+  el("jigConsole").innerHTML = "";
+  renderSteps({});
+  el("startBtn").disabled = true;
+  el("startBtn").textContent = "Test running…";
+
+  const body = { skip_flash: el("skipFlashCheck").checked, device_id: el("skipFlashDeviceId").value.trim() };
+  const r = await api("/api/run/start", { method: "POST", body: JSON.stringify(body) });
+  if (!r.ok) {
+    setBanner("fail", r.error || "Could not start the test.", false);
+    updateStartButton();
+    el("startBtn").textContent = "Plug in the unit, then Start Test";
+    return;
+  }
+  show("stopBtn");
+  el("stopBtn").disabled = false;
+  el("stopBtn").textContent = "Stop test";
+  attachStream();
+}
+
+async function stopRun() {
+  el("stopBtn").disabled = true;
+  el("stopBtn").textContent = "Stopping…";
+  await api("/api/run/stop", { method: "POST" });
+}
+
+function appendLine(elId, text) {
+  const box = el(elId);
+  box.textContent += text + "\n";
+  box.scrollTop = box.scrollHeight;
+}
+
+function attachStream() {
+  if (stream) stream.close();
+  const known = {};
+  stream = new EventSource("/api/run/stream");
+  stream.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.type === "log") {
+      appendLine("logConsole", data.text);
+    } else if (data.type === "dut_line") {
+      appendLine("dutConsole", data.text);
+    } else if (data.type === "jig_line") {
+      appendLine("jigConsole", data.text);
+    } else if (data.type === "step") {
+      known[data.name] = data;
+      renderSteps(known);
+    } else if (data.type === "done") {
+      finishRun(data.overall_passed);
+    } else if (data.type === "stopped") {
+      hide("stopBtn");
+      setBanner("stopped", "Stopped by operator", false);
+      updateStartButton();
+      el("startBtn").textContent = "Plug in the unit, then Start Test";
+      show("anotherBtn");
+      if (stream) { stream.close(); stream = null; }
+      loadHistory();
+    } else if (data.type === "error") {
+      hide("stopBtn");
+      setBanner("fail", "Error: " + data.message, false);
+      updateStartButton();
+      el("startBtn").textContent = "Plug in the unit, then Start Test";
+      show("anotherBtn");
+      stream.close();
+    }
+  };
+}
+
+function finishRun(passed) {
+  hide("stopBtn");
+  setBanner(passed ? "pass" : "fail", passed ? "PASS" : "FAIL", false);
+  updateStartButton();
+  el("startBtn").textContent = "Plug in the unit, then Start Test";
+  show("anotherBtn");
+  if (stream) { stream.close(); stream = null; }
+  loadHistory();
+}
+
+async function loadHistory() {
+  const r = await api("/api/history");
+  if (!r.reports) return;
+  el("historyBody").innerHTML = r.reports.map(rep => `
+    <tr>
+      <td>${rep.timestamp_utc || ""}</td>
+      <td>${rep.device_id || "—"}</td>
+      <td>${rep.build_label || ""}</td>
+      <td><span class="badge ${rep.overall_passed ? "pass" : "fail"}">${rep.overall_passed ? "PASS" : "FAIL"}</span></td>
+    </tr>
+  `).join("");
+}
+
+refreshState();
+setInterval(applyLiteState, 5000);
+</script>
+</body>
+</html>

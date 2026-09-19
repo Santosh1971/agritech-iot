@@ -1,14 +1,18 @@
 # FG1 Test Jig & Automated Test Specification
 
-> **Superseded (transport layer only) by [`PRODUCTION_TOOL_SPEC.md`](PRODUCTION_TOOL_SPEC.md).**
-> That doc covers the actual production tool: a phone app (not the
-> Python scripts below) driving flashing via a laptop-side bridge, and
-> a WiFi-based (not USB-serial) jig controller. The test **content**
+> **Superseded (transport layer only) by [`PRODUCTION_TOOL_SPEC_V2.md`](PRODUCTION_TOOL_SPEC_V2.md).**
+> That doc covers the actual production tool as built: a phone-only
+> native Android app (no laptop) doing the flashing itself over
+> USB-OTG, a **USB-serial** (not WiFi) jig controller, and the office
+> WiFi router as the only test AP (no hotspot). The test **content**
 > here — Tier 1 (§5) and Tier 2/PT (§6) step-by-step checklists, the
 > relay sense circuit (§2.4), and DUT connections (§2.2) — is still the
 > authoritative procedural reference; only "how the jig is commanded"
-> (§2.3, §4) and "what runs the flash" change. The Python modules in
-> §3 remain useful for bench debugging/dev even after the app exists.
+> (§2.3, §4) and "what runs the flash" change — and note the jig
+> protocol below (§4) is actually correct again as-built (serial, not
+> the HTTP version the now-superseded v1 doc introduced). The Python
+> modules in §3 remain useful for bench debugging/dev even after the
+> app exists.
 
 Status: Draft v1 — written before the physical jig exists. The flash +
 boot-log automation (Stage 1 / `test_production.py --flash-only`) is real,

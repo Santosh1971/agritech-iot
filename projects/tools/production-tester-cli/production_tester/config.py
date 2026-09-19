@@ -23,7 +23,11 @@ class BenchConfig:
     office_wifi_ssid: str = "Airtel_Santosh"
     office_wifi_password: str = "8197239206"
     expected_calibration_ppl: int = 450
-    flow_test_pulse_count: int = 450
+    # 450 (a full liter at the default 450 ppl calibration) made every
+    # visible-pulse flow test take minutes -- 100 pulses is still plenty
+    # to catch a real accuracy problem while cutting that time way down,
+    # per explicit ask 2026-09-18.
+    flow_test_pulse_count: int = 100
     operator_name: str = ""
     station_name: str = "bench-1"
 

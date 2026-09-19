@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 import serial.tools.list_ports
 
@@ -24,7 +24,7 @@ class HardwareResult:
     all_ports: list[str]
 
 
-def _find_hardware_once() -> HardwareResult:
+def _find_hardware_once(on_jig_line: Optional[Callable[[str], None]] = None) -> HardwareResult:
     # vid is None for OS pseudo-ports (macOS's /dev/cu.debug-console,
     # /dev/cu.Bluetooth-Incoming-Port, etc.) -- confirmed on the bench
     # 2026-09-18: without this filter, one of those got picked as the
@@ -36,7 +36,11 @@ def _find_hardware_once() -> HardwareResult:
     jig_port = None
     remaining = list(ports)
     for port in ports:
-        candidate = probe_for_jig(port)
+        # on_jig_line is passed to every candidate here, including ones
+        # that turn out to be the DUT -- probing sends a single harmless
+        # PING before identity is known, so at worst a stray "PING"/"(no
+        # reply)" pair shows up once in a live jig console at startup.
+        candidate = probe_for_jig(port, on_line=on_jig_line)
         if candidate is not None:
             jig = candidate
             jig_port = port
@@ -46,17 +50,20 @@ def _find_hardware_once() -> HardwareResult:
     return HardwareResult(jig=jig, jig_port=jig_port, dut_port=dut_port, all_ports=ports)
 
 
-def find_hardware(attempts: int = 3, retry_delay_s: float = 1.5) -> HardwareResult:
+def find_hardware(
+    attempts: int = 3, retry_delay_s: float = 1.5,
+    on_jig_line: Optional[Callable[[str], None]] = None,
+) -> HardwareResult:
     """find_hardware(), retried a few times before giving up. Bench-
     confirmed 2026-09-18: back-to-back bench runs (each ending in an
     esptool hard reset via RTS pin) occasionally hit a genuinely empty
     port list on the very next scan -- macOS hadn't finished
     re-enumerating the USB-serial devices yet. A short retry clears it;
     a single scan doesn't."""
-    result = _find_hardware_once()
+    result = _find_hardware_once(on_jig_line)
     for _ in range(attempts - 1):
         if result.jig is not None and result.dut_port is not None:
             return result
         time.sleep(retry_delay_s)
-        result = _find_hardware_once()
+        result = _find_hardware_once(on_jig_line)
     return result

@@ -264,7 +264,8 @@ void beginBackgroundRetry() {
 void pollBackgroundRetry() {
     if (retryState != RETRY_CONNECTING) return;
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("[WiFi] Reconnected — confirming stability before leaving fallback");
+        Serial.printf("[WiFi] Reconnected — IP: %s — confirming stability before leaving fallback\n",
+            WiFi.localIP().toString().c_str());
         retryState = RETRY_IDLE;
         localServer.closeAllClients();
         // AP stays up here — updateConnMode() tears it down once the

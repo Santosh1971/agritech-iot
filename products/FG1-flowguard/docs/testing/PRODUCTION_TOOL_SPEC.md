@@ -1,5 +1,13 @@
 # FG1 Production Flash/Test/Report Tool — Specification v1
 
+> **Superseded by [`PRODUCTION_TOOL_SPEC_V2.md`](PRODUCTION_TOOL_SPEC_V2.md).**
+> This v1 architecture (Flutter app + bench laptop "Flash Bridge" +
+> ESP8266 WiFi jig + hotspot/travel-router test AP) was never built as
+> described. What's actually running on the bench is a phone-only
+> native Android app, a USB-serial (not WiFi) jig, and the office WiFi
+> router as the only test AP — no laptop, no hotspot. Read v2 instead;
+> kept here for history only.
+
 Status: Draft — approved architecture, not yet built. Supersedes the
 transport-layer parts of [`TEST_JIG_SPEC.md`](TEST_JIG_SPEC.md) (jig now
 talks WiFi, not USB-serial); that document's Tier 1/Tier 2 **test step

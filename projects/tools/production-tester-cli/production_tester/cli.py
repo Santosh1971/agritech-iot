@@ -13,10 +13,12 @@ Run with: python -m production_tester.cli
 """
 from __future__ import annotations
 
+import calendar
 import re
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -39,8 +41,18 @@ def println_step(name: str, passed: bool, detail: str = "") -> None:
     print(ui.step_line(label, passed, detail))
 
 
+class StopRequested(Exception):
+    """Raised via TestRun.check_stop() to unwind out of run_one_unit()
+    cleanly once the operator asks for a mid-run stop -- see the web UI's
+    Stop button / RunManager.stop_event. Deliberately a plain exception
+    (not a signal or thread-kill) so it only ever interrupts between
+    already-safe boundaries (checked explicitly at phase/step/loop
+    boundaries below), never mid-flash or mid-serial-write."""
+
+
 class TestRun:
-    def __init__(self, api: ApiClient, config: BenchConfig, build: Build):
+    def __init__(self, api: ApiClient, config: BenchConfig, build: Build, on_step=None,
+                 stop_event: Optional[threading.Event] = None):
         self.api = api
         self.config = config
         self.build = build
@@ -49,10 +61,36 @@ class TestRun:
         self.firmware_version: Optional[str] = None
         self.dut_port: Optional[str] = None
         self.jig: Optional[JigClient] = None
+        # The DUT's IP on the office WiFi/hotspot LAN, once known -- lets
+        # relay_test_mqtt/flow_sensor_mqtt/rtc_mqtt verify results via a
+        # direct HTTP request over that shared LAN (LAN_HTTP_CMD) instead
+        # of only through the jig's own flaky MQTT status subscription.
+        self.dut_lan_ip: Optional[str] = None
+        # Set (only when a live DUT console is wanted -- see
+        # run_one_unit()'s on_dut_line) so every dut_serial.capture()
+        # call below can pause the background tail() reader instead of
+        # racing it for the same port.
+        self.dut_tail_coordinator: Optional[dut_serial.TailCoordinator] = None
+        # Structured hook alongside the printed line -- the web UI uses this
+        # to update its step checklist live instead of re-parsing terminal
+        # text. None (the default) keeps the plain-CLI behavior unchanged.
+        self.on_step = on_step
+        # 2026-09-19: operator-facing "Stop" control -- the web UI sets
+        # this Event from a Stop button; check_stop() is called at phase/
+        # step/loop boundaries throughout so a stop takes effect promptly
+        # without ever interrupting mid-flash or mid-write.
+        self.stop_event = stop_event
+        self.stopped = False
+
+    def check_stop(self) -> None:
+        if self.stop_event is not None and self.stop_event.is_set():
+            raise StopRequested()
 
     def set_step(self, name: str, passed: bool, detail: str = "") -> None:
         self.steps[name] = StepResult(name, passed, detail)
         println_step(name, passed, detail)
+        if self.on_step is not None:
+            self.on_step(name, passed, detail)
 
     def build_report(self) -> TestReport:
         build_label = f"{self.build.product} {self.build.version} ({self.build.variant})"
@@ -63,9 +101,14 @@ class TestRun:
         )
 
 
-def run_one_unit(api: ApiClient, config: BenchConfig, build: Build) -> TestRun:
-    run = TestRun(api, config, build)
-    hw = find_hardware()
+def run_one_unit(
+    api: ApiClient, config: BenchConfig, build: Build, on_step=None,
+    skip_flash: bool = False, manual_device_id: Optional[str] = None,
+    on_jig_line=None, on_dut_line=None,
+    stop_event: Optional[threading.Event] = None,
+) -> TestRun:
+    run = TestRun(api, config, build, on_step=on_step, stop_event=stop_event)
+    hw = find_hardware(on_jig_line=on_jig_line)
     if hw.jig is None:
         print("No jig found on any serial port -- check the USB connection and try again.")
         return run
@@ -76,6 +119,31 @@ def run_one_unit(api: ApiClient, config: BenchConfig, build: Build) -> TestRun:
     run.jig = hw.jig
     run.dut_port = hw.dut_port
     print(f"Jig on {hw.jig_port}, DUT on {hw.dut_port}.")
+
+    # Best-effort live DUT console for the web UI -- tails the DUT's port
+    # continuously in the background so a viewer can watch it happen
+    # instead of only seeing the specific snapshots the test itself
+    # captures (boot log, WiFi/MQTT wait, reset confirm). Every one of
+    # those capture() calls below pauses this tailer first (via
+    # run.dut_tail_coordinator) instead of racing it for the same port --
+    # bench-confirmed 2026-09-18: two handles briefly open to the same
+    # port at once can crash a read with an OSError that isn't a plain
+    # "port busy" exception, not just silently lose a few bytes.
+    # Flashing (a separate esptool subprocess, not just another handle in
+    # this process) still gets a clean SerialException either way, which
+    # the tailer's own retry loop already handles without needing the
+    # coordinator paused for it specifically.
+    dut_tail_stop = threading.Event()
+    dut_tail_thread = None
+    if on_dut_line is not None:
+        run.dut_tail_coordinator = dut_serial.TailCoordinator()
+        dut_tail_thread = threading.Thread(
+            target=dut_serial.tail,
+            args=(run.dut_port, on_dut_line, dut_tail_stop),
+            kwargs={"coordinator": run.dut_tail_coordinator},
+            daemon=True,
+        )
+        dut_tail_thread.start()
 
     # A jig left associated with WiFi from the previous unit's MQTT phase
     # keeps its radio actively chattering with the AP in the background --
@@ -96,25 +164,79 @@ def run_one_unit(api: ApiClient, config: BenchConfig, build: Build) -> TestRun:
     run.jig.leave_wifi()
 
     try:
-        _flash_and_boot(run, api, build)
+        run.check_stop()
+        if skip_flash:
+            # Debug-loop mode: reuse whatever's already on the DUT
+            # instead of the usual erase+write+reboot cycle -- 2026-09-18,
+            # added specifically so relay_test_mqtt/flow_sensor_mqtt could
+            # be iterated on in under a minute instead of ~4. Nothing
+            # here is assumed: _run_test_phases() below still does a real
+            # jig.join_dut_softap(device_id) as its very first action,
+            # which is a genuine live check that the DUT is reachable and
+            # actually in SoftAP mode under this device ID, not flashed
+            # firmware skipping past a check that would normally catch a
+            # DUT that's off, mid-boot, or already joined to a router.
+            print(f"Skipping flash -- reusing already-flashed unit as {manual_device_id!r}.")
+            run.device_id = manual_device_id
+            run.set_step("flash", True, "skipped -- reusing already-flashed unit")
+            run.set_step("boot_log", True, "skipped -- reusing already-flashed unit")
+        else:
+            _flash_and_boot(run, api, build)
+        run.check_stop()
         if run.steps["flash"].passed and run.steps["boot_log"].passed:
-            _softap_phase(run, config)
-            _wifi_mqtt_handover(run, config)
+            _run_test_phases(run, config)
+    except StopRequested:
+        run.stopped = True
+        print("\nTest stopped by operator.")
     finally:
         run.jig.close()
+        dut_tail_stop.set()
+        if dut_tail_thread is not None:
+            dut_tail_thread.join(timeout=2.0)
 
     report = run.build_report()
     path = save_report(report)
-    api.report_result(
-        build.id, "flash_ok" if report.overall_passed else "flash_failed",
-        mac=None, device_id=run.device_id,
-    )
+    if run.stopped:
+        print("Skipping backend report -- test was stopped by operator before completing.")
+    else:
+        api.report_result(
+            build.id, "flash_ok" if report.overall_passed else "flash_failed",
+            mac=None, device_id=run.device_id,
+        )
     print(f"\nReport saved: {path}")
     ui.print_summary(run.steps, report.overall_passed)
     return run
 
 
-def capture_and_parse_boot_log(dut_port: str, attempts: int = 2):
+def _pulse_visibly(jig: JigClient, count: int, rate_hz: float = 4.0, run: Optional["TestRun"] = None) -> None:
+    """Sends [count] pulses one at a time at [rate_hz] instead of one
+    PULSE:<count> burst -- 2026-09-18: the operator couldn't see any
+    pulse/flow-LED activity during the burst (too fast to perceive) and
+    asked to slow it down enough to watch it happen, not just trust the
+    final liters_delivered number. 4Hz is still clearly visible (2Hz was
+    bench-proven visible via flow_diagnostic.py's free-run mode; this is
+    just faster per an explicit follow-up ask) while roughly halving how
+    long the whole pulse train takes.
+
+    Stops any active SQUARE:<hz> wave first -- bench-confirmed 2026-09-18:
+    spacing pulses out like this (vs. one blocking burst) gives loop()
+    idle time between them, and a square wave left running on the same
+    pin keeps toggling it in those gaps, injecting extra edges the DUT's
+    flow ISR counts as real pulses (~3% overcount seen on the bench)."""
+    jig.stop_square()
+    interval_s = 1.0 / rate_hz
+    next_at = time.monotonic()
+    for _ in range(count):
+        if run is not None:
+            run.check_stop()
+        jig.pulse(1)
+        next_at += interval_s
+        sleep_for = next_at - time.monotonic()
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+
+
+def capture_and_parse_boot_log(dut_port: str, attempts: int = 2, coordinator=None):
     """Captures the boot log and parses it, retrying once if the parse
     failed but shows no genuine firmware error ([E] lines) -- that
     combination (missing required marker, no real error) is the signature
@@ -128,7 +250,7 @@ def capture_and_parse_boot_log(dut_port: str, attempts: int = 2):
     corrupted capture. A genuine boot problem reproduces on retry; a read
     glitch usually doesn't."""
     for attempt in range(attempts):
-        boot_log = dut_serial.capture(dut_port, BOOT_LOG_DURATION_S)
+        boot_log = dut_serial.capture(dut_port, BOOT_LOG_DURATION_S, coordinator=coordinator)
         print(ui.header(f"---- boot log ({int(BOOT_LOG_DURATION_S)}s) ----"))
         print(dut_serial.collapse_repeats(boot_log.strip()))
         print(ui.header("---- end boot log ----"))
@@ -141,58 +263,234 @@ def capture_and_parse_boot_log(dut_port: str, attempts: int = 2):
 
 def _flash_and_boot(run: TestRun, api: ApiClient, build: Build) -> None:
     print(ui.header(f"---- {build.product} {build.version} ({build.variant}) ----"))
-    mac = flasher.read_mac(run.dut_port)
-    if mac is None:
-        run.set_step("flash", False, "could not read chip MAC -- check the USB connection")
-        return
-    print(f"Device MAC: {mac}")
-
-    print("Downloading firmware...")
+    # 2026-09-19 bench finding: the live DUT tail thread starts (see
+    # run_one_unit()) well before this function runs, and every
+    # dut_serial.capture() call already pauses it via the coordinator --
+    # but read_mac()/erase_chip()/write_firmware() below are separate
+    # esptool *subprocesses*, not another capture() call, so they were
+    # never covered by that same guard. First real (non-skip-flash) run
+    # through the web UI since the live panes went in failed immediately
+    # with "could not read chip MAC" -- the tail thread's own open
+    # pyserial handle was still holding the DUT port when esptool tried
+    # to open it for the MAC read, the same two-handles-on-one-port
+    # conflict already root-caused once this session, just on a new path.
+    # Pause for this whole function (not just the esptool calls) and let
+    # the final capture_and_parse_boot_log() call's own resume hand it
+    # back -- consistent with every other coordinator use in this file.
+    if run.dut_tail_coordinator is not None:
+        run.dut_tail_coordinator.pause()
+        time.sleep(0.15)
     try:
-        app_bytes = api.download_build(build.id, mac, expected_size=build.size_bytes,
-                                        on_progress=lambda p: print(f"\rDownload {p}%", end="", flush=True))
-        print()
-    except ApiError as e:
-        run.set_step("flash", False, f"download failed: {e}")
-        return
-    app_path = Path.home() / ".nbagri_production_tester" / "last_app.bin"
-    app_path.parent.mkdir(parents=True, exist_ok=True)
-    app_path.write_bytes(app_bytes)
-    print(f"Downloaded {len(app_bytes) // 1024} KB.")
+        mac = flasher.read_mac(run.dut_port)
+        if mac is None:
+            run.set_step("flash", False, "could not read chip MAC -- check the USB connection")
+            return
+        print(f"Device MAC: {mac}")
 
-    bootloader = ASSETS_DIR / "bootloader.bin"
-    partitions = ASSETS_DIR / "partitions.bin"
-    if not bootloader.exists() or not partitions.exists():
-        run.set_step("flash", False, f"missing bundled bootloader.bin/partitions.bin in {ASSETS_DIR}")
-        return
+        run.check_stop()
+        print("Downloading firmware...")
+        try:
+            app_bytes = api.download_build(build.id, mac, expected_size=build.size_bytes,
+                                            on_progress=lambda p: print(f"\rDownload {p}%", end="", flush=True))
+            print()
+        except ApiError as e:
+            run.set_step("flash", False, f"download failed: {e}")
+            return
+        app_path = Path.home() / ".nbagri_production_tester" / "last_app.bin"
+        app_path.parent.mkdir(parents=True, exist_ok=True)
+        app_path.write_bytes(app_bytes)
+        print(f"Downloaded {len(app_bytes) // 1024} KB.")
 
-    print("Erasing whole chip (clears NVS/WiFi/MQTT config too)...")
-    erase = flasher.erase_chip(run.dut_port)
-    if not erase.ok:
-        run.set_step("flash", False, f"erase failed: {erase.detail}")
-        return
+        bootloader = ASSETS_DIR / "bootloader.bin"
+        partitions = ASSETS_DIR / "partitions.bin"
+        if not bootloader.exists() or not partitions.exists():
+            run.set_step("flash", False, f"missing bundled bootloader.bin/partitions.bin in {ASSETS_DIR}")
+            return
 
-    print("Writing fresh firmware...")
-    flash = flasher.write_firmware(run.dut_port, bootloader, partitions, app_path)
-    if not flash.ok:
-        run.set_step("flash", False, f"flash failed: {flash.detail}")
-        return
-    run.set_step("flash", True)
+        run.check_stop()
+        print("Erasing whole chip (clears NVS/WiFi/MQTT config too)...")
+        erase = flasher.erase_chip(run.dut_port)
+        if not erase.ok:
+            run.set_step("flash", False, f"erase failed: {erase.detail}")
+            return
 
-    parsed = capture_and_parse_boot_log(run.dut_port)
+        print("Writing fresh firmware...")
+        flash = flasher.write_firmware(run.dut_port, bootloader, partitions, app_path)
+        if not flash.ok:
+            run.set_step("flash", False, f"flash failed: {flash.detail}")
+            return
+        run.set_step("flash", True)
+    finally:
+        if run.dut_tail_coordinator is not None:
+            run.dut_tail_coordinator.resume()
+
+    run.check_stop()
+    parsed = capture_and_parse_boot_log(run.dut_port, coordinator=run.dut_tail_coordinator)
     run.device_id = parsed.device_id
     run.firmware_version = parsed.firmware_version
     run.set_step("boot_log", parsed.passed, parsed.device_id or "no device ID found in boot log")
 
 
-def _softap_phase(run: TestRun, config: BenchConfig) -> None:
+def _mark_remaining_skipped(run: TestRun, reason: str) -> None:
+    """Marks every not-yet-run step False with [reason] -- used when the
+    unit turns out to be unreachable by either transport (SoftAP AND
+    office WiFi/MQTT) so the report doesn't just leave them at their
+    default not-run (None) state."""
+    for name in ("calibrate", "relay_test", "flow_sensor", "rtc", "wifi_mqtt",
+                 "relay_test_mqtt", "flow_sensor_mqtt", "rtc_mqtt",
+                 "ship_clean_reset", "factory_reset_confirmed"):
+        run.set_step(name, False, f"skipped -- {reason}")
+
+
+def _run_test_phases(run: TestRun, config: BenchConfig) -> None:
+    """Top-level test orchestration, once flash+boot_log are known good.
+
+    Normal case: the DUT is freshly flashed/reset and sitting in its own
+    SoftAP -- join it, run the local (SoftAP-phase) tests, hand it over to
+    the office WiFi, then run the MQTT-phase tests.
+
+    2026-09-19 addition: if the jig can't join the DUT's SoftAP at all,
+    that doesn't necessarily mean the DUT is off or dead -- it may simply
+    already be provisioned and sitting on the office WiFi (a unit being
+    re-run, or one that never dropped its existing WiFi config). Rather
+    than fail the whole unit immediately, check for that over MQTT first:
+    if it responds, run the MQTT-phase tests against it as found, then
+    force it back into SoftAP (and confirm it actually left the broker)
+    before falling through to the same local SoftAP-phase tests -- this
+    is the order the operator explicitly asked for, matching how a
+    field-return unit would actually need to be handled."""
     jig = run.jig
     assert jig is not None and run.device_id is not None
 
-    if not jig.join_dut_softap(run.device_id):
-        run.set_step("factory_reset", False, "jig could not join the DUT's SoftAP")
+    run.check_stop()
+    if jig.join_dut_softap(run.device_id):
+        print("Jig joined the DUT's SoftAP -- SoftAP-phase commands routed through it.")
+        _softap_local_tests(run, config)
+        run.check_stop()
+        if run.steps["factory_reset"].passed:
+            _provision_office_wifi(run, config)
+            run.check_stop()
+            _wifi_mqtt_handover(run, config)
         return
-    print("Jig joined the DUT's SoftAP -- SoftAP-phase commands routed through it.")
+
+    _mqtt_first_fallback(run, config)
+
+
+def _probe_dut_via_mqtt(run: TestRun, config: BenchConfig) -> bool:
+    """Checks whether the DUT is already alive on the office WiFi/broker
+    instead of assuming "SoftAP unreachable" means "off or dead" -- joins
+    the office WiFi, connects+subscribes over MQTT, and waits for a real
+    status message from this specific device_id before concluding it's
+    there. Leaves the jig on office WiFi/MQTT on success (the caller's
+    MQTT-phase tests run immediately after); leaves it wherever join
+    attempts left it on failure (caller decides what to do next)."""
+    jig = run.jig
+    assert jig is not None and run.device_id is not None
+    print(f"Joining office WiFi \"{config.office_wifi_ssid}\" to check for the DUT over MQTT...")
+    if not jig.join_ap_with_poll(config.office_wifi_ssid, config.office_wifi_password):
+        print("Jig could not join the office WiFi either.")
+        return False
+    if not jig.mqtt_connect(run.device_id):
+        print("Jig joined the office WiFi but could not connect to the broker.")
+        return False
+    status = jig._poll_status(10.0)
+    if status is None:
+        print("Connected to the broker but saw no status message from this device in 10s.")
+        return False
+    print("DUT responded over MQTT -- it's alive and already on the office WiFi.")
+    return True
+
+
+def _mqtt_first_fallback(run: TestRun, config: BenchConfig) -> None:
+    jig = run.jig
+    assert jig is not None and run.device_id is not None
+
+    print("Could not join the DUT's SoftAP -- checking whether it's already "
+          "connected to the office WiFi before giving up on it.")
+    if not config.office_wifi_ssid:
+        run.set_step("factory_reset", False,
+                     "jig could not join the DUT's SoftAP, and no office WiFi is configured to check instead")
+        _mark_remaining_skipped(run, "DUT unreachable via SoftAP, and no office WiFi configured to check via MQTT")
+        return
+
+    run.check_stop()
+    if not _probe_dut_via_mqtt(run, config):
+        run.set_step("factory_reset", False,
+                     "jig could not join the DUT's SoftAP, and it did not respond over "
+                     "office WiFi/MQTT either -- check it's powered on")
+        _mark_remaining_skipped(run, "DUT unreachable via SoftAP or MQTT")
+        jig.leave_wifi()
+        return
+
+    print("Running the MQTT-phase tests first (DUT found already connected), "
+          "then forcing it back into SoftAP for the remaining local tests.")
+    run.set_step("wifi_mqtt", True, "found already connected to office WiFi/MQTT -- SoftAP was unreachable")
+    run.check_stop()
+    _mqtt_phase_tests(run, config)
+
+    run.check_stop()
+    print("Rejoining the DUT's SoftAP for the remaining local tests...")
+    if jig.join_dut_softap(run.device_id):
+        _softap_local_tests(run, config)
+    else:
+        run.set_step("factory_reset", False,
+                     "ship-clean reset sent, but the jig could not rejoin the DUT's SoftAP afterward")
+        for name in ("calibrate", "relay_test", "flow_sensor", "rtc"):
+            run.set_step(name, False, "skipped -- could not rejoin SoftAP")
+
+
+def _dut_unix_for_now() -> int:
+    """The value to send as rtc_sync's "unix" field so the DUT's RTC ends
+    up showing this laptop's own local wall-clock time (India time, per
+    2026-09-19 request) -- matching what NTP sync already does for the
+    same clock.
+
+    RTCManager::syncFromUnix() hands this straight to RTClib's DateTime(
+    unixTime) constructor, which treats the number as a literal UTC epoch
+    and derives calendar fields from it -- sending real UTC (time.time())
+    would leave the DUT's rtc_date/rtc_time showing UTC, ~5.5h behind
+    India time. NTP sync (see firmware's syncNTP()) uses configTime(19800,
+    ...) + getLocalTime() to get IST wall-clock fields, then writes them
+    directly via syncFromTm() -- no unix conversion at all, so it lands on
+    local time by construction. calendar.timegm() here re-encodes our own
+    local wall-clock fields the same way: as if they WERE a UTC epoch, so
+    DateTime(unixTime) decodes them back to the same local fields NTP
+    would produce -- both sync paths now agree on the same convention."""
+    return calendar.timegm(datetime.now().timetuple())
+
+
+def _report_rtc_drift(info: Optional[dict]) -> None:
+    """Compares the DUT's currently-reported RTC date/time against this
+    laptop's own local clock, and prints a heads-up if it's off by more
+    than 2 minutes -- called right before every rtc_sync below overwrites
+    it.
+
+    Bench request 2026-09-19: silently overwriting a wildly-wrong RTC
+    every run made it easy to never notice a genuinely dead/absent coin
+    cell battery (which shows up as a large, real drift every single run
+    since the clock keeps resetting to some fixed/drifting point whenever
+    power is lost) -- worth a heads-up, not just a silent fix."""
+    if not info or not info.get("rtc_date") or not info.get("rtc_time"):
+        return
+    try:
+        dut_dt = datetime.strptime(f"{info['rtc_date']} {info['rtc_time']}", "%d/%m/%Y %H:%M")
+    except ValueError:
+        return
+    drift_s = (datetime.now() - dut_dt).total_seconds()
+    if abs(drift_s) > 120:
+        sign = "behind" if drift_s > 0 else "ahead of"
+        print(f"DUT's RTC is {abs(drift_s) / 60:.1f} min {sign} this laptop's clock "
+              f"(DUT reports {info['rtc_date']} {info['rtc_time']}) -- syncing to laptop time now.")
+
+
+def _softap_local_tests(run: TestRun, config: BenchConfig) -> None:
+    """The SoftAP-phase local/physical tests (factory_reset through rtc)
+    -- assumes the jig is ALREADY joined to the DUT's SoftAP (caller's
+    responsibility). Shared by the normal SoftAP-first flow and the
+    MQTT-first fallback (which rejoins SoftAP after forcing the DUT back
+    into it)."""
+    jig = run.jig
+    assert jig is not None
 
     jig.http_command("factory_reset", timeout_s=3)
     time.sleep(3)
@@ -206,12 +504,12 @@ def _softap_phase(run: TestRun, config: BenchConfig) -> None:
     if not reconnected:
         return
 
+    run.check_stop()
     cal = jig.http_command("calibrate", {"ppl": config.expected_calibration_ppl})
     run.set_step("calibrate", cal is not None)
 
     jig.http_command("relay_test", timeout_s=3)
-    time.sleep(0.8)
-    relay_on = jig.relay_state()
+    relay_on = jig.relay_state_confirmed(expect_on=True)
     run.set_step("relay_test", relay_on is True,
                  "jig sensed relay ON" if relay_on else "jig did NOT sense relay closing")
 
@@ -229,27 +527,59 @@ def _softap_phase(run: TestRun, config: BenchConfig) -> None:
     # exact same false "0.00L" as pulsing with no active cycle. Confirm
     # cycle_active before pulsing instead of assuming the single request
     # worked.
+    #
+    # 2026-09-19 bench finding: 3 attempts / 1.0s apart wasn't always
+    # enough -- a run right after a factory_reset+reboot+rejoin sequence
+    # (the MQTT-first fallback's tail) saw manual_on still not land within
+    # that budget, silently fell through to pulsing anyway, and reported
+    # the false "0.00L" as if it were a real sensor-accuracy failure.
+    # startManual() itself is synchronous (cycle_active flips true before
+    # the HTTP response even returns -- see Scheduler::startManual()), so
+    # a confirmed-false cycle_active really does mean the request never
+    # landed, not a timing race to out-wait. More budget, and -- same
+    # principle already used for the MQTT-phase version below -- an
+    # honest "never landed" failure instead of pulsing blind and mislabeling
+    # a delivery failure as a sensor failure.
     before = None
-    for _ in range(3):
+    cycle_confirmed = False
+    for _ in range(5):
         jig.http_command("manual_on")
         before = jig.device_info()
         if before and before.get("cycle_active"):
+            cycle_confirmed = True
             break
-        time.sleep(1.0)
-    before_l = (before or {}).get("liters_delivered", 0.0)
-    jig.pulse(config.flow_test_pulse_count)
-    time.sleep(0.5)
-    after = jig.device_info()
-    after_l = (after or {}).get("liters_delivered", 0.0)
-    jig.http_command("manual_off")
-    delivered = after_l - before_l
-    expected = config.flow_test_pulse_count / config.expected_calibration_ppl
-    within = abs(delivered - expected) <= expected * 0.02
-    run.set_step("flow_sensor", within, f"expected {expected:.2f}L, got {delivered:.2f}L")
+        time.sleep(1.5)
+    if not cycle_confirmed:
+        run.set_step("flow_sensor", False,
+                     "manual_on never confirmed active (cycle_active stayed false after 5 attempts) -- "
+                     "could not run the flow test")
+    else:
+        before_l = (before or {}).get("liters_delivered", 0.0)
+        _pulse_visibly(jig, config.flow_test_pulse_count, run=run)
+        time.sleep(0.5)
+        after = jig.device_info()
+        after_l = (after or {}).get("liters_delivered", 0.0)
+        jig.http_command("manual_off")
+        delivered = after_l - before_l
+        expected = config.flow_test_pulse_count / config.expected_calibration_ppl
+        within = abs(delivered - expected) <= expected * 0.02
+        run.set_step("flow_sensor", within, f"expected {expected:.2f}L, got {delivered:.2f}L")
 
-    jig.http_command("rtc_sync", {"unix": int(time.time())}, timeout_s=3)
+    run.check_stop()
+    _report_rtc_drift(jig.device_info())
+    jig.http_command("rtc_sync", {"unix": _dut_unix_for_now()}, timeout_s=3)
     rtc_info = jig.device_info()
     run.set_step("rtc", bool((rtc_info or {}).get("rtc_set")), f"rtc_time={(rtc_info or {}).get('rtc_time', '')}")
+
+
+def _provision_office_wifi(run: TestRun, config: BenchConfig) -> None:
+    """Hands the DUT from the jig's SoftAP over to the office WiFi -- the
+    tail end of the old _softap_phase(), split out so the MQTT-first
+    fallback (which already knows WiFi/MQTT works, having just used it)
+    doesn't redundantly re-provision it. Only called from the normal
+    SoftAP-first path, right after _softap_local_tests()."""
+    jig = run.jig
+    assert jig is not None
 
     if not config.office_wifi_ssid:
         run.set_step("wifi_mqtt", False, "no office WiFi SSID set -- run with --settings first")
@@ -260,7 +590,33 @@ def _softap_phase(run: TestRun, config: BenchConfig) -> None:
         run.set_step("factory_reset_confirmed", False, "skipped -- see wifi_mqtt")
         return
 
-    jig.http_command("wifi_config", {"ssid": config.office_wifi_ssid, "pass": config.office_wifi_password})
+    # A single wifi_config request is the same fire-and-forget shape as
+    # manual_on/relay_test before those got a retry -- and its return value
+    # was being discarded outright: http_command() already tells us
+    # synchronously (None) if the request never reached the DUT, but the
+    # code went on to leave_wifi() regardless. Bench-confirmed 2026-09-19:
+    # this is why wifi_mqtt reported "no WiFi Connected line" even sitting
+    # right next to the router -- the DUT's own "[WiFi] Credentials saved"
+    # line (see firmware's wifi_config handler) never printed because the
+    # request itself never landed, not because the office WiFi was
+    # unreachable. Retry like the other single-shot SoftAP commands, and
+    # fail this step immediately with a clear reason instead of silently
+    # spending the next 32s+20s waiting on a connection that was never
+    # going to happen.
+    wifi_cfg_ack = None
+    for _ in range(3):
+        wifi_cfg_ack = jig.http_command("wifi_config", {"ssid": config.office_wifi_ssid, "pass": config.office_wifi_password})
+        if wifi_cfg_ack is not None:
+            break
+        time.sleep(1.0)
+    if wifi_cfg_ack is None:
+        run.set_step("wifi_mqtt", False, "wifi_config request never reached the DUT over SoftAP -- retried 3x")
+        for name in ("relay_test_mqtt", "flow_sensor_mqtt", "rtc_mqtt"):
+            run.set_step(name, False, "skipped -- WiFi/MQTT never connected")
+        run.set_step("ship_clean_reset", False, "skipped -- broker unreachable")
+        run.set_step("factory_reset_confirmed", False, "skipped -- see wifi_mqtt")
+        return
+
     jig.http_command("resume_auto_mode", timeout_s=3)
     jig.leave_wifi()
 
@@ -268,11 +624,12 @@ def _softap_phase(run: TestRun, config: BenchConfig) -> None:
 def _wifi_mqtt_handover(run: TestRun, config: BenchConfig) -> None:
     jig = run.jig
     assert jig is not None and run.device_id is not None
-    if run.steps["wifi_mqtt"].passed is False and run.steps["wifi_mqtt"].detail.startswith("no office"):
-        return  # already handled (no SSID configured) in _softap_phase
+    if run.steps["wifi_mqtt"].passed is False:
+        return  # already handled (and all dependent steps set) in _provision_office_wifi --
+        # either no SSID configured, or wifi_config itself never reached the DUT
 
     print(f"Waiting up to {int(WIFI_MQTT_WAIT_S)}s for the DUT to reach the office WiFi + broker...")
-    live_log = dut_serial.capture(run.dut_port, WIFI_MQTT_WAIT_S)
+    live_log = dut_serial.capture(run.dut_port, WIFI_MQTT_WAIT_S, coordinator=run.dut_tail_coordinator)
     print(ui.header("---- DUT serial during WiFi/MQTT wait ----"))
     print(dut_serial.collapse_repeats(live_log.strip()))
     print(ui.header("---- end ----"))
@@ -292,7 +649,7 @@ def _wifi_mqtt_handover(run: TestRun, config: BenchConfig) -> None:
 
     mqtt_bridge_ok = False
     if passed:
-        # The jig left the DUT's SoftAP at the end of _softap_phase(); now
+        # The jig left the DUT's SoftAP at the end of _provision_office_wifi(); now
         # join the same office WiFi the DUT itself just proved works, and
         # bridge MQTT over it -- this is what replaces the phone's flaky
         # cellular-bound MqttCommander entirely (see the "why phone
@@ -327,20 +684,48 @@ def _wifi_mqtt_handover(run: TestRun, config: BenchConfig) -> None:
             run.set_step("factory_reset_confirmed", False, "skipped -- see wifi_mqtt")
         return
 
-    # Settle delay before the first MQTT command in this phase. Bench
-    # finding 2026-09-18: relay_test/manual_on, sent immediately after
-    # this handover confirms, never once arrived at the DUT (confirmed by
-    # the total absence of the DUT's own unconditional "[MQTT] Received
-    # on..." log line -- not a dispatch or status-read bug, a real
-    # non-delivery). factory_reset, sent later in this same function after
-    # ~30s more elapsed time (relay/flow/rtc attempts + polls), landed
-    # every time. The connection is least stable in the seconds right after
-    # WiFi/MQTT first comes up (matches the ASSOC_LEAVE/DNS-fail/rc=-2
-    # churn seen throughout this session) -- waiting it out here, instead
-    # of accidentally getting it for free via unrelated steps, should let
-    # relay_test/manual_on land on the first attempt too.
+    # Settle delay before the first MQTT command in this phase -- capturing
+    # the DUT's serial instead of blindly sleeping through it, so this
+    # also picks up the DUT's LAN IP (now printed on the earlier
+    # "[WiFi] Reconnected" line itself -- see the DUT firmware -- rather
+    # than waiting for the much-later WIFI_STABLE_HOLD_MS=60s SoftAP
+    # teardown moment, which a single WiFi blip can push out past any
+    # reasonably-sized capture window by resetting the DUT's own
+    # stability timer). That IP is what lets relay_test_mqtt/
+    # flow_sensor_mqtt/rtc_mqtt verify results via a direct LAN_HTTP_CMD
+    # instead of only through the jig's own MQTT status subscription
+    # (bench-confirmed 2026-09-18 to be the less reliable of the two
+    # under real network conditions). Bench finding, same date: relay_
+    # test/manual_on sent immediately after this handover confirms never
+    # once arrived at the DUT, while factory_reset sent later in this
+    # same function landed every time -- the connection is least stable
+    # in the seconds right after WiFi/MQTT first comes up (matches the
+    # ASSOC_LEAVE/DNS-fail/rc=-2 churn seen throughout this session), so
+    # this still also serves that original settle purpose.
     print("Letting the WiFi/MQTT connection settle before sending commands...")
-    time.sleep(20.0)
+    settle_log = dut_serial.capture(run.dut_port, 20.0, coordinator=run.dut_tail_coordinator)
+    ip_match = re.search(r"IP:\s*(\d{1,3}(?:\.\d{1,3}){3})", live_log + settle_log)
+    if ip_match:
+        run.dut_lan_ip = ip_match.group(1)
+        print(f"DUT's LAN IP: {run.dut_lan_ip} (jig can reach it directly for verification)")
+    else:
+        print("DUT's LAN IP not seen yet -- relay_test_mqtt/flow_sensor_mqtt/rtc_mqtt "
+              "will fall back to MQTT status for verification.")
+
+    run.check_stop()
+    _mqtt_phase_tests(run, config)
+
+
+def _mqtt_phase_tests(run: TestRun, config: BenchConfig) -> None:
+    """relay_test_mqtt/flow_sensor_mqtt/rtc_mqtt + the final ship-clean
+    reset -- assumes the jig is ALREADY connected to the office WiFi and
+    MQTT-bridged to this run's device_id (caller's responsibility).
+    Extracted so both the normal WiFi/MQTT-handover path and the
+    MQTT-first fallback (which finds the DUT already on MQTT before ever
+    touching SoftAP) can run the exact same MQTT-phase logic instead of
+    two copies drifting apart."""
+    jig = run.jig
+    assert jig is not None
 
     # A single mqtt_command() only confirms the jig published -- not that
     # the DUT received it (QoS0, no session/ack on either PubSubClient).
@@ -350,72 +735,161 @@ def _wifi_mqtt_handover(run: TestRun, config: BenchConfig) -> None:
     # after the DUT-side WiFi-flap bug was fixed -- ship_clean_reset (which
     # already used mqtt_command_with_retry) passed reliably in the same
     # runs. Switching these two to the same retry-and-confirm helper.
-    relay_landed, _ = _publish_confirmed_by_serial(run, jig, "relay_test")
-    if relay_landed:
-        time.sleep(0.8)
-        relay_on = jig.relay_state()
-        run.set_step("relay_test_mqtt", relay_on is True,
-                     "jig sensed relay ON (via MQTT)" if relay_on else "jig did NOT sense relay closing")
+    #
+    # Both commands get the same extra retry: a mobile-hotspot bench run
+    # (2026-09-18, cleaner network than the office WiFi) showed every
+    # other MQTT step pass once the network itself was stable, but
+    # relay_test still missed -- then, on a repeat run, relay_test landed
+    # fine and manual_on missed instead. Whichever command is first/early
+    # in this window is the one exposed, not a fixed one -- so both get
+    # the same margin rather than just whichever failed last time.
+    # relay_test doesn't need the serial-marker confirmation the other
+    # commands rely on -- it has something strictly better: a direct,
+    # physical, independent signal (the jig sensing the relay actually
+    # close) that the SoftAP-phase relay_test right above in this same
+    # file has never once gotten wrong all session. Bench-confirmed
+    # 2026-09-18: a run where the relay visibly clicked ON still reported
+    # "relay_test never confirmed landing on DUT serial" -- impossible,
+    # since handleCommand() only calls relay.testPulse() after already
+    # printing "[CMD] relay_test" first, so that line was printed; the
+    # marker search just missed it in a corrupted stretch of the capture
+    # (the same USB-serial byte-duplication artifact diagnosed earlier
+    # this session). Retrying the *send* against the physical sense
+    # directly, instead of gating on a serial substring that can go
+    # missing even when the command demonstrably landed, removes that
+    # whole class of false failure.
+    relay_on = None
+    for _ in range(4):
+        jig.mqtt_command("relay_test")
+        relay_on = jig.relay_state_confirmed(expect_on=True, poll_s=5.5)
+        if relay_on:
+            break
+    run.set_step("relay_test_mqtt", relay_on is True,
+                 "jig sensed relay ON (via MQTT)" if relay_on else "jig did NOT sense relay closing")
+
+    # 2026-09-19 bench finding: the previous version confirmed manual_on
+    # via _publish_confirmed_by_serial() -- watching for "[CMD] manual_on"
+    # in the DUT's serial, resending up to 2 more times (3 sends total)
+    # if the marker capture window missed it. That's the wrong pattern
+    # for THIS specific command: unlike relay_test (each resend just
+    # re-triggers a harmless pulse) or factory_reset (idempotent),
+    # manual_on's handler (Scheduler::startManual()) resets litersDelivered
+    # and the flow pulse counter to zero on every single call. A resend
+    # whose delivery is merely delayed (no ack on either PubSubClient,
+    # so nothing stops one arriving late) can land *after* this function
+    # already confirmed an earlier send, snapshotted "before", and started
+    # pulsing -- wiping the count mid-test and producing exactly the false
+    # "0.00L" seen on the bench even with cycle_active confirmed true
+    # beforehand. Confirming via DUT serial text was also the known
+    # USB-serial-corruption-prone path everywhere else this session.
+    #
+    # Fixed by dropping the serial-marker/resend pattern entirely and
+    # using the same pattern already proven for relay_test_mqtt and the
+    # SoftAP-phase flow test: send the command, then confirm the ACTUAL
+    # resulting device state (cycle_active) directly instead of the
+    # command having merely gone out. No further resend is possible once
+    # confirmed, since -- being synchronous (see Scheduler::startManual())
+    # -- cycle_active reads true immediately once the first send has
+    # genuinely landed, so no straggler duplicate is still in flight to
+    # land mid-pulse.
+    cycle_confirmed = False
+    before: dict = {}
+    for _ in range(5):
+        if run.dut_lan_ip:
+            jig.lan_http_command(run.dut_lan_ip, "manual_on")
+            before = jig.lan_device_info(run.dut_lan_ip) or {}
+        else:
+            jig.mqtt_command("manual_on")
+            before = jig._poll_status(3.5) or {}
+        if before.get("cycle_active"):
+            cycle_confirmed = True
+            break
+        if run.dut_lan_ip:
+            time.sleep(1.0)
+    if not cycle_confirmed:
+        run.set_step("flow_sensor_mqtt", False,
+                     "manual_on never confirmed active (cycle_active stayed false) -- could not run the flow test")
     else:
-        run.set_step("relay_test_mqtt", False, "relay_test never confirmed landing on DUT serial")
+        _pulse_visibly(jig, config.flow_test_pulse_count, run=run)
+        # 2026-09-19 bench finding (root-caused with debug_flow_mqtt.py):
+        # every single pulse got a real "OK:1" from the jig -- delivery
+        # itself was never the problem here. The single follow-up read
+        # right after pulsing occasionally came back HTTP_FAIL (a lone LAN
+        # HTTP request timing out under load, same "no ack/no guaranteed
+        # delivery" class as everything else in this file), and `or
+        # before` silently substituted the stale PRE-pulse baseline --
+        # manufacturing a false "0.00L" out of a read failure, not a real
+        # measurement. Retry the read like every other command here
+        # instead of falling back to a fabricated result after only one
+        # attempt.
+        after = None
+        for _ in range(3):
+            if run.dut_lan_ip:
+                after = jig.lan_device_info(run.dut_lan_ip)
+            else:
+                after = jig._poll_status(4.0)
+            if after is not None:
+                break
+            time.sleep(1.0)
+        verify_via = "via LAN HTTP" if run.dut_lan_ip else "via MQTT status"
+        if after is None:
+            run.set_step("flow_sensor_mqtt", False,
+                         f"could not read the DUT's status after pulsing ({verify_via}, retried 3x) -- "
+                         "pulses were sent and acknowledged by the jig, but the result is unconfirmed")
+        else:
+            before_l, after_l = before.get("liters_delivered", 0.0), after.get("liters_delivered", 0.0)
+            delivered = after_l - before_l
+            expected = config.flow_test_pulse_count / config.expected_calibration_ppl
+            within = abs(delivered - expected) <= expected * 0.02
+            run.set_step("flow_sensor_mqtt", within, f"expected {expected:.2f}L, got {delivered:.2f}L ({verify_via})")
+        if run.dut_lan_ip:
+            jig.lan_http_command(run.dut_lan_ip, "manual_off")
+        else:
+            jig.mqtt_command_with_retry("manual_off", confirmed_by=lambda s: s.get("cycle_active") is False)
 
-    manual_on_landed, _ = _publish_confirmed_by_serial(run, jig, "manual_on")
-    if manual_on_landed:
-        before = jig.mqtt_status() or {}
-        jig.pulse(config.flow_test_pulse_count)
-        after = jig._poll_status(7.0) or before
-        before_l, after_l = before.get("liters_delivered", 0.0), after.get("liters_delivered", 0.0)
-        delivered = after_l - before_l
-        expected = config.flow_test_pulse_count / config.expected_calibration_ppl
-        within = abs(delivered - expected) <= expected * 0.02
-        run.set_step("flow_sensor_mqtt", within, f"expected {expected:.2f}L, got {delivered:.2f}L (via MQTT)")
-        jig.mqtt_command_with_retry("manual_off", confirmed_by=lambda s: s.get("cycle_active") is False)
+    # 2026-09-19 bench finding: this used to only ever passively READ
+    # whatever rtc_set/rtc_time the DUT already happened to be reporting
+    # -- no rtc_sync command was ever actually sent in this phase. In the
+    # normal SoftAP-first flow that's masked by the SoftAP-phase's own rtc
+    # step having already synced it moments earlier, but the MQTT-first
+    # fallback runs this before ever touching the local rtc step, so it
+    # had nothing to confirm and always came back empty. Actually send
+    # the sync here (reporting drift first, same as the SoftAP-phase
+    # version) instead of just hoping it's already set.
+    if run.dut_lan_ip:
+        before_info = jig.lan_device_info(run.dut_lan_ip)
+        _report_rtc_drift(before_info)
+        # Retried, not a single shot -- 2026-09-19 bench finding: an
+        # unconfirmed single LAN HTTP send here did occasionally just drop
+        # (came back with rtc_time empty even though the earlier read and
+        # the later ship-clean reset's own LAN calls both landed fine
+        # around it), same no-guarantee-of-delivery risk every other
+        # command in this file already gets a retry for.
+        rtc_status = None
+        for _ in range(3):
+            jig.lan_http_command(run.dut_lan_ip, "rtc_sync", {"unix": _dut_unix_for_now()})
+            rtc_status = jig.lan_device_info(run.dut_lan_ip)
+            if rtc_status and rtc_status.get("rtc_set"):
+                break
+            time.sleep(1.0)
+        verify_via = "via LAN HTTP"
     else:
-        run.set_step("flow_sensor_mqtt", False, "manual_on never confirmed landing on DUT serial")
+        _report_rtc_drift(jig.mqtt_status())
+        # Retried and confirmed the same way ship_clean_reset's
+        # force_local_mode is -- a bare mqtt_command() here has the same
+        # no-ack delivery risk as every other MQTT-phase command in this
+        # file.
+        rtc_status = jig.mqtt_command_with_retry(
+            "rtc_sync", {"unix": _dut_unix_for_now()},
+            attempts=4, interval_s=3.0,
+            confirmed_by=lambda s: s.get("rtc_set") is True,
+        )
+        verify_via = "via MQTT status"
+    run.set_step("rtc_mqtt", bool((rtc_status or {}).get("rtc_set")),
+                 f"rtc_time={(rtc_status or {}).get('rtc_time', '')} ({verify_via})")
 
-    # 7s used to occasionally miss: the DUT only publishes every
-    # STATUS_PUBLISH_INTERVAL_MS=5s, and mqtt_status() drains whatever it
-    # last saw -- if manual_off's own confirm poll just consumed the
-    # latest message, this poll can need most of a full next interval.
-    # 10s covers that with margin.
-    rtc_status = jig._poll_status(10.0)
-    run.set_step("rtc_mqtt", bool((rtc_status or {}).get("rtc_set")), f"rtc_time={(rtc_status or {}).get('rtc_time', '')}")
-
+    run.check_stop()
     _ship_clean_reset(run, jig)
-
-
-def _publish_confirmed_by_serial(
-    run: TestRun, jig: JigClient, cmd: str, extra: Optional[dict] = None,
-    wait_s: float = 6.0, retries: int = 2,
-) -> tuple[bool, str]:
-    """Publishes [cmd] via MQTT and confirms it landed by watching the
-    DUT's own serial for "[CMD] {cmd}" -- the same proven-reliable
-    pattern _ship_clean_reset() uses for factory_reset, applied to
-    relay_test/manual_on. mqtt_status()/_poll_status() confirmation (a
-    round trip through the jig's own MQTT subscription) was unreliable
-    for these two commands across every bench run 2026-09-18 even after
-    adding retries, while watching the DUT's serial directly -- which
-    factory_reset already relied on -- passed reliably in the same runs.
-    Returns (landed, full captured log)."""
-    captured: dict[str, str] = {}
-
-    def _do_capture() -> None:
-        captured["log"] = dut_serial.capture(run.dut_port, wait_s)
-
-    capture_thread = threading.Thread(target=_do_capture)
-    capture_thread.start()
-    time.sleep(1.0)
-    jig.mqtt_command(cmd, extra)
-    capture_thread.join()
-    full_log = captured.get("log", "")
-
-    marker = f"[CMD] {cmd}"
-    for _ in range(retries):
-        if marker in full_log:
-            return True, full_log
-        jig.mqtt_command(cmd, extra)
-        full_log += dut_serial.capture(run.dut_port, wait_s / 2)
-    return marker in full_log, full_log
 
 
 def _ship_clean_reset(run: TestRun, jig: JigClient) -> None:
@@ -442,7 +916,9 @@ def _ship_clean_reset(run: TestRun, jig: JigClient) -> None:
     captured: dict[str, str] = {}
 
     def _do_capture() -> None:
-        captured["log"] = dut_serial.capture(run.dut_port, RESET_CONFIRM_WAIT_S)
+        captured["log"] = dut_serial.capture(
+            run.dut_port, RESET_CONFIRM_WAIT_S, coordinator=run.dut_tail_coordinator,
+        )
 
     capture_thread = threading.Thread(target=_do_capture)
     capture_thread.start()
@@ -459,7 +935,7 @@ def _ship_clean_reset(run: TestRun, jig: JigClient) -> None:
         print("No evidence factory_reset landed yet -- retrying...")
         for _ in range(2):
             jig.mqtt_command("factory_reset")
-            extra = dut_serial.capture(run.dut_port, 5.0)
+            extra = dut_serial.capture(run.dut_port, 5.0, coordinator=run.dut_tail_coordinator)
             reset_log += extra
             if _reset_landed(extra):
                 break

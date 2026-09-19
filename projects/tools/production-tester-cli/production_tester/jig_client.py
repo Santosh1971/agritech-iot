@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 import serial
 
@@ -29,8 +29,16 @@ SOFTAP_PASSWORD = "water1234"
 
 
 class JigClient:
-    def __init__(self, port: str, baud: int = 115200):
+    def __init__(self, port: str, baud: int = 115200, on_line: Optional[Callable[[str], None]] = None):
         self._ser = serial.Serial(port, baud, timeout=0.1)
+        # Optional tap on every command sent and reply received -- for a
+        # UI to show a live jig console alongside the guided test. The
+        # jig has no unsolicited/async serial output of its own worth
+        # tailing the way the DUT does (it only ever speaks in direct
+        # reply to a command), so this taps the request/reply pairs
+        # already flowing through _send_and_read_line() instead of
+        # needing a separate continuous-read thread.
+        self._on_line = on_line
         self._drain_boot_noise()
 
     def _drain_boot_noise(self, quiet_s: float = 0.4, max_wait_s: float = 3.0) -> None:
@@ -60,6 +68,8 @@ class JigClient:
             pass
 
     def _send_and_read_line(self, command: str, timeout_s: float) -> Optional[str]:
+        if self._on_line:
+            self._on_line(f">> {command}")
         self._ser.reset_input_buffer()
         self._ser.write((command + "\n").encode("utf-8"))
         deadline = time.monotonic() + timeout_s
@@ -70,9 +80,14 @@ class JigClient:
                 continue
             for b in chunk:
                 if b == 0x0A:  # \n
-                    return bytes(buf).decode("utf-8", errors="replace").strip()
+                    reply = bytes(buf).decode("utf-8", errors="replace").strip()
+                    if self._on_line:
+                        self._on_line(f"<< {reply}")
+                    return reply
                 if b != 0x0D:  # skip \r
                     buf.append(b)
+        if self._on_line:
+            self._on_line("<< (no reply)")
         return None
 
     # ---------- base protocol ----------
@@ -88,9 +103,41 @@ class JigClient:
             return False
         return None
 
+    def relay_state_confirmed(self, expect_on: bool, poll_s: float = 2.5) -> Optional[bool]:
+        """relay_state(), but polls for [poll_s] instead of reading once.
+
+        Bench-confirmed 2026-09-18: relay_test landed and dispatched on
+        the DUT (visually confirmed clicking) and the SoftAP-phase relay
+        check right next to this one in the code has never once missed
+        it -- yet relay_test_mqtt's single RELAY? read after a flat 0.8s
+        sleep reported OFF. The one thing different about this specific
+        check is that it runs while the jig's own WiFi radio is actively
+        transmitting (MQTT phase) -- the same class of RF-interference-
+        on-a-nearby-signal issue already diagnosed once this session for
+        the DUT's UART line, now most likely hitting the jig's own
+        RELAY-sense read instead. A poll, not a single read, is the same
+        fix that's already worked for every other flaky check tonight."""
+        deadline = time.monotonic() + poll_s
+        last = None
+        while time.monotonic() < deadline:
+            last = self.relay_state()
+            if last is expect_on:
+                return last
+            time.sleep(0.3)
+        return last
+
     def pulse(self, count: int) -> bool:
         timeout_s = 3.0 + (count // 200)
         return self._send_and_read_line(f"PULSE:{count}", timeout_s) == f"OK:{count}"
+
+    def stop_square(self, timeout_s: float = 2.0) -> bool:
+        """Stops the SQUARE:<hz> continuous wave on the same pin PULSE:<n>
+        uses -- bench-confirmed 2026-09-18: an active square wave injects
+        extra edges into individually-spaced PULSE:1 calls (which give
+        loop() idle time to keep toggling it between pulses; a fast
+        PULSE:<n> burst blocks loop() entirely so it never had this
+        problem). Defensive -- safe to call even if nothing is running."""
+        return self._send_and_read_line("SQUARE:STOP", timeout_s) == "OK:SQUARE_STOPPED"
 
     # ---------- network bridge (JIG_NETWORK_BRIDGE_SPEC.md) ----------
 
@@ -133,14 +180,8 @@ class JigClient:
     def wifi_status(self, timeout_s: float = 2.0) -> Optional[str]:
         return self._send_and_read_line("WIFI_STATUS?", timeout_s)
 
-    def http_command(self, cmd: str, extra: Optional[dict] = None, timeout_s: float = 9.0) -> Optional[dict]:
-        """Sends {"cmd": cmd, ...extra} to the DUT via the jig's HTTP client
-        (while joined to the DUT's own SoftAP). Returns the "data" field of
-        the response, or the whole response if there's no "data" key --
-        same shape the DUT always replies with over WS or HTTP. None on
-        any failure (jig unreachable, HTTP_FAIL, malformed JSON)."""
-        payload = {"cmd": cmd, **(extra or {})}
-        reply = self._send_and_read_line(f"HTTP_CMD:{json.dumps(payload)}", timeout_s)
+    @staticmethod
+    def _parse_http_reply(reply: Optional[str]) -> Optional[dict]:
         if not reply or not reply.startswith("HTTP_OK:"):
             return None
         try:
@@ -149,8 +190,38 @@ class JigClient:
             return None
         return data.get("data", data)
 
+    def http_command(self, cmd: str, extra: Optional[dict] = None, timeout_s: float = 9.0) -> Optional[dict]:
+        """Sends {"cmd": cmd, ...extra} to the DUT via the jig's HTTP client
+        (while joined to the DUT's own SoftAP). Returns the "data" field of
+        the response, or the whole response if there's no "data" key --
+        same shape the DUT always replies with over WS or HTTP. None on
+        any failure (jig unreachable, HTTP_FAIL, malformed JSON)."""
+        payload = {"cmd": cmd, **(extra or {})}
+        reply = self._send_and_read_line(f"HTTP_CMD:{json.dumps(payload)}", timeout_s)
+        return self._parse_http_reply(reply)
+
+    def lan_http_command(
+        self, ip: str, cmd: str, extra: Optional[dict] = None, timeout_s: float = 9.0,
+    ) -> Optional[dict]:
+        """Same as http_command(), but targets an arbitrary IP on whatever
+        network the jig is currently associated with, instead of the DUT's
+        own SoftAP gateway (192.168.4.1) -- for once the DUT has left
+        SoftAP for the office WiFi/hotspot the jig is also bridging MQTT
+        over. 2026-09-18: added specifically to verify relay_test_mqtt/
+        flow_sensor_mqtt/rtc_mqtt results this way instead of only through
+        the jig's own MQTT status subscription or by parsing the DUT's
+        serial output, both measurably less reliable under real network
+        conditions than this same HTTP mechanism already proven via
+        SoftAP all session."""
+        payload = {"cmd": cmd, **(extra or {})}
+        reply = self._send_and_read_line(f"LAN_HTTP_CMD:{ip}:{json.dumps(payload)}", timeout_s)
+        return self._parse_http_reply(reply)
+
     def device_info(self, timeout_s: float = 9.0) -> Optional[dict]:
         return self.http_command("device_info", timeout_s=timeout_s)
+
+    def lan_device_info(self, ip: str, timeout_s: float = 9.0) -> Optional[dict]:
+        return self.lan_http_command(ip, "device_info", timeout_s=timeout_s)
 
     def mqtt_connect(self, device_id: str, timeout_s: float = 12.0) -> bool:
         return self._send_and_read_line(f"MQTT_CONNECT:{device_id}", timeout_s) == "MQTT_OK"
@@ -204,13 +275,15 @@ class JigClient:
         return last
 
 
-def probe_for_jig(port: str, baud: int = 115200) -> Optional[JigClient]:
+def probe_for_jig(
+    port: str, baud: int = 115200, on_line: Optional[Callable[[str], None]] = None,
+) -> Optional[JigClient]:
     """Opens [port], sends PING, and returns a ready client if (and only
     if) it replies PONG -- otherwise closes the port and returns None.
     Used to identify which of the (possibly several) USB-serial devices
     on the machine is the jig, without assuming a fixed port order."""
     try:
-        client = JigClient(port, baud)
+        client = JigClient(port, baud, on_line=on_line)
     except serial.SerialException:
         return None
     if client.ping():

@@ -130,20 +130,20 @@ void handleWifiStatus() {
   }
 }
 
-// POSTs <json> to the DUT's local /command endpoint (LocalServer.cpp's
+// POSTs <json> to <ip>'s local /command endpoint (LocalServer.cpp's
 // plain-HTTP alternative to its WS API -- same {"cmd":...} schema, same
 // _dispatch() handler on the DUT side) and relays the JSON response back
-// verbatim. Only meaningful while joined to a DUT's own SoftAP
-// (192.168.4.1 is always its gateway IP in that mode, same assumption
-// DutWsClient makes phone-side).
-void handleHttpCmd(const String &json) {
+// verbatim. Shared by handleHttpCmd() (always 192.168.4.1, the DUT's own
+// SoftAP gateway IP) and handleLanHttpCmd() (an arbitrary IP, for once
+// the DUT has left SoftAP for a real WiFi network the jig is also on).
+void _doHttpCmd(const String &ip, const String &json) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("HTTP_FAIL:not connected");
     return;
   }
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
-  http.begin("http://192.168.4.1/command");
+  http.begin("http://" + ip + "/command");
   http.addHeader("Content-Type", "application/json");
   int code = http.POST(json);
   if (code == 200) {
@@ -154,6 +154,29 @@ void handleHttpCmd(const String &json) {
     Serial.println(code);
   }
   http.end();
+}
+
+void handleHttpCmd(const String &json) {
+  _doHttpCmd("192.168.4.1", json);
+}
+
+// "<ip>:<json>" -- lets the laptop query/command the DUT directly over
+// whatever LAN both it and the jig are already on (office WiFi/hotspot)
+// during the WiFi+MQTT test phase, instead of only being able to reach
+// it via a round trip through the jig's own MQTT status subscription or
+// by parsing the DUT's serial output for evidence. 2026-09-18 bench
+// finding: both of those were measurably unreliable (missed/garbled
+// messages under real network conditions) for verifying what a command
+// actually did, even when the command itself had genuinely landed and
+// taken effect -- this reuses the exact same HTTP mechanism that's been
+// 100% reliable via SoftAP all session, just pointed at a different IP.
+void handleLanHttpCmd(const String &args) {
+  int sep = args.indexOf(':');
+  if (sep < 0) {
+    Serial.println("HTTP_FAIL:bad args");
+    return;
+  }
+  _doHttpCmd(args.substring(0, sep), args.substring(sep + 1));
 }
 
 // Phase 2 of docs/testing/JIG_NETWORK_BRIDGE_SPEC.md -- office-WiFi/MQTT
@@ -265,14 +288,20 @@ void setup() {
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
 
-  // 2026-09-18: auto-starts a free-running 1Hz square wave at boot, no
-  // serial command needed -- this build is deliberately just that and
-  // nothing else, so the board can be powered however and left alone
-  // (no laptop, no active connection required) while probing D23/D35
-  // directly. Everything else in this sketch (PING, HTTP/MQTT bridge,
-  // etc.) still works if something does talk to it, but nothing needs
-  // to for the square wave itself to keep running.
-  handleSquare("1");
+  // The 2026-09-18 D23/D35 probing session had this auto-start a
+  // free-running 1Hz square wave at boot with no serial command needed,
+  // so the board could be left alone while probing with a meter. That
+  // was a one-off debug build, not meant to stay -- removed after
+  // discovering it silently corrupts real flow-sensor pulse tests: the
+  // production tester's slow, individually-spaced PULSE:1 calls (added
+  // the same day, for visually watching pulses land) give loop() enough
+  // idle time between pulses for this square wave to keep toggling
+  // PULSE_OUT_PIN in the gaps, injecting extra edges the DUT's flow ISR
+  // counts as real pulses (~3% overcount, bench-confirmed). The fast
+  // PULSE:<n> burst was never affected -- it blocks the whole loop for
+  // its ~1ms/pulse duration, so this never got a chance to run during
+  // it. SQUARE:<hz> is still there as an explicit command for anyone
+  // who wants it again; it just isn't on by default anymore.
 }
 
 void emitPulses(int count) {
@@ -379,6 +408,11 @@ void handleCommand(const String &line) {
 
   if (line.startsWith("HTTP_CMD:")) {
     handleHttpCmd(line.substring(9));
+    return;
+  }
+
+  if (line.startsWith("LAN_HTTP_CMD:")) {
+    handleLanHttpCmd(line.substring(13));
     return;
   }
 
