@@ -49,3 +49,14 @@ Polls `GET /info` every **1 second** (not 3s, unlike the other screens) — this
 - No calibrated display of IN1/IN4 (raw ADC counts only — calibration is deferred, see Specification §3.3).
 - No display of the Pump's own digital IN1/IN4 boolean flags or LED states (only the analog raw values) — these exist in the wire protocol but aren't currently surfaced.
 - No data logging or history — every screen shows only the current live snapshot.
+
+## v2 additions — remote (cloud) mode and multiple installations
+
+See `WPC_Remote_Cloud.md` for the architecture. App-side summary:
+
+- **`backend.dart`** holds the link mode (Local / Cloud), the saved list of installations (`MasterRef`: 8-hex Master ID + a name, stored in shared_preferences) and the MQTT session. In Cloud mode it subscribes to the active Master's `status` and `lwt` topics and publishes commands (never retained). Messages from a previously-selected Master are ignored so switching installations can't mix data.
+- **`api.dart`** is now a routing facade: every Master call (`getStatus`, `setPumpOverride`, `setPumpLevel`, `setPumpName`, `forgetPump`, `setNumLevels`, `setDebounceMs`, `setTxPower`) goes over local HTTP or MQTT depending on the mode, so the Status and Assign screens needed no changes to work remotely. Pump-only calls (`getPumpInfo`, `setPumpConfig`, `setPumpTxPower`) and `setMasterWifi` are local-only by design. After a cloud command it waits briefly for the refreshed status so the screen reflects the change.
+- **Connection screen** (top-right button; shows `Local` or the active installation's name): choose Local/Cloud, add/select/remove installations (add by Master ID, or "Add the one I'm on" while connected to a Master's WiFi), see broker/Master connection state, and — while on the Master's own WiFi — set the farm WiFi the Master should use for internet. A timeout after saving the WiFi isn't necessarily a failure: the Master can drop its own access point for a moment while it joins the router.
+- **Status screen** shows the firmware version and the Master's internet state, and in Cloud mode an orange **"Master is offline — last known state"** banner when the broker's last-will says the Master is down (the retained status can be hours old and must not look live).
+- **No per-user locking**: any user can switch any pump; the last command wins.
+- **Untested against the real broker** (no `wpc-device` user existed to test with): the cloud path compiles and analyzes clean, but hasn't been exercised end to end.

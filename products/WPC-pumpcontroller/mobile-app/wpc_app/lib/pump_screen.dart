@@ -225,7 +225,7 @@ class _PumpScreenState extends State<PumpScreen> {
                         : (v) async {
                             setState(() => _busy = true);
                             try {
-                              await WpcApi.setTxPower(v.round());
+                              await WpcApi.setPumpTxPower(v.round());
                               await _fetch();
                             } catch (e) {
                               if (mounted) {

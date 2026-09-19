@@ -134,6 +134,12 @@ Unchanged from v0.2.
 ```
 Clears a slot entirely, including its ADC cache and override state (new in v0.3) — unchanged behavior otherwise. Does not affect the physical Pump Node; it can rejoin later.
 
+### `POST /wifi` — added in firmware v0.4.0 (remote monitoring)
+```json
+{ "ssid": "FarmWiFi", "password": "secret" }
+```
+Stores the farm-router credentials in NVS and starts joining it (the Master runs AP+STA). Empty `ssid` clears it. **Local only** — not accepted from the cloud command topic. `GET /status` gains `fw`, `wifi{configured,ssid,connected,ip}` (the password is never returned) and `cloud` (MQTT connected). The same command functions are also reachable over MQTT and the serial console — see `WPC_Remote_Cloud.md`.
+
 ## 7. HTTP API — Pump Node
 
 Pump Node runs its own open SoftAP (`WPC-Pump-XXXX`, XXXX = its 4-digit pump ID), separate from the Master's — connecting to it is how the app's Provision screen reaches this endpoint set.
@@ -169,4 +175,5 @@ See `WPC_Specification_v0.3.md` §4 for the full table (Pump Node LEDs, correcte
 - Installer password scheme for the app's node-assignment feature — still not implemented.
 - Multi-Master coexistence — unchanged limitation, see Specification §9.
 - LoRa link-budget validation at real 1–2km range — **now directly affects `INTER_POLL_GAP_MS` and the poll timeouts in §5**, not just theoretical range; only bench-tested at <1m so far.
+- **Pump fail-safe vs. pump count (found while adding cloud control):** the Pump forces its relay OFF if it hears no `LEVEL_CMD` for 60 s, but the Master now reaches each idle pump only once per round-robin, i.e. about N x 5 s for N pumps (§5). With roughly 9 or more pumps a healthy idle pump can exceed 60 s between contacts and trip its fail-safe (relay OFF, rejoin churn) even though nothing is wrong. Options: scale the fail-safe with the expected cycle (needs a Pump firmware change, e.g. the Master sending its refresh interval in the `LEVEL_CMD` payload), or shorten the cycle. Not yet addressed.
 - IN1/IN4 calibration (raw → real units) — deferred, see Specification §3.3.

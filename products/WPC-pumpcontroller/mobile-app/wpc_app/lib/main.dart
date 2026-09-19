@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'status_screen.dart';
 import 'assign_screen.dart';
 import 'pump_screen.dart';
+import 'connection_screen.dart';
+import 'backend.dart';
 
-void main() => runApp(const WpcApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Backend.instance.load();
+  runApp(const WpcApp());
+}
 
 class WpcApp extends StatelessWidget {
   const WpcApp({super.key});
@@ -40,9 +46,27 @@ class _HomeShellState extends State<HomeShell> {
           children: [
             Image.asset('assets/images/logo_icon.png', height: 28),
             const SizedBox(width: 8),
-            Text(_titles[_index]),
+            Expanded(child: Text(_titles[_index], overflow: TextOverflow.ellipsis)),
           ],
         ),
+        actions: [
+          // Shows how we're connected (and to which installation in Cloud
+          // mode); tapping opens the Connection screen.
+          ListenableBuilder(
+            listenable: Backend.instance,
+            builder: (context, _) {
+              final b = Backend.instance;
+              final cloud = b.mode == LinkMode.cloud;
+              return TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ConnectionScreen()),
+                ),
+                icon: Icon(cloud ? Icons.cloud_outlined : Icons.wifi, size: 18),
+                label: Text(cloud ? (b.active?.label ?? 'Cloud') : 'Local'),
+              );
+            },
+          ),
+        ],
       ),
       body: _screens[_index],
       bottomNavigationBar: NavigationBar(

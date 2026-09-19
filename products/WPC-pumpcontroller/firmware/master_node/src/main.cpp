@@ -4,6 +4,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <esp_system.h>
+#include "Cloud.h"
+
+#define FW_VERSION "0.4.0"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -14,6 +18,7 @@
 // ordering issue we've hit several times on this project.
 void updateInputs();
 void applyLevelLogic();
+void backgroundService();   // web server + serial console + cloud commands, see below
 
 // ---------------------------------------------------------------------
 // WPC Master Node
@@ -73,7 +78,8 @@ uint32_t levelDebounceMs = DEBOUNCE_MS_DEFAULT;
 // sends are ever closer together than this regardless of cause -- no
 // separate stagger logic needed. See pollCycle() for how a full known-pump
 // count naturally determines total refresh time from this one constant.
-#define INTER_POLL_GAP_MS   5000UL
+#define INTER_POLL_GAP_MS_DEFAULT 5000UL
+uint32_t interPollGapMs = INTER_POLL_GAP_MS_DEFAULT;   // shortened to 1s only in test mode
 #define JOIN_WINDOW_MS       2000   // widened -- was missing joins too often against the Pump's 3s retry cadence
 
 enum MsgType : uint8_t {
@@ -230,7 +236,7 @@ void updateWifiLed() {
 void delayWithLeds(uint32_t ms) {
   uint32_t start = millis();
   while (millis() - start < ms) {
-    server.handleClient();
+    backgroundService();
     updateWifiLed();
     updateLoraLed();
     updateBlinkSequence(loraBlinkSeq);
@@ -425,7 +431,7 @@ void listenForJoin(uint32_t windowMs) {
   radio.startReceive();
   uint32_t start = millis();
   while (millis() - start < windowMs) {
-    server.handleClient();
+    backgroundService();
     updateWifiLed();
     updateLoraLed();
     updateBlinkSequence(loraBlinkSeq);
@@ -506,7 +512,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
 
   uint32_t t0 = millis();
   while (!operationDone) {
-    server.handleClient();
+    backgroundService();
     updateWifiLed();
     updateLoraLed();
     updateBlinkSequence(loraBlinkSeq);
@@ -535,7 +541,7 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
   uint32_t start = millis();
   int firesThisWindow = 0;
   while (millis() - start < rxTimeoutMs) {
-    server.handleClient();
+    backgroundService();
     updateWifiLed();
     updateLoraLed();
     updateBlinkSequence(loraBlinkSeq);
@@ -688,67 +694,26 @@ void pollCycle() {
   // shouldn't flag the whole link while others are acking fine.
   loraLinkError = consecutiveFails >= knownCount;
 
-  // Fixed pacing before the next exchange (see INTER_POLL_GAP_MS above).
+  // Fixed pacing before the next exchange (see INTER_POLL_GAP_MS_DEFAULT above).
   // Reused as a JOIN_REQUEST listening window instead of idling -- this is
   // "dead" radio time either way, so newly-booting pumps get a chance to
   // join far more often than the one JOIN_WINDOW_MS burst per loop() pass.
-  listenForJoin(INTER_POLL_GAP_MS);
+  listenForJoin(interPollGapMs);
 }
 
-// GET /status -- JSON snapshot of sump levels + known pumps, for the
-// app to poll while connected to this Master's SoftAP.
-void handleStatus() {
-  JsonDocument doc;
-  char idbuf[12];
-  snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
-  doc["masterId"] = idbuf;
-  doc["numLevels"] = numLevels;
-  doc["debounceMs"] = levelDebounceMs;
-  doc["txPower"] = loraTxPowerDbm;
+// ---------------------------------------------------------------------
+// Command layer. Every cmdXxx() takes a parsed JSON body and returns ""
+// on success or an error string. The local HTTP API (POST /assign, ...),
+// the cloud MQTT command topic and the serial test console ALL go through
+// these same functions, so remote control can never behave differently
+// from local control.
+// ---------------------------------------------------------------------
 
-  JsonArray levelsArr = doc["levels"].to<JsonArray>();
-  for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
-  doc["noPower"] = inputs[3].state;   // polarity TBD -- raw state, see docs
+CloudLink cloud;
+volatile bool statusDirty = true;   // set after any state-changing command so the cloud copy refreshes promptly
+bool testMode = false;              // fast timings for the factory jig; session-only, never persisted
 
-  JsonArray pumpsArr = doc["pumps"].to<JsonArray>();
-  for (int i = 0; i < MAX_PUMPS; i++) {
-    if (!pumps[i].known) continue;
-    JsonObject p = pumpsArr.add<JsonObject>();
-    p["slot"] = pumps[i].slot;
-    p["pumpId"] = pumps[i].pumpId;
-    p["online"] = pumps[i].online;
-    p["relay"] = pumps[i].lastRelayState;
-    p["desired"] = desiredPumpState[i];
-    JsonArray lvls = p["assignedLevels"].to<JsonArray>();
-    for (int lvl = 1; lvl <= 3; lvl++) {
-      if (pumps[i].assignedLevels & (1 << (lvl - 1))) lvls.add(lvl);
-    }
-    p["name"] = pumps[i].name;
-    p["in1Adc"] = pumps[i].in1Adc;
-    p["in4Adc"] = pumps[i].in4Adc;
-    JsonObject ov = p["override"].to<JsonObject>();
-    ov["enabled"] = pumps[i].overrideEnabled;
-    ov["state"] = pumps[i].overrideState;
-  }
-
-  String out;
-  serializeJson(doc, out);
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", out);
-}
-
-// POST /config  body: {"numLevels": 1-3}
-void handleSetConfig() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
+String cmdSetConfig(JsonDocument& doc) {
   if (doc["numLevels"].is<int>()) {
     int n = doc["numLevels"];
     if (n >= 1 && n <= 3) {
@@ -779,29 +744,17 @@ void handleSetConfig() {
       }
     }
   }
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
+  return "";
 }
 
-// POST /assign  body: {"slot": N, "level": 1-3, "assigned": true/false}
-// Toggles ONE level's membership -- a pump can now have multiple levels set.
-void handleAssign() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
+// {"slot": N, "level": 1-3, "assigned": true/false}
+// Toggles ONE level's membership -- a pump can have multiple levels set.
+String cmdAssign(JsonDocument& doc) {
   int slot = doc["slot"] | -1;
   int level = doc["level"] | -1;
   bool assigned = doc["assigned"] | false;
   if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known || level < 1 || level > 3) {
-    server.send(400, "application/json", "{\"error\":\"invalid slot/level\"}");
-    return;
+    return "invalid slot/level";
   }
   uint8_t bit = 1 << (level - 1);
   if (assigned) pumps[slot].assignedLevels |= bit;
@@ -812,57 +765,31 @@ void handleAssign() {
   Serial.print(F(" level "));
   Serial.print(level);
   Serial.println(assigned ? F(" -> ON") : F(" -> OFF"));
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
+  return "";
 }
 
-// POST /name  body: {"slot": N, "name": "..."}
-void handleSetName() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
+// {"slot": N, "name": "..."}
+String cmdSetName(JsonDocument& doc) {
   int slot = doc["slot"] | -1;
   const char* name = doc["name"] | "";
-  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
-    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
-    return;
-  }
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) return "invalid slot";
   strncpy(pumps[slot].name, name, sizeof(pumps[slot].name) - 1);
   pumps[slot].name[sizeof(pumps[slot].name) - 1] = '\0';
   savePumpTable();
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
+  return "";
 }
 
-// POST /override  body: {"slot": N, "enabled": true/false, "state": true/false}
+// {"slot": N, "enabled": true/false, "state": true/false}
 // Manual control -- when enabled, this pump's ON/OFF is driven directly by
 // "state" instead of the level-assignment logic in applyLevelLogic(). Lets
 // an operator force a pump on/off (bring-up testing, or an emergency)
 // without touching its level assignments. Deliberately session-only, see
-// PumpEntry.overrideEnabled.
-void handleSetOverride() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
+// PumpEntry.overrideEnabled. There is intentionally no lock or expiry:
+// with several people running one installation, whoever is at the farm
+// simply flips it back.
+String cmdOverride(JsonDocument& doc) {
   int slot = doc["slot"] | -1;
-  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
-    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
-    return;
-  }
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) return "invalid slot";
   bool enabled = doc["enabled"] | false;
   pumps[slot].overrideEnabled = enabled;
   if (enabled && doc["state"].is<bool>()) {
@@ -876,30 +803,16 @@ void handleSetOverride() {
   } else {
     Serial.println(F(" -> AUTO"));
   }
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
+  return "";
 }
 
-// POST /forget  body: {"slot": N}
+// {"slot": N}
 // Clears a slot entirely -- for removing a stale/orphaned pump entry
 // (e.g. one that was reprovisioned to a different pumpId and will never
 // come back under its old identity).
-void handleForget() {
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"error\":\"missing body\"}");
-    return;
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"error\":\"bad json\"}");
-    return;
-  }
+String cmdForget(JsonDocument& doc) {
   int slot = doc["slot"] | -1;
-  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) {
-    server.send(400, "application/json", "{\"error\":\"invalid slot\"}");
-    return;
-  }
+  if (slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known) return "invalid slot";
   pumps[slot].known = false;
   pumps[slot].pumpId = 0;
   pumps[slot].assignedLevels = 0;
@@ -913,8 +826,318 @@ void handleForget() {
   savePumpTable();
   Serial.print(F("[FORGET] slot "));
   Serial.println(slot);
+  return "";
+}
+
+// {"ssid": "...", "password": "..."}   empty ssid = stop using WiFi
+// LOCAL ONLY (HTTP / serial) -- deliberately not reachable from the cloud
+// command topic, so nobody can knock a Master off the internet remotely.
+String cmdWifi(JsonDocument& doc) {
+  String ssid = doc["ssid"] | "";
+  String pass = doc["password"] | "";
+  if (ssid.length() > 32 || pass.length() > 63) return "ssid/password too long";
+  prefs.putString("wifiSsid", ssid);
+  prefs.putString("wifiPass", pass);
+  cloud.setWifi(ssid, pass);
+  Serial.print(F("[WIFI] STA credentials "));
+  Serial.println(ssid.length() ? F("saved") : F("cleared"));
+  return "";
+}
+
+// Snapshot shared by GET /status, the cloud status topic and the serial
+// console. The app renders the same JSON whichever transport delivered it.
+String buildStatusJson() {
+  JsonDocument doc;
+  char idbuf[12];
+  snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
+  doc["masterId"] = idbuf;
+  doc["fw"] = FW_VERSION;
+  doc["numLevels"] = numLevels;
+  doc["debounceMs"] = levelDebounceMs;
+  doc["txPower"] = loraTxPowerDbm;
+
+  JsonObject w = doc["wifi"].to<JsonObject>();
+  w["configured"] = cloud.wifiConfigured();
+  w["ssid"] = cloud.ssid();
+  w["connected"] = cloud.wifiConnected();
+  w["ip"] = cloud.ip();
+  doc["cloud"] = cloud.mqttConnected();
+
+  JsonArray levelsArr = doc["levels"].to<JsonArray>();
+  for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
+  doc["noPower"] = inputs[3].state;   // polarity TBD -- raw state, see docs
+
+  JsonArray pumpsArr = doc["pumps"].to<JsonArray>();
+  for (int i = 0; i < MAX_PUMPS; i++) {
+    if (!pumps[i].known) continue;
+    JsonObject p = pumpsArr.add<JsonObject>();
+    p["slot"] = pumps[i].slot;
+    p["pumpId"] = pumps[i].pumpId;
+    p["online"] = pumps[i].online;
+    p["relay"] = pumps[i].lastRelayState;
+    p["desired"] = desiredPumpState[i];
+    JsonArray lvls = p["assignedLevels"].to<JsonArray>();
+    for (int lvl = 1; lvl <= 3; lvl++) {
+      if (pumps[i].assignedLevels & (1 << (lvl - 1))) lvls.add(lvl);
+    }
+    p["name"] = pumps[i].name;
+    p["in1Adc"] = pumps[i].in1Adc;
+    p["in4Adc"] = pumps[i].in4Adc;
+    JsonObject ov = p["override"].to<JsonObject>();
+    ov["enabled"] = pumps[i].overrideEnabled;
+    ov["state"] = pumps[i].overrideState;
+  }
+
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+void handleStatus() {
+  String out = buildStatusJson();
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.send(200, "application/json", "{\"ok\":true}");
+  server.send(200, "application/json", out);
+}
+
+typedef String (*CmdFn)(JsonDocument&);
+
+void httpCommand(CmdFn fn) {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"missing body\"}");
+    return;
+  }
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "application/json", "{\"error\":\"bad json\"}");
+    return;
+  }
+  String err = fn(doc);
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  if (err.length()) {
+    server.send(400, "application/json", "{\"error\":\"" + err + "\"}");
+  } else {
+    statusDirty = true;
+    server.send(200, "application/json", "{\"ok\":true}");
+  }
+}
+
+void handleSetConfig()   { httpCommand(cmdSetConfig); }
+void handleAssign()      { httpCommand(cmdAssign); }
+void handleSetName()     { httpCommand(cmdSetName); }
+void handleSetOverride() { httpCommand(cmdOverride); }
+void handleForget()      { httpCommand(cmdForget); }
+void handleWifi()        { httpCommand(cmdWifi); }
+
+// Cloud command: {"cmd": "override"|"assign"|"set_name"|"forget"|"set_config", ...}
+void executeCloudCommand(const String& body) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) {
+    Serial.println(F("[CLOUD] ignoring command with bad JSON"));
+    return;
+  }
+  String cmd = doc["cmd"] | "";
+  String err;
+  if (cmd == "override") err = cmdOverride(doc);
+  else if (cmd == "assign") err = cmdAssign(doc);
+  else if (cmd == "set_name") err = cmdSetName(doc);
+  else if (cmd == "forget") err = cmdForget(doc);
+  else if (cmd == "set_config") err = cmdSetConfig(doc);
+  else err = "unknown cmd";
+  Serial.print(F("[CLOUD] cmd "));
+  Serial.print(cmd);
+  if (err.length()) { Serial.print(F(" REJECTED: ")); Serial.println(err); }
+  else Serial.println(F(" ok"));
+  statusDirty = true;
+}
+
+// ---------------------------------------------------------------------
+// Serial console -- line based, used by the factory test jig and handy for
+// bring-up. Every reply line starts with '@' so a host script can pick
+// them out of the normal [TAG] debug log:
+//   @OK <key=value ...>   @ERR <reason>   @DATA <payload>
+// Nothing here touches the radio, so it is safe to service from inside
+// the poll/listen wait loops.
+// ---------------------------------------------------------------------
+
+String consoleBuf;
+
+void reply(const char* tag, const String& msg) {
+  Serial.print('@');
+  Serial.print(tag);
+  Serial.print(' ');
+  Serial.println(msg);
+}
+
+String macHex() {
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  char b[13];
+  snprintf(b, sizeof(b), "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(b);
+}
+
+void setTestMode(bool on) {
+  testMode = on;
+  if (on) {
+    levelDebounceMs = 300;
+    interPollGapMs = 1000;
+  } else {
+    levelDebounceMs = prefs.getULong("debounceMs", DEBOUNCE_MS_DEFAULT);
+    interPollGapMs = INTER_POLL_GAP_MS_DEFAULT;
+  }
+}
+
+void handleConsoleLine(String line) {
+  line.trim();
+  if (!line.length()) return;
+  int sp = line.indexOf(' ');
+  String cmd = sp < 0 ? line : line.substring(0, sp);
+  String args = sp < 0 ? String("") : line.substring(sp + 1);
+  args.trim();
+  cmd.toUpperCase();
+
+  if (cmd == "ID" || cmd == "VERSION") {
+    char idbuf[9];
+    snprintf(idbuf, sizeof(idbuf), "%08X", (unsigned int)masterId32);
+    reply("OK", String("board=WPC-MASTER fw=") + FW_VERSION + " mac=" + macHex() +
+                " masterId=" + idbuf + " ap=WPC-Master-" + idbuf);
+  } else if (cmd == "STATE") {
+    reply("DATA", buildStatusJson());
+  } else if (cmd == "INPUTS") {
+    String raw, st;
+    for (int i = 0; i < 4; i++) {
+      raw += String(digitalRead(inputs[i].pin) == LEVEL_ACTIVE_STATE ? 1 : 0);
+      st += String(inputs[i].state ? 1 : 0);
+      if (i < 3) { raw += ","; st += ","; }
+    }
+    reply("OK", "raw=" + raw + " state=" + st);
+  } else if (cmd == "PUMPS") {
+    int n = 0;
+    for (int i = 0; i < MAX_PUMPS; i++) {
+      if (!pumps[i].known) continue;
+      n++;
+      reply("DATA", String("slot=") + i + " pumpId=" + pumps[i].pumpId + " online=" + pumps[i].online +
+                    " relay=" + pumps[i].lastRelayState + " desired=" + desiredPumpState[i] +
+                    " levels=" + pumps[i].assignedLevels + " adc1=" + pumps[i].in1Adc +
+                    " adc4=" + pumps[i].in4Adc + " override=" + pumps[i].overrideEnabled);
+    }
+    reply("OK", String("count=") + n);
+  } else if (cmd == "ASSIGN") {           // ASSIGN <slot> <levelMask 0-7>
+    int slot = args.toInt();
+    int mask = args.substring(args.indexOf(' ') + 1).toInt();
+    if (args.indexOf(' ') < 0 || slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known || mask < 0 || mask > 7) {
+      reply("ERR", "usage: ASSIGN <slot> <mask 0-7> (slot must be joined)");
+    } else {
+      pumps[slot].assignedLevels = (uint8_t)mask;
+      savePumpTable();
+      statusDirty = true;
+      reply("OK", String("slot=") + slot + " mask=" + mask);
+    }
+  } else if (cmd == "OVERRIDE") {         // OVERRIDE <slot> <auto|on|off>
+    int slot = args.toInt();
+    String mode = args.substring(args.indexOf(' ') + 1);
+    mode.toLowerCase();
+    if (args.indexOf(' ') < 0 || slot < 0 || slot >= MAX_PUMPS || !pumps[slot].known ||
+        (mode != "auto" && mode != "on" && mode != "off")) {
+      reply("ERR", "usage: OVERRIDE <slot> <auto|on|off>");
+    } else {
+      JsonDocument d;
+      d["slot"] = slot;
+      d["enabled"] = (mode != "auto");
+      if (mode != "auto") d["state"] = (mode == "on");
+      cmdOverride(d);
+      statusDirty = true;
+      reply("OK", String("slot=") + slot + " mode=" + mode);
+    }
+  } else if (cmd == "FORGETALL") {
+    for (int i = 0; i < MAX_PUMPS; i++) {
+      if (!pumps[i].known) continue;
+      JsonDocument d;
+      d["slot"] = i;
+      cmdForget(d);
+    }
+    statusDirty = true;
+    reply("OK", "all pumps forgotten");
+  } else if (cmd == "TESTMODE") {         // TESTMODE <0|1>
+    setTestMode(args.toInt() != 0);
+    reply("OK", String("testMode=") + testMode + " debounceMs=" + levelDebounceMs + " pollGapMs=" + interPollGapMs);
+  } else if (cmd == "TXPOWER") {          // TXPOWER <dBm>
+    JsonDocument d;
+    d["txPower"] = args.toInt();
+    cmdSetConfig(d);
+    reply("OK", String("txPower=") + loraTxPowerDbm);
+  } else if (cmd == "WIFI") {             // WIFI <ssid> [password]   |   WIFI CLEAR
+    JsonDocument d;
+    if (args.equalsIgnoreCase("CLEAR")) {
+      d["ssid"] = "";
+    } else {
+      int s2 = args.indexOf(' ');
+      d["ssid"] = s2 < 0 ? args : args.substring(0, s2);
+      d["password"] = s2 < 0 ? String("") : args.substring(s2 + 1);
+    }
+    String err = cmdWifi(d);
+    if (err.length()) reply("ERR", err); else reply("OK", "wifi saved");
+  } else if (cmd == "WIFISTAT") {
+    reply("OK", String("configured=") + cloud.wifiConfigured() + " ssid=" + cloud.ssid() +
+                " connected=" + cloud.wifiConnected() + " ip=" + cloud.ip() + " mqtt=" + cloud.mqttConnected());
+  } else if (cmd == "LEDTEST") {          // LEDTEST [ms]  -- all LEDs on, blocks the loop for that long
+    uint32_t ms = args.length() ? (uint32_t)args.toInt() : 2000;
+    if (ms > 10000) ms = 10000;
+    for (auto& in : inputs) digitalWrite(in.ledPin, HIGH);
+    digitalWrite(PIN_LORA_LED, HIGH);
+    digitalWrite(PIN_WIFI_LED, HIGH);
+    delay(ms);
+    reply("OK", String("ledtest ms=") + ms);
+  } else if (cmd == "FACTORYRESET") {     // wipes NVS (pump table, config, WiFi) and reboots
+    prefs.clear();
+    reply("OK", "nvs cleared, rebooting");
+    delay(200);
+    ESP.restart();
+  } else if (cmd == "REBOOT") {
+    reply("OK", "rebooting");
+    delay(200);
+    ESP.restart();
+  } else {
+    reply("ERR", "unknown command (ID STATE INPUTS PUMPS ASSIGN OVERRIDE FORGETALL TESTMODE TXPOWER WIFI WIFISTAT LEDTEST FACTORYRESET REBOOT)");
+  }
+}
+
+void pollConsole() {
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == '\r') continue;
+    if (c == '\n') {
+      String l = consoleBuf;
+      consoleBuf = "";
+      handleConsoleLine(l);
+    } else if (consoleBuf.length() < 160) {
+      consoleBuf += c;
+    }
+  }
+}
+
+// Everything that must keep running during the long blocking waits in the
+// LoRa code (poll gap, join window, RX windows): local web server, serial
+// console, cloud commands, and the status snapshot handed to the cloud task.
+void backgroundService() {
+  server.handleClient();
+  pollConsole();
+
+  String cmd;
+  while (cloud.popCommand(cmd)) executeCloudCommand(cmd);
+
+  static uint32_t lastPush = 0;
+  static String lastJson;
+  uint32_t now = millis();
+  if ((statusDirty || now - lastPush >= 1000) && cloud.wifiConfigured()) {
+    statusDirty = false;
+    lastPush = now;
+    String j = buildStatusJson();
+    if (j != lastJson) {
+      lastJson = j;
+      cloud.setStatus(j);
+    }
+  }
 }
 
 void setup() {
@@ -996,6 +1219,7 @@ void setup() {
   char apSuffix[9];
   snprintf(apSuffix, sizeof(apSuffix), "%08X", (unsigned int)masterId32);
   String apSsid = "WPC-Master-" + String(apSuffix);
+  WiFi.mode(WIFI_AP_STA);   // AP for local app access, STA (optional) for the farm router / cloud
   wifiApOk = WiFi.softAP(apSsid.c_str());
   if (!wifiApOk) {
     Serial.println(F("[WIFI] softAP() failed to start"));
@@ -1011,7 +1235,14 @@ void setup() {
   server.on("/override", HTTP_POST, handleSetOverride);
   server.on("/name", HTTP_POST, handleSetName);
   server.on("/forget", HTTP_POST, handleForget);
+  server.on("/wifi", HTTP_POST, handleWifi);
   server.begin();
+
+  char devId[16];
+  snprintf(devId, sizeof(devId), "WPC_%08X", (unsigned int)masterId32);
+  cloud.begin(devId);
+  String storedSsid = prefs.getString("wifiSsid", "");
+  if (storedSsid.length()) cloud.setWifi(storedSsid, prefs.getString("wifiPass", ""));
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
 }
@@ -1061,7 +1292,7 @@ void printDebugSummary() {
 }
 
 void loop() {
-  server.handleClient();
+  backgroundService();
   updateWifiLed();
   updateLoraLed();
   updateBlinkSequence(loraBlinkSeq);
@@ -1069,8 +1300,14 @@ void loop() {
   applyLevelLogic();
 
   printDebugSummary();
-  listenForJoin(JOIN_WINDOW_MS);
-  pollCycle();
 
-  delayWithLeds(1000);
+  // pollCycle() already spends its whole pacing gap listening for
+  // JOIN_REQUESTs, so wrapping it in another join window plus a fixed delay
+  // (as this loop used to) made every pass ~8s instead of the documented
+  // INTER_POLL_GAP. Only when no pump is known yet is there nothing to poll,
+  // so the loop itself must provide the join listening window.
+  bool anyKnown = false;
+  for (int i = 0; i < MAX_PUMPS; i++) if (pumps[i].known) { anyKnown = true; break; }
+  if (anyKnown) pollCycle();
+  else listenForJoin(JOIN_WINDOW_MS);
 }

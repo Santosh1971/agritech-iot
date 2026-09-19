@@ -78,6 +78,11 @@ class _StatusScreenState extends State<StatusScreen> {
     final levels = (_status!['levels'] as List<dynamic>? ?? []);
     final noPower = _status!['noPower'] == true;
     final pumps = _status!['pumps'] as List<dynamic>? ?? [];
+    // Cloud mode only: the broker keeps the Master's last status, which can be
+    // hours old if the Master lost its internet -- never let that look live.
+    final masterOffline = _status!['_masterOnline'] == false;
+    final wifi = (_status!['wifi'] as Map<String, dynamic>?) ?? {};
+    final fw = _status!['fw'] as String?;
 
     final unassigned = pumps.where((p) {
       final assigned = ((p as Map<String, dynamic>)['assignedLevels'] as List<dynamic>? ?? []);
@@ -102,7 +107,44 @@ class _StatusScreenState extends State<StatusScreen> {
             ),
           ],
         ),
+        if (fw != null || wifi['configured'] == true)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              [
+                if (fw != null) 'Firmware $fw',
+                if (wifi['configured'] == true)
+                  wifi['connected'] == true
+                      ? 'Internet: connected'
+                      : 'Internet: not connected',
+              ].join('   '),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ),
         const SizedBox(height: 12),
+
+        if (masterOffline)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              border: Border.all(color: Colors.orange.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.cloud_off, color: Colors.orange.shade800),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'This Master is offline. What you see below is its last known state, not live.',
+                    style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         if (noPower)
           Container(

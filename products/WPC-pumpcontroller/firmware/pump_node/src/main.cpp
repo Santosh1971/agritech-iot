@@ -4,8 +4,11 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <esp_system.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+
+#define FW_VERSION "0.4.0"
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
 bool wifiApOk = false;
@@ -61,7 +64,11 @@ int8_t loraTxPowerDbm = LORA_TXPOWER_DEFAULT;   // runtime/NVS-backed, see handl
 
 #define INPUT_ACTIVE_STATE LOW
 
-#define FAILSAFE_TIMEOUT_MS 60000UL   // 2x Master's 30s heartbeat -- tolerates one missed heartbeat before declaring real loss of contact
+#define FAILSAFE_TIMEOUT_MS 60000UL   // default; shortened to 8s only in test mode
+uint32_t failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
+bool testMode = false;   // factory-jig timings, session-only, never persisted
+uint32_t cmdCount = 0, joinCount = 0, failsafeCount = 0;   // for the test jig / diagnostics
+   // 2x Master's 30s heartbeat -- tolerates one missed heartbeat before declaring real loss of contact
 #define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
 
 // today's bench Master -- override via app/NVS for a different Master
@@ -286,6 +293,7 @@ void handlePacket(const uint8_t* buf, int len) {
       if (acceptedPumpId != myPumpId) return;
       myAssignedSlot = buf[10];
       joined = true;
+      joinCount++;
       lastCmdMillis = millis();
       startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
       Serial.print(F("[JOIN] accepted, assigned slot "));
@@ -297,6 +305,7 @@ void handlePacket(const uint8_t* buf, int len) {
   if (msgType != MSG_LEVEL_CMD || pumpSlot != myAssignedSlot) return;
 
   bool desired = (buf[8] != 0);
+  cmdCount++;
   lastCmdMillis = millis();
   startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
   setRelay(desired);
@@ -319,6 +328,7 @@ void handlePacket(const uint8_t* buf, int len) {
 void handleInfo() {
   JsonDocument doc;
   doc["pumpId"] = myPumpId;
+  doc["fw"] = FW_VERSION;
   char idbuf[12];
   snprintf(idbuf, sizeof(idbuf), "0x%08X", targetMasterId);
   doc["targetMasterId"] = idbuf;
@@ -332,6 +342,17 @@ void handleInfo() {
   serializeJson(doc, out);
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", out);
+}
+
+// Points this Pump at a different Master: new target ID, matching per-Master
+// syncword, persisted. Callers are responsible for forcing a rejoin.
+void applyTargetMaster(uint32_t v) {
+  targetMasterId = v;
+  prefs.putULong("masterId", targetMasterId);
+  currentSyncWord = (uint8_t)((targetMasterId ^ (targetMasterId >> 8) ^ (targetMasterId >> 16) ^ (targetMasterId >> 24)) & 0xFF);
+  radio.setSyncWord(currentSyncWord);
+  Serial.print(F("[CONFIG] syncword updated to 0x"));
+  Serial.println(currentSyncWord, HEX);
 }
 
 // POST /config  body: {"pumpId": N, "targetMasterId": "0xXXXXXXXX"}
@@ -361,12 +382,7 @@ void handleSetConfig() {
     const char* s = doc["targetMasterId"];
     uint32_t v = strtoul(s, nullptr, 16);
     if (v != 0) {
-      targetMasterId = v;
-      prefs.putULong("masterId", targetMasterId);
-      currentSyncWord = (uint8_t)((targetMasterId ^ (targetMasterId >> 8) ^ (targetMasterId >> 16) ^ (targetMasterId >> 24)) & 0xFF);
-      radio.setSyncWord(currentSyncWord);
-      Serial.print(F("[CONFIG] syncword updated to 0x"));
-      Serial.println(currentSyncWord, HEX);
+      applyTargetMaster(v);
       changed = true;
     }
   }
@@ -394,6 +410,131 @@ void handleSetConfig() {
   }
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", "{\"ok\":true}");
+}
+
+// ---------------------------------------------------------------------
+// Serial console -- line based, used by the factory test jig and handy for
+// bring-up. Every reply line starts with '@' so a host script can pick them
+// out of the normal [TAG] debug log:
+//   @OK <key=value ...>   @ERR <reason>   @DATA <payload>
+// ---------------------------------------------------------------------
+
+String consoleBuf;
+
+void reply(const char* tag, const String& msg) {
+  Serial.print('@');
+  Serial.print(tag);
+  Serial.print(' ');
+  Serial.println(msg);
+}
+
+String macHex() {
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  char b[13];
+  snprintf(b, sizeof(b), "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(b);
+}
+
+void forceRejoin() {
+  joined = false;
+  myAssignedSlot = 0xFF;
+  lastJoinAttemptMs = 0;
+}
+
+void handleConsoleLine(String line) {
+  line.trim();
+  if (!line.length()) return;
+  int sp = line.indexOf(' ');
+  String cmd = sp < 0 ? line : line.substring(0, sp);
+  String args = sp < 0 ? String("") : line.substring(sp + 1);
+  args.trim();
+  cmd.toUpperCase();
+
+  if (cmd == "ID" || cmd == "VERSION") {
+    char m[9];
+    snprintf(m, sizeof(m), "%08X", (unsigned int)targetMasterId);
+    reply("OK", String("board=WPC-PUMP fw=") + FW_VERSION + " mac=" + macHex() +
+                " pumpId=" + myPumpId + " ap=WPC-Pump-" + (myPumpId % 10000) + " targetMaster=" + m);
+  } else if (cmd == "STATE") {
+    char m[9];
+    snprintf(m, sizeof(m), "%08X", (unsigned int)targetMasterId);
+    reply("OK", String("joined=") + joined + " slot=" + (joined ? (int)myAssignedSlot : -1) +
+                " relay=" + relayState + " master=" + m + " txPower=" + loraTxPowerDbm +
+                " cmds=" + cmdCount + " joins=" + joinCount + " failsafes=" + failsafeCount +
+                " lastCmdAgeMs=" + (joined ? (millis() - lastCmdMillis) : 0) + " testMode=" + testMode);
+  } else if (cmd == "ADC") {
+    reply("OK", String("in1raw=") + readAdcAveraged(PIN_IN1) + " in1mv=" + readAdcMilliVoltsAveraged(PIN_IN1) +
+                " in4raw=" + readAdcAveraged(PIN_IN4) + " in4mv=" + readAdcMilliVoltsAveraged(PIN_IN4) +
+                " in1dig=" + (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) +
+                " in4dig=" + (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE));
+  } else if (cmd == "RELAY") {            // RELAY <0|1> -- direct drive, overwritten by the next LEVEL_CMD if joined
+    setRelay(args.toInt() != 0);
+    reply("OK", String("relay=") + relayState);
+  } else if (cmd == "MASTER") {           // MASTER <hex8> -- point at a Master, persisted, forces rejoin
+    uint32_t v = strtoul(args.c_str(), nullptr, 16);
+    if (v == 0) {
+      reply("ERR", "usage: MASTER <8 hex digits>");
+    } else {
+      applyTargetMaster(v);
+      forceRejoin();
+      startReceive();
+      char m[9];
+      snprintf(m, sizeof(m), "%08X", (unsigned int)v);
+      reply("OK", String("master=") + m);
+    }
+  } else if (cmd == "TXPOWER") {          // TXPOWER <dBm>
+    int p = args.toInt();
+    if (p < LORA_TXPOWER_MIN || p > LORA_TXPOWER_MAX || radio.setOutputPower((int8_t)p) != RADIOLIB_ERR_NONE) {
+      reply("ERR", "usage: TXPOWER <-9..22>");
+    } else {
+      loraTxPowerDbm = (int8_t)p;
+      prefs.putChar("txPower", loraTxPowerDbm);
+      startReceive();
+      reply("OK", String("txPower=") + loraTxPowerDbm);
+    }
+  } else if (cmd == "TESTMODE") {         // TESTMODE <0|1> -- 8s fail-safe instead of 60s
+    testMode = args.toInt() != 0;
+    failsafeTimeoutMs = testMode ? 8000UL : FAILSAFE_TIMEOUT_MS;
+    reply("OK", String("testMode=") + testMode + " failsafeMs=" + failsafeTimeoutMs);
+  } else if (cmd == "LEDTEST") {          // LEDTEST [ms] -- all LEDs on, blocks the loop for that long
+    uint32_t ms = args.length() ? (uint32_t)args.toInt() : 2000;
+    if (ms > 10000) ms = 10000;
+    digitalWrite(PIN_IN1_LED, HIGH);
+    digitalWrite(PIN_IN4_LED, HIGH);
+    digitalWrite(PIN_LORA_LED, HIGH);
+    digitalWrite(PIN_PUMP_ON_LED, HIGH);
+    digitalWrite(PIN_WIFI_LED, HIGH);
+    delay(ms);
+    digitalWrite(PIN_LORA_LED, LOW);
+    digitalWrite(PIN_PUMP_ON_LED, relayState ? HIGH : LOW);
+    reply("OK", String("ledtest ms=") + ms);
+  } else if (cmd == "FACTORYRESET") {     // wipes NVS (pump ID, master ID, TX power) and reboots
+    prefs.clear();
+    reply("OK", "nvs cleared, rebooting");
+    delay(200);
+    ESP.restart();
+  } else if (cmd == "REBOOT") {
+    reply("OK", "rebooting");
+    delay(200);
+    ESP.restart();
+  } else {
+    reply("ERR", "unknown command (ID STATE ADC RELAY MASTER TXPOWER TESTMODE LEDTEST FACTORYRESET REBOOT)");
+  }
+}
+
+void pollConsole() {
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == '\r') continue;
+    if (c == '\n') {
+      String l = consoleBuf;
+      consoleBuf = "";
+      handleConsoleLine(l);
+    } else if (consoleBuf.length() < 160) {
+      consoleBuf += c;
+    }
+  }
 }
 
 void setup() {
@@ -530,6 +671,7 @@ void loop() {
   server.handleClient();
   updateWifiLed();
   updateBlinkSequence(loraBlinkSeq);
+  pollConsole();
 
   // IN1_LED/IN4_LED simply reflect their own channel's voltage -- glow
   // above LED_VOLTAGE_THRESHOLD_MV, off below -- independent of join state,
@@ -576,7 +718,8 @@ void loop() {
   // the relay if it happened to be on, and go back to sending
   // JOIN_REQUEST so it can automatically recover once the Master is
   // back and listening again -- no manual reset needed on this side.
-  if (millis() - lastCmdMillis > FAILSAFE_TIMEOUT_MS) {
+  if (millis() - lastCmdMillis > failsafeTimeoutMs) {
+    failsafeCount++;
     if (relayState) {
       Serial.println(F("[FAILSAFE] no LEVEL_CMD received in time -- forcing OFF"));
       setRelay(false);
