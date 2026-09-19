@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -32,7 +33,19 @@ class FlashResult:
 
 
 def _run(port: str, baud: int, args: list[str], timeout_s: float = 120) -> subprocess.CompletedProcess:
-    cmd = ["esptool", "--chip", "esp32", "--port", port, "--baud", str(baud), *args]
+    # Invoked as `python -m esptool`, not a bare `esptool` command --
+    # 2026-09-19 bench finding: a Windows machine had esptool genuinely
+    # pip-installed (same requirements.txt, same `py -m pip install`) but
+    # its Scripts folder (where esptool.exe actually lands) wasn't on
+    # PATH, so the bare command raised FileNotFoundError ("[WinError 2]
+    # The system cannot find the file specified") on every single
+    # attempt -- looked identical to a port-contention failure from the
+    # UI's generic error message until read_mac() was fixed to surface
+    # the real exception text. `sys.executable -m esptool` only needs
+    # the same Python interpreter this process is already running under
+    # plus the esptool *package* being importable (guaranteed by the
+    # same pip install) -- no PATH dependency at all, on any OS.
+    cmd = [sys.executable, "-m", "esptool", "--chip", "esp32", "--port", port, "--baud", str(baud), *args]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
 
 
