@@ -1,4 +1,13 @@
 assets/*.bin
+# ...except bootloader.bin/partitions.bin themselves -- 2026-09-19: these
+# only change if the partition table or SDK/bootloader config changes
+# (not on every app rebuild), and requiring every bench machine to have
+# PlatformIO installed just to produce these two small, stable files was
+# real friction on a fresh Windows setup. Committed so `git pull` alone
+# is enough; the app binary itself still always comes from the backend
+# per-build, unaffected by this.
+!assets/bootloader.bin
+!assets/partitions.bin
 __pycache__/
 *.pyc
 .venv/

@@ -43,9 +43,11 @@ in the jig firmware's own header comment:
 
 ## Setup
 
-Needs Python 3.9+ and the bundled `bootloader.bin`/`partitions.bin` (not
-committed -- copy them from a build of `products/FG1-flowguard/firmware`,
-same as the Android app's own `assets/README.md` describes):
+Needs Python 3.9+. `assets/bootloader.bin`/`assets/partitions.bin` are
+committed to the repo, so a plain `git pull`/clone is enough -- no
+PlatformIO install needed just to run the tester. (They only need
+rebuilding if the firmware's partition table or SDK/bootloader config
+ever changes, which is rare -- if that happens:
 
 ```bash
 cd products/FG1-flowguard/firmware
@@ -54,7 +56,9 @@ cp .pio/build/esp32dev_ds1307/{bootloader,partitions}.bin \
    ../../projects/tools/production-tester-cli/assets/
 ```
 
-Then install dependencies once:
+and commit the updated files.)
+
+Install dependencies once:
 
 ```bash
 cd projects/tools/production-tester-cli
