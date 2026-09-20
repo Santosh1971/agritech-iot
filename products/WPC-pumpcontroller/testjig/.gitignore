@@ -1,0 +1,5 @@
+__pycache__/
+host/wpc_test_results.csv
+host/wpc_pairings.csv
+host/wpc_station_settings.json
+.pio/

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WPC Production Station</title>
+<style>
+  :root { color-scheme: light dark; --ok:#1a7f37; --bad:#c62828; --warn:#b26a00; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; margin-bottom: .2rem; }
+  h2 { font-size: 1rem; margin: 1.6rem 0 .4rem; border-bottom: 1px solid #8884; padding-bottom: .2rem; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin: .4rem 0; }
+  button { padding: .5rem 1rem; cursor: pointer; }
+  button.primary { background:#1a7f37; color:#fff; border:0; border-radius:6px; font-weight:600; }
+  button.danger { background:#c62828; color:#fff; border:0; border-radius:6px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  input, select { padding:.35rem; }
+  input[type=number] { width: 6rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  th, td { border-bottom: 1px solid #8883; padding: .35rem .4rem; text-align: left; vertical-align: top; }
+  .ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; } .warn { color: var(--warn); font-weight: 600; }
+  .muted { opacity: .7; font-size: .8rem; }
+  pre#log { background:#111; color:#ddd; padding:.8rem; height:280px; overflow-y:auto; font-size:.75rem; border-radius:6px; white-space:pre-wrap; }
+  .card { border:1px solid #8886; border-radius:8px; padding:.6rem .8rem; margin:.5rem 0; }
+  .card.pass { border-color: var(--ok); } .card.fail { border-color: var(--bad); }
+  #prompt { display:none; background:#b26a0033; border:2px solid var(--warn); border-radius:8px; padding:.8rem 1rem; margin:.8rem 0; font-size:1.05rem; }
+  .pill { display:inline-block; padding:.05rem .5rem; border-radius:10px; font-size:.75rem; background:#8883; }
+  fieldset { border:1px solid #8886; border-radius:8px; margin:.6rem 0; }
+  legend { font-weight:600; font-size:.9rem; }
+  label { display:inline-flex; gap:.3rem; align-items:center; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:.4rem 1.5rem; }
+  #status { font-weight:600; }
+</style>
+</head>
+<body>
+<h1>WPC Production Station</h1>
+<div class="row muted">Bridge: <span id="status">checking…</span></div>
+
+<h2>1. Units</h2>
+<div class="row">
+  <button onclick="scan()" id="scanBtn">Scan USB ports</button>
+  <span class="muted">Boards are reset while scanning (~10 s). Plug every board in first.</span>
+</div>
+<table id="units">
+  <thead><tr><th>Port</th><th>Detected</th><th>ID / MAC</th><th>FW</th><th>Use as</th></tr></thead>
+  <tbody><tr><td colspan="5" class="muted">No scan yet.</td></tr></tbody>
+</table>
+<div class="row" id="counts"></div>
+
+<h2>2. What to do</h2>
+<fieldset>
+  <legend>Mode</legend>
+  <label><input type="radio" name="mode" value="production" checked onchange="modeChanged()"> Production — flash / test, each unit ends factory-clean</label><br>
+  <label><input type="radio" name="mode" value="pairing" onchange="modeChanged()"> Customer pairing — pair Pumps to a Master and ship <b>as paired (no factory reset)</b></label>
+</fieldset>
+<div class="row">
+  <label><input type="checkbox" id="doFlash"> Flash firmware first</label>
+  <label id="testWrap"><input type="checkbox" id="doTest" checked> Run functional test (needs the Jig)</label>
+</div>
+<fieldset id="pairBox" style="display:none">
+  <legend>Customer pairing</legend>
+  <div class="row">
+    <label>Customer <input id="customer" size="22" placeholder="name / site"></label>
+    <label>Order / ref <input id="order" size="14"></label>
+  </div>
+  <label><input type="checkbox" id="clearTable" checked> Clear the Master's existing pump table first (recommended — only this customer's pumps end up paired)</label>
+  <div class="muted">Needs exactly 1 Master and 1 or more Pumps above. No Jig needed. The units are <b>not</b> factory-reset afterwards.</div>
+</fieldset>
+<div class="row">
+  <button class="primary" id="runBtn" onclick="run()">Start</button>
+  <button class="danger" id="stopBtn" onclick="stopJob()" disabled>Stop</button>
+</div>
+
+<div id="prompt"><div id="promptText"></div><div class="row"><button class="primary" onclick="ack()">Ready — run the test</button></div></div>
+
+<h2>3. Progress</h2>
+<div id="cards"><span class="muted">Nothing running.</span></div>
+<pre id="log"></pre>
+
+<h2>4. Settings</h2>
+<div id="settings">
+<fieldset>
+  <legend>Antenna test (RSSI seen by the jig, average of several packets)</legend>
+  <div class="grid">
+    <label>Master min RSSI (dBm) <input type="number" id="s_antenna_min_rssi_master_dbm" step="1"></label>
+    <label>Pump min RSSI (dBm) <input type="number" id="s_antenna_min_rssi_pump_dbm" step="1"></label>
+    <label>Packets averaged <input type="number" id="s_antenna_samples" min="1" max="20"></label>
+    <label><input type="checkbox" id="s_antenna_enforce"> Enforce (untick = record the value only, never fail)</label>
+  </div>
+  <div class="muted">A lower (more negative) limit is more forgiving. The measured value is always shown in the step detail and saved to the results CSV, so you can see how much margin a unit has before relaxing the limit.</div>
+</fieldset>
+<fieldset>
+  <legend>Fixture wiring not connected yet (those steps show as SKIP)</legend>
+  <div class="grid">
+    <label><input type="checkbox" id="s_skip_master_in4"> Skip Master IN4 (No Power)</label>
+    <label><input type="checkbox" id="s_skip_pump_adc"> Skip Pump IN1/IN4 analog test</label>
+    <label>ADC sweep (PWM duty) <input id="s_adc_steps" size="14"></label>
+    <label>ADC min rise (mV) <input type="number" id="s_adc_min_span_mv"></label>
+    <label>ADC crosstalk max (mV) <input type="number" id="s_adc_crosstalk_mv"></label>
+  </div>
+</fieldset>
+<fieldset>
+  <legend>Flash / test / pairing</legend>
+  <div class="grid">
+    <label>Master PlatformIO env <input id="s_master_env" size="12"></label>
+    <label>Pump PlatformIO env <input id="s_pump_env" size="12"></label>
+    <label>Flash attempts <input type="number" id="s_flash_attempts" min="1" max="6"></label>
+    <label>Pairing timeout (s) <input type="number" id="s_pair_timeout_s"></label>
+    <label><input type="checkbox" id="s_prompt_before_each_test"> Ask me to reconnect the fixture before each unit's test</label>
+  </div>
+</fieldset>
+<div class="row"><button onclick="saveSettings()">Save settings</button><span id="saved" class="muted"></span></div>
+</div>
+
+<h2>5. Recent results</h2>
+<div class="row"><button onclick="loadResults()">Refresh</button></div>
+<table id="results">
+  <thead><tr><th>Time</th><th>Unit</th><th>MAC</th><th>FW</th><th>Result</th><th>Antenna</th></tr></thead><tbody></tbody>
+</table>
+<h2>6. Customer pairings</h2>
+<table id="pairings">
+  <thead><tr><th>Time</th><th>Customer</th><th>Order</th><th>Master ID</th><th>Pumps</th><th>Result</th></tr></thead><tbody></tbody>
+</table>
+
+<script>
+const $ = id => document.getElementById(id);
+let ports = [];          // last scan
+let since = 0, polling = null;
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+async function api(path, opts) { const r = await fetch(path, opts); return r.json(); }
+
+async function health() {
+  try {
+    const d = await api('/api/health');
+    $('status').innerHTML = (d.pio_found ? '<span class="ok">OK</span>' : '<span class="bad">PlatformIO (pio) not found — flashing unavailable</span>')
+      + (d.lan_ip ? ' &nbsp; LAN: ' + d.lan_ip + ':' + d.port : '');
+  } catch (e) { $('status').innerHTML = '<span class="bad">unreachable</span>'; }
+}
+
+/* ---------------------------------------------------------------- units */
+const KIND = {jig:'Jig', master:'Master', pump:'Pump Node', unknown:'blank / unknown', busy:'in use'};
+async function scan() {
+  $('scanBtn').disabled = true; $('scanBtn').textContent = 'Scanning…';
+  try {
+    const d = await api('/api/scan', {method:'POST'});
+    if (!d.ok) { alert(d.error); return; }
+    ports = d.ports;
+    renderUnits();
+  } finally { $('scanBtn').disabled = false; $('scanBtn').textContent = 'Scan USB ports'; }
+}
+function renderUnits() {
+  const tb = document.querySelector('#units tbody');
+  if (!ports.length) { tb.innerHTML = '<tr><td colspan="5" class="muted">No USB serial ports found.</td></tr>'; counts(); return; }
+  tb.innerHTML = ports.map((p, i) => {
+    const def = ['jig','master','pump'].includes(p.kind) ? p.kind : 'none';
+    const opts = [['none','— not used —'],['master','Master'],['pump','Pump Node'],['jig','Jig']]
+      .map(([v,l]) => `<option value="${v}" ${v===def?'selected':''}>${l}</option>`).join('');
+    return `<tr><td><code>${esc(p.port)}</code></td>
+      <td>${KIND[p.kind]||p.kind}${p.note?`<div class="muted">${esc(p.note)}</div>`:''}</td>
+      <td>${esc(p.id)} <span class="muted">${esc(p.mac)}</span></td><td>${esc(p.fw)}</td>
+      <td><select id="role${i}" onchange="counts()">${opts}</select></td></tr>`;
+  }).join('');
+  counts();
+}
+function assigned() {
+  return ports.map((p,i) => ({port:p.port, role:$('role'+i)?.value, label:(p.kind==='master'?'Master ':p.kind==='pump'?'Pump ':'') + (p.id||'')}))
+              .filter(u => u.role && u.role !== 'none');
+}
+function counts() {
+  const a = assigned(), n = r => a.filter(u => u.role===r).length;
+  $('counts').innerHTML = `<b>Selected:</b> Masters ${n('master')} &nbsp; Pump Nodes ${n('pump')} &nbsp; Jig ${n('jig')}`;
+}
+function modeChanged() {
+  const pairing = document.querySelector('input[name=mode]:checked').value === 'pairing';
+  $('pairBox').style.display = pairing ? '' : 'none';
+  $('testWrap').style.display = pairing ? 'none' : '';
+}
+
+/* ------------------------------------------------------------------ run */
+async function run() {
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  const units = assigned();
+  const nM = units.filter(u=>u.role==='master').length, nP = units.filter(u=>u.role==='pump').length;
+  if (!nM && !nP) { alert('Select at least one Master or Pump Node (Scan, then choose "Use as").'); return; }
+  if (mode === 'pairing') {
+    if (nM !== 1 || nP < 1) { alert('Pairing needs exactly 1 Master and at least 1 Pump Node.'); return; }
+    if (!confirm('Pair ' + nP + ' Pump(s) to this Master and leave them as paired (NO factory reset)?' +
+                 ($('clearTable').checked ? '\nThe Master\'s existing pump table will be cleared first.' : ''))) return;
+  } else if (!$('doFlash').checked && !$('doTest').checked) { alert('Tick Flash and/or Run functional test.'); return; }
+  const body = {mode, units, flash: $('doFlash').checked, test: $('doTest').checked,
+                customer: $('customer').value, order: $('order').value, clear_master_table: $('clearTable').checked};
+  const d = await api('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if (!d.ok) { alert(d.error); return; }
+  $('log').textContent = ''; since = 0; startPolling();
+}
+async function stopJob() { await api('/api/stop', {method:'POST'}); }
+async function ack() { await api('/api/ack', {method:'POST'}); }
+
+function startPolling() { if (!polling) polling = setInterval(poll, 1000); poll(); }
+async function poll() {
+  const d = await api('/api/job?since=' + since);
+  since = d.next;
+  if (d.log.length) { const l = $('log'); l.textContent += d.log.join('\n') + '\n'; l.scrollTop = l.scrollHeight; }
+  $('runBtn').disabled = d.running; $('stopBtn').disabled = !d.running; $('scanBtn').disabled = d.running;
+  $('prompt').style.display = d.prompt ? 'block' : 'none';
+  if (d.prompt) $('promptText').textContent = d.prompt.text;
+  renderCards(d);
+  if (d.running && !polling) polling = setInterval(poll, 1000);
+  if (!d.running && polling) { clearInterval(polling); polling = null; loadResults(); loadPairings(); }
+}
+function renderCards(d) {
+  const ents = Object.entries(d.units || {});
+  if (!ents.length) { $('cards').innerHTML = '<span class="muted">Nothing running.</span>'; return; }
+  $('cards').innerHTML = ents.map(([port, u]) => {
+    const cls = u.verdict === 'PASS' ? 'pass' : u.verdict === 'FAIL' ? 'fail' : '';
+    const steps = u.steps.map(s => `<tr><td class="${s.status==='PASS'?'ok':s.status==='FAIL'?'bad':'muted'}">${s.status}</td><td>${esc(s.name)}</td><td class="muted">${esc(s.detail)}</td></tr>`).join('');
+    return `<div class="card ${cls}"><b>${esc(u.label)}</b> <code>${esc(port)}</code> <span class="pill">${esc(u.stage)}</span>
+      ${u.verdict ? `<span class="${u.verdict==='PASS'?'ok':'bad'}"> ${u.verdict}</span>` : ''}
+      ${steps ? `<table>${steps}</table>` : ''}</div>`;
+  }).join('') + (d.summary?.pairing ? `<div class="card ${d.summary.pairing.ok?'pass':'fail'}"><b>Pairing ${d.summary.pairing.ok?'OK':'FAILED'}</b><br>
+      Master <b>${esc(d.summary.pairing.master_id)}</b> ← Pump(s) <b>${esc(d.summary.pairing.pumps.join(', '))}</b><br>
+      <span class="muted">Left as paired — no factory reset. Label the box with the IDs above.</span></div>` : '');
+}
+
+/* ------------------------------------------------------------- settings */
+const SK = ['antenna_min_rssi_master_dbm','antenna_min_rssi_pump_dbm','antenna_samples','antenna_enforce','skip_master_in4','skip_pump_adc',
+            'adc_steps','adc_min_span_mv','adc_crosstalk_mv','master_env','pump_env','flash_attempts','pair_timeout_s','prompt_before_each_test'];
+async function loadSettings() {
+  const s = await api('/api/settings');
+  SK.forEach(k => { const el = $('s_'+k); if (el.type === 'checkbox') el.checked = !!s[k]; else el.value = s[k]; });
+}
+async function saveSettings() {
+  const body = {}; SK.forEach(k => { const el = $('s_'+k); body[k] = el.type === 'checkbox' ? el.checked : el.value; });
+  await api('/api/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  $('saved').textContent = 'Saved ' + new Date().toLocaleTimeString();
+}
+
+/* -------------------------------------------------------------- results */
+async function loadResults() {
+  const d = await api('/api/results?limit=40');
+  document.querySelector('#results tbody').innerHTML = d.rows.map(r => {
+    const ant = (r.steps.find(s => (s.test||'').startsWith('ANTENNA')) || {}).detail || '';
+    return `<tr><td>${esc(r.timestamp)}</td><td>${esc(r.dut_type)}</td><td>${esc(r.mac)}</td><td>${esc(r.fw)}</td>
+      <td class="${r.verdict==='PASS'?'ok':'bad'}">${esc(r.verdict)}</td><td class="muted">${esc(ant)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted">No results yet.</td></tr>';
+}
+async function loadPairings() {
+  const d = await api('/api/pairings?limit=40');
+  document.querySelector('#pairings tbody').innerHTML = d.rows.map(r =>
+    `<tr><td>${esc(r.timestamp)}</td><td>${esc(r.customer)}</td><td>${esc(r.order)}</td><td>${esc(r.master_id)}</td>
+     <td>${esc(r.pumps.map(p=>p.pumpId).join(', '))}</td><td class="${r.verdict==='PASS'?'ok':'bad'}">${esc(r.verdict)}</td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted">No pairings yet.</td></tr>';
+}
+
+health(); setInterval(health, 15000); loadSettings(); loadResults(); loadPairings(); modeChanged(); poll().then(() => {});
+</script>
+</body>
+</html>

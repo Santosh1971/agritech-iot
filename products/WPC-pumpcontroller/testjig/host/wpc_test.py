@@ -139,7 +139,9 @@ class Device:
         while time.time() < end:
             try:
                 r = self._cmd_once("ID", 1.2)
-                if r.ok:
+                # Only a real ID reply counts -- the jig's boot banner ("@OK jig ready ...") also
+                # starts with @OK and would otherwise be taken for the answer.
+                if r.ok and "board=" in r.text:
                     return r
             except TimeoutError as e:
                 last = e
@@ -193,6 +195,23 @@ class Report:
         return all(r[1] for r in self.rows if r[1] is not None) and any(r[1] for r in self.rows)
 
 
+def antenna_check(rpt, who, samples, args):
+    """Antenna / RF-link test: RSSI of the DUT's transmissions as seen by the jig, averaged over
+    several packets. The limit is a setting (--min-rssi) because it is fixture/site dependent and
+    may be relaxed during production; with --rssi-record-only the value is logged, not enforced."""
+    good = [v for v in samples if v > -999]
+    if not good:
+        rpt.check(f"ANTENNA: {who} signal at jig", False, "no RSSI samples received")
+        return
+    avg = sum(good) / len(good)
+    detail = (f"avg={avg:.1f} min={min(good):.0f} max={max(good):.0f} dBm over {len(good)} packets, "
+              f"limit {args.min_rssi:g} dBm")
+    if args.rssi_record_only:
+        rpt.check(f"ANTENNA: {who} signal at jig (record only, not enforced)", True, detail)
+    else:
+        rpt.check(f"ANTENNA: {who} signal at jig >= {args.min_rssi:g} dBm (avg of {len(good)})", avg >= args.min_rssi, detail)
+
+
 # ------------------------------------------------------------- master tests
 def pumps_table(dut):
     r = dut.ok("PUMPS")
@@ -235,15 +254,18 @@ def test_master(dut, jig, args, rpt):
     # 1. level inputs: RL1..RL4 close a contact to GND on the Master's IN1..IN4
     ok = True
     detail = []
-    for i in range(1, 5):
+    n_inputs = 3 if args.skip_in4 else 4
+    if args.skip_in4:
+        rpt.skip("float input IN4 (No Power)", "--skip-in4")
+    for i in range(1, n_inputs + 1):
         jig.ok(f"RELAY {i} 1")
         time.sleep(0.15)
         raw = dut.ok("INPUTS").kv["raw"].split(",")
-        good = raw[i - 1] == "1" and all(v == "0" for j, v in enumerate(raw) if j != i - 1)
+        good = raw[i - 1] == "1" and all(v == "0" for j, v in enumerate(raw) if j != i - 1 and j < n_inputs)
         ok &= good
         detail.append(f"IN{i}:{''.join(raw)}")
         jig.ok(f"RELAY {i} 0")
-    rpt.check("float inputs IN1-IN4 read correctly (each isolated)", ok, " ".join(detail))
+    rpt.check(f"float inputs IN1-IN{n_inputs} read correctly (each isolated)", ok, " ".join(detail))
 
     # 2. LoRa join: the jig plays a Pump Node
     jig.ok(f"PUMPEMU START {master_id} {TEST_PUMP_ID}")
@@ -303,11 +325,12 @@ def test_master(dut, jig, args, rpt):
                      args.cmd_timeout * 2)
     rpt.check("IN1/IN4 ADC values from CMD_ACK reach the Master", got)
 
-    # 6. radio link quality as seen by the jig
-    s = jig_pump_status(jig)
-    rssi = num(s.get("rssi"), -999)
-    rpt.check(f"Master TX signal strength at jig >= {args.min_rssi} dBm", rssi >= args.min_rssi,
-              f"rssi={rssi} snr={s.get('snr')}")
+    # 6. antenna / radio link quality as seen by the jig (average of several Master packets)
+    samples = []
+    for _ in range(max(1, args.rssi_samples)):
+        time.sleep(1.5)
+        samples.append(num(jig_pump_status(jig).get("rssi"), -999))
+    antenna_check(rpt, "Master", samples, args)
 
     # 7. offline detection and recovery
     jig.ok("PUMPEMU NOACK 1")
@@ -421,14 +444,6 @@ def test_pump(dut, jig, args, rpt):
     else:
         rpt.skip("LED check", "run with --visual for an operator prompt")
 
-    # 2. relay hardware: driver + dry contact, sensed by the jig
-    ok = True
-    for state in (1, 0, 1, 0):
-        dut.ok(f"RELAY {state}")
-        time.sleep(0.2)
-        ok &= jig.ok("SENSE").kv.get("contact") == str(state)
-    rpt.check("relay closes/opens the dry contact (jig senses it)", ok)
-
     # 3. analog inputs: sweep each channel on its own, the other must not move
     def adc():
         return dut.ok("ADC").kv
@@ -443,7 +458,9 @@ def test_pump(dut, jig, args, rpt):
         other_mv = num(adc()[f"in{4 if ch == 1 else 1}mv"])
         return vals, other_mv
 
-    for ch, other, name in ((1, 2, "IN1"), (2, 1, "IN4")):
+    if args.skip_adc:
+        rpt.skip("IN1/IN4 analog inputs", "--skip-adc")
+    for ch, other, name in (() if args.skip_adc else ((1, 2, "IN1"), (2, 1, "IN4"))):
         jig.ok("AOUT 1 0")
         jig.ok("AOUT 2 0")
         time.sleep(0.4)
@@ -467,9 +484,24 @@ def test_pump(dut, jig, args, rpt):
     joined_dut = wait_until(lambda: dut.ok("STATE").kv.get("joined") == "1", 10)
     rpt.check("Pump accepts JOIN_ACCEPT", joined_dut, dut.ok("STATE").text)
 
+    # 2. relay hardware: driver + dry contact, sensed by the jig. Must run AFTER the join:
+    # an unjoined Pump forces its relay OFF (fail-safe), so a console RELAY only holds while
+    # joined. Runs within TESTMODE's 8 s fail-safe window of the join; each state is held
+    # 0.6 s so the contact has settled.
+    ok = True
+    seen = []
+    for state in (1, 0, 1, 0):
+        dut.ok(f"RELAY {state}")
+        time.sleep(0.6)
+        got = jig.ok("SENSE").kv.get("contact")
+        seen.append(got)
+        ok &= got == str(state)
+    rpt.check("relay closes/opens the dry contact (jig senses it)", ok, f"sensed={seen} expected=1,0,1,0")
+
     jig.ok("AOUT 1 20")
     jig.ok("AOUT 2 30")
     time.sleep(0.5)
+    rssi_samples = []
     for state in (1, 0):
         r = jig.cmd(f"MASTEREMU CMD {state}", 12)
         acked = r.ok and r.kv.get("relay") == str(state)
@@ -477,15 +509,19 @@ def test_pump(dut, jig, args, rpt):
         contact = jig.ok("SENSE").kv.get("contact") == str(state)
         rpt.check(f"LEVEL_CMD {'ON' if state else 'OFF'}: Pump ACKs and relay follows",
                   acked and contact, f"ack={r} contact={contact}")
-        rssi = num(r.kv.get("rssi"), -999)
-        rpt.check(f"Pump TX signal strength at jig >= {args.min_rssi} dBm", rssi >= args.min_rssi,
-                  f"rssi={rssi} snr={r.kv.get('snr')}")
-        if state == 1:
+        rssi_samples.append(num(r.kv.get("rssi"), -999))
+        if state == 1 and not args.skip_adc:
             a = adc()
             drift1 = abs(num(r.kv.get("adc1")) - num(a["in1raw"]))
             drift4 = abs(num(r.kv.get("adc4")) - num(a["in4raw"]))
             rpt.check("ADC values inside CMD_ACK match the Pump's own reading",
                       drift1 <= 150 and drift4 <= 150, f"ack=({r.kv.get('adc1')},{r.kv.get('adc4')}) local=({a['in1raw']},{a['in4raw']})")
+
+    # antenna / radio link: more Pump ACKs (relay stays OFF) so the RSSI is an average, not one packet
+    for _ in range(max(0, args.rssi_samples - len(rssi_samples))):
+        r = jig.cmd("MASTEREMU CMD 0", 12)
+        rssi_samples.append(num(r.kv.get("rssi"), -999))
+    antenna_check(rpt, "Pump", rssi_samples, args)
 
     # 5. fail-safe: relay must drop by itself when the Master goes quiet
     jig.cmd("MASTEREMU CMD 1", 12)
@@ -509,6 +545,8 @@ def main():
     ap.add_argument("--simulate", action="store_true", help="use the built-in simulator instead of hardware")
     ap.add_argument("--sim-fault", default="", help="(with --simulate) inject a fault, see sim_devices.py")
     ap.add_argument("--csv", default="wpc_test_results.csv", help="results log (appended)")
+    ap.add_argument("--skip-in4", action="store_true", help="(master) IN4/No Power not wired: skip that input")
+    ap.add_argument("--skip-adc", action="store_true", help="(pump) IN1/IN4 analog stimulus not wired: skip ADC checks")
     ap.add_argument("--visual", action="store_true", help="ask the operator to confirm LEDs (pump)")
     ap.add_argument("--wifi-test", action="store_true", help="(master) jig joins the SoftAP and calls /status")
     ap.add_argument("--office-ssid", help="(master) office WiFi for the cloud round-trip check")
@@ -517,7 +555,9 @@ def main():
     ap.add_argument("--mqtt-user", default="fg1-device")
     ap.add_argument("--mqtt-pass", default="asacfg1")
     # fixture-dependent limits
-    ap.add_argument("--min-rssi", type=float, default=-90.0, help="minimum RSSI (dBm) seen at the jig")
+    ap.add_argument("--min-rssi", type=float, default=-90.0, help="antenna test: minimum average RSSI (dBm) seen at the jig")
+    ap.add_argument("--rssi-samples", type=int, default=5, help="antenna test: number of packets averaged")
+    ap.add_argument("--rssi-record-only", action="store_true", help="antenna test: log the RSSI but never fail on it")
     ap.add_argument("--adc-steps", type=lambda s: [int(x) for x in s.split(",")], default=[0, 15, 30, 45],
                     help="PWM duty steps (0-255) for the analog sweep")
     ap.add_argument("--adc-min-span", type=float, default=150.0, help="minimum mV rise across the sweep")

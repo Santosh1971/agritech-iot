@@ -45,7 +45,10 @@
 
 // Fixture wiring -- change here if the jig is wired differently.
 //   SENSE  : reads the Pump DUT's relay dry contact (contact between the
-//            pin and GND; closed = LOW). WM1 "IN1".
+//            pin and GND; closed = LOW). WM1 "IN1" / No Power (NP) input,
+//            GPIO14, 10k board pull-up (R7) plus the internal pull-up.
+//            (The FL/GPIO36 input was tried first and floated -- no usable
+//            pull-up -- so it is not used.)
 //   AOUT1/2: PWM -> RC filter -> Pump DUT IN1 / IN4. WM1 "IN2"/"IN3" pins,
 //            re-purposed as outputs (no DAC on this board; GPIO25/26 are LoRa).
 #define PIN_SENSE  14

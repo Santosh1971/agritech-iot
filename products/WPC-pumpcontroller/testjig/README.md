@@ -11,6 +11,25 @@ Tests a **WPC Master** or a **Pump Node** end to end. The jig is a **WM1 board**
 
 The DUT runs its **normal production firmware** (v0.4.0+); the only test-specific parts are its serial console and `TESTMODE`. The jig plays the *other side* of whatever is being tested.
 
+## Production Station (browser UI)
+
+```bash
+cd testjig/host
+pip install -r requirements.txt
+python wpc_station.py            # open http://localhost:8788/
+```
+
+Modelled on the FG1 Flash Bridge. One page:
+
+1. **Units** -- *Scan USB ports* resets every board and identifies it (Jig / Master / Pump / blank). You choose a role per port, so any number of Masters and Pumps -- including 0 of either -- can be used in one run.
+2. **Production mode** -- optional *Flash*, then the functional test (`wpc_test.py`) per unit; each unit ends in `FACTORYRESET`. While one unit is tested every other unit is **held in reset** (a still-joined Pump would otherwise answer a Master under test). Before each test the page asks you to connect that unit to the fixture harness (switch off in Settings if the fixture has both positions permanently wired).
+3. **Customer pairing mode** -- 1 Master + n Pumps for a customer: every Pump is pointed at the Master, the page waits until each is joined and online, and the pairing (customer, order, Master ID, Pump IDs/MACs) is appended to `wpc_pairings.csv`. **No factory reset**: units ship as paired. Optionally clears the Master's old pump table first (default on). No Jig needed.
+4. **Settings** -- antenna limits (below), fixture flags (`skip IN4`, `skip ADC`), PlatformIO envs, flash attempts, pairing timeout. Saved to `host/wpc_station_settings.json`.
+
+**Antenna test:** the jig averages the RSSI of `Antenna samples` packets from the DUT and compares with a limit set separately for Master and Pump (default -90 dBm). Untick *Enforce* to record the value without failing on it. The measured avg/min/max is in the step detail and in `wpc_test_results.csv`, so you can see the margin before you relax a limit.
+
+CLI equivalents: `wpc_test.py ... --min-rssi -95 --rssi-samples 5 [--rssi-record-only]`.
+
 ## What is tested
 
 **Master DUT** — the jig emulates a Pump Node:
@@ -43,7 +62,7 @@ Every run ends with `PASS`/`FAIL` and is appended to a CSV keyed by the DUT's MA
 | Relay RL2 | QB | Master DUT **IN2** |
 | Relay RL3 | QC | Master DUT **IN3** |
 | Relay RL4 | QD | Master DUT **IN4** (No Power input) |
-| `SENSE` | GPIO14 (WM1 "IN1", pull-up) | Pump DUT relay **dry contact** (one side to GND) |
+| `SENSE` | GPIO14 (WM1 "IN1" / No Power input, pull-up) | Pump DUT relay **dry contact** (one side to GND) |
 | `AOUT1` | GPIO32 (PWM, 20 kHz, 8-bit) | RC filter → Pump DUT **IN1** |
 | `AOUT2` | GPIO33 (PWM) | RC filter → Pump DUT **IN4** |
 | LoRa | SPI + NSS5/RST25/DIO1-26/BUSY27 | (radio — antennas, no wire) |
@@ -72,6 +91,10 @@ pip install pyserial            # + paho-mqtt only for the optional cloud check
 cd testjig/host
 python wpc_test.py master --jig /dev/cu.usbserial-<JIG> --dut /dev/cu.usbserial-<DUT>
 python wpc_test.py pump   --jig /dev/cu.usbserial-<JIG> --dut /dev/cu.usbserial-<DUT> --visual
+
+# partial fixture: skip what is not wired yet
+python wpc_test.py master ... --skip-in4      # Master IN4 (No Power) not wired
+python wpc_test.py pump   ... --skip-adc      # Pump IN1/IN4 analog stimulus not wired
 
 # extras
 python wpc_test.py master ... --wifi-test
