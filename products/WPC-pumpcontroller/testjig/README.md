@@ -30,6 +30,30 @@ Modelled on the FG1 Flash Bridge. One page:
 
 CLI equivalents: `wpc_test.py ... --min-rssi -95 --rssi-samples 5 [--rssi-record-only]`.
 
+### Setting up the Station on a Windows laptop (checklist)
+
+Written for the first Windows use; the station itself has so far only been run on macOS.
+
+1. **Get the code:** `git clone` the repo (or `git pull`).
+2. **Python 3.10+** with pip on the PATH.
+3. **PlatformIO CLI:** `pip install platformio`. The first flash downloads the ESP32 toolchain (internet, a few minutes) -- do one test build beforehand.
+4. **USB driver:** the boards use CP2102 chips, so install the Silicon Labs **CP210x** driver. Each board must show up under *Device Manager -> Ports* as a `COMx` port.
+5. **Install and start:**
+   ```
+   cd products\WPC-pumpcontroller\testjig\host
+   py -m pip install -r requirements.txt
+   py wpc_station.py
+   ```
+   Open http://localhost:8788/. Allow Python through Windows Firewall on private networks if asked.
+6. **Bring:** jig (WM1), the Master(s) and Pump(s), all antennas, a powered USB hub and cables, the jig harness wires, a multimeter.
+
+Things that may differ from macOS:
+- Port names are `COM3` etc.; the scan handles them.
+- **Hold-in-reset** (other units are held in reset via RTS while one is tested) worked on macOS. On Windows, if a Pump joins during a Master test (or a Master answers during a Pump test), this is the cause.
+- Windows may not reset a board when its port is opened. The scan resets boards explicitly and the tests wait for `ID`; if a test starts from an odd state, unplug and replug the board.
+
+Suggested first session: scan; production test of a Master, then a Pump; a pairing; flash last.
+
 ## What is tested
 
 **Master DUT** — the jig emulates a Pump Node:
