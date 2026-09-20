@@ -514,8 +514,8 @@ def main():
     ap.add_argument("--office-ssid", help="(master) office WiFi for the cloud round-trip check")
     ap.add_argument("--office-pass", default="")
     ap.add_argument("--mqtt-host", default="mqtt.agrisenseandcontrol.in")
-    ap.add_argument("--mqtt-user", default="wpc-device")
-    ap.add_argument("--mqtt-pass", default="asacwpc")
+    ap.add_argument("--mqtt-user", default="fg1-device")
+    ap.add_argument("--mqtt-pass", default="asacfg1")
     # fixture-dependent limits
     ap.add_argument("--min-rssi", type=float, default=-90.0, help="minimum RSSI (dBm) seen at the jig")
     ap.add_argument("--adc-steps", type=lambda s: [int(x) for x in s.split(",")], default=[0, 15, 30, 45],

@@ -30,12 +30,12 @@ class Backend extends ChangeNotifier {
   static final Backend instance = Backend._();
   Backend._();
 
-  // Same shared broker and per-product credential the other AgriSense
-  // products use; hardening (per-user credentials / TLS) is a later step.
+  // Same shared broker and credential FG1 uses (the broker already accepts it for
+  // agrisense/WPC/...); hardening (per-user credentials / TLS) is a later step.
   static const String _broker = 'mqtt.agrisenseandcontrol.in';
   static const int _port = 1883;
-  static const String _user = 'wpc-device';
-  static const String _pass = 'asacwpc';
+  static const String _user = 'fg1-device';
+  static const String _pass = 'asacfg1';
 
   static const _kMode = 'link_mode';
   static const _kMasters = 'masters';

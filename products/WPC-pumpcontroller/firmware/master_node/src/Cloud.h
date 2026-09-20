@@ -18,14 +18,16 @@
 // so pumps[] / NVS / the radio are only ever touched from the main loop.
 //
 // Topics mirror WM1/FG1:   agrisense/WPC/WPC_<masterId8>/{status,command,lwt}
-// Credentials are the shared per-product pair (same simplification FG1/WM1
-// use). The broker needs a user + ACL for agrisense/WPC/# -- see docs.
+// Credentials are the shared FG1 pair (see below); hardening is a later step.
 // ---------------------------------------------------------------------
 
 #define CLOUD_BROKER_HOST "mqtt.agrisenseandcontrol.in"
 #define CLOUD_BROKER_PORT 1883
-#define CLOUD_MQTT_USER   "wpc-device"
-#define CLOUD_MQTT_PASS   "asacwpc"
+// Same per-product credential FG1 uses: the broker already accepts it for agrisense/WPC/...
+// (verified: connect, subscribe and a publish round trip). A dedicated wpc-device user was
+// tried first and does not exist on the broker.
+#define CLOUD_MQTT_USER   "fg1-device"
+#define CLOUD_MQTT_PASS   "asacfg1"
 
 #define CLOUD_STATUS_MIN_INTERVAL_MS 1000UL    // never publish faster than this
 #define CLOUD_STATUS_MAX_INTERVAL_MS 10000UL   // republish at least this often
@@ -123,14 +125,14 @@ private:
         xSemaphoreGive(_statusMutex);
         WiFi.disconnect(false, false);   // keep the AP up, drop only the STA side
         if (ssid.length()) {
-          WiFi.begin(ssid.c_str(), pass.c_str());
+          WiFi.begin(ssid.c_str(), pass.length() ? pass.c_str() : nullptr);   // open network = no password
           lastWifiBegin = millis();
         }
       }
 
       if (ssid.length() && WiFi.status() != WL_CONNECTED &&
           millis() - lastWifiBegin > CLOUD_WIFI_RETRY_MS) {
-        WiFi.begin(ssid.c_str(), pass.c_str());
+        WiFi.begin(ssid.c_str(), pass.length() ? pass.c_str() : nullptr);   // open network = no password
         lastWifiBegin = millis();
       }
 

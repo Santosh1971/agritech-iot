@@ -96,7 +96,7 @@ One command per line at 115200 baud; replies start with `@`: `@OK key=value...`,
 
 **Jig:** `ID RELAY <1-6> <0|1>` · `RELAYS <mask>` · `SENSE` · `AOUT <1|2> <0-255>` · `TXPOWER <dBm>` · `PUMPEMU START <masterId> [pumpId]|STOP|ADC <in1> <in4>|NOACK <0|1>|STATUS` · `MASTEREMU START <masterId>|STOP|STATUS|CMD <0|1> [attempts]` · `WIFISCAN <ssid>` · `WIFICONNECT <ssid> [pass]` · `WIFIDISCONNECT` · `HTTPGET <path>` · `HTTPPOST <path> <json>` · `RADIO` · `RESET` · `REBOOT`
 
-**Master DUT:** `ID` · `STATE` · `INPUTS` · `PUMPS` · `ASSIGN <slot> <mask 0-7>` · `OVERRIDE <slot> <auto|on|off>` · `FORGETALL` · `TESTMODE <0|1>` · `TXPOWER` · `WIFI <ssid> [pass]|CLEAR` · `WIFISTAT` · `LEDTEST [ms]` · `FACTORYRESET` · `REBOOT`
+**Master DUT:** `ID` · `STATE` · `INPUTS` · `PUMPS` · `ASSIGN <slot> <mask 0-7>` · `OVERRIDE <slot> <auto|on|off>` · `FORGETALL` · `TESTMODE <0|1>` · `TXPOWER` · `WIFI <ssid> [pass]|WIFI "ssid with spaces" [pass]|CLEAR` · `WIFISCAN [START]` · `WIFISTAT` · `LEDTEST [ms]` · `FACTORYRESET` · `REBOOT`
 
 **Pump DUT:** `ID` · `STATE` · `ADC` · `RELAY <0|1>` · `MASTER <hex8>` · `TXPOWER` · `TESTMODE <0|1>` · `LEDTEST [ms]` · `FACTORYRESET` · `REBOOT`
 

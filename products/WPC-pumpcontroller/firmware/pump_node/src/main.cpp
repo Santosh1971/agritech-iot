@@ -68,6 +68,9 @@ int8_t loraTxPowerDbm = LORA_TXPOWER_DEFAULT;   // runtime/NVS-backed, see handl
 uint32_t failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
 bool testMode = false;   // factory-jig timings, session-only, never persisted
 uint32_t cmdCount = 0, joinCount = 0, failsafeCount = 0;   // for the test jig / diagnostics
+// Radio diagnostics (LORASTAT): where in TX -> RX does a link break?
+uint32_t stTxStart = 0, stTxDone = 0, stRxIrq = 0, stRxOk = 0, stRxCrcBad = 0, stRxMine = 0, stRxForeign = 0;
+float stLastRssi = 0, stLastSnr = 0;
    // 2x Master's 30s heartbeat -- tolerates one missed heartbeat before declaring real loss of contact
 #define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
 
@@ -235,6 +238,7 @@ void sendJoinRequest() {
     transmitting = false;
     startReceive();
   } else {
+    stTxStart++;
     startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent something
     Serial.print(F("[JOIN] requesting join, pumpId="));
     Serial.println(myPumpId);
@@ -264,6 +268,7 @@ bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
     startReceive();
     return false;
   }
+  stTxStart++;
   startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent something
   return true;
 }
@@ -282,7 +287,8 @@ void handlePacket(const uint8_t* buf, int len) {
   uint8_t pumpSlot = buf[6];
   uint8_t seq = buf[7];
 
-  if (masterId != targetMasterId) return;
+  if (masterId != targetMasterId) { stRxForeign++; return; }
+  stRxMine++;
 
   if (!joined) {
     if (msgType == MSG_JOIN_ACCEPT) {
@@ -463,6 +469,11 @@ void handleConsoleLine(String line) {
                 " relay=" + relayState + " master=" + m + " txPower=" + loraTxPowerDbm +
                 " cmds=" + cmdCount + " joins=" + joinCount + " failsafes=" + failsafeCount +
                 " lastCmdAgeMs=" + (joined ? (millis() - lastCmdMillis) : 0) + " testMode=" + testMode);
+  } else if (cmd == "LORASTAT") {        // radio diagnostics since boot
+    reply("OK", String("txStart=") + stTxStart + " txDone=" + stTxDone + " rxIrq=" + stRxIrq +
+                " rxOk=" + stRxOk + " crcBad=" + stRxCrcBad + " fromMyMaster=" + stRxMine +
+                " fromOther=" + stRxForeign + " lastRssi=" + stLastRssi + " lastSnr=" + stLastSnr +
+                " joined=" + joined);
   } else if (cmd == "ADC") {
     reply("OK", String("in1raw=") + readAdcAveraged(PIN_IN1) + " in1mv=" + readAdcMilliVoltsAveraged(PIN_IN1) +
                 " in4raw=" + readAdcAveraged(PIN_IN4) + " in4mv=" + readAdcMilliVoltsAveraged(PIN_IN4) +
@@ -519,7 +530,7 @@ void handleConsoleLine(String line) {
     delay(200);
     ESP.restart();
   } else {
-    reply("ERR", "unknown command (ID STATE ADC RELAY MASTER TXPOWER TESTMODE LEDTEST FACTORYRESET REBOOT)");
+    reply("ERR", "unknown command (ID STATE ADC LORASTAT RELAY MASTER TXPOWER TESTMODE LEDTEST FACTORYRESET REBOOT)");
   }
 }
 
@@ -684,12 +695,18 @@ void loop() {
 
     if (transmitting) {
       transmitting = false;
+      stTxDone++;
       startReceive();
     } else {
+      stRxIrq++;
       int len = radio.getPacketLength();
       if (len > 0) {
         int state = radio.readData(rxBuf, len);
+        if (state == RADIOLIB_ERR_CRC_MISMATCH) stRxCrcBad++;
         if (state == RADIOLIB_ERR_NONE) {
+          stRxOk++;
+          stLastRssi = radio.getRSSI();
+          stLastSnr = radio.getSNR();
           handlePacket(rxBuf, len);
         } else {
           Serial.print(F("[LoRa] readData failed, code "));

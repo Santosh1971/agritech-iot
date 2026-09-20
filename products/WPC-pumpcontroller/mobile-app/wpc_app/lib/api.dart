@@ -100,6 +100,19 @@ class WpcApi {
     return _masterCmd('/override', body, {'cmd': 'override', ...body});
   }
 
+  /// Asks the Master to scan for WiFi networks. Non-blocking on the Master: returns at once,
+  /// then poll [getWifiScan] until it reports `scanning: false`. LOCAL ONLY.
+  static Future<void> startWifiScan() =>
+      _localPost('/wifi/scan', {}, timeout: const Duration(seconds: 8));
+
+  /// `{"scanning": bool, "networks": [{ssid, rssi, open}, ...]}` -- strongest first, one entry per
+  /// name. While `scanning` is true the list is the previous scan's, so wait for false.
+  static Future<Map<String, dynamic>> getWifiScan() async {
+    final res = await http.get(Uri.parse('$baseUrl/wifi/scan')).timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   /// Gives the Master the farm WiFi it should use for internet. LOCAL ONLY --
   /// the Master refuses this over the cloud on purpose, so nobody can knock a
   /// remote installation offline. The Master may briefly drop its own access

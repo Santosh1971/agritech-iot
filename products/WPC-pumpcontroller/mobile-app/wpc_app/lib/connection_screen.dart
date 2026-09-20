@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'api.dart';
 import 'backend.dart';
@@ -19,6 +20,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   String? _localError;
   bool _busy = false;
   bool _showPass = false;
+  bool _scanning = false;
+  List<Map<String, dynamic>> _networks = [];
+  String? _scanNote;
 
   @override
   void initState() {
@@ -133,9 +137,19 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
   }
 
   Future<void> _saveWifi() async {
-    final ssid = _ssid.text.trim();
-    if (ssid.isEmpty) {
-      _snack('Enter the farm WiFi name');
+    // Used exactly as entered or picked: never trim, because a name may legitimately contain
+    // (even start or end with) spaces and the router matches it byte for byte.
+    final ssid = _ssid.text;
+    if (ssid.trim().isEmpty) {
+      _snack('Enter or pick the farm WiFi name');
+      return;
+    }
+    if (_bytes(ssid) > 32) {
+      _snack('WiFi name is too long (${_bytes(ssid)} of 32 bytes allowed)');
+      return;
+    }
+    if (_bytes(_pass.text) > 63) {
+      _snack('Password is too long (${_bytes(_pass.text)} of 63 bytes allowed)');
       return;
     }
     setState(() => _busy = true);
@@ -151,6 +165,60 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     }
     await Future.delayed(const Duration(seconds: 6));
     await _refreshLocal();
+  }
+
+  // SSIDs are limited by 802.11 to 32 BYTES (not characters), so count UTF-8 bytes.
+  static int _bytes(String s) => utf8.encode(s).length;
+
+  // Our own devices' access points are noise in a "pick the farm WiFi" list.
+  static bool _isWpcDevice(String ssid) => ssid.startsWith('WPC-');
+
+  Future<void> _scan() async {
+    setState(() {
+      _scanning = true;
+      _scanNote = null;
+    });
+    try {
+      await WpcApi.startWifiScan();
+      // The scan can briefly interrupt the phone's link to the Master's access point,
+      // so a few failed polls in a row are expected and not fatal.
+      var failures = 0;
+      for (var i = 0; i < 24; i++) {
+        await Future.delayed(const Duration(milliseconds: 1000));
+        try {
+          final r = await WpcApi.getWifiScan();
+          failures = 0;
+          if (r['scanning'] == false) {
+            final list = (r['networks'] as List? ?? [])
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .where((n) => !_isWpcDevice((n['ssid'] as String?) ?? ''))
+                .toList();
+            if (!mounted) return;
+            setState(() {
+              _networks = list;
+              _scanNote = list.isEmpty ? 'No networks found. Move closer to the router and scan again.' : null;
+            });
+            return;
+          }
+        } catch (_) {
+          if (++failures >= 6) rethrow;
+        }
+      }
+      if (mounted) setState(() => _scanNote = 'The scan took too long. Try again.');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _scanNote = 'Scan failed ($e). Make sure your phone is on the Master\'s WiFi and try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  IconData _signalIcon(int rssi) {
+    if (rssi >= -60) return Icons.signal_wifi_4_bar;
+    if (rssi >= -70) return Icons.network_wifi_3_bar;
+    if (rssi >= -80) return Icons.network_wifi_2_bar;
+    return Icons.network_wifi_1_bar;
   }
 
   @override
@@ -273,20 +341,90 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                 wifi['connected'] == true),
             _statusRow('Cloud', localCloudUp ? 'connected' : 'not connected', localCloudUp),
             const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _scanning ? null : _scan,
+              icon: _scanning
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.wifi_find),
+              label: Text(_scanning ? 'Scanning...' : 'Scan for WiFi networks'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'The scan can briefly interrupt your connection to the Master. If it does, wait a moment.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+            if (_scanNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_scanNote!, style: TextStyle(color: Colors.orange.shade800, fontSize: 12)),
+              ),
+            if (_networks.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                constraints: const BoxConstraints(maxHeight: 280),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _networks.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final n = _networks[i];
+                    final name = (n['ssid'] as String?) ?? '';
+                    final rssi = (n['rssi'] as num?)?.toInt() ?? -100;
+                    final open = n['open'] == true;
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(_signalIcon(rssi)),
+                      // Long names wrap onto a second line instead of being cut off.
+                      title: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(open ? 'Open (no password)' : 'Secured  -  $rssi dBm'),
+                      trailing: _ssid.text == name ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                      onTap: () => setState(() => _ssid.text = name),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 12),
+            // Autocorrect/suggestions/capitalisation are off on purpose: the keyboard must never
+            // "fix" a network name or password.
             TextField(
               controller: _ssid,
-              decoration: const InputDecoration(
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.none,
+              maxLines: 1,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
                 labelText: 'Farm WiFi name (SSID)',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                helperText: 'Pick from the list, or type it (also for hidden networks). '
+                    'Spaces are kept exactly. Max 32 bytes.',
+                helperMaxLines: 2,
+                counterText: '${_bytes(_ssid.text)}/32',
+                errorText: _bytes(_ssid.text) > 32
+                    ? 'Too long for a WiFi name'
+                    : (_ssid.text.isNotEmpty && _ssid.text != _ssid.text.trim()
+                        ? 'This name starts or ends with a space. Correct only if the network really has one.'
+                        : null),
+                errorMaxLines: 2,
               ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _pass,
               obscureText: !_showPass,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.none,
               decoration: InputDecoration(
                 labelText: 'Farm WiFi password',
                 border: const OutlineInputBorder(),
+                helperText: 'Leave empty for an open network.',
                 suffixIcon: IconButton(
                   icon: Icon(_showPass ? Icons.visibility_off : Icons.visibility),
                   onPressed: () => setState(() => _showPass = !_showPass),

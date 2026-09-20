@@ -161,6 +161,9 @@ void updateBlinkSequence(BlinkSequence& b) {
 // when the SoftAP started OK, fast single-blink if it failed. Must be
 // called frequently (main loop AND inside any blocking wait loops) since
 // it only advances based on millis(), never actually delays.
+// Radio diagnostics (LORASTAT): where in RX -> TX does a join break?
+uint32_t stRxIrq = 0, stRxOk = 0, stRxCrcBad = 0, stJoinReq = 0, stAccTxOk = 0, stAccTxTimeout = 0, stPollRx = 0;
+float stLastRssi = 0, stLastSnr = 0;
 bool loraLinkError = false;   // true when the most recently completed poll cycle got zero ACKs from any known pump
 
 // Fast continuous blink to flag "nothing is responding" -- only takes
@@ -439,9 +442,16 @@ void listenForJoin(uint32_t windowMs) {
     applyLevelLogic();
     if (operationDone) {
       operationDone = false;
+      stRxIrq++;
       uint8_t buf[32];
       int len = radio.getPacketLength();
       int state = radio.readData(buf, len);
+      if (state == RADIOLIB_ERR_CRC_MISMATCH) stRxCrcBad++;
+      if (state == RADIOLIB_ERR_NONE) {
+        stRxOk++;
+        stLastRssi = radio.getRSSI();
+        stLastSnr = radio.getSNR();
+      }
       if (state == RADIOLIB_ERR_NONE && len >= 10) {
         uint16_t rxCrc = (buf[len - 2] << 8) | buf[len - 1];
         uint32_t reqMasterId = ((uint32_t)buf[2] << 24) | ((uint32_t)buf[3] << 16) |
@@ -451,6 +461,7 @@ void listenForJoin(uint32_t windowMs) {
         // different one, defeating the point of targetMasterId entirely.
         if (crc16(buf, len - 2) == rxCrc && buf[1] == MSG_JOIN_REQUEST &&
             reqMasterId == masterId32) {
+          stJoinReq++;
           uint16_t pumpId = ((uint16_t)buf[8] << 8) | buf[9];
           int slot = findSlotByPumpId(pumpId);
           if (slot < 0) slot = findFreeSlot();
@@ -485,6 +496,7 @@ void listenForJoin(uint32_t windowMs) {
             radio.startTransmit(txPacket, alen);
             uint32_t t0 = millis();
             while (!operationDone && millis() - t0 < 1000) { updateWifiLed(); updateLoraLed(); updateBlinkSequence(loraBlinkSeq); }
+            if (operationDone) stAccTxOk++; else stAccTxTimeout++;   // did the JOIN_ACCEPT transmit actually complete?
             operationDone = false;
             startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 1);   // 1 blink = we sent the JOIN_ACCEPT
           } else {
@@ -552,6 +564,9 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
       int rlen = radio.getPacketLength();
       int rstate = radio.readData(buf, rlen);
       if (rstate == RADIOLIB_ERR_NONE && rlen >= 10) {
+        stPollRx++;
+        stLastRssi = radio.getRSSI();
+        stLastSnr = radio.getSNR();
         uint8_t rxType = buf[1];
         uint8_t rxSlot = buf[6];
         uint8_t rxSeq  = buf[7];
@@ -835,7 +850,10 @@ String cmdForget(JsonDocument& doc) {
 String cmdWifi(JsonDocument& doc) {
   String ssid = doc["ssid"] | "";
   String pass = doc["password"] | "";
-  if (ssid.length() > 32 || pass.length() > 63) return "ssid/password too long";
+  // 802.11 limits are in bytes, and String::length() counts bytes: SSID up to 32, WPA passphrase 8-63.
+  // Spaces (and any other characters) are kept exactly as given -- never trimmed here.
+  if (ssid.length() > 32) return "ssid too long (max 32 bytes)";
+  if (pass.length() > 63) return "password too long (max 63 characters)";
   prefs.putString("wifiSsid", ssid);
   prefs.putString("wifiPass", pass);
   cloud.setWifi(ssid, pass);
@@ -895,6 +913,104 @@ String buildStatusJson() {
 
 void handleStatus() {
   String out = buildStatusJson();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", out);
+}
+
+// ---------------------------------------------------------------------
+// WiFi network scan, for the app's "pick the farm WiFi" list.
+// Must be NON-BLOCKING: a blocking scan stalls the LoRa loop for seconds, and
+// FG1 found the same call crashes a synchronous/async web server via watchdog.
+// The parameters below are the ones FG1 needed on real hardware: with our own
+// SoftAP running, the default ~120 ms per-channel dwell often misses other APs'
+// beacons and finds 0 networks, so dwell 500 ms and probe actively. The scan
+// also briefly interrupts the SoftAP, so a phone on it may blink -- the app
+// says so. The result is kept as a JSON array so a late GET still gets it.
+// ---------------------------------------------------------------------
+bool wifiScanRunning = false;
+uint32_t wifiScanStartMs = 0;
+int wifiScanRetries = 0;
+String wifiScanCache = "[]";
+
+void wifiScanStart() {
+  WiFi.scanDelete();
+  WiFi.scanNetworks(true, false, false, 500);   // async, no hidden, active probe, 500 ms/channel
+  wifiScanRunning = true;
+  wifiScanStartMs = millis();
+  wifiScanRetries = 0;
+}
+
+struct ScanNet { String ssid; int rssi; bool open; };
+
+// Advance a running scan; called from backgroundService() so it also progresses
+// while the LoRa code is busy in its wait loops.
+void wifiScanService() {
+  if (!wifiScanRunning) return;
+  int r = WiFi.scanComplete();   // read ONCE -- the driver's state can shift between two calls in AP+STA mode
+  if (r == WIFI_SCAN_RUNNING) {
+    if (millis() - wifiScanStartMs > 20000) {   // give up rather than report "scanning" forever
+      wifiScanRunning = false;
+      WiFi.scanDelete();
+    }
+    return;
+  }
+  if (r == WIFI_SCAN_FAILED && wifiScanRetries < 2) {   // e.g. collided with a STA connect attempt
+    wifiScanRetries++;
+    WiFi.scanNetworks(true, false, false, 500);
+    return;
+  }
+
+  static ScanNet nets[40];
+  int count = 0;
+  int n = r < 0 ? 0 : (r > 40 ? 40 : r);
+  for (int i = 0; i < n; i++) {
+    String name = WiFi.SSID(i);
+    if (name.length() == 0) continue;            // hidden networks can't be picked from a list
+    int rssi = WiFi.RSSI(i);
+    bool open = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
+    bool dup = false;
+    for (int j = 0; j < count; j++) {            // one entry per name (routers/extenders repeat it): keep the strongest
+      if (nets[j].ssid == name) {
+        if (rssi > nets[j].rssi) { nets[j].rssi = rssi; nets[j].open = open; }
+        dup = true;
+        break;
+      }
+    }
+    if (!dup) nets[count++] = { name, rssi, open };
+  }
+  for (int i = 1; i < count; i++) {              // strongest first
+    ScanNet key = nets[i];
+    int j = i - 1;
+    while (j >= 0 && nets[j].rssi < key.rssi) { nets[j + 1] = nets[j]; j--; }
+    nets[j + 1] = key;
+  }
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+  for (int i = 0; i < count && i < 20; i++) {
+    JsonObject o = arr.add<JsonObject>();
+    o["ssid"] = nets[i].ssid;
+    o["rssi"] = nets[i].rssi;
+    o["open"] = nets[i].open;
+  }
+  String out;
+  serializeJson(doc, out);
+  wifiScanCache = out;
+  WiFi.scanDelete();
+  wifiScanRunning = false;
+  Serial.printf("[WIFI] scan finished: %d networks\n", count);
+}
+
+// POST /wifi/scan  -> starts a scan and returns immediately
+void handleWifiScanStart() {
+  if (!wifiScanRunning) wifiScanStart();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"scanning\":true}");
+}
+
+// GET /wifi/scan   -> {"scanning":bool,"networks":[{ssid,rssi,open},...]}
+// While "scanning" is true the list is the previous scan's, so callers must wait for false.
+void handleWifiScanGet() {
+  String out = String("{\"scanning\":") + (wifiScanRunning ? "true" : "false") + ",\"networks\":" + wifiScanCache + "}";
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.send(200, "application/json", out);
 }
@@ -1050,6 +1166,10 @@ void handleConsoleLine(String line) {
       statusDirty = true;
       reply("OK", String("slot=") + slot + " mode=" + mode);
     }
+  } else if (cmd == "LORASTAT") {        // radio diagnostics since boot
+    reply("OK", String("rxIrq=") + stRxIrq + " rxOk=" + stRxOk + " crcBad=" + stRxCrcBad +
+                " pollRx=" + stPollRx + " joinReq=" + stJoinReq + " acceptTxDone=" + stAccTxOk + " acceptTxTimeout=" + stAccTxTimeout +
+                " lastRssi=" + stLastRssi + " lastSnr=" + stLastSnr + " txPower=" + loraTxPowerDbm);
   } else if (cmd == "FORGETALL") {
     for (int i = 0; i < MAX_PUMPS; i++) {
       if (!pumps[i].known) continue;
@@ -1067,17 +1187,38 @@ void handleConsoleLine(String line) {
     d["txPower"] = args.toInt();
     cmdSetConfig(d);
     reply("OK", String("txPower=") + loraTxPowerDbm);
-  } else if (cmd == "WIFI") {             // WIFI <ssid> [password]   |   WIFI CLEAR
+  } else if (cmd == "WIFI") {             // WIFI <ssid> [password]  |  WIFI "ssid with spaces" [password]  |  WIFI CLEAR
     JsonDocument d;
+    String err;
     if (args.equalsIgnoreCase("CLEAR")) {
       d["ssid"] = "";
-    } else {
+    } else if (args.startsWith("\"")) {      // quoted SSID: everything up to the closing quote, spaces included
+      int q = args.indexOf('"', 1);
+      if (q < 0) {
+        err = "missing closing quote around the SSID";
+      } else {
+        String pw = args.substring(q + 1);
+        if (pw.startsWith(" ")) pw = pw.substring(1);   // drop only the separator, keep the password as typed
+        d["ssid"] = args.substring(1, q);
+        d["password"] = pw;
+      }
+    } else {                                // unquoted: first word is the SSID, the rest (spaces allowed) the password
       int s2 = args.indexOf(' ');
       d["ssid"] = s2 < 0 ? args : args.substring(0, s2);
       d["password"] = s2 < 0 ? String("") : args.substring(s2 + 1);
     }
-    String err = cmdWifi(d);
+    if (!err.length()) err = cmdWifi(d);
     if (err.length()) reply("ERR", err); else reply("OK", "wifi saved");
+  } else if (cmd == "WIFISCAN") {         // WIFISCAN START  -> begin; WIFISCAN -> fetch the list once done
+    if (args.equalsIgnoreCase("START")) {
+      if (!wifiScanRunning) wifiScanStart();
+      reply("OK", "scanning=1");
+    } else if (wifiScanRunning) {
+      reply("OK", "scanning=1");
+    } else {
+      reply("DATA", wifiScanCache);
+      reply("OK", "scanning=0");
+    }
   } else if (cmd == "WIFISTAT") {
     reply("OK", String("configured=") + cloud.wifiConfigured() + " ssid=" + cloud.ssid() +
                 " connected=" + cloud.wifiConnected() + " ip=" + cloud.ip() + " mqtt=" + cloud.mqttConnected());
@@ -1099,7 +1240,7 @@ void handleConsoleLine(String line) {
     delay(200);
     ESP.restart();
   } else {
-    reply("ERR", "unknown command (ID STATE INPUTS PUMPS ASSIGN OVERRIDE FORGETALL TESTMODE TXPOWER WIFI WIFISTAT LEDTEST FACTORYRESET REBOOT)");
+    reply("ERR", "unknown command (ID STATE INPUTS PUMPS ASSIGN OVERRIDE LORASTAT FORGETALL TESTMODE TXPOWER WIFI WIFISCAN WIFISTAT LEDTEST FACTORYRESET REBOOT)");
   }
 }
 
@@ -1122,6 +1263,7 @@ void pollConsole() {
 // console, cloud commands, and the status snapshot handed to the cloud task.
 void backgroundService() {
   server.handleClient();
+  wifiScanService();
   pollConsole();
 
   String cmd;
@@ -1237,6 +1379,8 @@ void setup() {
   server.on("/name", HTTP_POST, handleSetName);
   server.on("/forget", HTTP_POST, handleForget);
   server.on("/wifi", HTTP_POST, handleWifi);
+  server.on("/wifi/scan", HTTP_POST, handleWifiScanStart);
+  server.on("/wifi/scan", HTTP_GET, handleWifiScanGet);
   server.begin();
 
   char devId[16];

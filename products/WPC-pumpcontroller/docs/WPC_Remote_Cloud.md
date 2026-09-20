@@ -9,7 +9,7 @@
 | Topic | Decision |
 |---|---|
 | Internet path | **Farm WiFi only.** The Master joins the farm router as a WiFi client while still running its own SoftAP. No GSM/4G hardware. |
-| Broker & credentials | Same shared broker as FG1/WM1 (`mqtt.agrisenseandcontrol.in:1883`, plain MQTT, one shared per-product credential). **Security hardening is deferred by decision** — see "Security" below for what that means. |
+| Broker & credentials | Same shared broker and **FG1's credential** (`mqtt.agrisenseandcontrol.in:1883`, plain MQTT). **Security hardening is deferred by decision** — see "Security" below for what that means. |
 | Who may control | **Anyone using the app.** Several people operate one installation; whoever switches a pump ON, anyone else can switch it OFF. No owner, no lock. |
 | Manual override expiry | **None.** Remote and local overrides stay until someone sets the pump back to Auto (still cleared by a Master reboot, as before). |
 | Several installations | A user can keep a list of Masters (different farms) and switch between them. |
@@ -53,7 +53,7 @@ A remote override is a *state change*, so it jumps the Master's poll queue (see 
 
 - **`src/Cloud.h`** (`CloudLink`): WiFi STA + MQTT client. Runs in its **own FreeRTOS task on core 0**, because DNS lookups, TCP connects and MQTT keep-alives can block for seconds while the Pump fail-safe is 60 s — nothing network-related may ever stall the LoRa loop. The task and the main loop only exchange data through a command queue (task → loop) and a mutex-protected status string (loop → task); `pumps[]`, NVS and the radio are only ever touched from the main loop.
 - **WiFi mode** is AP+STA. The local SoftAP and HTTP API are unchanged.
-- **Credentials** are stored in NVS (`wifiSsid`, `wifiPass`) and set with `POST /wifi {"ssid","password"}` (empty SSID clears), or the serial console.
+- **Credentials** are stored in NVS (`wifiSsid`, `wifiPass`) and set with `POST /wifi {"ssid","password"}` (empty SSID clears), or the serial console (`WIFI "name with spaces" password`). The app offers a scanned list of networks to pick from (`/wifi/scan`, see the protocol doc); SSIDs up to 32 bytes with spaces are supported.
 - **`backgroundService()`** replaces the bare `server.handleClient()` calls inside the blocking LoRa waits: it now also drains cloud commands, services the serial console and hands the status snapshot to the cloud task, so remote commands are honoured even mid-poll.
 - **`/status` additions:** `fw`, `wifi{configured,ssid,connected,ip}`, `cloud` (MQTT up).
 - **Firmware version** (`FW_VERSION`) is new, also reported by the Pump's `/info`.
@@ -69,9 +69,11 @@ A remote override is a *state change*, so it jumps the Master's poll queue (see 
 
 The shared credential and topic names are compiled into the Master firmware **and** the APK, on plain port 1883. Anyone who extracts either can read and command *any* WPC's topics, since the topic is just the Master ID printed in its WiFi name. Consistent with the current decision this is accepted for now; when it is tackled, the natural steps are TLS on 8883, per-Master credentials with broker ACLs (`agrisense/WPC/WPC_<id>/#` only), and an owner/claim step per installation.
 
-## Broker set-up needed before this works
+## Broker credential
 
-The broker must have a user for this product. Firmware and app currently use **`wpc-device` / `asacwpc`** (defined in `Cloud.h` and `backend.dart`) and need **read/write on `agrisense/WPC/#`**. If the broker admin prefers different names, change both files together. Until this exists, the Master will log `[CLOUD] MQTT connect failed, state=5` (not authorised) and the app will show "Broker refused the connection".
+The Master, the app and the test script use **FG1's existing credential** (`fg1-device` / `asacfg1`, defined in `Cloud.h` and `backend.dart`). It was checked against the live broker: it connects, may subscribe to `agrisense/WPC/#`, and a publish-and-receive round trip on a probe topic under `agrisense/WPC/` worked, so **no broker changes are needed**. A dedicated `wpc-device` user was tried first and does not exist there (the broker answered "not authorised").
+
+Consequence to be aware of: because the broker lets this credential use every `agrisense/#` topic it was tested on, any FG1 credential holder can also read and command WPC topics, and vice versa. That is the deferred-security trade-off already accepted (see "Security" above).
 
 ## App (v2)
 

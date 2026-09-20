@@ -140,6 +140,13 @@ Clears a slot entirely, including its ADC cache and override state (new in v0.3)
 ```
 Stores the farm-router credentials in NVS and starts joining it (the Master runs AP+STA). Empty `ssid` clears it. **Local only** — not accepted from the cloud command topic. `GET /status` gains `fw`, `wifi{configured,ssid,connected,ip}` (the password is never returned) and `cloud` (MQTT connected). The same command functions are also reachable over MQTT and the serial console — see `WPC_Remote_Cloud.md`.
 
+### `POST /wifi/scan` and `GET /wifi/scan` — WiFi network list (firmware v0.4.0+)
+`POST` starts a scan and returns `{"scanning":true}` at once. `GET` returns `{"scanning":bool,"networks":[{"ssid","rssi","open"}]}`: one entry per name (the strongest), sorted strongest first, at most 20, hidden networks omitted. While `scanning` is true the list is the previous scan's, so poll until it is false (a scan takes about 8 s). **Local only.**
+
+The scan is deliberately non-blocking (a blocking scan stalls LoRa polling, and FG1 found it crashes the web server via the watchdog) and uses FG1's hardware-proven parameters: 500 ms per channel with an active probe, because with the SoftAP running the default dwell often finds no networks at all. A scan briefly interrupts the SoftAP, so a phone on it may blink.
+
+**SSIDs:** up to 32 **bytes** (an 802.11 limit; multi-byte characters use more than one) and passphrases up to 63; spaces and other characters are stored exactly as sent and never trimmed. An empty password means an open network.
+
 ## 7. HTTP API — Pump Node
 
 Pump Node runs its own open SoftAP (`WPC-Pump-XXXX`, XXXX = its 4-digit pump ID), separate from the Master's — connecting to it is how the app's Provision screen reaches this endpoint set.
