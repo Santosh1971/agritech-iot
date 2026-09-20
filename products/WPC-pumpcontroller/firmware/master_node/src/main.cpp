@@ -1002,7 +1002,8 @@ void handleConsoleLine(String line) {
     reply("OK", String("board=WPC-MASTER fw=") + FW_VERSION + " mac=" + macHex() +
                 " masterId=" + idbuf + " ap=WPC-Master-" + idbuf);
   } else if (cmd == "STATE") {
-    reply("DATA", buildStatusJson());
+    reply("DATA", buildStatusJson());   // DATA lines precede the terminating @OK
+    reply("OK", "state");
   } else if (cmd == "INPUTS") {
     String raw, st;
     for (int i = 0; i < 4; i++) {

@@ -93,6 +93,7 @@ Unchanged core logic from v0.2 (level-band assignment with hysteresis/debounce),
 
 - **Manual override:** each pump can be switched to manual mode from the app (Status screen). When enabled, the pump's desired ON/OFF state is taken directly from the override setting instead of the level-assignment logic — useful for bring-up testing or an emergency, without touching level assignments. **Override is session-only (not persisted to NVS)** — a Master reboot always comes back in automatic mode, so a pump can't be left silently stuck in a forgotten manual state across a power cycle.
 - Fail-safe on comm loss (Pump Node side): unchanged, 60s timeout → force relay OFF, rejoin.
+- A Pump that becomes **unjoined for any reason** (e.g. it is re-provisioned to another Master while running) also forces its relay OFF immediately; earlier firmware skipped the fail-safe while unjoined and could leave the relay ON indefinitely.
 
 ## 6. Master Polling / Pacing Model (redesigned this rev)
 

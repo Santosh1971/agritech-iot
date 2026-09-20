@@ -703,6 +703,14 @@ void loop() {
   }
 
   if (!joined) {
+    // Unjoined means no Master is commanding this pump, so it must fail safe to
+    // OFF. Without this, a pump whose relay was ON when it became unjoined (a
+    // re-provisioning via the app or console, or any other path that clears
+    // `joined`) would skip the fail-safe check below and stay ON indefinitely.
+    if (relayState) {
+      setRelay(false);
+      Serial.println(F("[FAILSAFE] unjoined -- relay forced OFF"));
+    }
     if (millis() - lastJoinAttemptMs > JOIN_RETRY_MS) {
       lastJoinAttemptMs = millis();
       sendJoinRequest();
