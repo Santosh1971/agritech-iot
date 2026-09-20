@@ -684,7 +684,10 @@ void pollCycle() {
   bool giveFullBudget = pumps[slot].online || !pumps[slot].everAttempted;
   int maxAttempts = giveFullBudget ? (POLL_RETRIES + 1) : 1;
   uint32_t txTimeout = giveFullBudget ? 2000 : 500;
-  uint32_t rxTimeout = giveFullBudget ? POLL_TIMEOUT_MS : 200;
+  // The receive window must stay >= an ACK's airtime (~200 ms at SF9/125 kHz for the
+  // 17-byte ACK, plus turnaround). A shorter window (was 200 ms) made an offline pump's
+  // ACK land after the window closed, so it could never be seen to come back online.
+  uint32_t rxTimeout = POLL_TIMEOUT_MS;
 
   pumps[slot].lastSendMs = millis();
 
