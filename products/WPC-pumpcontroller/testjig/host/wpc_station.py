@@ -68,6 +68,8 @@ DEFAULT_SETTINGS = {
     "pair_timeout_s": 120,
 }
 
+CHILD_ENV = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")   # Windows defaults to cp1252
+
 app = Flask(__name__)
 
 
@@ -75,7 +77,7 @@ app = Flask(__name__)
 def load_settings():
     s = dict(DEFAULT_SETTINGS)
     try:
-        s.update(json.loads(SETTINGS_PATH.read_text()))
+        s.update(json.loads(SETTINGS_PATH.read_text(encoding="utf-8")))
     except (OSError, ValueError):
         pass
     return s
@@ -98,7 +100,7 @@ def save_settings(new):
             except (TypeError, ValueError):
                 continue
             s[k] = v
-    SETTINGS_PATH.write_text(json.dumps(s, indent=2))
+    SETTINGS_PATH.write_text(json.dumps(s, indent=2), encoding="utf-8")
     return s
 
 
@@ -254,7 +256,8 @@ def flash_unit(port, role, s):
         check_stop()
         JOB.say(f"  flash {role} on {port}  (env {env}, attempt {n}/{attempts})")
         cmd = ["pio", "run", "-e", env, "-t", "upload", "--upload-port", port]
-        proc = subprocess.Popen(cmd, cwd=fwdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        proc = subprocess.Popen(cmd, cwd=fwdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                encoding="utf-8", errors="replace", env=CHILD_ENV)
         JOB.proc = proc
         for line in proc.stdout:
             if filtered(line):
@@ -310,7 +313,8 @@ def test_unit(port, role, jig_port, others, s):
         cmd = [sys.executable, "-u", str(HERE / "wpc_test.py"), role, "--jig", jig_port, "--dut", port,
                "--csv", s["results_csv"]] + test_flags(role, s)
         JOB.say(f"  test {role} on {port}: {' '.join(cmd[3:])}")
-        proc = subprocess.Popen(cmd, cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        proc = subprocess.Popen(cmd, cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                encoding="utf-8", errors="replace", env=CHILD_ENV)
         JOB.proc = proc
         verdict = None
         for line in proc.stdout:
@@ -408,7 +412,7 @@ def pair_customer(master, pumps, s, clear_table):
 
 def log_pairing(customer, order, master_id, master_mac, pumps, ok):
     new = not PAIRINGS_CSV.exists()
-    with open(PAIRINGS_CSV, "a", newline="") as f:
+    with open(PAIRINGS_CSV, "a", newline="", encoding="utf-8") as f:
         wr = csv.writer(f)
         if new:
             wr.writerow(["timestamp", "customer", "order", "master_id", "master_mac", "pumps_json", "verdict"])
@@ -603,7 +607,7 @@ def read_csv(path, limit):
     p = Path(path)
     if not p.exists():
         return []
-    with open(p, newline="") as f:
+    with open(p, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     return rows[-limit:][::-1]
 
@@ -635,7 +639,7 @@ def pairings():
 
 @app.route("/")
 def page():
-    return Response((HERE / "wpc_station.html").read_text(), mimetype="text/html")
+    return Response((HERE / "wpc_station.html").read_text(encoding="utf-8"), mimetype="text/html")
 
 
 if __name__ == "__main__":

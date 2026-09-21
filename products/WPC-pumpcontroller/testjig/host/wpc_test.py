@@ -593,7 +593,7 @@ def main():
           f"{sum(1 for r in rpt.rows if r[1] is None)} skipped) ===")
 
     new = not os.path.exists(args.csv)
-    with open(args.csv, "a", newline="") as f:
+    with open(args.csv, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         if new:
             w.writerow(["timestamp", "dut_type", "mac", "fw", "verdict", "duration_s", "results_json"])
