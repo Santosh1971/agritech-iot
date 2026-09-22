@@ -253,7 +253,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/497343f0-4747-4903-9a0c-fa0a86e0abb0")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1 10.11)
@@ -646,7 +646,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/74d15ad3-185b-4888-902a-2420ad1cbbbf")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -840,7 +840,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/2d62b909-11d6-4694-83b2-54ee817ad135")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -1282,7 +1282,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/906cf243-5596-4e48-a564-686ca1e35e44")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1 10.11)
@@ -1796,7 +1796,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/c363d356-6a60-4304-952c-64e8551d798c")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -2027,7 +2027,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/b3399a6d-9ea8-49ad-9042-bb4957c427a0")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -2261,7 +2261,7 @@
 		)
 		(path "/3cce7e1f-fdf8-4e61-ad26-d49021e8969d")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 1.4 0)
@@ -2491,7 +2491,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/b2704664-0b80-4aa4-b511-1c6598a7e681")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -2685,7 +2685,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/b6b5d328-8c92-41a3-80ae-f6ac9510f56d")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -3140,7 +3140,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/683126bd-d6bb-4ebf-a9ed-d438a78869fb")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -3332,7 +3332,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/75454064-d164-41ac-be1b-f86b1d96d1d3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -2.74 2.2)
@@ -3769,7 +3769,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/63bdd86a-1b54-4274-b784-6f765fe53d51")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1 10.11)
@@ -4137,7 +4137,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/512a9e1d-505e-4c11-b934-04f28d185e7b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -4467,7 +4467,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/bc49846c-d457-4d2f-8a0b-b7367f57c032")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -4659,7 +4659,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a281546c-98bd-4864-bc7a-9d0fea3c4c75")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -4.229646 -2.875)
@@ -6849,7 +6849,7 @@
 		)
 		(path "/3379f0a2-65b2-42af-a738-f6ffb0e4755f")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_rect
 			(start -26.35 -42.76)
@@ -7379,7 +7379,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/4f869415-7679-4281-a8a3-671f468faf84")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -7584,7 +7584,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/cd3551f2-1279-4baa-aaf5-8cac68f991ad")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -7815,7 +7815,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/45869138-fb51-4ac3-97d7-0bf3da344147")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -8046,7 +8046,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/47d0f901-d410-404a-9f55-9732cd12a2b6")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -8240,7 +8240,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/c54d2c7a-5c96-40ae-9522-efe0effbff95")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -8684,7 +8684,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/4188ee12-3f84-4dec-ac97-3a1c3811064a")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -9152,7 +9152,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/07608c2c-766e-4e94-8212-49e4294ad533")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -4.229646 -2.875)
@@ -11320,7 +11320,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/cf60370d-68b1-494b-89d3-65f1ccde0794")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -11775,7 +11775,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/13980987-7894-4294-bfaa-24fa27a75bb3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -11969,7 +11969,7 @@
 		(property ki_fp_filters "Relay*SPDT*SANYOU*SRD*Series*Form*C*")
 		(path "/0c6259c4-c91b-4a4d-8abc-4926ac20ef73")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 18.4 7.8)
@@ -12437,7 +12437,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/aae08506-7816-45b2-8645-c059728dc6b1")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 0.3 -5.71)
@@ -12889,7 +12889,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/fe700254-9a0f-4c4e-9997-4d597c2a8239")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1 10.11)
@@ -13167,7 +13167,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/62fab42b-1278-4bb4-9424-4b2c1eaac0e9")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -1 10.11)
@@ -13634,7 +13634,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/97ae7ac5-1222-4429-b66e-583e56828fd8")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -13865,7 +13865,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/5dd0d739-8ab2-4ea5-bc17-ed177a0abf67")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -14083,7 +14083,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b1ebdc8e-09f0-4296-9b65-f61090c5d377")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -4.229646 -2.875)
@@ -16281,7 +16281,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/389edc8e-f913-4333-9c67-b601642a53d4")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -16455,7 +16455,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/5172d8ab-ec8b-4a57-8664-136c0f70248b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -16603,7 +16603,7 @@
 		(property ki_fp_filters "D*SMA*")
 		(path "/0f5eac6b-3570-4634-ab3a-f9ee84bb406a")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -3.51 1.65)
@@ -16907,7 +16907,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/6a2396a6-a913-483a-bf79-36f8662ab4f0")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -17053,7 +17053,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/c21694fc-8834-43dd-8832-a3045f0659fe")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -17227,7 +17227,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c592f066-1306-4256-82a9-2694194118ef")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -17401,7 +17401,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f476df90-4c4b-4f0b-852c-bfb1dc309a92")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -17575,7 +17575,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a7f39412-e9f7-4c60-bf9c-2c38b9d452b8")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -17751,7 +17751,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/db77706f-e0b4-4787-b629-f16b8c01b009")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -18073,7 +18073,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d77eca57-9e8c-40f7-9bf4-ee1a3fa23d57")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -18248,7 +18248,7 @@
 		(property ki_fp_filters "*BNC* *SMA* *SMB* *SMC* *Cinch* *LEMO* *UMRF* *MCX* *U.FL*")
 		(path "/046baf55-b3bd-43ae-b5ff-6a778ee0d41a")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1.54 -1.95)
@@ -18774,7 +18774,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b43e9dd8-a130-4375-8ad5-0c5e54d52f16")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -18950,7 +18950,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/656051a8-dc6b-47fa-9e91-fbf5f56c4612")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 -0.61)
@@ -19246,7 +19246,7 @@
 		(property ki_fp_filters "Choke_* *Coil* Inductor_* L_*")
 		(path "/5c30de7d-f842-43a7-886e-400275bdc551")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -3.3 -3.2)
@@ -19560,7 +19560,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/156fc3b7-9f7b-4fa0-a7dc-2d543be21114")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -19734,7 +19734,7 @@
 		(property ki_fp_filters "SOT?23?5*")
 		(path "/c83f659c-1da1-4207-9145-a712eba0405b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.91 -1.56)
@@ -20152,7 +20152,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/89e93486-f148-4701-aa81-e67ab68eb32e")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -20327,7 +20327,7 @@
 		(property ki_fp_filters "Ai?Thinker?Ra?01*")
 		(path "/e64dff1c-7963-4125-b0c9-62af39dbf0f3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -8.25 8.75)
@@ -20703,7 +20703,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3ad79643-1a35-48b6-8c8c-560ae2f1564b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -20879,7 +20879,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/01b410c3-931c-45fc-a145-637b5071e9f9")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -21201,7 +21201,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0942a8db-2ffd-4d81-be7c-57bdbf928073")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -21347,7 +21347,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/640b2898-c67f-40e9-949d-98325dc66735")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -21493,7 +21493,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1358e8cb-b3b4-420b-832c-43b17cf51cf3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -21667,7 +21667,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/f7722bb3-d7fa-4e01-88d7-97cd536eff29")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -21841,7 +21841,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/fbd6ecc2-2f47-431e-9ef9-e60291febdaa")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -22015,7 +22015,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/5c6ed235-e356-487a-9e13-b64bab4e6209")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -22189,7 +22189,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/e9a5d0d6-c0f9-49e6-bb13-44e7a9d15488")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -22335,7 +22335,7 @@
 		(property ki_fp_filters "*polyfuse* *PTC*")
 		(path "/8a839d6b-ca69-41f1-9ba6-28c4e0a75cce")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.835242 0.91)
@@ -22509,7 +22509,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/6c6ab2a9-093c-4879-8110-179040ca0e85")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -22683,7 +22683,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ddb98a4e-3eed-4c0a-ab36-ce71b4d6e730")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -22857,7 +22857,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a6dc1d32-9514-4b7e-8f7c-f1b1058966e2")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -23033,7 +23033,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/e2327fad-215b-4bf5-9e70-5a0060e99bba")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -23327,7 +23327,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/07bd5f05-25ff-401a-9fb7-14a750339eed")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -23501,7 +23501,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/c78ee49c-61ff-409e-802b-d1358185db3f")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -23675,7 +23675,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/6c63073c-d0d0-4ba1-9a60-9afc8f8e1bed")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -23821,7 +23821,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/1db6ce96-9912-4392-a25c-2dac1609eaf8")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -23966,7 +23966,7 @@
 		(property ki_fp_filters "Crystal*")
 		(path "/dbd3cee0-6d05-46ea-9c5c-90a9f03c88f3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.54 -1.37)
@@ -24215,7 +24215,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/71067948-506b-4b9a-ac41-b6328ac6c16a")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 -0.51)
@@ -24389,7 +24389,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/3b9ed74f-135a-4c49-a3df-36bba8eb3425")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -24535,7 +24535,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/2618c76c-6d7a-443b-a609-f0c2c597f2a5")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -24709,7 +24709,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/cb380cc2-6c31-4b44-ac8f-3dd333884d73")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -24855,7 +24855,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/7b248565-be4b-47ca-be87-1fadcc81bd34")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -25029,7 +25029,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ae67d579-ab1b-40d0-b7b9-265e01d43b80")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -25205,7 +25205,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/fd98d3f9-2770-4344-b950-3488f42c0da6")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -25499,7 +25499,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/aca80f09-e415-4ca8-89df-01e8f9adcef8")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -25749,7 +25749,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d00f7b0d-b04b-40eb-af43-6aa260a776e2")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -25923,7 +25923,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/be94de4a-ecb7-4d72-9551-36f72987fc5b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -26097,7 +26097,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a77073d6-f4d3-4ad9-b9d0-3a60f914db31")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -26243,7 +26243,7 @@
 		(property ki_fp_filters "DIP*W7.62mm* SOIC*3.9x9.9mm*P1.27mm* TSSOP*4.4x5mm*P0.65mm* SOIC*5.3x10.2mm*P1.27mm* SOIC*7.5x10.3mm*P1.27mm*")
 		(path "/fe817f71-f96f-4918-acb1-1646fcbec035")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.06 5.06)
@@ -26673,7 +26673,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/28126444-26b1-4f8d-8a96-7dab00cd067f")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -26819,7 +26819,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/55250cf1-33d5-4c69-8bad-568f64aaa4c1")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -26996,7 +26996,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/d60a680a-d1c9-420c-a26f-b0b8a755a55a")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -27318,7 +27318,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0bb5b83b-6bc2-4925-a8b2-a41b1ad235a9")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -27464,7 +27464,7 @@
 		(property ki_fp_filters "DIP*W7.62mm* SOIC*3.9x9.9mm*P1.27mm* SSOP*4.4x5.2mm*P0.65mm* TSSOP*4.4x5mm*P0.65mm* SOIC*W*5.3x10.2mm*P1.27mm*")
 		(path "/afed1789-39ba-4eb9-9edb-80b8a0c06814")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.06 5.06)
@@ -27894,7 +27894,7 @@
 		(property ki_fp_filters "SOT*23*")
 		(path "/6acc13ff-e13b-4a4f-a534-17e2431a10e2")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.91 1.56)
@@ -28272,7 +28272,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/83cf07dd-0f5f-45ce-baef-5ff10ba15f70")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -28446,7 +28446,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e1bb6e18-c3b8-43d8-acda-65e3f759082c")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -28592,7 +28592,7 @@
 		(property ki_fp_filters "*polyfuse* *PTC*")
 		(path "/f070b80d-cda2-4362-b306-8134b8c58625")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.835242 0.91)
@@ -28768,7 +28768,7 @@
 		(property ki_fp_filters "SOT?223*TabPin2*")
 		(path "/345d5e77-5697-447f-80ff-8b8599fea101")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1.91 -3.41)
@@ -29036,7 +29036,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b2f069c0-8c5e-4382-ad1a-7fbf212df92d")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -29210,7 +29210,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/0e8ef89a-adb8-44f1-9129-b658a1dac4b0")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -29356,7 +29356,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/add965a5-9882-4613-b994-d4df675a8f19")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -29502,7 +29502,7 @@
 		(property ki_fp_filters "DIP*W7.62mm* SOIC*3.9x9.9mm*P1.27mm* TSSOP*4.4x5mm*P0.65mm* SOIC*5.3x10.2mm*P1.27mm* SOIC*7.5x10.3mm*P1.27mm*")
 		(path "/e18131fd-7271-4acf-9ae8-f871f6c261f4")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -2.06 5.06)
@@ -29980,7 +29980,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/6b91d7d9-2b79-4531-ba3b-0eb0763ed138")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -30126,7 +30126,7 @@
 		(property ki_fp_filters "SOIC*3.9x4.9mm?P1.27mm*")
 		(path "/2c7c85e7-7aeb-430c-badd-15434b251771")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 2.06 -2.56)
@@ -30524,7 +30524,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d4e6497f-3919-47ee-aa40-bb708beb18f6")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -30698,7 +30698,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9766bea8-0c13-4ff0-80ad-2517ec2bc2b0")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -30872,7 +30872,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/e060ba96-f6d1-4e5a-b8a6-b0f10bed9864")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -31018,7 +31018,7 @@
 		(property ki_fp_filters "SOIC*7.5x10.3mm*P1.27mm*")
 		(path "/142027ad-2457-4fd9-8333-c3434735c67b")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 3.86 -5.26)
@@ -31466,7 +31466,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/9f88e7f7-d1c3-4a10-b290-df216ca134d3")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -31640,7 +31640,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7ed8404c-9913-4990-a37f-472a568e9f1c")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -31816,7 +31816,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/6655d942-17f8-403c-9d89-0734ff81f652")
 		(sheetname "/")
-		(sheetfile "Water-Manager-New.kicad_sch")
+		(sheetfile "WM1-WaterMaster.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)

@@ -9,7 +9,7 @@
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "Water-Manager-New",
+      "Name": "WM1-WaterMaster",
       "GUID": "57617465-722d-44d6-916e-616765722d4e",
       "Revision": "rev?"
     },
@@ -34,47 +34,47 @@
   ],
   "FilesAttributes": [
     {
-      "Path": "Water-Manager-New-F_Cu.gbr",
+      "Path": "WM1-WaterMaster-F_Cu.gbr",
       "FileFunction": "Copper,L1,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-B_Cu.gbr",
+      "Path": "WM1-WaterMaster-B_Cu.gbr",
       "FileFunction": "Copper,L2,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-F_Paste.gbr",
+      "Path": "WM1-WaterMaster-F_Paste.gbr",
       "FileFunction": "SolderPaste,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-B_Paste.gbr",
+      "Path": "WM1-WaterMaster-B_Paste.gbr",
       "FileFunction": "SolderPaste,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-F_Silkscreen.gbr",
+      "Path": "WM1-WaterMaster-F_Silkscreen.gbr",
       "FileFunction": "Legend,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-B_Silkscreen.gbr",
+      "Path": "WM1-WaterMaster-B_Silkscreen.gbr",
       "FileFunction": "Legend,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "Water-Manager-New-F_Mask.gbr",
+      "Path": "WM1-WaterMaster-F_Mask.gbr",
       "FileFunction": "SolderMask,Top",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "Water-Manager-New-B_Mask.gbr",
+      "Path": "WM1-WaterMaster-B_Mask.gbr",
       "FileFunction": "SolderMask,Bot",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "Water-Manager-New-Edge_Cuts.gbr",
+      "Path": "WM1-WaterMaster-Edge_Cuts.gbr",
       "FileFunction": "Profile",
       "FilePolarity": "Positive"
     }

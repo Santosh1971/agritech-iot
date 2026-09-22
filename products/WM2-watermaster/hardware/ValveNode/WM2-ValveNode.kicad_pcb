@@ -220,7 +220,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/1d6c595e-600e-4105-8b56-eb2a8cb5fc4b")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -498,7 +498,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/07608c2c-766e-4e94-8212-49e4294ad533")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.17 2.64)
@@ -2690,7 +2690,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/3100c830-51af-4bd5-a8ca-e6246e1e98a7")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.17 2.64)
@@ -4882,7 +4882,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/b1ebdc8e-09f0-4296-9b65-f61090c5d377")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.17 2.64)
@@ -7048,7 +7048,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/18451cd4-33c6-4a81-87e1-d51abc5e7bfc")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -3.65 -4.1)
@@ -7564,7 +7564,7 @@
 		(property ki_fp_filters "MountingHole*")
 		(path "/d0d00078-cc09-435f-990d-73eb2b6776ed")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr exclude_from_pos_files exclude_from_bom)
 		(fp_circle
 			(center 0 0)
@@ -7749,7 +7749,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/de53b98a-810f-4007-bf05-c003a08fd283")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.17 2.64)
@@ -9999,7 +9999,7 @@
 		)
 		(path "/3379f0a2-65b2-42af-a738-f6ffb0e4755f")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_rect
 			(start -26.35 -42.76)
@@ -10565,7 +10565,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/dc2cf7ee-5397-40b1-8257-700008477fab")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -10855,7 +10855,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/97ae7ac5-1222-4429-b66e-583e56828fd8")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -11145,7 +11145,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/e138c33b-4055-4263-8eee-c74b9fe65b49")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -11518,7 +11518,7 @@
 		(property ki_fp_filters "Connector*:*_1x??_*")
 		(path "/aae08506-7816-45b2-8645-c059728dc6b1")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start -3.65 -4.1)
@@ -11947,7 +11947,7 @@
 		(property ki_fp_filters "LED* LED_SMD:* LED_THT:*")
 		(path "/03f55a97-7b51-47c2-b36d-855050817eec")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1 -0.96)
@@ -12165,7 +12165,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/4942214b-65c5-4cf2-b0ad-16f4953b6713")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr through_hole)
 		(fp_line
 			(start 2.17 2.64)
@@ -14337,7 +14337,7 @@
 		(property ki_fp_filters "Texas*HTSOP*1EP*3.9x4.9mm*P1.27mm*EP2.95x4.9mm*Mask2.4x3.1mm*")
 		(path "/e80f7b21-d32f-4da7-bbe5-87f63a5ed676")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(solder_mask_margin 0.07)
 		(attr smd)
 		(fp_line
@@ -14742,7 +14742,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/7ed8404c-9913-4990-a37f-472a568e9f1c")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -14890,7 +14890,7 @@
 		(property ki_fp_filters "Texas*HTSOP*1EP*3.9x4.9mm*P1.27mm*EP2.95x4.9mm*Mask2.4x3.1mm*")
 		(path "/7f733af1-436b-44c8-8853-201265cdf6ce")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(solder_mask_margin 0.07)
 		(attr smd)
 		(fp_line
@@ -15295,7 +15295,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b9a1e950-c72d-48d6-a2b5-1758a6eabfca")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -15469,7 +15469,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/de839f2b-d7dc-4ee8-ad87-65d570ebf300")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -15644,7 +15644,7 @@
 		(property ki_fp_filters "*BNC* *SMA* *SMB* *SMC* *Cinch* *LEMO* *UMRF* *MCX* *U.FL*")
 		(path "/046baf55-b3bd-43ae-b5ff-6a778ee0d41a")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 1.54 -1.95)
@@ -16170,7 +16170,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/46f55c25-15f9-4dc5-84af-c723ef8673ee")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -16344,7 +16344,7 @@
 		(property ki_fp_filters "SOT?23?5*")
 		(path "/c83f659c-1da1-4207-9145-a712eba0405b")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 0.91 -1.56)
@@ -16762,7 +16762,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/93aecc37-5594-4bda-bd1e-abadd074a72b")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -16936,7 +16936,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/89e93486-f148-4701-aa81-e67ab68eb32e")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -17110,7 +17110,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/be94de4a-ecb7-4d72-9551-36f72987fc5b")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -17286,7 +17286,7 @@
 		(property ki_fp_filters "Ai?Thinker?Ra?01*")
 		(path "/e64dff1c-7963-4125-b0c9-62af39dbf0f3")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -8.25 8.75)
@@ -17636,7 +17636,7 @@
 		(property ki_fp_filters "Texas*HTSOP*1EP*3.9x4.9mm*P1.27mm*EP2.95x4.9mm*Mask2.4x3.1mm*")
 		(path "/c945851a-b5d5-4864-a995-8ef3b5df9e89")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(solder_mask_margin 0.07)
 		(attr smd)
 		(fp_line
@@ -18013,7 +18013,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/add965a5-9882-4613-b994-d4df675a8f19")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 0.735)
@@ -18187,7 +18187,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/ddb98a4e-3eed-4c0a-ab36-ce71b4d6e730")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -18333,7 +18333,7 @@
 		(property ki_fp_filters "DIP*W7.62mm* SOIC*3.9x9.9mm*P1.27mm* TSSOP*4.4x5mm*P0.65mm* SOIC*5.3x10.2mm*P1.27mm* SOIC*7.5x10.3mm*P1.27mm*")
 		(path "/9d46c8b8-b48b-4e35-865e-2dc94e25c9bf")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start 2.06 -5.06)
@@ -18811,7 +18811,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/71067948-506b-4b9a-ac41-b6328ac6c16a")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 0.51)
@@ -18985,7 +18985,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a4a3c02a-e5eb-40f2-9f80-e5a8bc4431cb")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -19159,7 +19159,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/ae67d579-ab1b-40d0-b7b9-265e01d43b80")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -19333,7 +19333,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/60121eec-61b0-4480-971c-a8f06341f8d6")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -19507,7 +19507,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/bbd1c678-b7d4-47e2-bca4-fa7c0950f75a")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -19681,7 +19681,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/b17e6a8b-40a8-4aa1-a4ef-62a8f6ce8c0d")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -19855,7 +19855,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/a77073d6-f4d3-4ad9-b9d0-3a60f914db31")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.261252 -0.735)
@@ -20003,7 +20003,7 @@
 		(property ki_fp_filters "Texas*HTSOP*1EP*3.9x4.9mm*P1.27mm*EP2.95x4.9mm*Mask2.4x3.1mm*")
 		(path "/ddd2b24b-c757-42bf-9474-a82490400acb")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(solder_mask_margin 0.07)
 		(attr smd)
 		(fp_line
@@ -20410,7 +20410,7 @@
 		(property ki_fp_filters "SOT?223*TabPin2*")
 		(path "/345d5e77-5697-447f-80ff-8b8599fea101")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -1.85 3.41)
@@ -20706,7 +20706,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/156fc3b7-9f7b-4fa0-a7dc-2d543be21114")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -20880,7 +20880,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/a6dc1d32-9514-4b7e-8f7c-f1b1058966e2")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 -0.735)
@@ -21056,7 +21056,7 @@
 		(property ki_fp_filters "D*SOD?882")
 		(path "/656051a8-dc6b-47fa-9e91-fbf5f56c4612")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.81 0.61)
@@ -21378,7 +21378,7 @@
 		(property ki_fp_filters "R_*")
 		(path "/d4e6497f-3919-47ee-aa40-bb708beb18f6")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.227064 0.735)
@@ -21552,7 +21552,7 @@
 		(property ki_fp_filters "C_*")
 		(path "/9766bea8-0c13-4ff0-80ad-2517ec2bc2b0")
 		(sheetname "/")
-		(sheetfile "ValveNode.kicad_sch")
+		(sheetfile "WM2-ValveNode.kicad_sch")
 		(attr smd)
 		(fp_line
 			(start -0.14058 -0.51)
