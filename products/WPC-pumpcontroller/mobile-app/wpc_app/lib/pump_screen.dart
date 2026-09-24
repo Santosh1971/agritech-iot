@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'api.dart';
+import 'backend.dart';
 
 class PumpScreen extends StatefulWidget {
   const PumpScreen({super.key});
@@ -147,6 +148,13 @@ class _PumpScreenState extends State<PumpScreen> {
                     ),
                     Text('Joined: ${_info!['joined'] == true ? 'Yes' : 'No'}'),
                     Text('Relay: ${_info!['relay'] == true ? 'ON' : 'OFF'}'),
+                    if (Backend.instance.showPowerStatus && _info!.containsKey('powerOk'))
+                      Text('Power: ${_info!['powerOk'] == true ? 'OK' : 'No power'}',
+                          style: TextStyle(
+                              color: _info!['powerOk'] == true ? null : Colors.red.shade700,
+                              fontWeight: _info!['powerOk'] == true ? null : FontWeight.w600)),
+                    if (Backend.instance.showWaterFlow && _info!.containsKey('waterFlow'))
+                      Text('Water flow: ${_info!['waterFlow'] == true ? 'Detected' : 'None'}'),
                     if (_info!['in1Adc'] != null && _info!['in4Adc'] != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),

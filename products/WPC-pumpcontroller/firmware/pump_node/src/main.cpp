@@ -8,7 +8,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-#define FW_VERSION "0.4.0"
+#define FW_VERSION "0.4.1"
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
 bool wifiApOk = false;
@@ -227,6 +227,21 @@ uint32_t readAdcMilliVoltsAveraged(uint8_t pin, int samples = 16) {
   return sum / samples;
 }
 
+// IN1/IN4's *digital* state (Water Flow / No-Power contact, closed = active) must NOT be read with
+// plain digitalRead(PIN_IN1/PIN_IN4): confirmed on the bench (two Pump boards, both channels) that
+// once analogSetPinAttenuation() has configured these GPIO34-39 ADC1-only pins, digitalRead() on
+// them sticks at a fixed wrong LOW even while genuinely open/pulled HIGH (analogRead correctly
+// showed a saturated-high ~1.05-1.1V the whole time) -- a known ESP32-Arduino-core limitation on
+// these particular "input-only" pins once their pad is muxed for ADC. Threshold on the calibrated
+// mV reading instead, the same technique already used for the IN1_LED/IN4_LED indicators (though
+// with the opposite sense: those glow above a threshold, this is active BELOW one, since the
+// contact pulls the node toward 0V through the 470R series resistor when closed to GND, vs. ~3.3V,
+// clipped to the ADC_0db ~1.1V ceiling, when open). Calculated midpoint: closed ~0.15V, open ~1.05V.
+#define CONTACT_ACTIVE_THRESHOLD_MV 500
+bool contactActive(uint8_t pin) {
+  return readAdcMilliVoltsAveraged(pin) < CONTACT_ACTIVE_THRESHOLD_MV;
+}
+
 void sendJoinRequest() {
   uint8_t payload[2] = { (uint8_t)(myPumpId >> 8), (uint8_t)(myPumpId & 0xFF) };
   size_t len = buildPacket(MSG_JOIN_REQUEST, targetMasterId, 0xFF, 0, payload, 2);
@@ -246,8 +261,8 @@ void sendJoinRequest() {
 }
 
 bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
-  bool in1 = (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE);
-  bool in4 = (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE);
+  bool in1 = contactActive(PIN_IN1);
+  bool in4 = contactActive(PIN_IN4);
   uint16_t in1Adc = readAdcAveraged(PIN_IN1);
   uint16_t in4Adc = readAdcAveraged(PIN_IN4);
   // Payload grew from 3 to 7 bytes to carry the two raw ADC channels --
@@ -343,6 +358,11 @@ void handleInfo() {
   doc["relay"] = relayState;
   doc["in1Adc"] = readAdcAveraged(PIN_IN1);
   doc["in4Adc"] = readAdcAveraged(PIN_IN4);
+  // IN1 on this PCB is wired as a Water-Flow contact (confirms the pump is actually running --
+  // feedback on the command, not just the relay's own state); IN4 is the No-Power contact. Both
+  // shorted-to-GND = true, same convention as the Master's own inputs.
+  doc["waterFlow"] = contactActive(PIN_IN1);
+  doc["powerOk"] = contactActive(PIN_IN4);
   doc["txPower"] = loraTxPowerDbm;
   String out;
   serializeJson(doc, out);
@@ -477,8 +497,8 @@ void handleConsoleLine(String line) {
   } else if (cmd == "ADC") {
     reply("OK", String("in1raw=") + readAdcAveraged(PIN_IN1) + " in1mv=" + readAdcMilliVoltsAveraged(PIN_IN1) +
                 " in4raw=" + readAdcAveraged(PIN_IN4) + " in4mv=" + readAdcMilliVoltsAveraged(PIN_IN4) +
-                " in1dig=" + (digitalRead(PIN_IN1) == INPUT_ACTIVE_STATE) +
-                " in4dig=" + (digitalRead(PIN_IN4) == INPUT_ACTIVE_STATE));
+                " in1dig=" + contactActive(PIN_IN1) +
+                " in4dig=" + contactActive(PIN_IN4));
   } else if (cmd == "RELAY") {            // RELAY <0|1> -- direct drive, overwritten by the next LEVEL_CMD if joined
     setRelay(args.toInt() != 0);
     reply("OK", String("relay=") + relayState);

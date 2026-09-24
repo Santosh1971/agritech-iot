@@ -7,7 +7,7 @@
 #include <esp_system.h>
 #include "Cloud.h"
 
-#define FW_VERSION "0.4.0"
+#define FW_VERSION "0.4.1"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -282,6 +282,10 @@ struct PumpEntry {
   uint32_t lastSendMs;      // last time we attempted a send to this slot -- drives the heartbeat
   uint16_t in1Adc;          // last reported raw ADC (0-4095), IN1 -- session-only, not persisted
   uint16_t in4Adc;          // last reported raw ADC (0-4095), IN4 -- session-only, not persisted
+  bool     in1Dig;          // IN1 digital, active-low -- on this Pump PCB, IN1 is wired as a Water
+                             // Flow contact: true (shorted) = flow present = pump confirmed running.
+  bool     in4Dig;          // IN4 digital, active-low -- No-Power contact: true (shorted) = power
+                             // present (see Master's own inputs[3].state for the same convention).
   bool     overrideEnabled; // manual control -- when true, desiredPumpState skips level logic entirely
   bool     overrideState;   // desired relay state while overrideEnabled -- session-only: a Master reboot
                              // always comes back in automatic mode rather than risking a pump silently
@@ -307,6 +311,8 @@ void initPumpTable() {
     pumps[i].lastSendMs = 0;
     pumps[i].in1Adc = 0;
     pumps[i].in4Adc = 0;
+    pumps[i].in1Dig = false;
+    pumps[i].in4Dig = false;
     pumps[i].overrideEnabled = false;
     pumps[i].overrideState = false;
   }
@@ -478,6 +484,8 @@ void listenForJoin(uint32_t windowMs) {
             // override that was meant for whatever pump had this slot before.
             pumps[slot].in1Adc = 0;
             pumps[slot].in4Adc = 0;
+            pumps[slot].in1Dig = false;
+            pumps[slot].in4Dig = false;
             pumps[slot].overrideEnabled = false;
             pumps[slot].overrideState = false;
             savePumpTable();
@@ -576,8 +584,14 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
           Serial.print(F(" slot="));
           Serial.println(slot);
           // Payload (7 bytes, starting at buf[8]): relay, in1 bool, in4 bool,
-          // in1Adc (2B), in4Adc (2B) -- see Pump's sendCmdAck(). rlen check
-          // guards against a shorter/legacy ACK that predates the ADC fields.
+          // in1Adc (2B), in4Adc (2B) -- see Pump's sendCmdAck(). rlen checks
+          // guard against a shorter/legacy ACK that predates a given field:
+          // the 3-byte digital payload existed since v0.2 (rlen>=13), ADC
+          // was added in v0.3 (rlen>=17).
+          if (rlen >= 13) {
+            pumps[slot].in1Dig = buf[9] != 0;
+            pumps[slot].in4Dig = buf[10] != 0;
+          }
           if (rlen >= 17) {
             pumps[slot].in1Adc = ((uint16_t)buf[11] << 8) | buf[12];
             pumps[slot].in4Adc = ((uint16_t)buf[13] << 8) | buf[14];
@@ -839,6 +853,8 @@ String cmdForget(JsonDocument& doc) {
   pumps[slot].online = false;
   pumps[slot].in1Adc = 0;
   pumps[slot].in4Adc = 0;
+  pumps[slot].in1Dig = false;
+  pumps[slot].in4Dig = false;
   pumps[slot].overrideEnabled = false;
   pumps[slot].overrideState = false;
   savePumpTable();
@@ -886,7 +902,10 @@ String buildStatusJson() {
 
   JsonArray levelsArr = doc["levels"].to<JsonArray>();
   for (int i = 0; i < numLevels; i++) levelsArr.add(inputs[i].state);
-  doc["noPower"] = inputs[3].state;   // polarity TBD -- raw state, see docs
+  // IN4 ("No Power") is a contact closure, same topology as IN1-IN3: shorted to GND (LOW, "active")
+  // means power IS present -- confirmed against the schematic, see docs/WPC_LoRa_Protocol_v0.3.md #10.
+  doc["powerOk"] = inputs[3].state;
+  doc["noPower"] = !inputs[3].state;  // kept for older app builds; polarity now correct (was inverted)
 
   JsonArray pumpsArr = doc["pumps"].to<JsonArray>();
   for (int i = 0; i < MAX_PUMPS; i++) {
@@ -904,6 +923,11 @@ String buildStatusJson() {
     p["name"] = pumps[i].name;
     p["in1Adc"] = pumps[i].in1Adc;
     p["in4Adc"] = pumps[i].in4Adc;
+    // Same contact convention as the Master's own inputs: shorted = true. On the Pump PCB IN1 is
+    // wired as a Water-Flow contact (confirms the pump is actually running, not just the relay
+    // command) and IN4 is its own No-Power contact.
+    p["waterFlow"] = pumps[i].in1Dig;
+    p["powerOk"] = pumps[i].in4Dig;
     JsonObject ov = p["override"].to<JsonObject>();
     ov["enabled"] = pumps[i].overrideEnabled;
     ov["state"] = pumps[i].overrideState;
@@ -1139,7 +1163,8 @@ void handleConsoleLine(String line) {
       reply("DATA", String("slot=") + i + " pumpId=" + pumps[i].pumpId + " online=" + pumps[i].online +
                     " relay=" + pumps[i].lastRelayState + " desired=" + desiredPumpState[i] +
                     " levels=" + pumps[i].assignedLevels + " adc1=" + pumps[i].in1Adc +
-                    " adc4=" + pumps[i].in4Adc + " override=" + pumps[i].overrideEnabled);
+                    " adc4=" + pumps[i].in4Adc + " waterFlow=" + pumps[i].in1Dig +
+                    " powerOk=" + pumps[i].in4Dig + " override=" + pumps[i].overrideEnabled);
     }
     reply("OK", String("count=") + n);
   } else if (cmd == "ASSIGN") {           // ASSIGN <slot> <levelMask 0-7>
@@ -1173,6 +1198,11 @@ void handleConsoleLine(String line) {
     reply("OK", String("rxIrq=") + stRxIrq + " rxOk=" + stRxOk + " crcBad=" + stRxCrcBad +
                 " pollRx=" + stPollRx + " joinReq=" + stJoinReq + " acceptTxDone=" + stAccTxOk + " acceptTxTimeout=" + stAccTxTimeout +
                 " lastRssi=" + stLastRssi + " lastSnr=" + stLastSnr + " txPower=" + loraTxPowerDbm);
+  } else if (cmd == "FORGET") {          // FORGET <slot> -- disassociate one pump (console/testjig parity with POST /forget)
+    JsonDocument d;
+    d["slot"] = args.toInt();
+    String err = cmdForget(d);
+    if (err.length()) reply("ERR", err); else reply("OK", String("slot ") + args + " forgotten");
   } else if (cmd == "FORGETALL") {
     for (int i = 0; i < MAX_PUMPS; i++) {
       if (!pumps[i].known) continue;
@@ -1243,7 +1273,7 @@ void handleConsoleLine(String line) {
     delay(200);
     ESP.restart();
   } else {
-    reply("ERR", "unknown command (ID STATE INPUTS PUMPS ASSIGN OVERRIDE LORASTAT FORGETALL TESTMODE TXPOWER WIFI WIFISCAN WIFISTAT LEDTEST FACTORYRESET REBOOT)");
+    reply("ERR", "unknown command (ID STATE INPUTS PUMPS ASSIGN OVERRIDE LORASTAT FORGET FORGETALL TESTMODE TXPOWER WIFI WIFISCAN WIFISTAT LEDTEST FACTORYRESET REBOOT)");
   }
 }
 

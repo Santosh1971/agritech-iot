@@ -40,10 +40,18 @@ class Backend extends ChangeNotifier {
   static const _kMode = 'link_mode';
   static const _kMasters = 'masters';
   static const _kActive = 'active_master';
+  static const _kShowPower = 'show_power_status';
+  static const _kShowFlow = 'show_water_flow';
 
   LinkMode mode = LinkMode.local;
   List<MasterRef> masters = [];
   String? activeId;
+
+  // Dashboard display toggles -- whether the Power and Water-Flow (pump-confirmed-running)
+  // indicators are shown at all. Both default on; the sensors keep reporting either way, this
+  // only hides them from the screens for an installation that doesn't have them wired.
+  bool showPowerStatus = true;
+  bool showWaterFlow = true;
 
   // ---- cloud state (only meaningful in cloud mode) ----
   MqttServerClient? _client;
@@ -69,6 +77,8 @@ class Backend extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     mode = (p.getString(_kMode) == 'cloud') ? LinkMode.cloud : LinkMode.local;
     activeId = p.getString(_kActive);
+    showPowerStatus = p.getBool(_kShowPower) ?? true;
+    showWaterFlow = p.getBool(_kShowFlow) ?? true;
     final raw = p.getString(_kMasters);
     if (raw != null) {
       try {
@@ -97,6 +107,20 @@ class Backend extends ChangeNotifier {
   Future<void> setMode(LinkMode m) async {
     mode = m;
     await _save();
+    notifyListeners();
+  }
+
+  Future<void> setShowPowerStatus(bool v) async {
+    showPowerStatus = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kShowPower, v);
+    notifyListeners();
+  }
+
+  Future<void> setShowWaterFlow(bool v) async {
+    showWaterFlow = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kShowFlow, v);
     notifyListeners();
   }
 

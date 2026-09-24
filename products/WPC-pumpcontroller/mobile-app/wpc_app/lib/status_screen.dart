@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api.dart';
+import 'backend.dart';
 
 class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
@@ -47,7 +48,12 @@ class _StatusScreenState extends State<StatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(onRefresh: _fetch, child: _buildBody());
+    // Rebuilds on a Dashboard-display toggle (Connection screen) even though this
+    // screen's own data comes from the separate _fetch()/Timer polling above.
+    return ListenableBuilder(
+      listenable: Backend.instance,
+      builder: (context, _) => RefreshIndicator(onRefresh: _fetch, child: _buildBody()),
+    );
   }
 
   Widget _buildBody() {
@@ -76,7 +82,10 @@ class _StatusScreenState extends State<StatusScreen> {
         .replaceFirst(RegExp(r'^0x', caseSensitive: false), '');
     final numLevels = (_status!['numLevels'] as num?)?.toInt() ?? 0;
     final levels = (_status!['levels'] as List<dynamic>? ?? []);
-    final noPower = _status!['noPower'] == true;
+    // powerOk is the corrected-polarity field (true = power present); noPower is kept only for
+    // an old cached status that predates it. Gated on the Dashboard-display toggle either way.
+    final powerOk = _status!.containsKey('powerOk') ? _status!['powerOk'] == true : _status!['noPower'] != true;
+    final showNoPowerBanner = Backend.instance.showPowerStatus && !powerOk;
     final pumps = _status!['pumps'] as List<dynamic>? ?? [];
     // Cloud mode only: the broker keeps the Master's last status, which can be
     // hours old if the Master lost its internet -- never let that look live.
@@ -146,7 +155,7 @@ class _StatusScreenState extends State<StatusScreen> {
             ),
           ),
 
-        if (noPower)
+        if (showNoPowerBanner)
           Container(
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 16),
@@ -253,6 +262,40 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
+  Future<void> _forgetPump(int slot, String displayName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unpair this pump?'),
+        content: Text(
+          '$displayName will be removed from this Master and no longer show anywhere. '
+          "This doesn't affect the physical Pump Node -- it can rejoin later if it's still active.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Unpair', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      await WpcApi.forgetPump(slot);
+      await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unpair: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _pumpRow(Map<String, dynamic> map) {
     final online = map['online'] == true;
     final relay = map['relay'] == true;
@@ -261,9 +304,12 @@ class _StatusScreenState extends State<StatusScreen> {
     final slot = (map['slot'] as num).toInt();
     final in1Adc = (map['in1Adc'] as num?)?.toInt();
     final in4Adc = (map['in4Adc'] as num?)?.toInt();
+    final powerOk = map['powerOk'] == true;
+    final waterFlow = map['waterFlow'] == true;
     final override = map['override'] as Map<String, dynamic>? ?? {};
     final overrideEnabled = override['enabled'] == true;
     final overrideState = override['state'] == true;
+    final b = Backend.instance;
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -291,8 +337,52 @@ class _StatusScreenState extends State<StatusScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, size: 18, color: Colors.grey.shade600),
+                padding: EdgeInsets.zero,
+                onSelected: (v) {
+                  if (v == 'unpair') _forgetPump(slot, displayName);
+                },
+                itemBuilder: (ctx) => const [
+                  PopupMenuItem(
+                    value: 'unpair',
+                    child: Text('Unpair this pump', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
             ],
           ),
+          if (online && (b.showPowerStatus || b.showWaterFlow))
+            Padding(
+              padding: const EdgeInsets.only(left: 24, top: 2),
+              child: Row(
+                children: [
+                  if (b.showPowerStatus) ...[
+                    Icon(powerOk ? Icons.bolt : Icons.power_off,
+                        size: 14, color: powerOk ? Colors.green.shade600 : Colors.red.shade600),
+                    const SizedBox(width: 3),
+                    Text(powerOk ? 'Power OK' : 'No power',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: powerOk ? Colors.grey.shade600 : Colors.red.shade600,
+                            fontWeight: powerOk ? FontWeight.normal : FontWeight.w600)),
+                  ],
+                  if (b.showPowerStatus && b.showWaterFlow) const SizedBox(width: 10),
+                  if (b.showWaterFlow) ...[
+                    Icon(waterFlow ? Icons.water_drop : Icons.water_drop_outlined,
+                        size: 14, color: waterFlow ? Colors.blue.shade600 : Colors.grey.shade400),
+                    const SizedBox(width: 3),
+                    Text(
+                      waterFlow ? 'Flow confirmed' : (relay ? 'No flow yet' : 'No flow'),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: (relay && !waterFlow) ? Colors.orange.shade800 : Colors.grey.shade600,
+                          fontWeight: (relay && !waterFlow) ? FontWeight.w600 : FontWeight.normal),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           if (in1Adc != null && in4Adc != null)
             Padding(
               padding: const EdgeInsets.only(left: 24, top: 2),

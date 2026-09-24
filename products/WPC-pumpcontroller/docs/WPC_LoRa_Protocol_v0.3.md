@@ -84,6 +84,7 @@ Master runs an open WiFi SoftAP (`WPC-Master-XXXXXXXX`, no password) with a sync
   "debounceMs": 10000,
   "txPower": 14,
   "levels": [false, true, false],
+  "powerOk": true,
   "noPower": false,
   "pumps": [
     {
@@ -96,12 +97,14 @@ Master runs an open WiFi SoftAP (`WPC-Master-XXXXXXXX`, no password) with a sync
       "name": "",
       "in1Adc": 2229,
       "in4Adc": 331,
+      "waterFlow": true,
+      "powerOk": true,
       "override": { "enabled": false, "state": false }
     }
   ]
 }
 ```
-`in1Adc`/`in4Adc` and `override` are new in v0.3. `desired` reflects the *computed* target state (from level logic or override); `relay` reflects the last *confirmed* (acked) state — they can briefly disagree while a command is in flight.
+`in1Adc`/`in4Adc` and `override` are new in v0.3; `waterFlow`/`powerOk` (per pump) and the Master's own `powerOk` are new 24 Sep 2026 — see §10. `desired` reflects the *computed* target state (from level logic or override); `relay` reflects the last *confirmed* (acked) state — they can briefly disagree while a command is in flight.
 
 ### `POST /config`
 Body may include any subset of:
@@ -161,10 +164,12 @@ Pump Node runs its own open SoftAP (`WPC-Pump-XXXX`, XXXX = its 4-digit pump ID)
   "relay": true,
   "in1Adc": 2229,
   "in4Adc": 331,
+  "waterFlow": true,
+  "powerOk": true,
   "txPower": 14
 }
 ```
-`relay`, `in1Adc`, `in4Adc`, and `txPower` are all new in v0.3 — `relay` and the ADC fields are sampled fresh on every request (no caching), so this reflects the pump's live state, not what it last reported to the Master.
+`relay`, `in1Adc`, `in4Adc`, and `txPower` are all new in v0.3 — `relay` and the ADC fields are sampled fresh on every request (no caching), so this reflects the pump's live state, not what it last reported to the Master. `waterFlow`/`powerOk` (24 Sep 2026, §10) are likewise sampled fresh.
 
 ### `POST /config`
 ```json
@@ -184,3 +189,22 @@ See `WPC_Specification_v0.3.md` §4 for the full table (Pump Node LEDs, correcte
 - LoRa link-budget validation at real 1–2km range — **now directly affects `INTER_POLL_GAP_MS` and the poll timeouts in §5**, not just theoretical range; only bench-tested at <1m so far.
 - **Pump fail-safe vs. pump count (found while adding cloud control):** the Pump forces its relay OFF if it hears no `LEVEL_CMD` for 60 s, but the Master now reaches each idle pump only once per round-robin, i.e. about N x 5 s for N pumps (§5). With roughly 9 or more pumps a healthy idle pump can exceed 60 s between contacts and trip its fail-safe (relay OFF, rejoin churn) even though nothing is wrong. Options: scale the fail-safe with the expected cycle (needs a Pump firmware change, e.g. the Master sending its refresh interval in the `LEVEL_CMD` payload), or shorten the cycle. Not yet addressed.
 - IN1/IN4 calibration (raw → real units) — deferred, see Specification §3.3.
+
+## 10. Water Flow / Power status, and pump disassociation (added 24 Sep 2026)
+
+Per dealer feedback, IN1 and IN4 are used as digital contacts on both nodes (same "closed = active" convention throughout the system):
+
+| Field | Where | Meaning |
+|---|---|---|
+| `powerOk` (Master's own, top-level) | `GET /status`, MQTT status | Master's own No-Power input (J1 `NoPWR_CONN`). `true` = power present (input shorted to GND). Corrects the pre-existing `noPower` field, which had this **inverted** (its old comment read "polarity TBD") — `noPower` is kept, now `= !powerOk`, for any app build that predates this field. |
+| `waterFlow` (per pump) | `pumps[]` in `/status`; Pump's own `GET /info`; CMD_ACK payload byte 1 (`in1dig`, unchanged since v0.2) | Pump's IN1, wired as a Water-Flow contact: `true` = flow detected = the pump is confirmed actually running, not just commanded. |
+| `powerOk` (per pump) | `pumps[]` in `/status`; Pump's own `GET /info`; CMD_ACK payload byte 2 (`in4dig`, unchanged since v0.2) | Pump's own No-Power input, same convention as the Master's. |
+
+No new wire message: these ride on the existing CMD_ACK digital bytes (§2.1, present since v0.2) and the Master simply started storing and forwarding them (previously received but discarded). `powerOk`/`waterFlow` are session-only on the Master (reset on a fresh join or `/forget`, like the ADC cache) — a value is only as fresh as the pump's last poll (§5).
+
+**Firmware defect found and fixed alongside this:** on the Pump Node, `digitalRead(PIN_IN1)`/`digitalRead(PIN_IN4)` (GPIO36/35, ESP32's input-only ADC1 pins) is unreliable once `analogSetPinAttenuation()` has configured them for ADC use — confirmed on the bench (two boards, both channels): an open/pulled-high input read a stable, wrong LOW via `digitalRead` while `analogRead` correctly showed it saturated-high the whole time. The digital reads now threshold the calibrated mV reading instead (`contactActive()`, 500mV — closed measures ≈0.15V, open ≈1.05-1.1V given the 470Ω/10kΩ divider and `ADC_0db`), matching the technique the IN1/IN4 status LEDs already used. This affects `in1dig`/`in4dig` everywhere they appear (CMD_ACK, `/info`, the console `ADC` command) — anyone who was reading those bits before 24 Sep 2026 was reading the inverse of the real contact state.
+
+**Pump disassociation** ("Master should not hunt for that pump, Pump should not be controlled by that Master"): already implemented — `POST /forget` (§6) / MQTT `{"cmd":"forget","slot":N}` clears the Master's slot entirely (it stops polling that pump); it does not touch the Pump Node, which is free to rejoin (this or another Master) since it isn't told anything. A console `FORGET <slot>` was added for parity with `FORGETALL`. The app already had this (Assign screen); a matching action was added to the Status screen's pump row since that is where it was being looked for.
+
+**App-side (`mobile-app/wpc_app`):** Status screen shows `waterFlow`/`powerOk` per pump (dimmed unless the relay is ON and flow is missing, which is the actionable case) and the Master's own power as the existing "No Power detected" banner (now correctly polarized); Pump provisioning screen (`pump_screen.dart`) shows the same two fields from `/info`. Both are individually hideable via Connection screen → **Dashboard display** (`Backend.showPowerStatus` / `showWaterFlow`, persisted, default on) for an installation that doesn't have them wired.
+

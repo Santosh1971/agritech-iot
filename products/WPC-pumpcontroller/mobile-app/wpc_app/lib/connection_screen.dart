@@ -291,6 +291,29 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             ],
           ),
 
+          const SizedBox(height: 24),
+          Text('Dashboard display', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            "Hide a sensor here if this installation doesn't have it wired -- the Master/Pump "
+            'still reports it either way, this only affects what the app shows.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Power status'),
+            subtitle: const Text('No-Power input, at the Master and each Pump'),
+            value: b.showPowerStatus,
+            onChanged: (v) => b.setShowPowerStatus(v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Water flow / pump running'),
+            subtitle: const Text("Each Pump's flow input -- confirms it is actually running"),
+            value: b.showWaterFlow,
+            onChanged: (v) => b.setShowWaterFlow(v),
+          ),
+
           if (b.mode == LinkMode.cloud) ...[
             const SizedBox(height: 24),
             Text('Cloud status', style: Theme.of(context).textTheme.titleMedium),
