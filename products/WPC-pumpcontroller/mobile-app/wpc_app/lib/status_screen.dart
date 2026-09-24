@@ -269,7 +269,9 @@ class _StatusScreenState extends State<StatusScreen> {
         title: const Text('Unpair this pump?'),
         content: Text(
           '$displayName will be removed from this Master and no longer show anywhere. '
-          "This doesn't affect the physical Pump Node -- it can rejoin later if it's still active.",
+          "This doesn't affect the physical Pump Node -- it still has this Master saved and will "
+          'rejoin on its own (e.g. after a restart) unless you also connect to that Pump\'s own '
+          'WiFi and use Provision → "Forget this Master".',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),

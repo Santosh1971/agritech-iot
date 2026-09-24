@@ -62,6 +62,48 @@ class _PumpScreenState extends State<PumpScreen> {
     }
   }
 
+  Future<void> _forgetMaster() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Forget this Master?'),
+        content: const Text(
+          'This Pump will stop trying to join it and its relay will stay OFF until you point it '
+          "at a Master again (below). This doesn't affect the Master -- if you unpaired this pump "
+          "there first (Assign or Status screen), do this too, or it will otherwise keep trying "
+          'to rejoin the same Master on its own (e.g. after a restart).',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Forget', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      await WpcApi.forgetPumpMaster();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Master forgotten -- this Pump will not try to join anyone')),
+        );
+        _masterIdController.clear();
+      }
+      await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to forget: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _save() async {
     final masterId = _masterIdController.text.trim().toUpperCase();
     final hexPattern = RegExp(r'^[0-9A-F]{8}$');
@@ -143,9 +185,17 @@ class _PumpScreenState extends State<PumpScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Pump ID: ${_info!['pumpId']}'),
-                    Text(
-                      'Target Master: ${(_info!['targetMasterId'] as String? ?? '').replaceFirst(RegExp(r'^0x', caseSensitive: false), '')}',
-                    ),
+                    // hasMaster is false only after "Forget this Master" below -- a factory-fresh
+                    // Pump always has some target (the compiled-in default) until provisioned.
+                    if (_info!['hasMaster'] == false)
+                      Text(
+                        'Target Master: none -- enter one below',
+                        style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.w600),
+                      )
+                    else
+                      Text(
+                        'Target Master: ${(_info!['targetMasterId'] as String? ?? '').replaceFirst(RegExp(r'^0x', caseSensitive: false), '')}',
+                      ),
                     Text('Joined: ${_info!['joined'] == true ? 'Yes' : 'No'}'),
                     Text('Relay: ${_info!['relay'] == true ? 'ON' : 'OFF'}'),
                     if (Backend.instance.showPowerStatus && _info!.containsKey('powerOk'))
@@ -164,7 +214,7 @@ class _PumpScreenState extends State<PumpScreen> {
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                         ),
                       ),
-                    if (_info!['joined'] != true)
+                    if (_info!['joined'] != true && _info!['hasMaster'] != false)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
@@ -191,15 +241,26 @@ class _PumpScreenState extends State<PumpScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: _busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
+            Row(
+              children: [
+                FilledButton(
+                  onPressed: _busy ? null : _save,
+                  child: _busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+                const SizedBox(width: 8),
+                if (_info!['hasMaster'] != false)
+                  OutlinedButton(
+                    onPressed: _busy ? null : _forgetMaster,
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Forget this Master'),
+                  ),
+              ],
             ),
             const SizedBox(height: 24),
 

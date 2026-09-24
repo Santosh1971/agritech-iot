@@ -177,6 +177,10 @@ Pump Node runs its own open SoftAP (`WPC-Pump-XXXX`, XXXX = its 4-digit pump ID)
 ```
 `pumpId`/`targetMasterId` unchanged from v0.2 (changing either forces a rejoin, since the identity or target changed). `txPower` is new in v0.3, applied live, no rejoin needed — it doesn't affect identity, only what this radio transmits at.
 
+### `POST /forget` — new 24 Sep 2026
+
+No body needed. Forgets the target Master entirely (`targetMasterId` -> 0, a deliberate "no master" sentinel, persisted): the Pump stops sending `JOIN_REQUEST` and its relay stays fail-safe OFF until it's pointed at a Master again. Does not touch the Master. See §10.
+
 ## 8. LED Reference
 
 See `WPC_Specification_v0.3.md` §4 for the full table (Pump Node LEDs, corrected pin assignments and the new LoRa-activity blink). Master Node LED behavior is unchanged from v0.2 (WiFi status pattern, LoRa TX/RX blink + link-error fast-blink, per-level status LEDs).
@@ -204,7 +208,9 @@ No new wire message: these ride on the existing CMD_ACK digital bytes (§2.1, pr
 
 **Firmware defect found and fixed alongside this:** on the Pump Node, `digitalRead(PIN_IN1)`/`digitalRead(PIN_IN4)` (GPIO36/35, ESP32's input-only ADC1 pins) is unreliable once `analogSetPinAttenuation()` has configured them for ADC use — confirmed on the bench (two boards, both channels): an open/pulled-high input read a stable, wrong LOW via `digitalRead` while `analogRead` correctly showed it saturated-high the whole time. The digital reads now threshold the calibrated mV reading instead (`contactActive()`, 500mV — closed measures ≈0.15V, open ≈1.05-1.1V given the 470Ω/10kΩ divider and `ADC_0db`), matching the technique the IN1/IN4 status LEDs already used. This affects `in1dig`/`in4dig` everywhere they appear (CMD_ACK, `/info`, the console `ADC` command) — anyone who was reading those bits before 24 Sep 2026 was reading the inverse of the real contact state.
 
-**Pump disassociation** ("Master should not hunt for that pump, Pump should not be controlled by that Master"): already implemented — `POST /forget` (§6) / MQTT `{"cmd":"forget","slot":N}` clears the Master's slot entirely (it stops polling that pump); it does not touch the Pump Node, which is free to rejoin (this or another Master) since it isn't told anything. A console `FORGET <slot>` was added for parity with `FORGETALL`. The app already had this (Assign screen); a matching action was added to the Status screen's pump row since that is where it was being looked for.
+**Pump disassociation** ("Master should not hunt for that pump, Pump should not be controlled by that Master"): the Master-side half already existed — `POST /forget` (§6) / MQTT `{"cmd":"forget","slot":N}` clears the Master's slot entirely (it stops polling that pump); it does not touch the Pump Node. A console `FORGET <slot>` was added for parity with `FORGETALL`. The app already had this (Assign screen); a matching action was added to the Status screen's pump row since that is where it was being looked for.
+
+**Found in the field (24 Sep 2026) and fixed the same day:** the Master-side `/forget` alone was not enough — the Pump Node still had that Master's ID saved (`targetMasterId`), so it kept trying to join it and silently reappeared in the Master's table (a new slot) the next time it rebooted or otherwise re-joined. Added the Pump-side half: `POST /forget` **on the Pump Node** (§7) / console `FORGET` sets `targetMasterId` to 0 (a "no master" sentinel — distinct from a factory-fresh Pump's compiled-in default), stops it sending `JOIN_REQUEST` at all, and forces its relay off immediately. The two `/forget` actions are deliberately separate (Master forgets a pump; a pump forgets its Master) — unpairing fully needs both, and the app's Master-side "unpair" confirmation dialogs now say so.
 
 **App-side (`mobile-app/wpc_app`):** Status screen shows `waterFlow`/`powerOk` per pump (dimmed unless the relay is ON and flow is missing, which is the actionable case) and the Master's own power as the existing "No Power detected" banner (now correctly polarized); Pump provisioning screen (`pump_screen.dart`) shows the same two fields from `/info`. Both are individually hideable via Connection screen → **Dashboard display** (`Backend.showPowerStatus` / `showWaterFlow`, persisted, default on) for an installation that doesn't have them wired.
 

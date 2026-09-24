@@ -8,7 +8,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-#define FW_VERSION "0.4.1"
+#define FW_VERSION "0.4.2"
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
 bool wifiApOk = false;
@@ -353,6 +353,7 @@ void handleInfo() {
   char idbuf[12];
   snprintf(idbuf, sizeof(idbuf), "0x%08X", targetMasterId);
   doc["targetMasterId"] = idbuf;
+  doc["hasMaster"] = targetMasterId != 0;   // false after cmdForgetMaster() -- see there
   doc["joined"] = joined;
   doc["assignedSlot"] = joined ? myAssignedSlot : -1;
   doc["relay"] = relayState;
@@ -372,6 +373,10 @@ void handleInfo() {
 
 // Points this Pump at a different Master: new target ID, matching per-Master
 // syncword, persisted. Callers are responsible for forcing a rejoin.
+// v == 0 is a deliberate sentinel meaning "no master" (see cmdForgetMaster()) -- this Pump was
+// paired, then explicitly told to forget it (Provision screen / console FORGET / POST /forget).
+// It is distinct from a factory-fresh Pump, which has never had this NVS key written at all and
+// so falls back to DEFAULT_MASTER_ID in setup() -- once written, 0 sticks across reboots.
 void applyTargetMaster(uint32_t v) {
   targetMasterId = v;
   prefs.putULong("masterId", targetMasterId);
@@ -379,6 +384,29 @@ void applyTargetMaster(uint32_t v) {
   radio.setSyncWord(currentSyncWord);
   Serial.print(F("[CONFIG] syncword updated to 0x"));
   Serial.println(currentSyncWord, HEX);
+}
+
+// Forgets the target Master entirely: this Pump stops trying to join anyone (no more
+// JOIN_REQUEST airtime) and its relay stays fail-safe OFF (immediately, not waiting for the
+// next loop() pass) until an installer points it at a Master again. Does NOT touch the Master --
+// this is the Pump-side half of "disassociate a pump" (the Master-side half is its own /forget,
+// which likewise doesn't touch the Pump -- a Pump unpaired only on the Master side still had that
+// Master's ID saved and would silently reappear the moment it next rejoined, e.g. after a
+// restart; this gives the installer a deliberate way to also release the Pump itself).
+void cmdForgetMaster() {
+  applyTargetMaster(0);
+  joined = false;
+  myAssignedSlot = 0xFF;
+  lastJoinAttemptMs = 0;
+  if (relayState) setRelay(false);
+  Serial.println(F("[CONFIG] target Master forgotten -- will not attempt to join anyone"));
+}
+
+// POST /forget -- forgets the target Master (no body needed). See cmdForgetMaster().
+void handleForgetMaster() {
+  cmdForgetMaster();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(200, "application/json", "{\"ok\":true}");
 }
 
 // POST /config  body: {"pumpId": N, "targetMasterId": "0xXXXXXXXX"}
@@ -505,7 +533,7 @@ void handleConsoleLine(String line) {
   } else if (cmd == "MASTER") {           // MASTER <hex8> -- point at a Master, persisted, forces rejoin
     uint32_t v = strtoul(args.c_str(), nullptr, 16);
     if (v == 0) {
-      reply("ERR", "usage: MASTER <8 hex digits>");
+      reply("ERR", "usage: MASTER <8 hex digits> (or FORGET to un-target)");
     } else {
       applyTargetMaster(v);
       forceRejoin();
@@ -514,6 +542,9 @@ void handleConsoleLine(String line) {
       snprintf(m, sizeof(m), "%08X", (unsigned int)v);
       reply("OK", String("master=") + m);
     }
+  } else if (cmd == "FORGET") {           // FORGET -- un-target the Master (console/testjig parity with POST /forget)
+    cmdForgetMaster();
+    reply("OK", "master forgotten");
   } else if (cmd == "TXPOWER") {          // TXPOWER <dBm>
     int p = args.toInt();
     if (p < LORA_TXPOWER_MIN || p > LORA_TXPOWER_MAX || radio.setOutputPower((int8_t)p) != RADIOLIB_ERR_NONE) {
@@ -550,7 +581,7 @@ void handleConsoleLine(String line) {
     delay(200);
     ESP.restart();
   } else {
-    reply("ERR", "unknown command (ID STATE ADC LORASTAT RELAY MASTER TXPOWER TESTMODE LEDTEST FACTORYRESET REBOOT)");
+    reply("ERR", "unknown command (ID STATE ADC LORASTAT RELAY MASTER FORGET TXPOWER TESTMODE LEDTEST FACTORYRESET REBOOT)");
   }
 }
 
@@ -652,6 +683,7 @@ void setup() {
 
   server.on("/info", handleInfo);
   server.on("/config", HTTP_POST, handleSetConfig);
+  server.on("/forget", HTTP_POST, handleForgetMaster);
   server.begin();
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, savedBrownoutReg);
@@ -748,7 +780,7 @@ void loop() {
       setRelay(false);
       Serial.println(F("[FAILSAFE] unjoined -- relay forced OFF"));
     }
-    if (millis() - lastJoinAttemptMs > JOIN_RETRY_MS) {
+    if (targetMasterId != 0 && millis() - lastJoinAttemptMs > JOIN_RETRY_MS) {
       lastJoinAttemptMs = millis();
       sendJoinRequest();
     }

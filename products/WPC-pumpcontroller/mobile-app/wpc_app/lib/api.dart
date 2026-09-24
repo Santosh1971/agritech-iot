@@ -55,6 +55,13 @@ class WpcApi {
   /// TX power of the Pump Node you are connected to (its own radio only).
   static Future<void> setPumpTxPower(int dbm) => _localPost('/config', {'txPower': dbm});
 
+  /// Makes the Pump you're connected to forget its target Master: it stops trying to join
+  /// anyone (no more JOIN_REQUEST airtime) and its relay stays fail-safe OFF until it's pointed
+  /// at a Master again. This is the Pump-side half of disassociating a pump -- the Master's own
+  /// [forgetPump] only removes it from that Master's table and doesn't touch the Pump, so a pump
+  /// unpaired only there still had the old Master's ID saved and would rejoin it on its own.
+  static Future<void> forgetPumpMaster() => _localPost('/forget', {});
+
   // ---------------------------------------------------------------------- Master
   static Future<Map<String, dynamic>> getLocalStatus() async {
     final res = await http.get(Uri.parse('$baseUrl/status')).timeout(_timeout);
