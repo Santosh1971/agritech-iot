@@ -1,0 +1,26 @@
+# Build outputs
+/build/
+app/build/
+app/.cxx/
+
+# Bundled bootloader/partitions -- see app/src/main/assets/README.md for
+# how to (re)generate; not committed, same convention as flasher-spike-app.
+app/src/main/assets/*.bin
+
+# Local machine config — not portable, never commit
+local.properties
+
+# Release signing credentials — never commit, matches the other NB Agri apps' convention
+key.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Gradle wrapper distribution cache (fetched on first run, not the wrapper scripts themselves)
+.gradle/
+.kotlin/
+
+# App credentials (broker + device SoftAP) -- never commit, the repo is public
+secrets.properties

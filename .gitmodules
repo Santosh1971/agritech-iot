@@ -1,3 +1,6 @@
 [submodule "projects/tools/usb-otg-flash-spike/flasher-spike-app/app/src/main/cpp/esp-serial-flasher"]
 	path = projects/tools/usb-otg-flash-spike/flasher-spike-app/app/src/main/cpp/esp-serial-flasher
 	url = https://github.com/espressif/esp-serial-flasher.git
+[submodule "projects/tools/flasher-tester-app/app/src/main/cpp/esp-serial-flasher"]
+	path = projects/tools/flasher-tester-app/app/src/main/cpp/esp-serial-flasher
+	url = https://github.com/espressif/esp-serial-flasher.git

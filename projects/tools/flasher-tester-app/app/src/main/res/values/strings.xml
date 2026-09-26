@@ -1,0 +1,30 @@
+<resources>
+    <!-- Home-screen/launcher label: kept short and distinct from "NB Agri
+         Flasher" (flasher-spike-app) so the two icons aren't confused. -->
+    <string name="app_name">Tester</string>
+    <string name="status_idle">Ready.</string>
+    <string name="log_placeholder">Log output appears here. Full esp-serial-flasher trace also goes to Logcat (tag: flashertester).</string>
+    <string name="progress_idle">idle</string>
+
+    <string name="hint_email">Email address</string>
+    <string name="send_code_button">Send code</string>
+    <string name="hint_otp">Code from email</string>
+    <string name="verify_code_button">Verify</string>
+    <string name="logout_button">Log out</string>
+    <string name="check_updates_button">Check for updates</string>
+
+    <string name="settings_button">Settings</string>
+    <string name="history_button">History</string>
+    <string name="find_hardware_button">Find DUT + Jig on USB Hub</string>
+    <string name="diagnostics_button">Jig / DUT Diagnostics…</string>
+    <string name="run_tests_only_button">Run Tests Only (skip flash)</string>
+    <string name="force_local_mode_button">Force DUT to Local Mode (via MQTT)…</string>
+    <string name="retry_flash_button">Retry Flash</string>
+    <string name="join_wifi_button">Open WiFi Settings</string>
+    <string name="continue_button">Continue — I\'ve joined it</string>
+    <string name="save_next_button">Save &amp; Next Unit</string>
+    <string name="share_log_button">Share log</string>
+    <string name="export_csv_button">Export CSV</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="save_button">Save</string>
+</resources>
