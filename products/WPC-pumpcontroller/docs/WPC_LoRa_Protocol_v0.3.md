@@ -83,6 +83,7 @@ Master runs an open WiFi SoftAP (`WPC-Master-XXXXXXXX`, no password) with a sync
   "numLevels": 3,
   "debounceMs": 10000,
   "txPower": 14,
+  "wifi": { "configured": true, "ssid": "FarmWiFi", "connected": false, "state": "no_ssid", "ip": "" },
   "levels": [false, true, false],
   "powerOk": true,
   "noPower": false,
@@ -141,7 +142,11 @@ Clears a slot entirely, including its ADC cache and override state (new in v0.3)
 ```json
 { "ssid": "FarmWiFi", "password": "secret" }
 ```
-Stores the farm-router credentials in NVS and starts joining it (the Master runs AP+STA). Empty `ssid` clears it. **Local only** — not accepted from the cloud command topic. `GET /status` gains `fw`, `wifi{configured,ssid,connected,ip}` (the password is never returned) and `cloud` (MQTT connected). The same command functions are also reachable over MQTT and the serial console — see `WPC_Remote_Cloud.md`.
+Stores the farm-router credentials in NVS and starts joining it (the Master runs AP+STA). Empty `ssid` clears it. **Local only** — not accepted from the cloud command topic. `GET /status` gains `fw`, `wifi{configured,ssid,connected,state,ip}` (the password is never returned) and `cloud` (MQTT connected). The same command functions are also reachable over MQTT and the serial console — see `WPC_Remote_Cloud.md`.
+
+`wifi.state` (added 26 Sep 2026, dealer feedback via Avinash — "check WPC cloud connectivity") is `WiFi.status()` translated into something actionable: `not_configured`, `connected`, `no_ssid` (this SSID isn't visible to the radio at all — usually out of range, or a 5GHz-only/band-steered network the ESP32 can't see), `connect_failed` (usually a wrong password), `connection_lost`, `disconnected`, or `connecting`. `connected` is unnecessary once `wifi.connected` is already `true`. See `WPC_Remote_Cloud.md` §"Cloud connectivity investigation" for what this was added to diagnose.
+
+Also added the same day: the STA reconnect retry (`CLOUD_WIFI_RETRY_MS`, `Cloud.h`) now backs off (30s → 60s → … capped at 5 min) after repeated failures, resetting the moment a connection succeeds. Each retry's `WiFi.begin()` does a full-channel scan for the target SSID, and since AP+STA share one radio on the ESP32 this drags the SoftAP's channel along with it — confirmed on the bench that a permanently-unreachable farm WiFi (`no_ssid`) made the SoftAP intermittently hard for a phone to find, every `CLOUD_WIFI_RETRY_MS`, indefinitely. The backoff doesn't eliminate this (AP+STA sharing one radio is an ESP32 hardware/SDK limitation, not something firmware can fully avoid), just makes it rarer once it's clear the farm WiFi isn't coming back soon.
 
 ### `POST /wifi/scan` and `GET /wifi/scan` — WiFi network list (firmware v0.4.0+)
 `POST` starts a scan and returns `{"scanning":true}` at once. `GET` returns `{"scanning":bool,"networks":[{"ssid","rssi","open"}]}`: one entry per name (the strongest), sorted strongest first, at most 20, hidden networks omitted. While `scanning` is true the list is the previous scan's, so poll until it is false (a scan takes about 8 s). **Local only.**
@@ -184,6 +189,19 @@ No body needed. Forgets the target Master entirely (`targetMasterId` -> 0, a del
 ## 8. LED Reference
 
 See `WPC_Specification_v0.3.md` §4 for the full table (Pump Node LEDs, corrected pin assignments and the new LoRa-activity blink). Master Node LED behavior is unchanged from v0.2 (WiFi status pattern, LoRa TX/RX blink + link-error fast-blink, per-level status LEDs).
+
+### 8.1 Master's WiFi LED (changed 26 Sep 2026, dealer feedback via Avinash)
+
+Four patterns, in this priority order (the Master runs its SoftAP and the farm-WiFi STA link at the same time, so more than one can be true at once -- internet is the most useful thing to show, so it wins):
+
+| Priority | Condition | Pattern | Notes |
+|---|---|---|---|
+| 1 | STA has internet (`wifi.connected`) | **Double blink, then pause** (100/100/100/100/1000ms) | Same pattern FG1 uses for "fully connected" (its `WIFI_LED_FULL_OK`). |
+| 2 | AP up, a phone is connected to it right now | **Continuous fast blink** (50/50ms) | WPC-specific addition (Avinash) -- makes it obvious at a glance which device a phone is actually talking to. Already existed before this rev. |
+| 3 | AP up, idle (nobody on it, no internet either) | **Continuous slow blink** (1000/1000ms) | Matches FG1's "have WiFi, nothing else yet" speed (`WIFI_LED_WIFI_ONLY`) -- FG1 has no AP of its own, so this borrows that pattern's speed for WPC's equivalent idle state. |
+| 4 | AP itself failed to start | Continuous 150/150ms | Unchanged, a genuine fault. |
+
+`wifiLedStateId()` in `master_node/src/main.cpp` is the single source of truth for both the LED and the console `WIFISTAT` reply (`led=...`), so they can't disagree.
 
 ## 9. Open Items (carried over from v0.2 unless noted)
 

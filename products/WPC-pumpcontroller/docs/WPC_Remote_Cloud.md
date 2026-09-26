@@ -60,10 +60,36 @@ A remote override is a *state change*, so it jumps the Master's poll queue (see 
 
 ### Known limitations / things to test in the field
 
-1. **AP+STA channel coupling.** An ESP32 running a SoftAP and a WiFi client at once must use the router's channel for both. If the router changes channel, or the STA reconnects on a different one, the Master's own SoftAP can drop for a few seconds and the phone may disconnect. STA reconnect attempts are therefore spaced 30 s apart. Worth testing on a real farm router.
+1. **AP+STA channel coupling — confirmed, not just theoretical (26 Sep 2026).** An ESP32 running a SoftAP and a WiFi client at once must use the router's channel for both. If the router changes channel, or the STA reconnects on a different one, the Master's own SoftAP can drop for a few seconds and the phone may disconnect. STA reconnect attempts are therefore spaced 30 s apart, now backing off further (capped at 5 min) after repeated failures — see the investigation below.
 2. **Retained status can be stale.** If the Master loses power or WiFi, the broker still holds its last status. The app uses the `lwt` topic and shows an "offline — last known state" banner instead of presenting it as live; commands are refused while the Master is offline.
 3. **The status refreshes only when the Master polls.** IN1/IN4 telemetry and online/offline state are only as fresh as the Master's round-robin (about N × 5 s for N pumps), remote or local.
 4. **Android routing.** With mobile data on, Android may send traffic for `192.168.4.1` over mobile data instead of the (internet-less) Master WiFi. Local mode has worked so far; if it misbehaves on some phones, WM1's app has a `NetworkBinding` helper for this that could be ported.
+
+## Cloud connectivity investigation (26 Sep 2026, dealer feedback via Avinash)
+
+**Report:** Local mode showed "Gateway/Device Connected to Internet"; switching the app to Cloud mode showed "Not Connected", and the device didn't work over the cloud at all.
+
+**Code review** (Cloud.h, main.cpp, backend.dart, status_screen.dart) found no logic bug in the status-publish or app-display path: the Master republishes its live status to the broker at least every 10 s while WiFi+MQTT are up (`buildStatusJson()` → `cloud.setStatus()`, gated only on an SSID ever having been set, not on it being currently reachable), a fresh publish only ever happens while `WiFi.status()==WL_CONNECTED`, and the app's "Internet: connected/not connected" line is a straight passthrough of whichever status JSON it fetched (local live, or the cloud-retained one) — so Local vs Cloud showing different answers is only possible if the underlying data genuinely differs (see below), not from the display logic itself.
+
+**What was found on the bench, with a real Master board that already had real farm-WiFi credentials saved from earlier testing (SSID "Agri Sensors And Controls"):**
+- It never connected — `WIFISTAT` (new field, see below) showed `state=no_ssid` continuously, for 80+ seconds across several retry cycles.
+- Its own `WIFISCAN` (the same scan the app's WiFi picker uses) found **no real router at all** from wherever it was sitting on the bench — only the neighbouring Pump Node's own SoftAP. So at that physical location, that network genuinely wasn't reachable by the ESP32 radio.
+- This bench location has no other confirmed-reachable WiFi network to retest against (the dev machine's own WiFi radio couldn't associate with anything either, independent of this investigation), so a full live round trip (Master joins real internet → publishes to the broker → app in Cloud mode reads it) could **not** be completed in this session. The broker itself was independently confirmed reachable (DNS + TCP connect to `mqtt.agrisenseandcontrol.in:1883` succeeded) from the same location.
+
+**Most likely explanation, in order of likelihood:** the farm/office WiFi used for the original test either (a) is only reachable from a different physical spot than wherever the Master was later moved to, (b) is a 5GHz-only or aggressively band-steered network the 2.4GHz-only ESP32 can't see even though a phone can, or (c) had its password changed since it was configured. None of these are code bugs — they need confirming at the actual deployment site.
+
+**What to check on-site, in order:**
+1. Open the app's Connection screen → **Master internet (farm WiFi)** row. As of this build it now shows *why* it isn't connected, not just that it isn't: `network not found` (case a/b above — confirm the SSID appears in **Scan for WiFi networks** on that same screen; if it doesn't, that's conclusive — try a phone hotspot or a 2.4GHz band on the router), `wrong password?`, or `lost connection`.
+2. If it shows `network not found`, use the same screen's "Scan for WiFi networks" to see exactly what the Master's radio can see from where it's mounted — if the target name is absent from that list, it is out of range or not 2.4GHz, not a firmware issue.
+3. Only once `wifi.connected` is confirmed true should Cloud mode be judged — check the Status screen for `Updated Xs ago` (added this session); anything reliably under ~15 s means the whole chain (Master → broker → app) is genuinely live.
+
+**Fixed/added regardless of root cause (26 Sep 2026):**
+- `wifi.state` field (`/status`, MQTT, `WIFISTAT`) — see protocol doc §"POST /wifi" for the value list. Surfaced in the app on both the Connection screen's farm-WiFi row and the Status screen's "Internet: not connected (...)" line.
+- Status staleness: the app already computed `_ageSec` for a cloud-mode status but never displayed it — now shown as `Updated Xs/Xm/Xh ago` next to the firmware version, in orange past ~25 s (the Master's own max republish interval is 10 s).
+- STA retry backoff (capped, resets on success) to reduce how often a permanently-unreachable farm WiFi disrupts the SoftAP via the channel-coupling above.
+- fw bumped 0.4.1 → 0.4.2.
+
+**Not done:** an actual verified live round trip with a real Master on a real, confirmed-reachable farm WiFi. This needs to happen at the real site (or with a phone hotspot brought to wherever the boards are).
 
 ## Security (deferred — what this means today)
 

@@ -32,6 +32,7 @@
 #define CLOUD_STATUS_MIN_INTERVAL_MS 1000UL    // never publish faster than this
 #define CLOUD_STATUS_MAX_INTERVAL_MS 10000UL   // republish at least this often
 #define CLOUD_WIFI_RETRY_MS          30000UL   // STA scans disturb the SoftAP, so retry sparingly
+#define CLOUD_WIFI_RETRY_MAX_MS      300000UL  // cap for the backoff below (5 min)
 #define CLOUD_MQTT_RETRY_MS          5000UL
 #define CLOUD_CMD_QUEUE_LEN          8
 #define CLOUD_MAX_PAYLOAD            1024
@@ -75,6 +76,21 @@ public:
   bool wifiConfigured() const { return _ssid.length() > 0; }
   bool wifiConnected() const { return WiFi.status() == WL_CONNECTED; }
   bool mqttConnected() { return _mqttUp; }
+
+  // Short machine-readable reason the app/dealer can act on -- "Internet: not connected" alone
+  // gives no clue whether the farm WiFi's name is wrong, its password is wrong, or it's simply out
+  // of the Master's range; this is exactly what a WiFi.status() vs the stored SSID tells you.
+  const char* wifiStateStr() const {
+    if (!wifiConfigured()) return "not_configured";
+    switch (WiFi.status()) {
+      case WL_CONNECTED:        return "connected";
+      case WL_NO_SSID_AVAIL:    return "no_ssid";          // this SSID is not visible to the radio at all
+      case WL_CONNECT_FAILED:   return "connect_failed";   // typically a wrong password
+      case WL_CONNECTION_LOST:  return "connection_lost";
+      case WL_DISCONNECTED:     return "disconnected";
+      default:                  return "connecting";        // WL_IDLE_STATUS / WL_SCAN_COMPLETED etc.
+    }
+  }
   String ssid() const { return _ssid; }
   String ip() const { return wifiConnected() ? WiFi.localIP().toString() : String(""); }
 
@@ -115,6 +131,14 @@ private:
     uint32_t lastPublish = 0;
     uint32_t publishedSeq = 0;
     bool wasConnected = false;
+    // Each retry's WiFi.begin() triggers a full channel scan for the target SSID, which -- since
+    // AP+STA share one radio on the ESP32 -- drags the SoftAP's channel along with it and makes the
+    // SoftAP briefly hard for a phone to find. Confirmed on the bench: a farm WiFi that's genuinely
+    // unreachable (WL_NO_SSID_AVAIL) keeps this happening every CLOUD_WIFI_RETRY_MS forever, and a
+    // phone scan during that window can miss the SoftAP. Back off (capped) on repeated failure so a
+    // long-unreachable farm WiFi disrupts the SoftAP less often; reset to the base interval the
+    // moment a connection actually succeeds, so real farm WiFi hiccups still recover promptly.
+    uint32_t wifiRetryIntervalMs = CLOUD_WIFI_RETRY_MS;
 
     for (;;) {
       if (_wifiRequested) {
@@ -124,6 +148,7 @@ private:
         _wifiRequested = false;
         xSemaphoreGive(_statusMutex);
         WiFi.disconnect(false, false);   // keep the AP up, drop only the STA side
+        wifiRetryIntervalMs = CLOUD_WIFI_RETRY_MS;   // a fresh SSID/password deserves a fresh try promptly
         if (ssid.length()) {
           WiFi.begin(ssid.c_str(), pass.length() ? pass.c_str() : nullptr);   // open network = no password
           lastWifiBegin = millis();
@@ -131,15 +156,28 @@ private:
       }
 
       if (ssid.length() && WiFi.status() != WL_CONNECTED &&
-          millis() - lastWifiBegin > CLOUD_WIFI_RETRY_MS) {
+          millis() - lastWifiBegin > wifiRetryIntervalMs) {
         WiFi.begin(ssid.c_str(), pass.length() ? pass.c_str() : nullptr);   // open network = no password
         lastWifiBegin = millis();
+        wifiRetryIntervalMs = min(wifiRetryIntervalMs * 2, (uint32_t)CLOUD_WIFI_RETRY_MAX_MS);
       }
 
       bool up = (WiFi.status() == WL_CONNECTED);
       if (up != wasConnected) {
         wasConnected = up;
         Serial.println(up ? F("[CLOUD] WiFi STA connected") : F("[CLOUD] WiFi STA lost"));
+        if (up) wifiRetryIntervalMs = CLOUD_WIFI_RETRY_MS;
+      }
+      // Diagnostic for "won't connect" reports: WiFi.status()'s actual enum value while it isn't
+      // WL_CONNECTED tells apart a wrong password (WL_CONNECT_FAILED), the SSID not being in range
+      // (WL_NO_SSID_AVAIL / WL_IDLE_STATUS never advancing) or a real drop (WL_CONNECTION_LOST),
+      // none of which the connected/lost transition above (only fires on WL_CONNECTED itself) shows.
+      static uint32_t lastStatusLog = 0;
+      if (ssid.length() && !up && millis() - lastStatusLog > 5000) {
+        lastStatusLog = millis();
+        Serial.printf("[CLOUD] WiFi STA not connected, status=%d (0=idle 1=no-ssid 3=connected "
+                      "4=connect-failed 5=connection-lost 6=disconnected), ap-channel=%d\n",
+                      (int)WiFi.status(), WiFi.channel());
       }
 
       if (up) {

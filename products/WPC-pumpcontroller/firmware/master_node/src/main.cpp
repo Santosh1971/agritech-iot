@@ -7,7 +7,7 @@
 #include <esp_system.h>
 #include "Cloud.h"
 
-#define FW_VERSION "0.4.1"
+#define FW_VERSION "0.4.2"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -188,18 +188,39 @@ void updateLoraLed() {
 }
 
 int wifiStationCount = 0;
+extern CloudLink cloud;   // defined further down; declared early for updateWifiLed()
 
-// Three distinct patterns: slow double-blink-then-pause (idle, AP up, no
-// phone connected), continuous fast blink with no pause (a phone IS
-// connected right now -- this is what Avinash asked for, to see at a
-// glance which device his phone is actually talking to), or a slower
-// continuous blink (SoftAP itself failed to start). Speeds are kept
-// clearly different (50ms vs 150ms) so "connected" and "error" don't
-// look the same at a glance.
+// Four distinct patterns, in priority order (highest first -- the Master
+// runs its SoftAP and the farm-WiFi STA link at the same time, so more
+// than one of these can be true at once; internet is the most useful
+// thing to show, so it wins):
+//   1. STA has internet (cloud.wifiConnected())     -- double blink, then a
+//      pause. Same pattern FG1 uses for "fully connected" (WIFI_LED_FULL_OK
+//      in FG1's LEDManager: 100/100/100/100/1000ms).
+//   2. AP up, a phone IS connected to it right now  -- continuous fast
+//      blink (50/50ms) -- Avinash's WPC-specific addition, so it's obvious
+//      at a glance which device a phone is actually talking to.
+//   3. AP up, idle (nobody on it, no internet either) -- continuous slow
+//      blink (1000/1000ms), matching FG1's "have WiFi, nothing else yet"
+//      style (WIFI_LED_WIFI_ONLY) -- FG1 has no AP of its own, so this
+//      reuses that pattern's speed for WPC's equivalent "up but idle" state.
+//   4. AP itself failed to start -- continuous 150/150ms (unchanged; a
+//      genuine fault, kept visually distinct from all three above).
+// 0 = internet (STA connected), 1 = AP + phone connected, 2 = AP idle, 3 = AP failed to start.
+// A single source of truth for both updateWifiLed() and the WIFISTAT console command, so the two
+// can never disagree about which state is currently shown.
+uint8_t wifiLedStateId() {
+  if (!wifiApOk) return 3;
+  if (cloud.wifiConnected()) return 0;
+  if (wifiStationCount > 0) return 1;
+  return 2;
+}
+
 void updateWifiLed() {
   static uint32_t lastStationCheck = 0;
   static uint32_t phaseStart = 0;
   static uint8_t phaseIdx = 0;
+  static uint8_t lastStateId = 0xFF;   // force a phase reset the first time, and on every state change
 
   uint32_t now = millis();
   if (now - lastStationCheck >= 500) {
@@ -207,23 +228,35 @@ void updateWifiLed() {
     lastStationCheck = now;
   }
 
-  static const bool idlePattern[]      = {true, false, true, false};
-  static const uint16_t idleDur[]      = {80, 80, 80, 800};
-  static const bool connectedPattern[] = {true, false};
-  static const uint16_t connectedDur[] = {50, 50};
-  static const bool errPattern[]       = {true, false};
-  static const uint16_t errDur[]       = {150, 150};
+  static const bool     internetPattern[] = {true, false, true, false};
+  static const uint16_t internetDur[]     = {100, 100, 100, 1000};
+  static const bool     connectedPattern[] = {true, false};
+  static const uint16_t connectedDur[]     = {50, 50};
+  static const bool     idlePattern[]      = {true, false};
+  static const uint16_t idleDur[]          = {1000, 1000};
+  static const bool     errPattern[]       = {true, false};
+  static const uint16_t errDur[]            = {150, 150};
 
   const bool* pattern;
   const uint16_t* durations;
   uint8_t patternLen;
+  uint8_t stateId = wifiLedStateId();
 
-  if (!wifiApOk) {
-    pattern = errPattern; durations = errDur; patternLen = 2;
-  } else if (wifiStationCount > 0) {
-    pattern = connectedPattern; durations = connectedDur; patternLen = 2;
-  } else {
-    pattern = idlePattern; durations = idleDur; patternLen = 4;
+  switch (stateId) {
+    case 0:  pattern = internetPattern;  durations = internetDur;  patternLen = 4; break;
+    case 1:  pattern = connectedPattern; durations = connectedDur; patternLen = 2; break;
+    case 3:  pattern = errPattern;       durations = errDur;       patternLen = 2; break;
+    default: pattern = idlePattern;      durations = idleDur;      patternLen = 2; break;
+  }
+
+  // A changed state restarts the pattern from its first phase -- without this, switching states
+  // mid-pattern (e.g. a phone joins right as the long pause of another pattern was underway) could
+  // show a momentarily wrong/confusing phase, or that stale `phaseIdx` could be out of range for a
+  // shorter pattern.
+  if (stateId != lastStateId) {
+    lastStateId = stateId;
+    phaseIdx = 0;
+    phaseStart = now;
   }
 
   if (now - phaseStart >= durations[phaseIdx]) {
@@ -897,6 +930,7 @@ String buildStatusJson() {
   w["configured"] = cloud.wifiConfigured();
   w["ssid"] = cloud.ssid();
   w["connected"] = cloud.wifiConnected();
+  w["state"] = cloud.wifiStateStr();   // added for the "why isn't this connected" report -- see Cloud.h
   w["ip"] = cloud.ip();
   doc["cloud"] = cloud.mqttConnected();
 
@@ -1253,8 +1287,11 @@ void handleConsoleLine(String line) {
       reply("OK", "scanning=0");
     }
   } else if (cmd == "WIFISTAT") {
+    static const char* ledNames[] = {"internet(double-blink)", "ap-connected(fast-blink)", "ap-idle(slow-blink)", "ap-failed(error)"};
     reply("OK", String("configured=") + cloud.wifiConfigured() + " ssid=" + cloud.ssid() +
-                " connected=" + cloud.wifiConnected() + " ip=" + cloud.ip() + " mqtt=" + cloud.mqttConnected());
+                " connected=" + cloud.wifiConnected() + " state=" + cloud.wifiStateStr() +
+                " ip=" + cloud.ip() + " mqtt=" + cloud.mqttConnected() +
+                " apStations=" + wifiStationCount + " led=" + ledNames[wifiLedStateId()]);
   } else if (cmd == "LEDTEST") {          // LEDTEST [ms]  -- all LEDs on, blocks the loop for that long
     uint32_t ms = args.length() ? (uint32_t)args.toInt() : 2000;
     if (ms > 10000) ms = 10000;

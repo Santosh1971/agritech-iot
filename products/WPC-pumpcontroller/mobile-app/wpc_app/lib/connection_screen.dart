@@ -359,7 +359,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             _statusRow(
                 'Farm WiFi',
                 wifi['configured'] == true
-                    ? '${wifi['ssid']} - ${wifi['connected'] == true ? 'connected (${wifi['ip']})' : 'not connected'}'
+                    ? '${wifi['ssid']} - ${wifi['connected'] == true ? 'connected (${wifi['ip']})' : _wifiStateText(wifi['state'] as String?)}'
                     : 'not set up',
                 wifi['connected'] == true),
             _statusRow('Cloud', localCloudUp ? 'connected' : 'not connected', localCloudUp),
@@ -472,6 +472,25 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         ],
       ),
     );
+  }
+
+  // Turns the Master's wifi.state (added 26 Sep 2026, see Cloud.h's wifiStateStr()) into something
+  // an installer can act on -- a bare "not connected" gives no clue whether the network name is
+  // wrong, the password is wrong, or the Master just can't reach that network from where it sits.
+  static String _wifiStateText(String? state) {
+    switch (state) {
+      case 'no_ssid':
+        return 'not connected - this network name was not found (check it\'s 2.4GHz and in range)';
+      case 'connect_failed':
+        return 'not connected - check the password';
+      case 'connection_lost':
+        return 'not connected - lost the connection';
+      case 'disconnected':
+      case 'connecting':
+        return 'not connected - retrying';
+      default:
+        return 'not connected';
+    }
   }
 
   Widget _statusRow(String label, String value, bool good) {

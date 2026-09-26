@@ -90,6 +90,12 @@ class _StatusScreenState extends State<StatusScreen> {
     // Cloud mode only: the broker keeps the Master's last status, which can be
     // hours old if the Master lost its internet -- never let that look live.
     final masterOffline = _status!['_masterOnline'] == false;
+    // Cloud mode only: how old the retained status is. A separate signal from masterOffline above --
+    // that only flips once the broker's last-will fires, which can lag well behind reality (a Master
+    // that loses power ungracefully, or a broker hiccup) -- so a status can be stale without
+    // masterOffline ever being true. Anything older than one missed publish (see Cloud.h's
+    // CLOUD_STATUS_MAX_INTERVAL_MS, 10s) means something's wrong even if not yet "offline".
+    final ageSec = (_status!['_ageSec'] as num?)?.toInt();
     final wifi = (_status!['wifi'] as Map<String, dynamic>?) ?? {};
     final fw = _status!['fw'] as String?;
 
@@ -116,7 +122,7 @@ class _StatusScreenState extends State<StatusScreen> {
             ),
           ],
         ),
-        if (fw != null || wifi['configured'] == true)
+        if (fw != null || wifi['configured'] == true || ageSec != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -125,9 +131,17 @@ class _StatusScreenState extends State<StatusScreen> {
                 if (wifi['configured'] == true)
                   wifi['connected'] == true
                       ? 'Internet: connected'
-                      : 'Internet: not connected',
+                      : 'Internet: not connected (${_wifiStateLabel(wifi['state'] as String?)})',
+                if (ageSec != null) 'Updated ${_ageLabel(ageSec)}',
               ].join('   '),
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 11,
+                // 10s is the Master's own max republish interval (Cloud.h) -- anything past a
+                // couple of those is a sign something upstream has actually stopped, not just
+                // between publishes.
+                color: (ageSec != null && ageSec > 25) ? Colors.orange.shade800 : Colors.grey.shade600,
+                fontWeight: (ageSec != null && ageSec > 25) ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ),
         const SizedBox(height: 12),
@@ -206,6 +220,23 @@ class _StatusScreenState extends State<StatusScreen> {
         ],
       ],
     );
+  }
+
+  // Same short reasons as the Connection screen's farm-WiFi row (Cloud.h's wifiStateStr()) --
+  // kept brief here since this line is already busy with firmware version and staleness.
+  static String _wifiStateLabel(String? state) {
+    switch (state) {
+      case 'no_ssid': return 'network not found';
+      case 'connect_failed': return 'wrong password?';
+      case 'connection_lost': return 'lost connection';
+      default: return 'retrying';
+    }
+  }
+
+  static String _ageLabel(int ageSec) {
+    if (ageSec < 60) return '${ageSec}s ago';
+    if (ageSec < 3600) return '${ageSec ~/ 60}m ago';
+    return '${ageSec ~/ 3600}h ago';
   }
 
   Future<void> _setOverride(int slot, bool enabled, {bool? state}) async {
