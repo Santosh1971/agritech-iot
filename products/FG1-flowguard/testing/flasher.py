@@ -77,6 +77,68 @@ def flash_stream(env: str = "esp32dev_ds1307", port: str | None = None, timeout_
     yield "FLASH:PASS" if success else "FLASH:FAIL"
 
 
+def build_stream(env: str = "esp32dev_ds1307", timeout_s: int = 180) -> Iterator[str]:
+    """Same shape as flash_stream(), but `pio run -e <env>` with no
+    upload target -- just compiles, no DUT/port needed at all. Used by
+    the native USB-OTG flasher app (tools/flasher-tester-app): the
+    laptop compiles, the phone downloads the resulting .bin segments
+    (see FIRMWARE_SEGMENT_FILES below) and flashes them itself over
+    USB-OTG, instead of this laptop uploading over a shared USB-serial
+    link the way `flash()`/`flash_stream()` do. Last line is always
+    "FLASH:PASS" or "FLASH:FAIL", same convention as flash_stream().
+    """
+    cmd = ["pio", "run", "-e", env]
+
+    try:
+        proc = subprocess.Popen(
+            cmd, cwd=FIRMWARE_DIR, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1,
+        )
+    except FileNotFoundError:
+        yield "`pio` not found on PATH -- install PlatformIO CLI first."
+        yield "FLASH:FAIL"
+        return
+
+    output_lines: list[str] = []
+    assert proc.stdout is not None
+    try:
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            output_lines.append(line)
+            yield line
+        proc.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        yield f"Build timed out after {timeout_s}s"
+        yield "FLASH:FAIL"
+        return
+
+    output = "\n".join(output_lines)
+    success = proc.returncode == 0 and "SUCCESS" in output.upper()
+    yield "FLASH:PASS" if success else "FLASH:FAIL"
+
+
+# Standard PlatformIO/ESP32-Arduino build output filenames -- matches
+# the offsets tools/flasher-tester-app's MainActivity.kt flashes them
+# at (0x1000/0x8000/0x10000).
+FIRMWARE_SEGMENT_FILES = {
+    "bootloader": "bootloader.bin",
+    "partitions": "partitions.bin",
+    "app": "firmware.bin",
+}
+
+
+def firmware_segment_path(env: str, segment: str) -> Path | None:
+    """Path to a just-built .bin segment, or None for an unknown
+    segment name. Does not check the file actually exists yet -- call
+    after a successful build_stream() run.
+    """
+    filename = FIRMWARE_SEGMENT_FILES.get(segment)
+    if filename is None:
+        return None
+    return FIRMWARE_DIR / ".pio" / "build" / env / filename
+
+
 if __name__ == "__main__":
     env_arg = sys.argv[1] if len(sys.argv) > 1 else "esp32dev_ds1307"
     ok, log = flash(env_arg)

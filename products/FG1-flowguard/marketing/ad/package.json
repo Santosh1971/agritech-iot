@@ -1,0 +1,20 @@
+{
+  "name": "fg1-ad",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio",
+    "music": "python3 music/make_music.py",
+    "render": "remotion render Fg1AdVertical out/fg1-ad-vertical.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.528",
+    "@remotion/google-fonts": "^4.0.528",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.528"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

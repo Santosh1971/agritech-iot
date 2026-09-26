@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "AgriSense and Control",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "soil", "top": -40, "left": -160, "attrs": { "value": "700" } },
+    { "type": "wokwi-text", "id": "t1", "top": -70, "left": -170, "attrs": { "text": "Soil moisture" } },
+    { "type": "wokwi-slide-switch", "id": "float", "top": 120, "left": -150, "attrs": { "value": "" } },
+    { "type": "wokwi-text", "id": "t2", "top": 95, "left": -170, "attrs": { "text": "Tank float" } },
+    { "type": "wokwi-relay-module", "id": "relay", "top": 20, "left": 200, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": 150, "left": 200, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "pump", "top": 110, "left": 300, "attrs": { "color": "blue" } },
+    { "type": "wokwi-text", "id": "t3", "top": 80, "left": 290, "attrs": { "text": "Pump" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "soil:VCC", "esp:3V3", "red", [] ],
+    [ "soil:GND", "esp:GND.1", "black", [] ],
+    [ "soil:SIG", "esp:34", "green", [] ],
+    [ "float:2", "esp:14", "violet", [] ],
+    [ "float:1", "esp:GND.1", "black", [] ],
+    [ "relay:VCC", "esp:5V", "red", [] ],
+    [ "relay:GND", "esp:GND.2", "black", [] ],
+    [ "relay:IN", "esp:26", "orange", [] ],
+    [ "esp:26", "r1:1", "orange", [] ],
+    [ "r1:2", "pump:A", "orange", [] ],
+    [ "pump:C", "esp:GND.3", "black", [] ]
+  ],
+  "dependencies": {}
+}

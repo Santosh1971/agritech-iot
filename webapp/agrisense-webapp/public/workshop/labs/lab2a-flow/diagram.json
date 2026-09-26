@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "author": "AgriSense and Control",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-potentiometer", "id": "tap", "top": -40, "left": -150, "attrs": { "value": "512" } },
+    { "type": "wokwi-text", "id": "t1", "top": -70, "left": -160, "attrs": { "text": "Tap (flow)" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "tap:VCC", "esp:3V3", "red", [] ],
+    [ "tap:GND", "esp:GND.1", "black", [] ],
+    [ "tap:SIG", "esp:34", "green", [] ],
+    [ "esp:25", "esp:27", "blue", [ "h-24", "v19.2" ] ]
+  ],
+  "dependencies": {}
+}

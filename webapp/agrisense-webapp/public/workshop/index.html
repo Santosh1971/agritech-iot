@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm IoT Labs · AgriSense and Control</title>
+<meta name="description" content="Hands-on ESP32 farm IoT labs: temperature and humidity, water flow, soil moisture with an automatic pump, and cloud dashboards. Run them in the Wokwi simulator or on a real board.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --sky:#2466A8; --sky-soft:#E1ECF7;
+  --code-bg:#122019; --code-ink:#D8E8DC;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+    --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216; --sky:#7DB3EA; --sky-soft:#17263A;
+    --code-bg:#0A100C;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--sky)}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--copper);outline-offset:2px;border-radius:4px}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);font-weight:600}
+header{padding-block:40px 28px;display:grid;gap:16px;border-bottom:2px solid var(--ink);margin-bottom:36px}
+header h1{font-size:clamp(2.2rem,6vw,3.8rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.1rem;max-width:64ch;color:var(--ink-2)}
+.start{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px;margin-bottom:44px}
+.start div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.start b{font-family:var(--mono);font-size:.75rem;color:var(--mask);letter-spacing:.06em;text-transform:uppercase}
+main{display:grid;gap:40px;grid-template-columns:minmax(0,1fr)}
+main>*,.lab>*,details>*{min-width:0}
+.lab{display:grid;gap:14px;scroll-margin-top:16px}
+.lab-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.lab-head h2{font-size:1.6rem;font-weight:800}
+.labno{font-family:var(--mono);font-weight:600;font-size:.8rem;background:var(--mask);color:var(--mask-ink);padding:3px 9px;border-radius:5px}
+.prac{font-family:var(--mono);font-size:.75rem;color:var(--ink-2)}
+.learn{color:var(--ink-2);max-width:68ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr));gap:12px}
+.lab{grid-template-columns:minmax(0,1fr)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:10px;align-content:start}
+.box h3{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.box ol,.box ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.try{font-size:.95rem;background:var(--copper-soft);border-radius:8px;padding:8px 12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-block;font-family:var(--mono);font-size:.8rem;font-weight:600;padding:8px 12px;border-radius:8px;border:1.5px solid var(--line);color:var(--ink);text-decoration:none;background:var(--panel)}
+.btn:hover{border-color:var(--copper)}
+.btn.primary{background:var(--mask);border-color:var(--mask);color:var(--mask-ink)}
+details>summary{cursor:pointer;font-family:var(--mono);font-size:.85rem;color:var(--sky);padding:4px 0}
+details[open]{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:10px;overflow:hidden}
+.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;line-height:1.55;max-height:520px}
+.code .cap{display:flex;justify-content:space-between;align-items:center;padding:7px 12px 7px 16px;background:rgba(255,255,255,.05);font-family:var(--mono);font-size:.72rem;color:#9FB8A7}
+.copy{font-family:var(--mono);font-size:.72rem;background:transparent;color:#D8E8DC;border:1px solid #3C5446;border-radius:5px;padding:3px 10px;cursor:pointer}
+.copy:hover{border-color:#E0A062;color:#E0A062}
+.prompt{background:var(--panel);border:1.5px dashed var(--sky);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:.82rem;white-space:pre-wrap;line-height:1.55;margin:0}
+.res{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.res li{padding:9px 0;border-bottom:1px solid var(--line)}
+.res li span{color:var(--ink-2);font-size:.9rem}
+footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+@media (max-width:560px){.wrap{padding-inline:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">AgriSense and Control · Workshop labs</div>
+  <h1>Farm IoT <span>Labs</span></h1>
+  <p class="lede">Four hands-on ESP32 labs from our farm IoT workshop. Run every lab free in the Wokwi simulator in your browser, then build it on a real board with the same code.</p>
+</header>
+
+<div class="start">
+  <div><b>1 · Simulate</b><p>Wokwi runs an ESP32 with sensors in your browser. No install, no hardware. A free account lets you save your work.</p></div>
+  <div><b>2 · Real board</b><p>Arduino IDE 2 + the Espressif “esp32” board package. Board: <b>ESP32 Dev Module</b>. Serial Monitor at 115200.</p></div>
+  <div><b>3 · Library</b><p>Labs 1, 3 and 4 need <b>DHT sensor library for ESPx</b> (Library Manager).</p></div>
+  <div><b>Upload stuck?</b><p>Hold the <b>BOOT</b> button while it says “Connecting…”. Use a USB <b>data</b> cable.</p></div>
+</div>
+
+<main>
+
+<section class="lab" id="lab1-dht22">
+  <div class="lab-head"><span class="labno">Lab 1</span><h2>Temperature &amp; humidity (DHT22)</h2><span class="prac">Practicals 4, 7, 12</span></div>
+  <p class="learn">Upload your first program, blink an LED and read a real sensor.</p>
+  <div class="cols">
+    <div class="box"><h3>Run it in Wokwi</h3><ol><li>Open a new ESP32 project in Wokwi.</li><li>Copy <b>sketch.ino</b> below and paste it over the code in the <code>sketch.ino</code> tab.</li><li>Copy <b>diagram.json</b> and paste it over the <code>diagram.json</code> tab.</li><li>Library Manager tab → <b>+</b> → add <b>DHT sensor library for ESPx</b>.</li><li>Press the green ▶ button. The first run waits 20–40 s in Wokwi’s free build queue.</li></ol><div class="btns"><a class="btn primary" href="https://wokwi.com/projects/new/esp32" target="_blank" rel="noopener">New ESP32 project in Wokwi</a><a class="btn" href="/workshop/labs/lab1-dht22/sketch.ino" download>sketch.ino</a><a class="btn" href="/workshop/labs/lab1-dht22/diagram.json" download>diagram.json</a></div></div>
+    <div class="box"><h3>Wiring on a real board</h3><ul><li>DHT22 VCC → 3V3</li><li>DHT22 DATA → GPIO 4</li><li>DHT22 GND → GND</li><li>LED + 220 Ω → GPIO 2 (DevKit V1 has one on the board)</li></ul><p class="try"><b>Try:</b> Click the DHT22 while the simulation runs and move the temperature slider.</p></div>
+  </div>
+  <details><summary>Show the code</summary>
+  <div class="code"><div class="cap"><span>sketch.ino</span><button class="copy" type="button" data-target="lab1-dht22-ino">Copy</button></div><pre id="lab1-dht22-ino">// Lab 1 - First ESP32: blink an LED and read temperature &amp; humidity (DHT22)
+// Board: ESP32 DevKit V1 (30-pin) or Wokwi ESP32 DevKitC. Serial Monitor: 115200.
+// Library: &quot;DHT sensor library for ESPx&quot; (by beegee_tokyo)
+//
+// Wiring
+//   DHT22 VCC  -&gt; 3V3
+//   DHT22 DATA -&gt; GPIO 4
+//   DHT22 GND  -&gt; GND
+//   LED (+ 220 ohm resistor) -&gt; GPIO 2  (the DevKit V1 also has an on-board LED on GPIO 2)
+
+#include &quot;DHTesp.h&quot;
+
+const int DHT_PIN = 4;
+const int LED_PIN = 2;
+
+DHTesp dht;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  dht.setup(DHT_PIN, DHTesp::DHT22);   // use DHTesp::DHT11 if you have a DHT11
+  Serial.println(&quot;Lab 1: DHT22 ready&quot;);
+}
+
+void loop() {
+  digitalWrite(LED_PIN, !digitalRead(LED_PIN));   // blink once per reading
+
+  TempAndHumidity d = dht.getTempAndHumidity();
+  if (dht.getStatus() != 0) {
+    Serial.println(String(&quot;Sensor read failed: &quot;) + dht.getStatusString());
+  } else {
+    Serial.printf(&quot;Temp %.1f C   Humidity %.1f %%\n&quot;, d.temperature, d.humidity);
+  }
+  delay(2000);   // DHT22 needs at least 2 s between readings
+}
+</pre></div>
+  <div class="code"><div class="cap"><span>diagram.json (Wokwi circuit)</span><button class="copy" type="button" data-target="lab1-dht22-dia">Copy</button></div><pre id="lab1-dht22-dia">{
+  &quot;version&quot;: 1,
+  &quot;author&quot;: &quot;AgriSense and Control&quot;,
+  &quot;editor&quot;: &quot;wokwi&quot;,
+  &quot;parts&quot;: [
+    { &quot;type&quot;: &quot;board-esp32-devkit-c-v4&quot;, &quot;id&quot;: &quot;esp&quot;, &quot;top&quot;: 0, &quot;left&quot;: 0, &quot;attrs&quot;: {} },
+    { &quot;type&quot;: &quot;wokwi-dht22&quot;, &quot;id&quot;: &quot;dht1&quot;, &quot;top&quot;: -76.5, &quot;left&quot;: 168, &quot;attrs&quot;: { &quot;temperature&quot;: &quot;31&quot;, &quot;humidity&quot;: &quot;62&quot; } },
+    { &quot;type&quot;: &quot;wokwi-resistor&quot;, &quot;id&quot;: &quot;r1&quot;, &quot;top&quot;: 186, &quot;left&quot;: 172, &quot;rotate&quot;: 90, &quot;attrs&quot;: { &quot;value&quot;: &quot;220&quot; } },
+    { &quot;type&quot;: &quot;wokwi-led&quot;, &quot;id&quot;: &quot;led1&quot;, &quot;top&quot;: 250, &quot;left&quot;: 180, &quot;attrs&quot;: { &quot;color&quot;: &quot;green&quot; } }
+  ],
+  &quot;connections&quot;: [
+    [ &quot;esp:TX&quot;, &quot;$serialMonitor:RX&quot;, &quot;&quot;, [] ],
+    [ &quot;esp:RX&quot;, &quot;$serialMonitor:TX&quot;, &quot;&quot;, [] ],
+    [ &quot;dht1:VCC&quot;, &quot;esp:3V3&quot;, &quot;red&quot;, [] ],
+    [ &quot;dht1:SDA&quot;, &quot;esp:4&quot;, &quot;green&quot;, [] ],
+    [ &quot;dht1:GND&quot;, &quot;esp:GND.2&quot;, &quot;black&quot;, [] ],
+    [ &quot;esp:2&quot;, &quot;r1:1&quot;, &quot;orange&quot;, [] ],
+    [ &quot;r1:2&quot;, &quot;led1:A&quot;, &quot;orange&quot;, [] ],
+    [ &quot;led1:C&quot;, &quot;esp:GND.3&quot;, &quot;black&quot;, [] ]
+  ],
+  &quot;dependencies&quot;: {}
+}
+</pre></div>
+  </details>
+</section>
+<section class="lab" id="lab2a-flow">
+  <div class="lab-head"><span class="labno">Lab 2A</span><h2>Water flow meter (YF-S201)</h2><span class="prac">Practicals 6, 10</span></div>
+  <p class="learn">Count sensor pulses with an interrupt and turn them into L/min and litres.</p>
+  <div class="cols">
+    <div class="box"><h3>Run it in Wokwi</h3><ol><li>Open a new ESP32 project in Wokwi.</li><li>Copy <b>sketch.ino</b> below and paste it over the code in the <code>sketch.ino</code> tab.</li><li>Copy <b>diagram.json</b> and paste it over the <code>diagram.json</code> tab.</li><li>Press the green ▶ button. The first run waits 20–40 s in Wokwi’s free build queue.</li></ol><div class="btns"><a class="btn primary" href="https://wokwi.com/projects/new/esp32" target="_blank" rel="noopener">New ESP32 project in Wokwi</a><a class="btn" href="/workshop/labs/lab2a-flow/sketch.ino" download>sketch.ino</a><a class="btn" href="/workshop/labs/lab2a-flow/diagram.json" download>diagram.json</a></div></div>
+    <div class="box"><h3>Wiring on a real board</h3><ul><li>Red → 5V (VIN), Black → GND</li><li>Yellow → 10 kΩ / 20 kΩ divider → GPIO 27 (5 V pulses, 3.3 V pin)</li><li>Wokwi: the knob on GPIO 34 is the tap; GPIO 25 makes the pulses</li></ul><p class="try"><b>Try:</b> Turn the tap knob and watch L/min change. On a real board set SIMULATE_FLOW to 0.</p></div>
+  </div>
+  <details><summary>Show the code</summary>
+  <div class="code"><div class="cap"><span>sketch.ino</span><button class="copy" type="button" data-target="lab2a-flow-ino">Copy</button></div><pre id="lab2a-flow-ino">// Lab 2A - Water flow with a YF-S201 (pulses -&gt; L/min and litres)
+// YF-S201: pulse frequency (Hz) ~= 7.5 x flow (L/min), about 450 pulses per litre.
+//
+// Real hardware wiring
+//   Red -&gt; 5V (VIN)   Black -&gt; GND
+//   Yellow (signal) -&gt; 10k / 20k divider -&gt; GPIO 27   (sensor gives 5 V pulses; ESP32 pins take 3.3 V)
+//   Set SIMULATE_FLOW to 0.
+//
+// Wokwi has no flow sensor, so with SIMULATE_FLOW 1 the knob on GPIO 34 is the &quot;tap&quot;:
+// the sketch makes matching pulses on GPIO 25, which is wired to GPIO 27.
+
+#define SIMULATE_FLOW 1
+
+const int FLOW_PIN = 27;
+volatile uint32_t pulses = 0;
+
+void IRAM_ATTR onPulse() { pulses++; }   // runs on every pulse
+
+float totalLitres = 0;
+uint32_t lastMs = 0;
+
+#if SIMULATE_FLOW
+const int TAP_PIN = 34;       // potentiometer = how far the tap is open
+const int FAKE_PULSE_PIN = 25;
+#endif
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FLOW_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PIN), onPulse, FALLING);
+#if SIMULATE_FLOW
+  pinMode(FAKE_PULSE_PIN, OUTPUT);
+#endif
+  Serial.println(&quot;Lab 2A: flow meter ready&quot;);
+}
+
+void loop() {
+#if SIMULATE_FLOW
+  // Make fake sensor pulses: toggle GPIO 25 at 7.5 x (L/min) Hz
+  static uint32_t lastToggleUs = 0, lastKnobMs = 0;
+  static float hz = 0;
+  if (millis() - lastKnobMs &gt;= 200) {                     // read the tap knob 5x a second
+    lastKnobMs = millis();
+    float tapLpm = analogRead(TAP_PIN) * 30.0f / 4095.0f; // 0-30 L/min
+    hz = tapLpm * 7.5f;
+  }
+  if (hz &gt;= 1 &amp;&amp; micros() - lastToggleUs &gt;= (uint32_t)(500000.0f / hz)) {
+    lastToggleUs = micros();
+    digitalWrite(FAKE_PULSE_PIN, !digitalRead(FAKE_PULSE_PIN));
+  }
+#endif
+
+  if (millis() - lastMs &gt;= 1000) {        // once per second
+    noInterrupts();
+    uint32_t p = pulses;
+    pulses = 0;
+    interrupts();
+    float lpm = p / 7.5f;                  // pulses in 1 s = Hz
+    totalLitres += p / 450.0f;
+    Serial.printf(&quot;Flow %.2f L/min   Total %.3f L\n&quot;, lpm, totalLitres);
+    lastMs = millis();
+  }
+}
+</pre></div>
+  <div class="code"><div class="cap"><span>diagram.json (Wokwi circuit)</span><button class="copy" type="button" data-target="lab2a-flow-dia">Copy</button></div><pre id="lab2a-flow-dia">{
+  &quot;version&quot;: 1,
+  &quot;author&quot;: &quot;AgriSense and Control&quot;,
+  &quot;editor&quot;: &quot;wokwi&quot;,
+  &quot;parts&quot;: [
+    { &quot;type&quot;: &quot;board-esp32-devkit-c-v4&quot;, &quot;id&quot;: &quot;esp&quot;, &quot;top&quot;: 0, &quot;left&quot;: 0, &quot;attrs&quot;: {} },
+    { &quot;type&quot;: &quot;wokwi-potentiometer&quot;, &quot;id&quot;: &quot;tap&quot;, &quot;top&quot;: -40, &quot;left&quot;: -150, &quot;attrs&quot;: { &quot;value&quot;: &quot;512&quot; } },
+    { &quot;type&quot;: &quot;wokwi-text&quot;, &quot;id&quot;: &quot;t1&quot;, &quot;top&quot;: -70, &quot;left&quot;: -160, &quot;attrs&quot;: { &quot;text&quot;: &quot;Tap (flow)&quot; } }
+  ],
+  &quot;connections&quot;: [
+    [ &quot;esp:TX&quot;, &quot;$serialMonitor:RX&quot;, &quot;&quot;, [] ],
+    [ &quot;esp:RX&quot;, &quot;$serialMonitor:TX&quot;, &quot;&quot;, [] ],
+    [ &quot;tap:VCC&quot;, &quot;esp:3V3&quot;, &quot;red&quot;, [] ],
+    [ &quot;tap:GND&quot;, &quot;esp:GND.1&quot;, &quot;black&quot;, [] ],
+    [ &quot;tap:SIG&quot;, &quot;esp:34&quot;, &quot;green&quot;, [] ],
+    [ &quot;esp:25&quot;, &quot;esp:27&quot;, &quot;blue&quot;, [ &quot;h-24&quot;, &quot;v19.2&quot; ] ]
+  ],
+  &quot;dependencies&quot;: {}
+}
+</pre></div>
+  </details>
+</section>
+<section class="lab" id="lab2b-autopump">
+  <div class="lab-head"><span class="labno">Lab 2B</span><h2>Soil moisture + tank float + automatic pump</h2><span class="prac">Practicals 6, 13</span></div>
+  <p class="learn">Make decisions: water when dry, stop when wet, never run the pump with an empty tank.</p>
+  <div class="cols">
+    <div class="box"><h3>Run it in Wokwi</h3><ol><li>Open a new ESP32 project in Wokwi.</li><li>Copy <b>sketch.ino</b> below and paste it over the code in the <code>sketch.ino</code> tab.</li><li>Copy <b>diagram.json</b> and paste it over the <code>diagram.json</code> tab.</li><li>Press the green ▶ button. The first run waits 20–40 s in Wokwi’s free build queue.</li></ol><div class="btns"><a class="btn primary" href="https://wokwi.com/projects/new/esp32" target="_blank" rel="noopener">New ESP32 project in Wokwi</a><a class="btn" href="/workshop/labs/lab2b-autopump/sketch.ino" download>sketch.ino</a><a class="btn" href="/workshop/labs/lab2b-autopump/diagram.json" download>diagram.json</a></div></div>
+    <div class="box"><h3>Wiring on a real board</h3><ul><li>Soil sensor AOUT → GPIO 34 (Wokwi: knob)</li><li>Float switch → GPIO 14 and GND (Wokwi: slide switch)</li><li>Relay IN → GPIO 26, VCC → 5V, GND → GND</li><li>Pump LED + 220 Ω → GPIO 26</li></ul><p class="try"><b>Try:</b> Turn the knob toward dry until the pump LED lights, then slide the float to EMPTY.</p></div>
+  </div>
+  <details><summary>Show the code</summary>
+  <div class="code"><div class="cap"><span>sketch.ino</span><button class="copy" type="button" data-target="lab2b-autopump-ino">Copy</button></div><pre id="lab2b-autopump-ino">// Lab 2B - Soil moisture + tank float switch + automatic pump
+// Pump turns ON below 35 % moisture, OFF above 60 % (hysteresis stops relay chatter),
+// and never runs when the tank float says EMPTY (safety interlock).
+//
+// Wiring
+//   Capacitive soil sensor AOUT -&gt; GPIO 34   (Wokwi: the knob)
+//   Float switch -&gt; GPIO 14 and GND          (Wokwi: slide switch; left = tank has water)
+//   Relay module IN -&gt; GPIO 26, VCC -&gt; 5V (VIN), GND -&gt; GND
+//   Pump LED (+ 220 ohm) -&gt; GPIO 26          (use an LED or a small 5 V pump - no mains!)
+//
+// Use ADC1 pins (32-39) for analog: ADC2 pins stop working when WiFi is on.
+// Many relay modules are active-LOW: if yours is, set RELAY_ACTIVE_HIGH to false.
+
+const int SOIL_PIN  = 34;
+const int FLOAT_PIN = 14;
+const int PUMP_PIN  = 26;
+const bool RELAY_ACTIVE_HIGH = true;
+
+const int DRY = 3000;       // raw reading in dry soil  - calibrate with your sensor!
+const int WET = 1300;       // raw reading in water     - calibrate with your sensor!
+const int ON_BELOW  = 35;   // % moisture: start watering
+const int OFF_ABOVE = 60;   // % moisture: stop watering
+
+bool pumpOn = false;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FLOAT_PIN, INPUT_PULLUP);   // switch closed = LOW
+  pinMode(PUMP_PIN, OUTPUT);
+  Serial.println(&quot;Lab 2B: auto pump ready&quot;);
+}
+
+void loop() {
+  int raw = analogRead(SOIL_PIN);
+  int pct = constrain(map(raw, DRY, WET, 0, 100), 0, 100);
+  bool tankHasWater = (digitalRead(FLOAT_PIN) == LOW);
+
+  if (pct &lt; ON_BELOW)  pumpOn = true;
+  if (pct &gt; OFF_ABOVE) pumpOn = false;
+  if (!tankHasWater)   pumpOn = false;   // safety interlock wins
+
+  digitalWrite(PUMP_PIN, (pumpOn == RELAY_ACTIVE_HIGH) ? HIGH : LOW);
+  Serial.printf(&quot;Soil %d%% (raw %d)   Tank %s   Pump %s\n&quot;,
+                pct, raw, tankHasWater ? &quot;OK&quot; : &quot;EMPTY&quot;, pumpOn ? &quot;ON&quot; : &quot;OFF&quot;);
+  delay(1000);
+}
+</pre></div>
+  <div class="code"><div class="cap"><span>diagram.json (Wokwi circuit)</span><button class="copy" type="button" data-target="lab2b-autopump-dia">Copy</button></div><pre id="lab2b-autopump-dia">{
+  &quot;version&quot;: 1,
+  &quot;author&quot;: &quot;AgriSense and Control&quot;,
+  &quot;editor&quot;: &quot;wokwi&quot;,
+  &quot;parts&quot;: [
+    { &quot;type&quot;: &quot;board-esp32-devkit-c-v4&quot;, &quot;id&quot;: &quot;esp&quot;, &quot;top&quot;: 0, &quot;left&quot;: 0, &quot;attrs&quot;: {} },
+    { &quot;type&quot;: &quot;wokwi-potentiometer&quot;, &quot;id&quot;: &quot;soil&quot;, &quot;top&quot;: -40, &quot;left&quot;: -160, &quot;attrs&quot;: { &quot;value&quot;: &quot;700&quot; } },
+    { &quot;type&quot;: &quot;wokwi-text&quot;, &quot;id&quot;: &quot;t1&quot;, &quot;top&quot;: -70, &quot;left&quot;: -170, &quot;attrs&quot;: { &quot;text&quot;: &quot;Soil moisture&quot; } },
+    { &quot;type&quot;: &quot;wokwi-slide-switch&quot;, &quot;id&quot;: &quot;float&quot;, &quot;top&quot;: 120, &quot;left&quot;: -150, &quot;attrs&quot;: { &quot;value&quot;: &quot;&quot; } },
+    { &quot;type&quot;: &quot;wokwi-text&quot;, &quot;id&quot;: &quot;t2&quot;, &quot;top&quot;: 95, &quot;left&quot;: -170, &quot;attrs&quot;: { &quot;text&quot;: &quot;Tank float&quot; } },
+    { &quot;type&quot;: &quot;wokwi-relay-module&quot;, &quot;id&quot;: &quot;relay&quot;, &quot;top&quot;: 20, &quot;left&quot;: 200, &quot;attrs&quot;: {} },
+    { &quot;type&quot;: &quot;wokwi-resistor&quot;, &quot;id&quot;: &quot;r1&quot;, &quot;top&quot;: 150, &quot;left&quot;: 200, &quot;attrs&quot;: { &quot;value&quot;: &quot;220&quot; } },
+    { &quot;type&quot;: &quot;wokwi-led&quot;, &quot;id&quot;: &quot;pump&quot;, &quot;top&quot;: 110, &quot;left&quot;: 300, &quot;attrs&quot;: { &quot;color&quot;: &quot;blue&quot; } },
+    { &quot;type&quot;: &quot;wokwi-text&quot;, &quot;id&quot;: &quot;t3&quot;, &quot;top&quot;: 80, &quot;left&quot;: 290, &quot;attrs&quot;: { &quot;text&quot;: &quot;Pump&quot; } }
+  ],
+  &quot;connections&quot;: [
+    [ &quot;esp:TX&quot;, &quot;$serialMonitor:RX&quot;, &quot;&quot;, [] ],
+    [ &quot;esp:RX&quot;, &quot;$serialMonitor:TX&quot;, &quot;&quot;, [] ],
+    [ &quot;soil:VCC&quot;, &quot;esp:3V3&quot;, &quot;red&quot;, [] ],
+    [ &quot;soil:GND&quot;, &quot;esp:GND.1&quot;, &quot;black&quot;, [] ],
+    [ &quot;soil:SIG&quot;, &quot;esp:34&quot;, &quot;green&quot;, [] ],
+    [ &quot;float:2&quot;, &quot;esp:14&quot;, &quot;violet&quot;, [] ],
+    [ &quot;float:1&quot;, &quot;esp:GND.1&quot;, &quot;black&quot;, [] ],
+    [ &quot;relay:VCC&quot;, &quot;esp:5V&quot;, &quot;red&quot;, [] ],
+    [ &quot;relay:GND&quot;, &quot;esp:GND.2&quot;, &quot;black&quot;, [] ],
+    [ &quot;relay:IN&quot;, &quot;esp:26&quot;, &quot;orange&quot;, [] ],
+    [ &quot;esp:26&quot;, &quot;r1:1&quot;, &quot;orange&quot;, [] ],
+    [ &quot;r1:2&quot;, &quot;pump:A&quot;, &quot;orange&quot;, [] ],
+    [ &quot;pump:C&quot;, &quot;esp:GND.3&quot;, &quot;black&quot;, [] ]
+  ],
+  &quot;dependencies&quot;: {}
+}
+</pre></div>
+  </details>
+</section>
+<section class="lab" id="lab3-thingspeak">
+  <div class="lab-head"><span class="labno">Lab 3</span><h2>Send readings to the cloud (ThingSpeak)</h2><span class="prac">Practicals 10, 11 · Unit 4</span></div>
+  <p class="learn">Connect to WiFi, call a web API and see live charts on your phone.</p>
+  <div class="cols">
+    <div class="box"><h3>Run it in Wokwi</h3><ol><li>Open a new ESP32 project in Wokwi.</li><li>Copy <b>sketch.ino</b> below and paste it over the code in the <code>sketch.ino</code> tab.</li><li>Copy <b>diagram.json</b> and paste it over the <code>diagram.json</code> tab.</li><li>Library Manager tab → <b>+</b> → add <b>DHT sensor library for ESPx</b>.</li><li>Press the green ▶ button. The first run waits 20–40 s in Wokwi’s free build queue.</li></ol><div class="btns"><a class="btn primary" href="https://wokwi.com/projects/new/esp32" target="_blank" rel="noopener">New ESP32 project in Wokwi</a><a class="btn" href="/workshop/labs/lab3-thingspeak/sketch.ino" download>sketch.ino</a><a class="btn" href="/workshop/labs/lab3-thingspeak/diagram.json" download>diagram.json</a></div></div>
+    <div class="box"><h3>Wiring on a real board</h3><ul><li>Same as Lab 1 + soil sensor on GPIO 34</li><li>Wokwi WiFi: Wokwi-GUEST, no password</li><li>Real board: workshop router, 2.4 GHz, no login page</li></ul><p class="try"><b>Try:</b> Paste your ThingSpeak Write API Key, run it and open your channel on your phone.</p></div>
+  </div>
+  <details><summary>Show the code</summary>
+  <div class="code"><div class="cap"><span>sketch.ino</span><button class="copy" type="button" data-target="lab3-thingspeak-ino">Copy</button></div><pre id="lab3-thingspeak-ino">// Lab 3 - Send readings to the cloud (ThingSpeak) and see live charts
+// 1. Sign up at thingspeak.mathworks.com -&gt; New Channel -&gt; enable Field 1 (Temp),
+//    Field 2 (Humidity), Field 3 (Soil %). API Keys tab -&gt; copy the Write API Key below.
+// 2. In Wokwi keep WIFI_SSID &quot;Wokwi-GUEST&quot; (no password). On a real board use the
+//    workshop router or a phone hotspot: 2.4 GHz and no login page.
+// 3. Free ThingSpeak accounts accept one update every 15 s; we send every 20 s.
+//
+// Wiring: DHT22 DATA -&gt; GPIO 4 (VCC 3V3, GND GND), soil sensor AOUT -&gt; GPIO 34
+// Library: &quot;DHT sensor library for ESPx&quot;
+
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &quot;DHTesp.h&quot;
+
+const char* WIFI_SSID = &quot;Wokwi-GUEST&quot;;
+const char* WIFI_PASS = &quot;&quot;;
+const char* TS_KEY    = &quot;YOUR_WRITE_API_KEY&quot;;
+
+const int DHT_PIN  = 4;
+const int SOIL_PIN = 34;
+const int DRY = 3000, WET = 1300;   // calibrate for your soil sensor
+
+DHTesp dht;
+
+void setup() {
+  Serial.begin(115200);
+  dht.setup(DHT_PIN, DHTesp::DHT22);
+  Serial.print(&quot;Connecting to WiFi&quot;);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
+  Serial.println(&quot;\nWiFi connected, IP &quot; + WiFi.localIP().toString());
+}
+
+void loop() {
+  TempAndHumidity d = dht.getTempAndHumidity();
+  int soil = constrain(map(analogRead(SOIL_PIN), DRY, WET, 0, 100), 0, 100);
+
+  if (dht.getStatus() == 0 &amp;&amp; WiFi.status() == WL_CONNECTED) {
+    String url = String(&quot;http://api.thingspeak.com/update?api_key=&quot;) + TS_KEY
+               + &quot;&amp;field1=&quot; + String(d.temperature, 1)
+               + &quot;&amp;field2=&quot; + String(d.humidity, 1)
+               + &quot;&amp;field3=&quot; + soil;
+    HTTPClient http;
+    http.begin(url);
+    int code = http.GET();                 // 200 and an entry number &gt; 0 = success
+    Serial.printf(&quot;Temp %.1f C  Hum %.1f %%  Soil %d%%  -&gt;  ThingSpeak HTTP %d, entry %s\n&quot;,
+                  d.temperature, d.humidity, soil, code, http.getString().c_str());
+    http.end();
+  } else {
+    Serial.println(&quot;Skipped: sensor read failed or WiFi down&quot;);
+  }
+  delay(20000);
+}
+</pre></div>
+  <div class="code"><div class="cap"><span>diagram.json (Wokwi circuit)</span><button class="copy" type="button" data-target="lab3-thingspeak-dia">Copy</button></div><pre id="lab3-thingspeak-dia">{
+  &quot;version&quot;: 1,
+  &quot;author&quot;: &quot;AgriSense and Control&quot;,
+  &quot;editor&quot;: &quot;wokwi&quot;,
+  &quot;parts&quot;: [
+    { &quot;type&quot;: &quot;board-esp32-devkit-c-v4&quot;, &quot;id&quot;: &quot;esp&quot;, &quot;top&quot;: 0, &quot;left&quot;: 0, &quot;attrs&quot;: {} },
+    { &quot;type&quot;: &quot;wokwi-dht22&quot;, &quot;id&quot;: &quot;dht1&quot;, &quot;top&quot;: -76.5, &quot;left&quot;: 168, &quot;attrs&quot;: { &quot;temperature&quot;: &quot;31&quot;, &quot;humidity&quot;: &quot;62&quot; } },
+    { &quot;type&quot;: &quot;wokwi-potentiometer&quot;, &quot;id&quot;: &quot;soil&quot;, &quot;top&quot;: -40, &quot;left&quot;: -160, &quot;attrs&quot;: { &quot;value&quot;: &quot;512&quot; } },
+    { &quot;type&quot;: &quot;wokwi-text&quot;, &quot;id&quot;: &quot;t1&quot;, &quot;top&quot;: -70, &quot;left&quot;: -170, &quot;attrs&quot;: { &quot;text&quot;: &quot;Soil moisture&quot; } }
+  ],
+  &quot;connections&quot;: [
+    [ &quot;esp:TX&quot;, &quot;$serialMonitor:RX&quot;, &quot;&quot;, [] ],
+    [ &quot;esp:RX&quot;, &quot;$serialMonitor:TX&quot;, &quot;&quot;, [] ],
+    [ &quot;dht1:VCC&quot;, &quot;esp:3V3&quot;, &quot;red&quot;, [] ],
+    [ &quot;dht1:SDA&quot;, &quot;esp:4&quot;, &quot;green&quot;, [] ],
+    [ &quot;dht1:GND&quot;, &quot;esp:GND.2&quot;, &quot;black&quot;, [] ],
+    [ &quot;soil:VCC&quot;, &quot;esp:3V3&quot;, &quot;red&quot;, [] ],
+    [ &quot;soil:GND&quot;, &quot;esp:GND.1&quot;, &quot;black&quot;, [] ],
+    [ &quot;soil:SIG&quot;, &quot;esp:34&quot;, &quot;green&quot;, [] ]
+  ],
+  &quot;dependencies&quot;: {}
+}
+</pre></div>
+  </details>
+</section>
+
+<section class="lab" id="lab4-dashboard">
+  <div class="lab-head"><span class="labno">Lab 4</span><h2>A phone dashboard, built with AI</h2><span class="prac">Unit 4 · Smartphone apps</span></div>
+  <p class="learn">Ask an AI assistant (Claude, ChatGPT or Gemini) to write a web dashboard that your ESP32 serves over its own WiFi. Your job is to give it exact details, test what it writes, and paste errors back until it works. This lab needs a real board: a phone cannot join a simulated ESP32’s WiFi.</p>
+  <div class="cols">
+    <div class="box"><h3>The loop</h3><ol>
+      <li><b>Describe</b> the board, pins, sensors and goal</li>
+      <li><b>Generate</b> code, wiring and an explanation</li>
+      <li><b>Compile</b> it (or paste it into Wokwi to check it builds)</li>
+      <li><b>Flash</b> the real board</li>
+      <li><b>Paste back</b> the exact error or Serial output</li>
+      <li><b>Understand</b>: ask about any line you can’t explain</li>
+    </ol></div>
+    <div class="box"><h3>Then</h3><ul>
+      <li>Join WiFi <code>FarmNode-01</code> from your phone and open <code>192.168.4.1</code></li>
+      <li>Ask for one new feature at a time: an Auto mode, a threshold slider, a buzzer alarm</li>
+      <li>Never use AI advice to wire 230 V mains. That is work for a licensed electrician</li>
+    </ul></div>
+  </div>
+  <p class="eyebrow">The prompt</p>
+  <pre class="prompt" id="lab4-prompt">I am an agriculture student using an ESP32 DevKit V1 (30-pin) with Arduino IDE 2 and the Espressif ESP32 board package.
+
+Connected:
+- DHT22 temperature/humidity sensor on GPIO 4
+- Capacitive soil moisture sensor on GPIO 34 (raw ~3000 dry, ~1300 wet)
+- Relay module for a small pump on GPIO 26 (active HIGH)
+
+Write one Arduino sketch that:
+1. Starts a WiFi access point named &quot;FarmNode-01&quot; with password &quot;farm12345&quot;
+2. Serves a mobile-friendly web page at 192.168.4.1 showing temperature, humidity and soil moisture %, refreshing every 2 seconds without reloading the page
+3. Has a big Pump ON / Pump OFF button that switches the relay and shows the current state
+4. Uses only the built-in WebServer library, plus &quot;DHT sensor library for ESPx&quot; for the DHT22
+
+Then give me the wiring as a list, and explain the code section by section in simple language.</pre>
+  <div class="btns"><button class="btn copy-prompt" type="button" data-target="lab4-prompt">Copy prompt</button></div>
+  <details><summary>Stuck? Show a working reference solution</summary>
+  <div class="code"><div class="cap"><span>lab4 reference solution (real board only)</span><button class="copy" type="button" data-target="lab4-ref">Copy</button></div><pre id="lab4-ref">// Lab 4 - Reference solution: phone dashboard served by the ESP32 itself
+// Students should generate their own version with an AI assistant using the Lab 4 prompt;
+// this file is the facilitators&#x27; fallback and answer key.
+//
+// The ESP32 starts its own WiFi &quot;FarmNode-01&quot; (password farm12345). Join it from a phone
+// and open http://192.168.4.1  -&gt; live temp, humidity, soil %, and Pump ON/OFF/AUTO.
+// Real hardware only: Wokwi cannot let a phone join a simulated access point.
+//
+// Wiring: DHT22 DATA -&gt; GPIO 4, soil sensor AOUT -&gt; GPIO 34, relay IN -&gt; GPIO 26 (active HIGH)
+// Library: &quot;DHT sensor library for ESPx&quot;. WebServer is built into the ESP32 core.
+
+#include &lt;WiFi.h&gt;
+#include &lt;WebServer.h&gt;
+#include &quot;DHTesp.h&quot;
+
+const char* AP_SSID = &quot;FarmNode-01&quot;;
+const char* AP_PASS = &quot;farm12345&quot;;      // at least 8 characters
+
+const int DHT_PIN = 4, SOIL_PIN = 34, PUMP_PIN = 26;
+const int DRY = 3000, WET = 1300;
+const int ON_BELOW = 35, OFF_ABOVE = 60;
+
+DHTesp dht;
+WebServer server(80);
+
+float tempC = NAN, humidity = NAN;
+int soilPct = 0;
+bool pumpOn = false;
+bool autoMode = false;
+
+const char PAGE[] PROGMEM = R&quot;HTML(
+&lt;!doctype html&gt;&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1&quot;&gt;
+&lt;title&gt;FarmNode-01&lt;/title&gt;
+&lt;style&gt;
+body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#f3f6f1;color:#17231c}
+h1{font-size:22px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.card{background:#fff;border:1px solid #cbd6cc;border-radius:12px;padding:12px;text-align:center}
+.v{font-size:28px;font-weight:700}.l{font-size:13px;color:#4a5a50}
+.pump{margin-top:16px;padding:16px;border-radius:12px;background:#fff;border:1px solid #cbd6cc}
+button{font-size:18px;padding:14px;border-radius:10px;border:0;width:32%;color:#fff}
+.on{background:#0e5e43}.off{background:#9b2c1f}.auto{background:#2466a8}
+#state{font-size:20px;font-weight:700;margin-bottom:10px}
+&lt;/style&gt;&lt;/head&gt;&lt;body&gt;
+&lt;h1&gt;FarmNode-01&lt;/h1&gt;
+&lt;div class=&quot;grid&quot;&gt;
+ &lt;div class=&quot;card&quot;&gt;&lt;div class=&quot;v&quot; id=&quot;t&quot;&gt;--&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;Temp &amp;deg;C&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;card&quot;&gt;&lt;div class=&quot;v&quot; id=&quot;h&quot;&gt;--&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;Humidity %&lt;/div&gt;&lt;/div&gt;
+ &lt;div class=&quot;card&quot;&gt;&lt;div class=&quot;v&quot; id=&quot;s&quot;&gt;--&lt;/div&gt;&lt;div class=&quot;l&quot;&gt;Soil %&lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class=&quot;pump&quot;&gt;&lt;div id=&quot;state&quot;&gt;Pump: --&lt;/div&gt;
+ &lt;button class=&quot;on&quot; onclick=&quot;cmd(&#x27;on&#x27;)&quot;&gt;ON&lt;/button&gt;
+ &lt;button class=&quot;off&quot; onclick=&quot;cmd(&#x27;off&#x27;)&quot;&gt;OFF&lt;/button&gt;
+ &lt;button class=&quot;auto&quot; onclick=&quot;cmd(&#x27;auto&#x27;)&quot;&gt;AUTO&lt;/button&gt;
+&lt;/div&gt;
+&lt;script&gt;
+function show(d){
+ document.getElementById(&#x27;t&#x27;).textContent=d.temp;
+ document.getElementById(&#x27;h&#x27;).textContent=d.hum;
+ document.getElementById(&#x27;s&#x27;).textContent=d.soil;
+ document.getElementById(&#x27;state&#x27;).textContent=&#x27;Pump: &#x27;+(d.pump?&#x27;ON&#x27;:&#x27;OFF&#x27;)+(d.auto?&#x27; (auto)&#x27;:&#x27; (manual)&#x27;);
+}
+function refresh(){fetch(&#x27;/data&#x27;).then(r=&gt;r.json()).then(show).catch(()=&gt;{});}
+function cmd(c){fetch(&#x27;/pump?set=&#x27;+c).then(r=&gt;r.json()).then(show);}
+setInterval(refresh,2000);refresh();
+&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
+)HTML&quot;;
+
+void applyPump() { digitalWrite(PUMP_PIN, pumpOn ? HIGH : LOW); }
+
+String json() {
+  return String(&quot;{\&quot;temp\&quot;:\&quot;&quot;) + (isnan(tempC) ? &quot;--&quot; : String(tempC, 1)) +
+         &quot;\&quot;,\&quot;hum\&quot;:\&quot;&quot; + (isnan(humidity) ? &quot;--&quot; : String(humidity, 0)) +
+         &quot;\&quot;,\&quot;soil\&quot;:&quot; + soilPct +
+         &quot;,\&quot;pump\&quot;:&quot; + (pumpOn ? &quot;true&quot; : &quot;false&quot;) +
+         &quot;,\&quot;auto\&quot;:&quot; + (autoMode ? &quot;true&quot; : &quot;false&quot;) + &quot;}&quot;;
+}
+
+void handleRoot() { server.send_P(200, &quot;text/html&quot;, PAGE); }
+void handleData() { server.send(200, &quot;application/json&quot;, json()); }
+void handlePump() {
+  String set = server.arg(&quot;set&quot;);
+  if (set == &quot;on&quot;)   { autoMode = false; pumpOn = true; }
+  if (set == &quot;off&quot;)  { autoMode = false; pumpOn = false; }
+  if (set == &quot;auto&quot;) { autoMode = true; }
+  applyPump();
+  server.send(200, &quot;application/json&quot;, json());
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PUMP_PIN, OUTPUT);
+  applyPump();
+  dht.setup(DHT_PIN, DHTesp::DHT22);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  Serial.println(&quot;Join WiFi &quot; + String(AP_SSID) + &quot; and open http://&quot; + WiFi.softAPIP().toString());
+  server.on(&quot;/&quot;, handleRoot);
+  server.on(&quot;/data&quot;, handleData);
+  server.on(&quot;/pump&quot;, handlePump);
+  server.begin();
+}
+
+uint32_t lastRead = 0;
+void loop() {
+  server.handleClient();
+  if (millis() - lastRead &gt;= 2000) {
+    lastRead = millis();
+    TempAndHumidity d = dht.getTempAndHumidity();
+    if (dht.getStatus() == 0) { tempC = d.temperature; humidity = d.humidity; }
+    soilPct = constrain(map(analogRead(SOIL_PIN), DRY, WET, 0, 100), 0, 100);
+    if (autoMode) {
+      if (soilPct &lt; ON_BELOW)  pumpOn = true;
+      if (soilPct &gt; OFF_ABOVE) pumpOn = false;
+      applyPump();
+    }
+  }
+}
+</pre></div>
+  </details>
+</section>
+
+<section class="lab" id="resources">
+  <div class="lab-head"><h2>Keep learning</h2></div>
+  <ul class="res">
+    <li><a href="https://nptel.ac.in/courses/106105166" target="_blank" rel="noopener">NPTEL: Introduction to Internet of Things</a> <span>· IIT Kharagpur, free</span></li>
+    <li><a href="https://randomnerdtutorials.com/projects-esp32/" target="_blank" rel="noopener">Random Nerd Tutorials: ESP32 projects</a> <span>· step-by-step guides for every sensor</span></li>
+    <li><a href="https://docs.wokwi.com/" target="_blank" rel="noopener">Wokwi documentation</a> <span>· every simulated part and how to use it</span></li>
+    <li><a href="https://thingspeak.mathworks.com/" target="_blank" rel="noopener">ThingSpeak</a> <span>· free cloud charts for Lab 3</span></li>
+    <li><a href="https://www.kicad.org/" target="_blank" rel="noopener">KiCad</a> <span>· free PCB design, when you are ready for your own board</span></li>
+  </ul>
+</section>
+</main>
+
+<footer>
+  <span>Farm IoT Labs · AgriSense and Control</span>
+  <span>Code is free to use for learning.</span>
+</footer>
+</div>
+<script>
+function copyFrom(btn, el){
+  var text = el.innerText;
+  var label = btn.textContent;
+  function done(){ btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = label; }, 1500); }
+  function fallback(){ var r = document.createRange(); r.selectNodeContents(el); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Selected, press Ctrl+C'; }
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, fallback); } else { fallback(); }
+}
+document.querySelectorAll('[data-target]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var el = document.getElementById(btn.getAttribute('data-target'));
+    var d = el.closest('details'); if (d) d.open = true;
+    copyFrom(btn, el);
+  });
+});
+</script>
+</body>
+</html>

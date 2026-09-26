@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm IoT Labs · AgriSense and Control</title>
+<meta name="description" content="Hands-on ESP32 farm IoT labs: temperature and humidity, water flow, soil moisture with an automatic pump, and cloud dashboards. Run them in the Wokwi simulator or on a real board.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --sky:#2466A8; --sky-soft:#E1ECF7;
+  --code-bg:#122019; --code-ink:#D8E8DC;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+    --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216; --sky:#7DB3EA; --sky-soft:#17263A;
+    --code-bg:#0A100C;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--sky)}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--copper);outline-offset:2px;border-radius:4px}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);font-weight:600}
+header{padding-block:40px 28px;display:grid;gap:16px;border-bottom:2px solid var(--ink);margin-bottom:36px}
+header h1{font-size:clamp(2.2rem,6vw,3.8rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.1rem;max-width:64ch;color:var(--ink-2)}
+.start{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px;margin-bottom:44px}
+.start div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.start b{font-family:var(--mono);font-size:.75rem;color:var(--mask);letter-spacing:.06em;text-transform:uppercase}
+main{display:grid;gap:40px;grid-template-columns:minmax(0,1fr)}
+main>*,.lab>*,details>*{min-width:0}
+.lab{display:grid;gap:14px;scroll-margin-top:16px}
+.lab-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.lab-head h2{font-size:1.6rem;font-weight:800}
+.labno{font-family:var(--mono);font-weight:600;font-size:.8rem;background:var(--mask);color:var(--mask-ink);padding:3px 9px;border-radius:5px}
+.prac{font-family:var(--mono);font-size:.75rem;color:var(--ink-2)}
+.learn{color:var(--ink-2);max-width:68ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr));gap:12px}
+.lab{grid-template-columns:minmax(0,1fr)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:10px;align-content:start}
+.box h3{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.box ol,.box ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.try{font-size:.95rem;background:var(--copper-soft);border-radius:8px;padding:8px 12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-block;font-family:var(--mono);font-size:.8rem;font-weight:600;padding:8px 12px;border-radius:8px;border:1.5px solid var(--line);color:var(--ink);text-decoration:none;background:var(--panel)}
+.btn:hover{border-color:var(--copper)}
+.btn.primary{background:var(--mask);border-color:var(--mask);color:var(--mask-ink)}
+details>summary{cursor:pointer;font-family:var(--mono);font-size:.85rem;color:var(--sky);padding:4px 0}
+details[open]{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:10px;overflow:hidden}
+.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;line-height:1.55;max-height:520px}
+.code .cap{display:flex;justify-content:space-between;align-items:center;padding:7px 12px 7px 16px;background:rgba(255,255,255,.05);font-family:var(--mono);font-size:.72rem;color:#9FB8A7}
+.copy{font-family:var(--mono);font-size:.72rem;background:transparent;color:#D8E8DC;border:1px solid #3C5446;border-radius:5px;padding:3px 10px;cursor:pointer}
+.copy:hover{border-color:#E0A062;color:#E0A062}
+.prompt{background:var(--panel);border:1.5px dashed var(--sky);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:.82rem;white-space:pre-wrap;line-height:1.55;margin:0}
+.res{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.res li{padding:9px 0;border-bottom:1px solid var(--line)}
+.res li span{color:var(--ink-2);font-size:.9rem}
+footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+@media (max-width:560px){.wrap{padding-inline:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">AgriSense and Control · Workshop labs</div>
+  <h1>Farm IoT <span>Labs</span></h1>
+  <p class="lede">Four hands-on ESP32 labs from our farm IoT workshop. Run every lab free in the Wokwi simulator in your browser, then build it on a real board with the same code.</p>
+</header>
+
+<div class="start">
+  <div><b>1 · Simulate</b><p>Wokwi runs an ESP32 with sensors in your browser. No install, no hardware. A free account lets you save your work.</p></div>
+  <div><b>2 · Real board</b><p>Arduino IDE 2 + the Espressif “esp32” board package. Board: <b>ESP32 Dev Module</b>. Serial Monitor at 115200.</p></div>
+  <div><b>3 · Library</b><p>Labs 1, 3 and 4 need <b>DHT sensor library for ESPx</b> (Library Manager).</p></div>
+  <div><b>Upload stuck?</b><p>Hold the <b>BOOT</b> button while it says “Connecting…”. Use a USB <b>data</b> cable.</p></div>
+</div>
+
+<main>
+{{LABS}}
+
+<section class="lab" id="lab4-dashboard">
+  <div class="lab-head"><span class="labno">Lab 4</span><h2>A phone dashboard, built with AI</h2><span class="prac">Unit 4 · Smartphone apps</span></div>
+  <p class="learn">Ask an AI assistant (Claude, ChatGPT or Gemini) to write a web dashboard that your ESP32 serves over its own WiFi. Your job is to give it exact details, test what it writes, and paste errors back until it works. This lab needs a real board: a phone cannot join a simulated ESP32’s WiFi.</p>
+  <div class="cols">
+    <div class="box"><h3>The loop</h3><ol>
+      <li><b>Describe</b> the board, pins, sensors and goal</li>
+      <li><b>Generate</b> code, wiring and an explanation</li>
+      <li><b>Compile</b> it (or paste it into Wokwi to check it builds)</li>
+      <li><b>Flash</b> the real board</li>
+      <li><b>Paste back</b> the exact error or Serial output</li>
+      <li><b>Understand</b>: ask about any line you can’t explain</li>
+    </ol></div>
+    <div class="box"><h3>Then</h3><ul>
+      <li>Join WiFi <code>FarmNode-01</code> from your phone and open <code>192.168.4.1</code></li>
+      <li>Ask for one new feature at a time: an Auto mode, a threshold slider, a buzzer alarm</li>
+      <li>Never use AI advice to wire 230 V mains. That is work for a licensed electrician</li>
+    </ul></div>
+  </div>
+  <p class="eyebrow">The prompt</p>
+  <pre class="prompt" id="lab4-prompt">{{LAB4_PROMPT}}</pre>
+  <div class="btns"><button class="btn copy-prompt" type="button" data-target="lab4-prompt">Copy prompt</button></div>
+  <details><summary>Stuck? Show a working reference solution</summary>
+  {{LAB4_REF}}
+  </details>
+</section>
+
+<section class="lab" id="resources">
+  <div class="lab-head"><h2>Keep learning</h2></div>
+  <ul class="res">
+    <li><a href="https://nptel.ac.in/courses/106105166" target="_blank" rel="noopener">NPTEL: Introduction to Internet of Things</a> <span>· IIT Kharagpur, free</span></li>
+    <li><a href="https://randomnerdtutorials.com/projects-esp32/" target="_blank" rel="noopener">Random Nerd Tutorials: ESP32 projects</a> <span>· step-by-step guides for every sensor</span></li>
+    <li><a href="https://docs.wokwi.com/" target="_blank" rel="noopener">Wokwi documentation</a> <span>· every simulated part and how to use it</span></li>
+    <li><a href="https://thingspeak.mathworks.com/" target="_blank" rel="noopener">ThingSpeak</a> <span>· free cloud charts for Lab 3</span></li>
+    <li><a href="https://www.kicad.org/" target="_blank" rel="noopener">KiCad</a> <span>· free PCB design, when you are ready for your own board</span></li>
+  </ul>
+</section>
+</main>
+
+<footer>
+  <span>Farm IoT Labs · AgriSense and Control</span>
+  <span>Code is free to use for learning.</span>
+</footer>
+</div>
+<script>
+function copyFrom(btn, el){
+  var text = el.innerText;
+  var label = btn.textContent;
+  function done(){ btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = label; }, 1500); }
+  function fallback(){ var r = document.createRange(); r.selectNodeContents(el); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Selected, press Ctrl+C'; }
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, fallback); } else { fallback(); }
+}
+document.querySelectorAll('[data-target]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var el = document.getElementById(btn.getAttribute('data-target'));
+    var d = el.closest('details'); if (d) d.open = true;
+    copyFrom(btn, el);
+  });
+});
+</script>
+</body>
+</html>

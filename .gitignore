@@ -36,3 +36,13 @@ flutter_app/.dart_tool/
 flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 *.bak
+
+# Next.js build cache and TypeScript incremental state
+webapp/agrisense-webapp/.next/cache/
+*.tsbuildinfo
+
+# KiCad lock files (present only while a file is open)
+*.lck
+
+# Personal Claude Code settings (shared launch.json is fine)
+.claude/settings.local.json

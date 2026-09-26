@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agrisense-webapp",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "webapp/agrisense-webapp", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "fg1-tester-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["projects/tools/production-tester-cli/web_ui.py"],
+      "port": 8420
+    }
+  ]
+}

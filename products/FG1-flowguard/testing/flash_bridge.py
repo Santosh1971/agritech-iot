@@ -160,6 +160,47 @@ def flash():
     return Response(generate(), mimetype="application/x-ndjson")
 
 
+@app.route("/build", methods=["GET", "POST"])
+def build():
+    """Same NDJSON streaming shape as /flash, but compiles only (no
+    upload, no DUT/port needed) -- for tools/flasher-tester-app, which
+    flashes the DUT itself natively over USB-OTG and just needs this
+    laptop to produce the .bin segments first.
+    """
+    env = request.values.get("env", DEFAULT_ENV)
+    timeout_s = int(request.values.get("timeout_s", 180))
+
+    def generate():
+        for line in flasher.build_stream(env=env, timeout_s=timeout_s):
+            if line == "FLASH:PASS":
+                print("[build] RESULT: PASS")
+                yield json.dumps({"type": "result", "passed": True}) + "\n"
+            elif line == "FLASH:FAIL":
+                print("[build] RESULT: FAIL")
+                yield json.dumps({"type": "result", "passed": False}) + "\n"
+            else:
+                print(f"[build] {line}")
+                yield json.dumps({"type": "log", "line": line}) + "\n"
+
+    return Response(generate(), mimetype="application/x-ndjson")
+
+
+@app.route("/firmware/<segment>", methods=["GET"])
+def firmware_segment(segment: str):
+    """Serves one just-built .bin segment (bootloader/partitions/app)
+    for the native app to download and flash over USB-OTG. Call /build
+    first -- this just reads whatever's currently on disk, no build
+    triggered here.
+    """
+    env = request.args.get("env", DEFAULT_ENV)
+    path = flasher.firmware_segment_path(env, segment)
+    if path is None:
+        return jsonify({"ok": False, "error": f"unknown segment '{segment}'"}), 400
+    if not path.exists():
+        return jsonify({"ok": False, "error": f"{path.name} not found -- run /build first"}), 404
+    return Response(path.read_bytes(), mimetype="application/octet-stream")
+
+
 @app.route("/boot_log", methods=["GET"])
 def boot_log():
     port = request.args.get("port")
@@ -204,7 +245,11 @@ def log_result():
     body = request.get_json(force=True, silent=True) or {}
     device_id = body.get("device_id")
     tier = body.get("tier", "production")
-    passed = bool(body.get("passed"))
+    # Both the Flutter and native apps' TestReport.toJson() send
+    # "overall_passed", not "passed" -- this previously read the wrong
+    # key and silently logged every result as FAIL regardless of the
+    # real outcome. "passed" kept as a fallback for any older caller.
+    passed = bool(body.get("overall_passed", body.get("passed")))
     steps = body.get("steps", {})
     results_logger.log_result(device_id, tier, passed, steps)
     return jsonify({"ok": True})
