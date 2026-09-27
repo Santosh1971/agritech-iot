@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!-- TH Monitor - MQTT test client. Open this file in a browser (no server needed).
+     It connects to the same public broker over WebSockets, the way a phone app would. -->
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TH Monitor MQTT</title>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+<style>
+  body { font-family: sans-serif; text-align: center; margin: 0; padding: 24px; background: #f4f7f4; color: #223; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin: 12px auto; max-width: 320px; box-shadow: 0 1px 4px #0002; }
+  .v { font-size: 56px; font-weight: bold; }
+  input, button { font-size: 15px; padding: 8px; margin: 4px; }
+  #log { font-family: monospace; font-size: 12px; text-align: left; max-width: 480px; margin: 12px auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>TH Monitor (MQTT)</h2>
+<div>Device ID <input id="dev" value="TH-addb" size="8"> <button onclick="subscribe()">Connect</button></div>
+<div id="status">not connected</div>
+<div class="card">Temperature<div class="v"><span id="t">--</span> &deg;C</div></div>
+<div class="card">Humidity<div class="v"><span id="h">--</span> %</div></div>
+<small id="ts"></small>
+<div>
+  <button onclick="send('read')">Read now</button>
+  <button onclick="send('interval 10')">Every 10 s</button>
+  <button onclick="send('interval 60')">Every 60 s</button>
+</div>
+<div id="log"></div>
+<script>
+  const BROKER = 'wss://broker.emqx.io:8084/mqtt';  // same broker as the firmware, WebSocket port
+  const ROOT = 'agrisense/th/';
+  let client, dev;
+
+  function log(line) {
+    const el = document.getElementById('log');
+    el.textContent = new Date().toLocaleTimeString() + '  ' + line + '\n' + el.textContent;
+  }
+
+  function subscribe() {
+    dev = document.getElementById('dev').value.trim();
+    if (client) client.end();
+    client = mqtt.connect(BROKER);
+    client.on('connect', () => {
+      log('connected to broker');
+      client.subscribe(ROOT + dev + '/#');  // data, status and cmd for this device
+    });
+    client.on('message', (topic, payload) => {
+      const text = payload.toString();
+      log(topic + '  ' + text);
+      if (topic.endsWith('/status')) document.getElementById('status').textContent = 'device ' + text;
+      if (topic.endsWith('/data')) {
+        const r = JSON.parse(text);
+        document.getElementById('t').textContent = r.t ?? '--';
+        document.getElementById('h').textContent = r.h ?? '--';
+        document.getElementById('ts').textContent = r.error || 'Measured ' + r.ts;
+      }
+    });
+  }
+
+  function send(cmd) {
+    if (client) client.publish(ROOT + dev + '/cmd', cmd);
+  }
+
+  subscribe();
+</script>
+</body>
+</html>
