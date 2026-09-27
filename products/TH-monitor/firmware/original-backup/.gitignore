@@ -1,0 +1,2 @@
+# Original Sasya THMonitor firmware backup (restore: esptool.py write_flash 0 sasya_thmonitor_4MB.bin)
+*.bin
