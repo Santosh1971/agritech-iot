@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farmers, Tech &amp; You · AgriSense and Control</title>
+<meta name="description" content="A short questionnaire for GPSIOAM students before the farm IoT workshop: farm problems, temperature and humidity, pumps, hurdles and business ideas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --err:#9B2C1F;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{color-scheme:dark;--bg:#0F1612;--panel:#16201A;--panel-2:#1D2A22;--ink:#E4EDE6;--ink-2:#A3B4A8;--line:#2C3B31;
+    --mask:#3FB585;--mask-ink:#08130D;--copper:#E0A062;--copper-soft:#2E2216;--err:#F08A78}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:0 80px}
+header{padding-block:28px 18px;display:grid;gap:10px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+h1{font-family:var(--display);font-size:2rem;font-weight:800;line-height:1.1;margin:0}
+h1 span{color:var(--mask)}
+h2{font-family:var(--display);font-size:1.25rem;font-weight:800;margin:0}
+p{margin:0}
+.lede{color:var(--ink-2)}
+form{display:grid;gap:26px;margin-top:22px}
+fieldset{border:0;margin:0;padding:0;display:grid;gap:16px}
+.q{display:grid;gap:8px}
+.q>label,.q>.lbl{font-weight:700}
+.q small{color:var(--ink-2);font-weight:400}
+.req{color:var(--copper)}
+input[type=text],textarea,select{font:inherit;font-size:16px;width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+textarea{min-height:84px;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--mask)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{display:inline-flex}
+.chips input{position:absolute;opacity:0;pointer-events:none}
+.chips span{padding:8px 13px;border:1.5px solid var(--line);border-radius:999px;background:var(--panel);font-size:.95rem;cursor:pointer;user-select:none}
+.chips input:checked+span{background:var(--mask);border-color:var(--mask);color:var(--mask-ink)}
+.chips input:focus-visible+span{outline:3px solid var(--copper);outline-offset:2px}
+.sec{border-top:1px solid var(--line);padding-top:18px}
+.num{font-family:var(--mono);font-size:.72rem;color:var(--copper);letter-spacing:.08em}
+button{font:inherit;font-weight:700;font-size:1.05rem;padding:14px;border:0;border-radius:12px;background:var(--mask);color:var(--mask-ink);cursor:pointer}
+button:disabled{opacity:.6}
+.msg{padding:12px 14px;border-radius:10px;font-weight:700}
+.msg.ok{background:var(--mask);color:var(--mask-ink)}
+.msg.bad{background:var(--copper-soft);color:var(--err)}
+.hint{color:var(--ink-2);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">GPSIOAM · Farm IoT workshop</div>
+  <h1>Farmers, tech <span>&amp; you</span></h1>
+  <p class="lede">No marks, no wrong answers. Tell us what you have seen on real farms. Your answers shape what we build together on Thursday. Takes about 10 minutes. Only your name and the last question are required.</p>
+</header>
+
+<form id="f" novalidate>
+<fieldset>
+  <div class="q"><label for="name">Your name <span class="req">*</span></label><input type="text" id="name" name="name" autocomplete="name" required></div>
+  <div class="q"><label for="district">Home district / village</label><input type="text" id="district" name="district"></div>
+  <div class="q"><span class="lbl">Does your family farm?</span>
+    <div class="chips" data-name="family_farms" data-single>
+      <label><input type="radio" name="family_farms" value="Yes"><span>Yes</span></label>
+      <label><input type="radio" name="family_farms" value="No"><span>No</span></label>
+      <label><input type="radio" name="family_farms" value="Relatives do"><span>Relatives do</span></label>
+    </div></div>
+  <div class="q"><label for="crops">Crops you know well <small>(family farm, internship, field visits)</small></label><input type="text" id="crops" name="crops"></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">FARM REALITY</span>
+  <div class="q"><span class="lbl">Where does a farmer lose the most money? <small>(pick all that apply)</small></span>
+    <div class="chips">
+      <label><input type="checkbox" name="losses" value="Pests & disease"><span>Pests &amp; disease</span></label>
+      <label><input type="checkbox" name="losses" value="Water shortage"><span>Water shortage</span></label>
+      <label><input type="checkbox" name="losses" value="Labour"><span>Labour</span></label>
+      <label><input type="checkbox" name="losses" value="Electricity / pump"><span>Electricity / pump</span></label>
+      <label><input type="checkbox" name="losses" value="Weather"><span>Weather</span></label>
+      <label><input type="checkbox" name="losses" value="Storage losses"><span>Storage losses</span></label>
+      <label><input type="checkbox" name="losses" value="Market price"><span>Market price</span></label>
+      <label><input type="checkbox" name="losses" value="Input costs"><span>Seeds, fertiliser, chemicals</span></label>
+    </div></div>
+  <div class="q"><label for="loss_story">One loss you have seen with your own eyes</label><textarea id="loss_story" name="loss_story"></textarea></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">TEMPERATURE &amp; HUMIDITY</span>
+  <div class="q"><label for="th_why">Why would a farmer care about temperature and humidity? Give one example from a crop.</label><textarea id="th_why" name="th_why"></textarea></div>
+  <div class="q"><span class="lbl">How does a farmer decide when to spray?</span>
+    <div class="chips">
+      <label><input type="checkbox" name="spray_decision" value="Fixed calendar"><span>Fixed calendar</span></label>
+      <label><input type="checkbox" name="spray_decision" value="Input dealer advice"><span>Input dealer advice</span></label>
+      <label><input type="checkbox" name="spray_decision" value="Neighbour"><span>Neighbour</span></label>
+      <label><input type="checkbox" name="spray_decision" value="After seeing disease"><span>After seeing disease</span></label>
+      <label><input type="checkbox" name="spray_decision" value="App / company advisory"><span>App / company advisory</span></label>
+      <label><input type="checkbox" name="spray_decision" value="KVK / university"><span>KVK / university</span></label>
+    </div></div>
+  <div class="q"><label for="pay_th">Would a farmer pay for a device that warns of disease risk?</label>
+    <select id="pay_th" name="pay_th"><option value="">Choose</option><option>No, not interested</option><option>Only if free (app or company)</option><option>Up to ₹2,000</option><option>₹2,000–5,000</option><option>₹5,000–10,000</option><option>More than ₹10,000</option><option>Not sure</option></select></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">PUMP &amp; WATER</span>
+  <div class="q"><span class="lbl">How do farmers in your area irrigate?</span>
+    <div class="chips">
+      <label><input type="checkbox" name="irrigation" value="Borewell"><span>Borewell</span></label>
+      <label><input type="checkbox" name="irrigation" value="Open well"><span>Open well</span></label>
+      <label><input type="checkbox" name="irrigation" value="Canal"><span>Canal</span></label>
+      <label><input type="checkbox" name="irrigation" value="Tank / pond"><span>Tank / pond</span></label>
+      <label><input type="checkbox" name="irrigation" value="Rain only"><span>Rain only</span></label>
+      <label><input type="checkbox" name="irrigation" value="Drip"><span>Drip</span></label>
+      <label><input type="checkbox" name="irrigation" value="Sprinkler"><span>Sprinkler</span></label>
+      <label><input type="checkbox" name="irrigation" value="Flood"><span>Flood</span></label>
+    </div></div>
+  <div class="q"><label for="power">When does farm power come, and who goes to switch the pump on? Any stories?</label><textarea id="power" name="power"></textarea></div>
+  <div class="q"><span class="lbl">Pump problems you have heard of</span>
+    <div class="chips">
+      <label><input type="checkbox" name="pump_problems" value="Running dry"><span>Running dry</span></label>
+      <label><input type="checkbox" name="pump_problems" value="Motor burnt"><span>Motor burnt</span></label>
+      <label><input type="checkbox" name="pump_problems" value="Phase failure / low voltage"><span>Phase failure / low voltage</span></label>
+      <label><input type="checkbox" name="pump_problems" value="Cable or starter theft"><span>Cable / starter theft</span></label>
+      <label><input type="checkbox" name="pump_problems" value="Night trips to switch"><span>Night trips to switch</span></label>
+      <label><input type="checkbox" name="pump_problems" value="Over-watering"><span>Over-watering</span></label>
+    </div></div>
+  <div class="q"><label for="pay_pump">What would a farmer pay to switch the pump from his phone?</label>
+    <select id="pay_pump" name="pay_pump"><option value="">Choose</option><option>Would not pay</option><option>Up to ₹3,000</option><option>₹3,000–10,000</option><option>₹10,000–20,000</option><option>More than ₹20,000</option><option>Not sure</option></select></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">WHAT YOU HAVE SEEN</span>
+  <div class="q"><label for="fyllo">At Fyllo: what did the device measure, and what advice did it give? Would farmers you know buy it?</label><textarea id="fyllo" name="fyllo"></textarea></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">HURDLES</span>
+  <div class="q"><span class="lbl">Why don’t more farmers use farm devices today?</span>
+    <div class="chips">
+      <label><input type="checkbox" name="hurdles" value="Too costly"><span>Too costly</span></label>
+      <label><input type="checkbox" name="hurdles" value="Don't trust it"><span>Don’t trust it</span></label>
+      <label><input type="checkbox" name="hurdles" value="Don't know about it"><span>Don’t know about it</span></label>
+      <label><input type="checkbox" name="hurdles" value="No mobile network"><span>No mobile network</span></label>
+      <label><input type="checkbox" name="hurdles" value="Power problems"><span>Power problems</span></label>
+      <label><input type="checkbox" name="hurdles" value="No one to repair"><span>No one to repair</span></label>
+      <label><input type="checkbox" name="hurdles" value="Language"><span>Language</span></label>
+      <label><input type="checkbox" name="hurdles" value="Not comfortable with smartphones"><span>Smartphone use</span></label>
+      <label><input type="checkbox" name="hurdles" value="Land too small"><span>Land too small</span></label>
+    </div></div>
+  <div class="q"><span class="lbl">Whom does a farmer trust for anything new?</span>
+    <div class="chips">
+      <label><input type="checkbox" name="trust" value="Input dealer"><span>Input dealer</span></label>
+      <label><input type="checkbox" name="trust" value="KVK / university"><span>KVK / university</span></label>
+      <label><input type="checkbox" name="trust" value="Neighbour farmer"><span>Neighbour farmer</span></label>
+      <label><input type="checkbox" name="trust" value="Company representative"><span>Company rep</span></label>
+      <label><input type="checkbox" name="trust" value="Agriculture officer"><span>Agriculture officer</span></label>
+      <label><input type="checkbox" name="trust" value="YouTube"><span>YouTube</span></label>
+      <label><input type="checkbox" name="trust" value="WhatsApp groups"><span>WhatsApp groups</span></label>
+    </div></div>
+  <div class="q"><label for="make_yes">What would make a farmer say yes to a new device?</label><textarea id="make_yes" name="make_yes"></textarea></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">BUSINESS &amp; YOU</span>
+  <div class="q"><label for="business_idea">If you started an agri-tech business tomorrow, which farmer problem would you pick?</label><textarea id="business_idea" name="business_idea"></textarea></div>
+  <div class="q"><span class="lbl">Who could pay for such a solution?</span>
+    <div class="chips">
+      <label><input type="checkbox" name="who_pays" value="Farmer"><span>Farmer</span></label>
+      <label><input type="checkbox" name="who_pays" value="FPO"><span>FPO</span></label>
+      <label><input type="checkbox" name="who_pays" value="Input dealer"><span>Input dealer</span></label>
+      <label><input type="checkbox" name="who_pays" value="Government scheme"><span>Government scheme</span></label>
+      <label><input type="checkbox" name="who_pays" value="Bank / insurance"><span>Bank / insurance</span></label>
+      <label><input type="checkbox" name="who_pays" value="Company buying the crop"><span>Company buying the crop</span></label>
+    </div></div>
+  <div class="q"><label for="after_grad">After graduation, what do you want?</label>
+    <select id="after_grad" name="after_grad"><option value="">Choose</option><option>A job in a company</option><option>My own business</option><option>Farm my own land</option><option>Government service</option><option>Higher studies</option><option>Not sure yet</option></select></div>
+  <div class="q"><span class="lbl">How much do you want to start your own business? <small>(1 = not at all, 5 = very much)</small></span>
+    <div class="chips">
+      <label><input type="radio" name="startup_interest" value="1"><span>1</span></label>
+      <label><input type="radio" name="startup_interest" value="2"><span>2</span></label>
+      <label><input type="radio" name="startup_interest" value="3"><span>3</span></label>
+      <label><input type="radio" name="startup_interest" value="4"><span>4</span></label>
+      <label><input type="radio" name="startup_interest" value="5"><span>5</span></label>
+    </div></div>
+  <div class="q"><label for="want_thursday">What do you want from Thursday? Honestly, not for marks.</label><textarea id="want_thursday" name="want_thursday"></textarea></div>
+  <div class="q"><label for="problem">Complete this: “One farm problem I want to solve is…” <span class="req">*</span></label><textarea id="problem" name="problem" required></textarea></div>
+</fieldset>
+
+<fieldset class="sec">
+  <span class="num">FOR THURSDAY</span>
+  <div class="q"><label for="laptop">Your laptop</label>
+    <select id="laptop" name="laptop"><option value="">Choose</option><option>Windows</option><option>Mac</option><option>Other</option><option>No laptop</option></select></div>
+  <div class="q"><label for="phone">Your phone</label>
+    <select id="phone" name="phone"><option value="">Choose</option><option>Android</option><option>iPhone</option></select></div>
+  <div class="q"><span class="lbl">Which project interests you more?</span>
+    <div class="chips">
+      <label><input type="radio" name="project" value="A: Temperature-humidity monitor"><span>A: Temperature-humidity monitor</span></label>
+      <label><input type="radio" name="project" value="B: Remote pump with flow"><span>B: Remote pump with flow</span></label>
+      <label><input type="radio" name="project" value="Either"><span>Either</span></label>
+    </div></div>
+</fieldset>
+
+<div id="msg" role="status" hidden></div>
+<button type="submit" id="send">Send my answers</button>
+<p class="hint">Your answers go only to the workshop facilitators (AgriSense and Control) and are used to plan the workshop. Your draft is kept on this phone until you send it.</p>
+</form>
+</div>
+
+<script>
+(function(){
+  var f = document.getElementById('f'), msg = document.getElementById('msg'), btn = document.getElementById('send');
+  var KEY = 'gpsioam-survey-draft';
+
+  function collect(){
+    var data = {};
+    Array.prototype.forEach.call(f.elements, function(el){
+      if (!el.name) return;
+      if (el.type === 'checkbox') { if (!data[el.name]) data[el.name] = []; if (el.checked) data[el.name].push(el.value); }
+      else if (el.type === 'radio') { if (el.checked) data[el.name] = el.value; }
+      else data[el.name] = el.value;
+    });
+    return data;
+  }
+  function restore(){
+    var d; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e) {}
+    if (!d) return;
+    Array.prototype.forEach.call(f.elements, function(el){
+      if (!el.name || !(el.name in d)) return;
+      var v = d[el.name];
+      if (el.type === 'checkbox') el.checked = Array.isArray(v) && v.indexOf(el.value) >= 0;
+      else if (el.type === 'radio') el.checked = (v === el.value);
+      else el.value = v;
+    });
+  }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(collect())); } catch(e) {} }
+  function show(text, ok){ msg.hidden = false; msg.className = 'msg ' + (ok ? 'ok' : 'bad'); msg.textContent = text; }
+
+  restore();
+  f.addEventListener('input', save);
+  f.addEventListener('change', save);
+  f.addEventListener('submit', function(e){
+    e.preventDefault();
+    var data = collect();
+    if (!data.name.trim() || !data.problem.trim()) {
+      show('Please add your name and complete the last question (one farm problem).', false);
+      (data.name.trim() ? document.getElementById('problem') : document.getElementById('name')).focus();
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    fetch('/api/workshop/survey', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        if (!res.ok) throw new Error(res.j && res.j.error || 'Could not send');
+        try { localStorage.removeItem(KEY); } catch(e) {}
+        show('Thank you, ' + data.name.trim() + '! Your answers are in. See you on Thursday.', true);
+        btn.textContent = 'Sent';
+      })
+      .catch(function(err){
+        show('Not sent: ' + err.message + '. Check your internet and tap Send again; your answers are still here.', false);
+        btn.disabled = false; btn.textContent = 'Send my answers';
+      });
+  });
+})();
+</script>
+</body>
+</html>

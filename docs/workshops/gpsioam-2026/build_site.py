@@ -161,6 +161,9 @@ def build():
     # AGR 322 workshop overview for the college (/workshop/agr322).
     (SITE / "agr322").mkdir()
     shutil.copy(HERE / "agr322" / "index.html", SITE / "agr322" / "index.html")
+    # Student questionnaire (/workshop/survey); answers POST to /api/workshop/survey.
+    (SITE / "survey").mkdir()
+    shutil.copy(HERE / "survey" / "index.html", SITE / "survey" / "index.html")
 
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():

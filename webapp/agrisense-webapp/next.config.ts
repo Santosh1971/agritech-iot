@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       { source: "/workshop/practical/hi", destination: "/workshop/practical/hi/index.html" },
       { source: "/workshop/practical/kn", destination: "/workshop/practical/kn/index.html" },
       { source: "/workshop/agr322", destination: "/workshop/agr322/index.html" },
+      { source: "/workshop/survey", destination: "/workshop/survey/index.html" },
     ];
   },
 };
