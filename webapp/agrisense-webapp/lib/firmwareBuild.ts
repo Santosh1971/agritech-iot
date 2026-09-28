@@ -16,7 +16,9 @@ import { join } from "path";
 
 const TOOLS_BIN = process.env.ARDUINO_CLI_BIN || join(homedir(), "tools", "bin", "arduino-cli");
 const BUILDS_DIR = join(process.env.WORKSHOP_SURVEY_DIR || join(homedir(), "agrisense-data"), "builds");
-const FQBN = "esp32:esp32:esp32"; // ESP32 Dev Module
+// ESP32 Dev Module with the "Huge APP" partition layout (3 MB app, no OTA), so a
+// student's program that combines Bluetooth and WiFi still fits.
+const FQBN = "esp32:esp32:esp32:PartitionScheme=huge_app";
 const BUILD_TIMEOUT_MS = 4 * 60 * 1000;
 const KEEP_JOBS_MS = 2 * 60 * 60 * 1000;
 const MAX_SOURCE = 100_000;

@@ -132,80 +132,66 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
   <div class="tbl"><table>
     <thead><tr><th>#</th><th>Topic you studied</th><th>On Thursday</th><th>How</th></tr></thead>
     <tbody>
-      <tr><td class="no">1</td><td><b class="t">Wireless sensors in smart agriculture</b></td><td>Connect and read real sensors: temperature and humidity (DHT22), soil moisture, water flow. Send the readings wirelessly over WiFi to your phone.</td><td><span class="pill p-full">Build</span></td></tr>
-      <tr><td class="no">2</td><td><b class="t">IoT-based tractor</b></td><td>The same building blocks you’ll use all day (GPS and engine sensors, a mobile-network modem, the cloud, an app) applied to tractor telematics and auto-steering.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
-      <tr><td class="no">3</td><td><b class="t">Monitoring system in smart agriculture</b></td><td>Build a temperature-humidity monitoring system with alerts and history stored on the device. Pump teams build pump monitoring: is water really flowing, and how many litres?</td><td><span class="pill p-full">Build</span></td></tr>
-      <tr><td class="no">4</td><td><b class="t">IoT device in smart agriculture</b></td><td>Program a real TH monitor unit (yours to keep). Open our field products (FlowGuard, Wireless Pump Controller, WaterMaster) and name every block inside.</td><td><span class="pill p-full">Build</span></td></tr>
-      <tr><td class="no">5</td><td><b class="t">Plant health monitoring</b></td><td>Turn temperature and humidity into a disease-risk alert for a crop you choose (e.g. late blight hours for tomato), the same idea behind the crop advisories you saw at Fyllo. Leaf-camera monitoring is a follow-up project.</td><td><span class="pill p-part">Partly</span></td></tr>
-      <tr><td class="no">6</td><td><b class="t">Drones in smart agriculture</b></td><td>Spraying vs survey drones, NDVI crop-health maps, and the rules for flying in India, linked to the sensor data you collect on the ground.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
-      <tr><td class="no">7</td><td><b class="t">Soil moisture system in smart agriculture</b></td><td>Calibrate a soil moisture sensor in dry and wet soil, then build automatic irrigation: pump on when dry, off when wet, never with an empty tank.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">1</td><td><b class="t">Wireless sensors in smart agriculture</b></td><td>Read a temperature and humidity sensor, then send the readings wirelessly four ways: Bluetooth, WiFi, the internet (MQTT) and long-range LoRa.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">2</td><td><b class="t">IoT-based tractor</b></td><td>Where tractors fit in the same picture: GPS and engine sensors, a mobile-network link and the cloud.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">3</td><td><b class="t">Monitoring system in smart agriculture</b></td><td>Build a temperature-humidity monitoring system and watch it on a phone: first nearby, then from anywhere.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">4</td><td><b class="t">IoT device in smart agriculture</b></td><td>Program a real ESP32 yourself, with an AI assistant writing the code. See how the same parts (input, controller, output, feedback) work inside our field products.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">5</td><td><b class="t">Plant health monitoring</b></td><td>How temperature and humidity records warn of disease (for example late blight hours in tomato), and why a disease-risk alert can be a business.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">6</td><td><b class="t">Drones in smart agriculture</b></td><td>Where drones fit next to ground sensors: survey and spraying, and the data they add.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">7</td><td><b class="t">Soil moisture system in smart agriculture</b></td><td>The same input → controller → output → feedback loop as automatic irrigation (soil moisture switches the pump), shown on our irrigation and pump controllers.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
     </tbody>
   </table></div>
-  <p class="note"><b>New for you on Thursday:</b> you make the device and the app yourself. You program the hardware with help from AI, build a phone app that works in the field without internet, and then make it work from anywhere over the internet.</p>
+  <p class="note"><b>New for you on Thursday:</b> you program a real device yourself. You tell Claude in plain English what you want, it writes the program, and you flash it onto the ESP32 from your browser. No coding and no software to install.</p>
 </section>
 
 <section id="day">
   <div class="eyebrow">Thursday 1 October</div>
   <h2>How the day runs</h2>
   <div class="day">
-    <div class="slot"><div class="time">10:15–10:45</div><div class="what"><h3>From what you studied to what you’ll build</h3><p class="muted">Our farm devices, live: flow and pump control (FG1), pumps across a field over LoRa (WPC), drip and fertigation scheduling (WM1). Why temperature, humidity and water flow matter for disease, pests, irrigation, spraying and storage.</p><div class="tags"><span class="tag">Topics 3, 4</span></div></div></div>
-    <div class="slot"><div class="time">10:45–11:20</div><div class="what"><h3>The building blocks of any IoT system</h3><p class="muted">Sense → decide → communicate → store → act. WiFi, LoRa, mobile network and Bluetooth on a farm; how data reaches your phone.</p><div class="tags"><span class="tag">Topics 1, 4</span></div></div></div>
-    <div class="slot brk"><div class="time">11:20–11:30</div><div class="what">Tea</div></div>
-    <div class="slot"><div class="time">11:30–13:00</div><div class="what"><h3>Hands-on 1: sensors and your first device</h3><p class="muted">Program your device and see live readings. Breathe on the humidity sensor; blow into the flow sensor; put the soil sensor in dry and wet soil. Build automatic irrigation logic.</p><div class="tags"><span class="tag">Topics 1, 3, 7</span></div></div></div>
+    <div class="slot"><div class="time">10:15–10:40</div><div class="what"><h3>Why business? Why entrepreneurship?</h3><p class="muted">8 of you rated starting your own business 5 out of 5, so we start there. What a business is: a product or a service. What it takes to run one: a real problem, a customer who pays, the product, a price, a way to sell (dealers and neighbour farmers, the people farmers trust), money, a team and after-sales service.</p></div></div>
+    <div class="slot"><div class="time">10:40–11:05</div><div class="what"><h3>Your ideas: will they sell, and at what price?</h3><p class="muted">We take a few of your own ideas (disease alert, storage monitor, pump protection, market price) and ask: who buys it, why, at what price, and who else could pay. Making the product is only one part of the business.</p><div class="tags"><span class="tag">Topic 5</span></div></div></div>
+    <div class="slot"><div class="time">11:05–11:25</div><div class="what"><h3>A product is a system: input → control → output, with feedback</h3><p class="muted">Everyday examples: a fan regulator (no feedback), an iron or fridge thermostat, a tank float switch that runs the pump, a rice cooker, even your own eyes, brain and hands. Farm examples: drip on a timer vs drip on soil moisture, a fogger on humidity, a pump that checks water is really flowing. Then we map one of your ideas the same way.</p><div class="tags"><span class="tag">Topics 3, 4, 7</span></div></div></div>
+    <div class="slot brk"><div class="time">11:25–11:35</div><div class="what">Tea</div></div>
+    <div class="slot"><div class="time">11:35–11:50</div><div class="what"><h3>Meet the brain: the ESP32</h3><p class="muted">Inputs and sensors, outputs and actuators, the user interface (button, LED, phone). How you program it without writing code: ask Claude, paste, build and flash from the browser.</p><div class="tags"><span class="tag">Topic 4</span></div></div></div>
+    <div class="slot"><div class="time">11:50–13:00</div><div class="what"><h3>Hands-on 1: your first programs</h3><p class="muted">Blink the LED → switch it with a button → change the blink speed with the button → read temperature and humidity and watch them on the serial monitor. Then ask Claude for your own change and flash it.</p><div class="tags"><span class="tag">Topics 1, 4</span></div></div></div>
     <div class="slot brk"><div class="time">13:00–13:45</div><div class="what">Lunch</div></div>
-    <div class="slot"><div class="time">13:45–15:15</div><div class="what"><h3>Hands-on 2: talk to your farm device</h3><p class="muted"><b>Project A:</b> temperature-humidity monitor. <b>Project B:</b> remote pump (a bulb stands in for the motor) with flow feedback. For each: a field app with no internet → readings stored on the device → an internet app you can use from home.</p><div class="tags"><span class="tag">Topics 3, 4</span></div></div></div>
-    <div class="slot"><div class="time">15:15–15:30</div><div class="what"><h3>Tractors and drones: where they fit</h3><div class="tags"><span class="tag">Topics 2, 6</span></div></div></div>
-    <div class="slot brk"><div class="time">15:30–15:40</div><div class="what">Tea</div></div>
-    <div class="slot"><div class="time">15:40–16:20</div><div class="what"><h3>Your crop rule, your app, show-and-tell</h3><p class="muted">Each team adds one farm rule (disease risk, spray window, dry-run stop), gets its app on their phones, and explains why a farmer would pay for it.</p><div class="tags"><span class="tag">Topic 5</span></div></div></div>
-    <div class="slot"><div class="time">16:20–16:35</div><div class="what"><h3>Close: what to build next, and an IoT lab for the college</h3></div></div>
+    <div class="slot"><div class="time">13:45–14:20</div><div class="what"><h3>Hands-on 2: readings on your phone over Bluetooth</h3><p class="muted">The ESP32 sends temperature and humidity to your phone, and you switch its LED from the phone. Limitation: about 10 metres, one phone at a time.</p><div class="tags"><span class="tag">Topics 1, 3</span></div></div></div>
+    <div class="slot"><div class="time">14:20–15:00</div><div class="what"><h3>Hands-on 3: WiFi, then the internet</h3><p class="muted">First the ESP32 makes its own WiFi and your phone shows the readings (no internet needed, but you must be nearby). Then it joins the room’s WiFi and sends readings through the internet (MQTT), so you can see them from anywhere. Limitation: the field needs WiFi or internet.</p><div class="tags"><span class="tag">Topics 1, 3</span></div></div></div>
+    <div class="slot"><div class="time">15:00–15:25</div><div class="what"><h3>LoRa: long range without internet</h3><p class="muted">Our Wireless Pump Controller: a master reads the tank level and switches pumps on two nodes across the campus. We walk a node away to test the range. Where tractors and drones fit in the same picture.</p><div class="tags"><span class="tag">Topics 1, 2, 6</span></div></div></div>
+    <div class="slot brk"><div class="time">15:25–15:35</div><div class="what">Tea</div></div>
+    <div class="slot"><div class="time">15:35–16:00</div><div class="what"><h3>Tour of your labs</h3><p class="muted">We see the college’s existing labs, equipment and farm.</p></div></div>
+    <div class="slot"><div class="time">16:00–16:20</div><div class="what"><h3>An IoT lab for the college?</h3><p class="muted">An idea for a lab where students go from first sensor in Year 1 to their own agri-tech venture by Year 4. We want to hear what you would expect from it.</p></div></div>
+    <div class="slot"><div class="time">16:20–16:35</div><div class="what"><h3>Close: keep exploring on your own</h3><p class="muted">Everything stays online: the flasher, the prompts and the pages. Keep building with Claude, and ask questions in the WhatsApp group.</p></div></div>
   </div>
   <p class="intro">Timings are indicative and will be fitted to the college timetable.</p>
 </section>
 
 <section id="before">
   <div class="eyebrow">Before Thursday</div>
-  <h2>Please get ready</h2>
+  <h2>Please get ready (about 10 minutes)</h2>
   <div class="cols">
+    <div class="box"><h3>Laptop</h3><ul class="check">
+      <li><b>Google Chrome</b> or <b>Microsoft Edge</b>, latest version (Firefox and Safari can’t talk to USB devices)</li>
+      <li>USB drivers (Windows), install both: <a href="https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers" target="_blank" rel="noopener">CP210x</a> and <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html" target="_blank" rel="noopener">CH340</a></li>
+      <li>A free account at <b>claude.ai</b></li>
+      <li>Bookmark <a href="/workshop/flash">agrisenseandcontrol.in/workshop/flash</a> (the access code is given on Thursday)</li>
+    </ul></div>
+    <div class="box"><h3>Phone</h3><ul class="check">
+      <li>Android: install <b>Serial Bluetooth Terminal</b> (by Kai Morich) from the Play Store</li>
+      <li>iPhone: no Bluetooth app needed; team up with an Android user for that part</li>
+    </ul></div>
     <div class="box"><h3>Bring</h3><ul class="check">
-      <li>Laptop, fully charged, with the <b>Chrome</b> browser</li>
-      <li>Android phone, charged (the app is an Android APK; iPhone users can use the browser version)</li>
-      <li>A micro-USB <b>data</b> cable if you have one (we also bring cables)</li>
-    </ul></div>
-    <div class="box"><h3>Set up</h3><ul class="check">
-      <li>Create a free account at <b>claude.ai</b> (email or Google login)</li>
-      <li>Optional: a free account at <b>wokwi.com</b> to save simulator work</li>
-      <li>Windows laptops: we will help install the USB driver on the day</li>
-    </ul></div>
-    <div class="box"><h3>Think about</h3><ul class="check">
-      <li>One crop you know well (your family farm, or a field visit)</li>
-      <li>One problem on that crop that temperature, humidity or water data could help with</li>
-      <li>What you saw at Fyllo that you would like to understand from the inside</li>
+      <li>Laptop and phone, charged, with chargers</li>
+      <li>A micro-USB <b>data</b> cable if you have one (we also bring cables and all the hardware)</li>
+      <li>One farm problem you want to solve</li>
     </ul></div>
   </div>
-  <p class="intro">Student pages with every step and prompt: <a href="/workshop/practical">agrisenseandcontrol.in/workshop/practical</a> (also in <a href="/workshop/practical/kn">Kannada</a> and <a href="/workshop/practical/hi">Hindi</a>).</p>
 </section>
 
-<section id="call">
-  <div class="eyebrow">Today · Google Meet · 2:30 pm</div>
-  <h2>Our first call (about 1 hour)</h2>
-  <div class="cols">
-    <div class="box"><h3>Agenda</h3><ul>
-      <li><b>5 min</b> Introductions</li>
-      <li><b>10 min</b> What you’ve studied so far, and the Fyllo visit</li>
-      <li><b>15 min</b> Live: talking to an AI that programs a real TH monitor, with readings appearing on screen</li>
-      <li><b>10 min</b> What you’ll build on Thursday (this page)</li>
-      <li><b>5 min</b> Getting ready (checklist above)</li>
-      <li><b>15 min</b> Your questions, and our questions for you</li>
-    </ul></div>
-    <div class="box"><h3>Questions for you</h3><ul>
-      <li>Which crops do you know best?</li>
-      <li>Have you written any code, or used Arduino, before?</li>
-      <li>Laptop: Windows or Mac? Phone: Android or iPhone?</li>
-      <li>Which project interests you more: A (temperature-humidity monitor) or B (remote pump)?</li>
-      <li>What did Fyllo’s system measure, and what did it tell the farmer?</li>
-      <li>What would you most like to be able to do after Thursday?</li>
-    </ul></div>
-  </div>
+<section id="told">
+  <div class="eyebrow">You told us</div>
+  <h2>What we learned from your answers</h2>
+  <p class="intro">8 of 10 of you come from farming families, and 8 of 10 want to start your own business. Farmers lose most to pests and disease, and 7 of 10 of you said farmers spray only after they see the disease. Pumps run dry, burn out and get stolen. Farmers trust input dealers and neighbours, and believe what they see working on a real farm. Thank you for the honest answers: the day is built around them.</p>
 </section>
 
 <section id="units">
@@ -240,8 +226,8 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
       <li>Why devices store data when the network drops</li>
     </ul></div>
     <div class="box"><h3>Take home</h3><ul>
-      <li>A TH monitor unit, programmed by the student</li>
-      <li>Their app (Android APK or browser version)</li>
+      <li>The programs they built, and the know-how to keep building with Claude</li>
+      <li>Access to the browser flasher and every workshop page, online</li>
       <li>Lab sheets and prompt cards at agrisenseandcontrol.in/workshop</li>
       <li>Project ideas for the practical record</li>
     </ul></div>
@@ -253,7 +239,7 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
   <h2>What we bring, and what the college arranges</h2>
   <div class="cols">
     <div class="box"><h3>We bring</h3><ul>
-      <li>All hardware: TH monitor units, ESP32/ESP8266 boards, sensors, relays, a closed bulb box for the pump project, cables</li>
+      <li>All hardware: ESP32 boards, temperature-humidity sensors, cables, and our Wireless Pump Controller (master and two nodes) for the LoRa demo</li>
       <li>Our field products for demonstration, a WiFi router and a projector-ready laptop</li>
       <li>All software, lab sheets and apps</li>
     </ul></div>
@@ -262,14 +248,14 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
       <li>Permission for student laptops to install a USB driver if needed</li>
     </ul></div>
   </div>
-  <p class="intro">Safety: students work only with USB and 5 V circuits. The 230 V bulb used as a pump stand-in is pre-wired in a closed box and handled only by the facilitators.</p>
+  <p class="intro">Safety: students work only with USB-powered boards. Any mains-powered demonstration equipment is handled only by the facilitators.</p>
 </section>
 
 </main>
 
 <footer>
   <span>AgriSense and Control · agrisenseandcontrol.in</span>
-  <span>Student pages: <a href="/workshop/practical">Practical session</a> · <a href="/workshop">Farm IoT Labs</a></span>
+  <span>Student pages: <a href="/workshop/flash">ESP32 flasher</a> · <a href="/workshop/practical">Practical session</a> · <a href="/workshop">Farm IoT Labs</a></span>
 </footer>
 </div>
 

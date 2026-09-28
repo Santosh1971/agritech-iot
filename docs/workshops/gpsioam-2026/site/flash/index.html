@@ -58,6 +58,12 @@ pre.log{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:1
 #monitor{min-height:220px;max-height:420px}
 .tips{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink-2);font-size:.95rem}
 .warn{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:10px 14px}
+details.asks>summary{cursor:pointer;padding:4px 0}
+.asklist{display:grid;gap:8px;margin-top:8px}
+.ask{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px}
+.ask b{font-size:.95rem}
+.ask p{font-size:.9rem;color:var(--ink-2)}
+.ask button{justify-self:start;font-size:.8rem;padding:5px 12px}
 .grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;align-items:start}
 @media (max-width:860px){.grid2{grid-template-columns:1fr}}
 @media (max-width:560px){.wrap{padding-inline:16px}}
@@ -94,10 +100,14 @@ pre.log{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:1
   <section class="card" id="panel-claude" role="tabpanel" aria-labelledby="tab-claude" hidden>
     <h2>Program from Claude</h2>
     <ol class="tips" style="color:var(--ink)">
-      <li>Ask Claude, e.g. <i>“Write an Arduino program for an ESP32 DevKit that blinks the blue LED on GPIO 2 faster each time I press the BOOT button on GPIO 0.”</i></li>
+      <li>Copy a prompt below (it tells Claude about your board), change it to your idea, and paste it into <b>claude.ai</b>.</li>
       <li>Click <b>Copy</b> on Claude’s code and paste it below.</li>
       <li>Click <b>Build</b> (30–90 seconds), then <b>Flash</b>.</li>
     </ol>
+    <details class="asks" open>
+      <summary><b>What to ask Claude</b> <small>(copy a prompt, change it to your idea)</small></summary>
+      <div class="asklist" id="asks"></div>
+    </details>
     <textarea id="code" spellcheck="false" placeholder="Paste the complete program from Claude here (it must have setup() and loop())"></textarea>
     <div class="row">
       <button type="button" id="build">Build</button>
@@ -192,6 +202,31 @@ for (const p of PROGRAMS) {
     btn.disabled = false;
   });
   $("progs").appendChild(div);
+}
+
+// Prompts for Claude, in the order of the day. Each starts with the board facts so
+// Claude's code builds on our server (these libraries are installed there).
+const CONTEXT = "I am an agriculture student. I use an ESP32 DevKit (ESP32-WROOM) programmed with the Arduino framework (ESP32 core 3.x). The blue LED is on GPIO 2, the BOOT button is on GPIO 0 (LOW when pressed), and a DHT22 sensor is on GPIO 4. Available libraries: DHTesp (DHT sensor library for ESPx), BluetoothSerial, WiFi, WebServer, WiFiManager, PubSubClient, ArduinoJson. Give me one complete .ino program with setup() and loop(), and print what it is doing on Serial at 115200.\n\n";
+const ASKS = [
+  ["1 · Blink your way", "Make the blue LED blink twice quickly, then pause for 1 second, again and again."],
+  ["2 · Button", "When I press the BOOT button, turn on the blue LED for 3 seconds and print \"Pressed\"."],
+  ["3 · Blink speed", "Each press of the BOOT button should change the blink speed: slow, medium, fast, then back to slow. Print the current speed."],
+  ["4 · Temperature & humidity", "Read the DHT22 every 2 seconds and print the temperature and humidity. If humidity is above 80%, turn on the blue LED and print \"High humidity: disease risk\"."],
+  ["5 · Bluetooth to my phone", "Send the temperature and humidity every 2 seconds over classic Bluetooth using BluetoothSerial, with the device name FarmIoT-MyName. When I type LED ON or LED OFF from my phone, switch the blue LED."],
+  ["6 · WiFi page on my phone", "Make the ESP32 create its own WiFi called FarmIoT-MyName with password 12345678, and show a phone-friendly web page at 192.168.4.1 with big temperature and humidity numbers that refresh every 3 seconds, and buttons to switch the blue LED."],
+  ["7 · From anywhere (MQTT)", "Connect to WiFi using WiFiManager (setup network FarmIoT-MyName-setup, password 12345678). Every 5 seconds publish the temperature and humidity as JSON like {\"name\":\"FarmIoT-MyName\",\"t\":28.4,\"h\":61.2} to broker.emqx.io port 1883 on the topic agrisense/workshop/FarmIoT-MyName/data, and switch the blue LED when LED ON or LED OFF arrives on agrisense/workshop/FarmIoT-MyName/cmd. (Then open agrisenseandcontrol.in/workshop/mqtt and type FarmIoT-MyName.)"],
+];
+for (const [title, text] of ASKS) {
+  const div = document.createElement("div");
+  div.className = "ask";
+  div.innerHTML = `<b></b><p></p><button type="button" class="ghost">Copy prompt</button>`;
+  div.querySelector("b").textContent = title;
+  div.querySelector("p").textContent = text;
+  div.querySelector("button").addEventListener("click", (e) => {
+    const b = e.currentTarget;
+    navigator.clipboard?.writeText(CONTEXT + text).then(() => { b.textContent = "Copied: paste it into Claude"; setTimeout(() => (b.textContent = "Copy prompt"), 2000); });
+  });
+  $("asks").appendChild(div);
 }
 
 function choose(bytes, label) {
