@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Serve the static student labs pages (public/workshop/...) at /workshop and /workshop/practical.
+  // Serve the static student labs pages (public/workshop/...) at /workshop and /workshop/practical (+ /hi, /kn).
   async rewrites() {
     return [
       { source: "/workshop", destination: "/workshop/index.html" },
       { source: "/workshop/practical", destination: "/workshop/practical/index.html" },
+      { source: "/workshop/practical/hi", destination: "/workshop/practical/hi/index.html" },
+      { source: "/workshop/practical/kn", destination: "/workshop/practical/kn/index.html" },
     ];
   },
 };

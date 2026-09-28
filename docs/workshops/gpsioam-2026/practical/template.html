@@ -31,6 +31,9 @@
 .toc{display:flex;flex-wrap:wrap;gap:8px}
 .toc a{font-family:var(--mono);font-size:.78rem;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--ink);background:var(--panel)}
 .toc a:hover{border-color:var(--copper)}
+.langs{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.langs a,.langs b{font-size:.95rem;text-decoration:none;border-radius:6px;padding:4px 10px;border:1.5px solid var(--line);color:var(--ink);background:var(--panel)}
+.langs b{background:var(--mask);border-color:var(--mask);color:var(--mask-ink)}
 section h3.sub{font-family:var(--display);font-size:1.15rem;font-weight:700;margin-top:6px}
 </style>
 </head>
@@ -38,6 +41,7 @@ section h3.sub{font-family:var(--display);font-size:1.15rem;font-weight:700;marg
 <div class="wrap">
 <header>
   <div class="eyebrow">AgriSense and Control · Farm IoT practical</div>
+  <nav class="langs" aria-label="Language"><b lang="en">English</b><a lang="hi" href="/workshop/practical/hi">हिंदी</a><a lang="kn" href="/workshop/practical/kn">ಕನ್ನಡ</a></nav>
   <h1>Talk to your <span>farm device</span></h1>
   <p class="lede">You don’t need to know electronics, programming or databases. In this session you tell an AI assistant, in plain words, what you want a farm device to do. It programs the device, you watch the live readings, and then it builds you a phone app: first one that works in the field with no internet, then one that works from anywhere.</p>
   <nav class="toc" aria-label="On this page">
@@ -104,7 +108,7 @@ section h3.sub{font-family:var(--display);font-size:1.15rem;font-weight:700;marg
       <tr><td>3 · See data</td><td class="say">“Show me what it is measuring.”</td><td>The serial monitor opens</td><td><code>28.4 °C, 72 % RH</code> every 10 s, or litres when you blow into the flow sensor</td></tr>
       <tr><td>4 · Field app</td><td class="say">“Make a phone app that works in the field without internet.”</td><td>The device makes its own WiFi (SoftAP) and the AI builds an app for it</td><td>Your phone joins <code>TH-xxxx</code> and shows live values</td></tr>
       <tr><td>5 · Internet app</td><td class="say">“Now I want to see it and switch it from home.”</td><td>The device joins WiFi and talks to an internet broker (MQTT)</td><td>The app works over mobile data, from anywhere</td></tr>
-      <tr><td>6 · Make it yours</td><td class="say">“Warn me in Hindi when humidity stays above 90 % for 6 hours: late blight risk.”</td><td>The AI changes the app to your rule</td><td>Your own farm app, with your crop logic</td></tr>
+      <tr><td>6 · Make it yours</td><td class="say">“Warn me in Kannada when humidity stays above 90 % for 6 hours: late blight risk.”</td><td>The AI changes the app to your rule</td><td>Your own farm app, with your crop logic</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -193,16 +197,17 @@ section h3.sub{font-family:var(--display);font-size:1.15rem;font-weight:700;marg
 <!-- ============ PROMPTS ============ -->
 <section class="lab" id="prompts">
   <div class="lab-head"><span class="labno">Say it</span><h2>Prompt cards</h2></div>
-  <p class="learn">Copy a card into Claude, or say it in your own words, in any language. Hindi, Kannada or English all work. Add details about your crop; the more specific you are, the better the result.</p>
+  <p class="learn">Copy a card into Claude, or say it in your own words, in any language. Kannada, Hindi or English all work. Add details about your crop; the more specific you are, the better the result.</p>
   <div class="cards">
     <div class="card"><span class="step">A1 · See data</span><pre class="prompt" id="p-a1">My TH monitor (ESP8266 Wemos D1 mini, DHT22 on D7, DS3231 clock on D3/D4) is connected by USB. Program it to print temperature, humidity and time every 10 seconds, and show me the readings.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a1">Copy</button></div></div>
     <div class="card"><span class="step">A2 · Field app</span><pre class="prompt" id="p-a2">Now make it work in the field without internet: the device should create its own WiFi, and I want a simple phone screen with big temperature and humidity numbers and the time of the reading.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a2">Copy</button></div></div>
     <div class="card"><span class="step">A3 · History</span><pre class="prompt" id="p-a3">Save every reading inside the device so nothing is lost in a power cut. In the app, add a chart of the last 24 hours and a button to download all readings as a CSV file.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a3">Copy</button></div></div>
     <div class="card"><span class="step">A4 · Internet app</span><pre class="prompt" id="p-a4">I want to see the readings from home over mobile data. Make the device send them to a free MQTT broker, and give me an app that shows live values and whether the device is online.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a4">Copy</button></div></div>
-    <div class="card"><span class="step">A5 · My crop rule</span><pre class="prompt" id="p-a5">I grow tomato. Add a “late blight risk” card to the app: count the hours today with humidity above 90 % and temperature between 10 and 25 °C, and turn the card red with a message in Hindi when it passes 6 hours.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a5">Copy</button></div></div>
+    <div class="card"><span class="step">A5 · My crop rule</span><pre class="prompt" id="p-a5">I grow tomato. Add a “late blight risk” card to the app: count the hours today with humidity above 90 % and temperature between 10 and 25 °C, and turn the card red with a message in Kannada when it passes 6 hours.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a5">Copy</button></div></div>
     <div class="card"><span class="step">B1 · See flow</span><pre class="prompt" id="p-b1">I have an ESP32 with a relay on GPIO 26 and a YF-S201 flow sensor on GPIO 27. Program it to show pulses, litres per minute and total litres every second, and let me switch the relay by typing ON or OFF.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b1">Copy</button></div></div>
     <div class="card"><span class="step">B2 · Dry-run protection</span><pre class="prompt" id="p-b2">After I switch the pump ON, if there is no flow within 10 seconds, switch it OFF and show “NO FLOW – pump stopped”. Save every pump run (start, stop, litres, reason) inside the device.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b2">Copy</button></div></div>
     <div class="card"><span class="step">B3 · Pump app</span><pre class="prompt" id="p-b3">Make a phone app for the pump, first on the device’s own WiFi and then over the internet (MQTT): a big ON/OFF button, live flow and litres, a status line, and the list of past runs.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b3">Copy</button></div></div>
+    <div class="card"><span class="step">Any · In Kannada</span><pre class="prompt" id="p-kn">ನನ್ನ ಫೋನ್ ಆ್ಯಪ್‌ನಲ್ಲಿ ತೇವಾಂಶ 85% ಕ್ಕಿಂತ ಹೆಚ್ಚಾದರೆ ಕೆಂಪು ಬಣ್ಣದಲ್ಲಿ ಎಚ್ಚರಿಕೆ ತೋರಿಸಿ ಮತ್ತು ಹೀಗೆ ಬರೆಯಿರಿ: “ಶಿಲೀಂಧ್ರ ರೋಗದ ಅಪಾಯ – ಸಿಂಪರಣೆಗೆ ಸಿದ್ಧರಾಗಿ”.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-kn">Copy</button></div></div>
     <div class="card"><span class="step">Any · In Hindi</span><pre class="prompt" id="p-hi">मेरे फ़ोन ऐप में नमी 85% से ज़्यादा होने पर लाल रंग में चेतावनी दिखाओ और लिखो: “फफूंद रोग का खतरा – छिड़काव की तैयारी करें”।</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-hi">Copy</button></div></div>
   </div>
   <p class="note"><b>When something doesn’t work,</b> don’t fix it yourself. Tell Claude exactly what you see (“the app says Not connected”, or paste the red error text) and ask it to fix it. That is the skill.</p>

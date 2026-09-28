@@ -4,7 +4,8 @@
 Output is plain static files, served by the agrisense web app at agrisenseandcontrol.in/workshop:
   site/index.html          - the page (code inlined, works from any static host)
   site/labs/<lab>/...      - sketch.ino, diagram.json, libraries.txt for download
-  site/practical/index.html - the practical-session page (from practical/template.html)
+  site/practical/index.html - the practical-session page (from practical/template.html),
+                              plus hi/ and kn/ versions (from practical/body.<lang>.html)
 and the same files are copied to webapp/agrisense-webapp/public/workshop/.
 
 Re-run after pasting Wokwi project links into wokwi-links.json.
@@ -113,6 +114,12 @@ def lab_section(info):
 </section>'''
 
 
+PRACTICAL_LANGS = {
+    "hi": ("फ़ार्म IoT प्रैक्टिकल · AgriSense and Control", "Noto Sans Devanagari"),
+    "kn": ("ಕೃಷಿ IoT ಪ್ರಾಯೋಗಿಕ · AgriSense and Control", "Noto Sans Kannada"),
+}
+
+
 def build():
     if SITE.exists():
         shutil.rmtree(SITE)
@@ -135,6 +142,22 @@ def build():
     practical = (HERE / "practical" / "template.html").read_text().replace("{{STYLE}}", style)
     (SITE / "practical").mkdir()
     (SITE / "practical" / "index.html").write_text(practical)
+
+    # Hindi and Kannada versions: same head and script, translated body (practical/body.<lang>.html).
+    head = practical[:practical.index("<body>")]
+    script = practical[practical.index("<script>"):]
+    for lang, (title, font) in PRACTICAL_LANGS.items():
+        fonts = (f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={font.replace(" ", "+")}:wght@400;700&display=swap">\n'
+                 f'<style>:root{{--body:"Atkinson Hyperlegible","{font}",system-ui,sans-serif;'
+                 f'--display:"Bricolage Grotesque","{font}",system-ui,sans-serif;'
+                 f'--mono:"JetBrains Mono","{font}",ui-monospace,monospace}}'
+                 f'.prompt{{font-family:var(--body);font-size:.9rem}}</style>\n')
+        page_l = (head.replace('<html lang="en">', f'<html lang="{lang}">')
+                      .replace("<title>Farm IoT Practical · AgriSense and Control</title>", f"<title>{title}</title>")
+                      .replace("</head>", fonts + "</head>")
+                  + (HERE / "practical" / f"body.{lang}.html").read_text() + "\n" + script)
+        (SITE / "practical" / lang).mkdir()
+        (SITE / "practical" / lang / "index.html").write_text(page_l)
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():
             shutil.rmtree(WEBAPP_PUBLIC)
