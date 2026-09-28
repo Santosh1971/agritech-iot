@@ -12,7 +12,12 @@ export default async function DashboardPage() {
     <main style={{ maxWidth: 960, margin: "40px auto", padding: "0 16px", fontFamily: "sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h1>Devices ({session.role})</h1>
-        {session.role === "ADMIN" && <Link href="/dashboard/flasher">NB Agri Flasher admin →</Link>}
+        {session.role === "ADMIN" && (
+          <span style={{ display: "flex", gap: 18 }}>
+            <Link href="/dashboard/workshop">Workshop library →</Link>
+            <Link href="/dashboard/flasher">NB Agri Flasher admin →</Link>
+          </span>
+        )}
       </div>
       <DevicesClient role={session.role} />
     </main>
