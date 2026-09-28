@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm IoT Practical · AgriSense and Control</title>
+<meta name="description" content="A practical session for agriculture students: talk to an AI to program a temperature-humidity monitor and a remote pump controller, see live data, and get a phone app, with no coding background needed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+{{STYLE}}
+<style>
+/* Extra pieces for this page only */
+.tbl{width:100%;border-collapse:collapse;font-size:.95rem;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tbl th,.tbl td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+.tbl th{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:var(--panel-2);font-weight:600}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td:first-child{font-weight:700}
+.scroll{overflow-x:auto;border-radius:12px}
+.scroll .tbl{min-width:640px}
+.warn{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:12px 16px}
+.note{background:var(--sky-soft);border-left:4px solid var(--sky);border-radius:8px;padding:12px 16px}
+.tag{font-family:var(--mono);font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--panel-2);color:var(--ink-2);white-space:nowrap}
+.tag.free{background:var(--mask);color:var(--mask-ink)}
+.tag.pro{background:var(--sky);color:#fff}
+.say{font-style:italic}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;align-content:start}
+.card .step{font-family:var(--mono);font-size:.72rem;color:var(--copper);font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.card .prompt{font-size:.8rem}
+.toc{display:flex;flex-wrap:wrap;gap:8px}
+.toc a{font-family:var(--mono);font-size:.78rem;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--ink);background:var(--panel)}
+.toc a:hover{border-color:var(--copper)}
+section h3.sub{font-family:var(--display);font-size:1.15rem;font-weight:700;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">AgriSense and Control · Farm IoT practical</div>
+  <h1>Talk to your <span>farm device</span></h1>
+  <p class="lede">You don’t need to know electronics, programming or databases. In this session you tell an AI assistant, in plain words, what you want a farm device to do. It programs the device, you watch the live readings, and then it builds you a phone app: first one that works in the field with no internet, then one that works from anywhere.</p>
+  <nav class="toc" aria-label="On this page">
+    <a href="#why-th">Why temperature &amp; humidity</a>
+    <a href="#why-pump">Why remote pump control</a>
+    <a href="#cycle">The cycle</a>
+    <a href="#tracks">Free or paid Claude</a>
+    <a href="#th">Project A: TH monitor</a>
+    <a href="#pump">Project B: Remote pump</a>
+    <a href="#history">History on the device</a>
+    <a href="#prompts">Prompt cards</a>
+    <a href="#kit">Kit &amp; safety</a>
+    <a href="#plan">Session plan</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============ WHY TH ============ -->
+<section class="lab" id="why-th">
+  <div class="lab-head"><span class="labno">Why</span><h2>Why temperature and humidity matter on a farm</h2></div>
+  <p class="learn">Air temperature and relative humidity (RH) are the two cheapest numbers to measure, and they drive many of the decisions a farmer makes. Crops, pests, fungi and animals all respond to them. A small sensor that records them every minute, day and night, turns “I think it was humid last week” into evidence you can act on.</p>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Area</th><th>What the readings tell you</th><th>What the farmer does</th></tr></thead>
+    <tbody>
+      <tr><td>Fungal disease</td><td>Most leaf diseases need long spells of high humidity. <b>Late blight</b> of potato and tomato spreads fast in cool (about 10–25 °C), very humid (RH above ~90 %) weather lasting many hours. <b>Downy mildew</b> (grapes, onion, cucurbits) and <b>rice blast</b> also follow humid nights.</td><td>Spray a protective fungicide <i>before</i> the risky spell, not after the damage shows. Count “humid hours” per day as a simple risk alert.</td></tr>
+      <tr><td>Insect pests</td><td>Insects can’t control their body temperature, so warm weather speeds up their life cycle. Adding up daily heat (<b>degree-days</b>) predicts when the next generation of pests such as fruit borer or pink bollworm will appear.</td><td>Time scouting, pheromone traps and sprays to when pests actually emerge, which means fewer and better-timed sprays.</td></tr>
+      <tr><td>Irrigation</td><td>Hot, dry air pulls water out of leaves and soil faster (high <b>VPD</b>, vapour pressure deficit). On humid, cloudy days crops use much less water.</td><td>Give more water in hot, dry spells and less in humid weather. Irrigate in the early morning to lose less to evaporation, and avoid wetting leaves in the evening (disease risk).</td></tr>
+      <tr><td>Spraying</td><td>Above ~30–35 °C with low humidity, spray droplets evaporate before reaching the leaf and drift away. Very still, humid evenings also cause problems.</td><td>Spray in cool, moderately humid hours (early morning or late evening) to save chemical and money and protect neighbours.</td></tr>
+      <tr><td>Polyhouse &amp; nursery</td><td>Protected crops are sensitive to VPD: too humid gives disease and <b>damping-off</b> of seedlings; too dry makes plants close their pores and stop growing.</td><td>Open vents or shade nets, or run foggers or fans, based on the readings instead of guesswork.</td></tr>
+      <tr><td>Storage</td><td>Onions keep best at about 65–70 % RH; above that they sprout and rot. Potatoes in cold storage need high humidity (~90 %). Damp grain grows moulds (including aflatoxin) and weevils.</td><td>Ventilate or dry the store, and take out stock at risk before it spoils.</td></tr>
+      <tr><td>Livestock &amp; poultry</td><td>Heat plus humidity (the <b>temperature–humidity index</b>, THI) stresses animals: dairy cows give less milk, and broilers above ~32 °C can die in heat waves.</td><td>Start fans, foggers and extra water early, and shift feeding to cooler hours.</td></tr>
+      <tr><td>Flowering &amp; extremes</td><td>Very high temperatures at flowering reduce pollen and grain or fruit set (rice, tomato, pulses). Frost damages crops in hill areas.</td><td>Irrigate to cool the crop, cover it, or use frost protection, all triggered by an alert.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Thresholds differ by crop, variety and region. Treat the numbers above as typical starting points and check them with your agronomy faculty or KVK for your crop.</p>
+</section>
+
+<!-- ============ WHY PUMP ============ -->
+<section class="lab" id="why-pump">
+  <div class="lab-head"><span class="labno">Why</span><h2>Why control a pump remotely, and why check the flow</h2></div>
+  <div class="cols">
+    <div class="box"><h3>Remote on/off</h3><ul>
+      <li>Farm power often comes only in fixed slots, often at night. Farmers walk to the field in the dark to start the motor: snakes, rain, lost sleep.</li>
+      <li>Starting and stopping from a phone saves those trips and lets you water on a schedule.</li>
+    </ul></div>
+    <div class="box"><h3>Flow feedback: “is water really coming?”</h3><ul>
+      <li>A relay turning ON does <b>not</b> prove water is flowing. The well may be dry, the pipe may have an air lock, or a phase may have failed.</li>
+      <li>A flow sensor confirms it. If there is no flow within a few seconds, switch off to protect the motor from <b>dry running</b>.</li>
+      <li>It also counts <b>litres</b>, so you know how much water each field got, which is the basis of drip and fertigation schedules.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============ CYCLE ============ -->
+<section class="lab" id="cycle">
+  <div class="lab-head"><span class="labno">How</span><h2>The cycle: you talk, the AI builds</h2></div>
+  <p class="learn">This is exactly how our own team builds products today. You describe what you want, the AI writes the program and tells you what to run (or runs it for you), and you check the result on the device and your phone. Your agriculture knowledge decides what is worth building.</p>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Step</th><th>You say (plain words)</th><th>What happens</th><th>What you see</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Connect</td><td class="say">“I have plugged in my device. Can you see it?”</td><td>The computer finds the USB port</td><td>“Found it on COM4”</td></tr>
+      <tr><td>2 · Program</td><td class="say">“Put the basic reading program on it.”</td><td>The device is flashed (programmed)</td><td>A progress bar, then “Done”</td></tr>
+      <tr><td>3 · See data</td><td class="say">“Show me what it is measuring.”</td><td>The serial monitor opens</td><td><code>28.4 °C, 72 % RH</code> every 10 s, or litres when you blow into the flow sensor</td></tr>
+      <tr><td>4 · Field app</td><td class="say">“Make a phone app that works in the field without internet.”</td><td>The device makes its own WiFi (SoftAP) and the AI builds an app for it</td><td>Your phone joins <code>TH-xxxx</code> and shows live values</td></tr>
+      <tr><td>5 · Internet app</td><td class="say">“Now I want to see it and switch it from home.”</td><td>The device joins WiFi and talks to an internet broker (MQTT)</td><td>The app works over mobile data, from anywhere</td></tr>
+      <tr><td>6 · Make it yours</td><td class="say">“Warn me in Hindi when humidity stays above 90 % for 6 hours: late blight risk.”</td><td>The AI changes the app to your rule</td><td>Your own farm app, with your crop logic</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ TRACKS ============ -->
+<section class="lab" id="tracks">
+  <div class="lab-head"><span class="labno">Access</span><h2>Free or paid Claude: both work</h2></div>
+  <div class="cols">
+    <div class="box"><h3><span class="tag free">Free</span> claude.ai in the browser</h3><ul>
+      <li><b>Program the device</b> from a flasher page in <b>Chrome</b>: click Connect, then Flash. Nothing to install.</li>
+      <li><b>See the data</b> on the same page.</li>
+      <li><b>Field app:</b> the device serves its own page. On your phone, open <code>192.168.4.1</code> and tap “Add to Home screen”.</li>
+      <li><b>Internet app:</b> ask Claude to build it as an <i>artifact</i> (a live web app in the chat) and open it on your phone.</li>
+      <li>Change the app just by chatting. The free plan has a daily message limit, which is plenty for this session.</li>
+    </ul></div>
+    <div class="box"><h3><span class="tag pro">Paid</span> Claude Pro with Claude Code</h3><ul>
+      <li>Claude works <b>in the computer’s terminal</b>: it finds the port, flashes the device, opens the data view and builds a real Android <b>APK</b>.</li>
+      <li><b>In this session</b> the instructor runs this on the projector. Each team takes a turn telling Claude what to build.</li>
+      <li>You get the APK on your phone to test. Allow “Install unknown apps” for your file manager or WhatsApp.</li>
+      <li>If you enjoy it, subscribe later (Pro plan, see claude.ai for current India pricing) and keep building at home with the device you take away.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============ PROJECT A ============ -->
+<section class="lab" id="th">
+  <div class="lab-head"><span class="labno">Project A</span><h2>TH monitor: temperature &amp; humidity</h2><span class="prac">ESP8266 (Wemos D1 mini) · TH monitor unit</span></div>
+  <p class="learn">A ready-built unit with a DHT22 sensor (temperature and humidity) and a DS3231 real-time clock, so every reading carries the correct time. You take this unit home after the workshop.</p>
+  <div class="cols">
+    <div class="box"><h3>What you’ll build</h3><ol>
+      <li><b>See data:</b> one line every 10 s, e.g. <code>{"ts":"…10:30:00","t":28.4,"h":72.1}</code></li>
+      <li><b>Field app (SoftAP):</b> join <code>TH-xxxx</code>, password <code>12345678</code>, and see big live numbers</li>
+      <li><b>History:</b> the device saves every reading, even through power cuts; the app downloads it and draws a chart</li>
+      <li><b>Internet app (MQTT):</b> live values from anywhere, plus “online/offline” status</li>
+      <li><b>Your rule:</b> a disease-risk or spray-window alert for your crop</li>
+    </ol></div>
+    <div class="box"><h3>Inside the unit (for the curious)</h3><ul>
+      <li>DHT22 data → <b>D7</b></li>
+      <li>DS3231 clock SDA → <b>D3</b>, SCL → <b>D4</b></li>
+      <li>Blue LED → <b>D2</b></li>
+      <li>Battery with a charger/boost chip; USB for programming</li>
+    </ul><p class="try"><b>Try:</b> breathe gently on the sensor and watch the humidity jump within a few readings.</p></div>
+  </div>
+</section>
+
+<!-- ============ PROJECT B ============ -->
+<section class="lab" id="pump">
+  <div class="lab-head"><span class="labno">Project B</span><h2>Remote pump with flow feedback</h2><span class="prac">ESP32 or ESP8266 · relay · bulb · YF-S201</span></div>
+  <p class="learn">A relay switches a mains bulb, which stands in for the pump motor. A hall-effect flow sensor (YF-S201) gives the feedback: <b>blow into it</b> and its little turbine spins as if water were flowing. The device counts the pulses and shows L/min and litres. (Air is not water, so the litres aren’t accurate, but the logic is exactly the same.)</p>
+  <div class="cols">
+    <div class="box"><h3>What you’ll build</h3><ol>
+      <li><b>See data:</b> blow into the sensor and watch the pulses, L/min and litres</li>
+      <li><b>Switch it:</b> type <code>ON</code> / <code>OFF</code> and the bulb follows</li>
+      <li><b>Proof of flow:</b> after ON, if there’s no flow within 10 s, show <b>“NO FLOW, pump stopped”</b> (dry-run protection). Blow to keep it running.</li>
+      <li><b>Field app (SoftAP):</b> a big ON/OFF button, flow, litres and status</li>
+      <li><b>History:</b> every run is saved: start, stop, litres, and why it stopped</li>
+      <li><b>Internet app (MQTT):</b> switch it and watch the flow from anywhere</li>
+    </ol></div>
+    <div class="box"><h3>Connections</h3><ul>
+      <li><b>ESP32 DevKit:</b> relay IN → GPIO 26 · flow signal → GPIO 27 (same as Labs 2A/2B)</li>
+      <li><b>ESP8266 D1 mini:</b> relay IN → D1 · flow signal → D5</li>
+      <li>Flow sensor: red → 5 V, black → GND, yellow (signal) → through a 10 kΩ / 20 kΩ divider to the pin (the sensor gives 5 V, the pin takes 3.3 V)</li>
+      <li>About 450 pulses = 1 litre (YF-S201, approximate)</li>
+    </ul><p class="warn"><b>Mains safety:</b> the bulb side (230 V) is pre-wired by the instructor inside a closed box. Students only touch the USB and low-voltage side. Never open the box while it is plugged in.</p></div>
+  </div>
+</section>
+
+<!-- ============ HISTORY ============ -->
+<section class="lab" id="history">
+  <div class="lab-head"><span class="labno">Records</span><h2>History stored inside the device</h2></div>
+  <p class="learn">Like our FlowGuard (FG1) controller, the device keeps its own records in memory that survives power cuts. The phone doesn’t have to be connected all the time: it collects what happened whenever it comes back in range or back online.</p>
+  <div class="cols">
+    <div class="box"><h3>What is stored</h3><ul>
+      <li><b>TH monitor:</b> time, temperature and humidity, one row per minute (about 27 days fit before the oldest are dropped)</li>
+      <li><b>Pump:</b> one row per run: start time, stop time, litres, and how it ended (you, a timer, or no-flow protection)</li>
+    </ul></div>
+    <div class="box"><h3>How the app gets it</h3><ul>
+      <li><b>In the field:</b> join the device WiFi; the app asks for “everything since my last sync” and draws a chart</li>
+      <li><b>Over the internet:</b> the app sends a “get history” command and the device replies with the records</li>
+      <li>Download as a CSV file to open in Excel or Google Sheets</li>
+    </ul></div>
+  </div>
+  <p class="try"><b>Why it matters:</b> mobile networks drop in the field. With history on the device, no reading or pump run is lost. It is also your evidence: how many hours the pump ran, how many litres each field got, and how many humid nights preceded a disease outbreak.</p>
+</section>
+
+<!-- ============ PROMPTS ============ -->
+<section class="lab" id="prompts">
+  <div class="lab-head"><span class="labno">Say it</span><h2>Prompt cards</h2></div>
+  <p class="learn">Copy a card into Claude, or say it in your own words, in any language. Hindi, Kannada or English all work. Add details about your crop; the more specific you are, the better the result.</p>
+  <div class="cards">
+    <div class="card"><span class="step">A1 · See data</span><pre class="prompt" id="p-a1">My TH monitor (ESP8266 Wemos D1 mini, DHT22 on D7, DS3231 clock on D3/D4) is connected by USB. Program it to print temperature, humidity and time every 10 seconds, and show me the readings.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a1">Copy</button></div></div>
+    <div class="card"><span class="step">A2 · Field app</span><pre class="prompt" id="p-a2">Now make it work in the field without internet: the device should create its own WiFi, and I want a simple phone screen with big temperature and humidity numbers and the time of the reading.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a2">Copy</button></div></div>
+    <div class="card"><span class="step">A3 · History</span><pre class="prompt" id="p-a3">Save every reading inside the device so nothing is lost in a power cut. In the app, add a chart of the last 24 hours and a button to download all readings as a CSV file.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a3">Copy</button></div></div>
+    <div class="card"><span class="step">A4 · Internet app</span><pre class="prompt" id="p-a4">I want to see the readings from home over mobile data. Make the device send them to a free MQTT broker, and give me an app that shows live values and whether the device is online.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a4">Copy</button></div></div>
+    <div class="card"><span class="step">A5 · My crop rule</span><pre class="prompt" id="p-a5">I grow tomato. Add a “late blight risk” card to the app: count the hours today with humidity above 90 % and temperature between 10 and 25 °C, and turn the card red with a message in Hindi when it passes 6 hours.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-a5">Copy</button></div></div>
+    <div class="card"><span class="step">B1 · See flow</span><pre class="prompt" id="p-b1">I have an ESP32 with a relay on GPIO 26 and a YF-S201 flow sensor on GPIO 27. Program it to show pulses, litres per minute and total litres every second, and let me switch the relay by typing ON or OFF.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b1">Copy</button></div></div>
+    <div class="card"><span class="step">B2 · Dry-run protection</span><pre class="prompt" id="p-b2">After I switch the pump ON, if there is no flow within 10 seconds, switch it OFF and show “NO FLOW – pump stopped”. Save every pump run (start, stop, litres, reason) inside the device.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b2">Copy</button></div></div>
+    <div class="card"><span class="step">B3 · Pump app</span><pre class="prompt" id="p-b3">Make a phone app for the pump, first on the device’s own WiFi and then over the internet (MQTT): a big ON/OFF button, live flow and litres, a status line, and the list of past runs.</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-b3">Copy</button></div></div>
+    <div class="card"><span class="step">Any · In Hindi</span><pre class="prompt" id="p-hi">मेरे फ़ोन ऐप में नमी 85% से ज़्यादा होने पर लाल रंग में चेतावनी दिखाओ और लिखो: “फफूंद रोग का खतरा – छिड़काव की तैयारी करें”।</pre><div class="btns"><button class="btn copy-prompt" type="button" data-target="p-hi">Copy</button></div></div>
+  </div>
+  <p class="note"><b>When something doesn’t work,</b> don’t fix it yourself. Tell Claude exactly what you see (“the app says Not connected”, or paste the red error text) and ask it to fix it. That is the skill.</p>
+</section>
+
+<!-- ============ KIT & SAFETY ============ -->
+<section class="lab" id="kit">
+  <div class="lab-head"><span class="labno">Kit</span><h2>What each team needs</h2></div>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Item</th><th>Project A · TH monitor</th><th>Project B · Pump</th></tr></thead>
+    <tbody>
+      <tr><td>Board</td><td>TH monitor unit (ESP8266 inside)</td><td>ESP32 DevKit V1 <i>or</i> ESP8266 D1 mini</td></tr>
+      <tr><td>Sensors</td><td>Built in: DHT22 + DS3231 clock</td><td>YF-S201 flow sensor + 10 kΩ / 20 kΩ resistors</td></tr>
+      <tr><td>Output</td><td>Built-in LED</td><td>5 V relay module + 230 V bulb in a closed box (instructor-wired)</td></tr>
+      <tr><td>Cable</td><td colspan="2">USB <b>data</b> cable (micro-USB for the D1 mini and most DevKits)</td></tr>
+      <tr><td>Laptop</td><td colspan="2">Chrome browser; on Windows, the CH340 / CP210x USB driver</td></tr>
+      <tr><td>Phone</td><td colspan="2">Android, WiFi on, “Install unknown apps” allowed (for the APK)</td></tr>
+      <tr><td>Internet</td><td colspan="2">A 2.4 GHz WiFi router or hotspot for the internet (MQTT) step</td></tr>
+    </tbody>
+  </table></div>
+  <div class="cols">
+    <p class="warn"><b>Safety:</b> only low voltage (USB, 5 V) is open on the bench. The 230 V bulb circuit stays closed and is handled only by the instructor. Never use AI advice to wire mains; that is a job for a licensed electrician.</p>
+    <p class="note"><b>Before gifting a device:</b> the instructor erases it fully, so no WiFi passwords from the session stay inside, and loads the student version.</p>
+  </div>
+</section>
+
+<!-- ============ PLAN ============ -->
+<section class="lab" id="plan">
+  <div class="lab-head"><span class="labno">Plan</span><h2>Suggested session (about 3 hours)</h2></div>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Time</th><th>What</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td>20 min</td><td>Why TH and pump monitoring matter (this page) and a live demo: the instructor talks to Claude, which flashes a device and shows data</td><td>Instructor</td></tr>
+      <tr><td>40 min</td><td><b>Round 1: see data.</b> Teams program their device and read live values (Project A: breathe on the sensor; Project B: blow into the flow sensor)</td><td>All teams</td></tr>
+      <tr><td>45 min</td><td><b>Round 2: field app.</b> Device WiFi and a phone screen; add history and a chart. Teams take turns building an APK on the instructor’s laptop</td><td>All teams + instructor</td></tr>
+      <tr><td>45 min</td><td><b>Round 3: internet app.</b> MQTT: see readings or switch the pump over mobile data; dry-run protection for the pump teams</td><td>All teams</td></tr>
+      <tr><td>30 min</td><td><b>Show &amp; tell.</b> Each team shows its crop rule or pump logic and explains why a farmer would pay for it</td><td>All</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="lab" id="more">
+  <div class="lab-head"><h2>More</h2></div>
+  <ul class="res">
+    <li><a href="/workshop">Farm IoT Labs</a> <span>· the ESP32 labs with the Wokwi simulator (DHT22, flow meter, automatic pump, cloud)</span></li>
+    <li><a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a> <span>· free account to chat and build web apps</span></li>
+    <li><a href="https://www.claude.com/product/claude-code" target="_blank" rel="noopener">Claude Code</a> <span>· the terminal assistant used on the instructor’s laptop (paid plan)</span></li>
+  </ul>
+</section>
+</main>
+
+<footer>
+  <span>Farm IoT Practical · AgriSense and Control</span>
+  <span>For learning and training use.</span>
+</footer>
+</div>
+<script>
+document.querySelectorAll('.copy-prompt').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var el = document.getElementById(btn.dataset.target);
+    var done = function(){ var t = btn.textContent; btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = t; }, 1500); };
+    if (navigator.clipboard) { navigator.clipboard.writeText(el.innerText).then(done, done); }
+    else { var r = document.createRange(); r.selectNodeContents(el); var s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); done(); }
+  });
+});
+</script>
+</body>
+</html>

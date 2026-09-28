@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Serve the static student labs page (public/workshop/index.html) at /workshop.
+  // Serve the static student labs pages (public/workshop/...) at /workshop and /workshop/practical.
   async rewrites() {
-    return [{ source: "/workshop", destination: "/workshop/index.html" }];
+    return [
+      { source: "/workshop", destination: "/workshop/index.html" },
+      { source: "/workshop/practical", destination: "/workshop/practical/index.html" },
+    ];
   },
 };
 

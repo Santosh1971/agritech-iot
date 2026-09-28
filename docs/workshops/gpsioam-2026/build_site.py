@@ -4,6 +4,7 @@
 Output is plain static files, served by the agrisense web app at agrisenseandcontrol.in/workshop:
   site/index.html          - the page (code inlined, works from any static host)
   site/labs/<lab>/...      - sketch.ino, diagram.json, libraries.txt for download
+  site/practical/index.html - the practical-session page (from practical/template.html)
 and the same files are copied to webapp/agrisense-webapp/public/workshop/.
 
 Re-run after pasting Wokwi project links into wokwi-links.json.
@@ -128,6 +129,12 @@ def build():
     page = page.replace("{{LAB4_PROMPT}}", html.escape(LAB4_PROMPT))
     page = page.replace("{{LAB4_REF}}", code_block("lab4 reference solution (real board only)", lab4_ref, "lab4-ref"))
     (SITE / "index.html").write_text(page)
+
+    # The practical-session page (/workshop/practical) shares the labs page's style.
+    style = page[page.index("<style>"):page.index("</style>") + len("</style>")]
+    practical = (HERE / "practical" / "template.html").read_text().replace("{{STYLE}}", style)
+    (SITE / "practical").mkdir()
+    (SITE / "practical" / "index.html").write_text(practical)
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():
             shutil.rmtree(WEBAPP_PUBLIC)
