@@ -4,11 +4,11 @@ import { readFile } from "fs/promises";
 import { verifySession } from "@/lib/session";
 import { surveyFile } from "@/lib/workshopSurvey";
 
-// Logged-in only: all student questionnaire answers from /workshop/survey.
+// Admins only: all student questionnaire answers (with names) from /workshop/survey.
 export async function GET() {
   const token = (await cookies()).get("agrisense_session")?.value;
   const session = token ? await verifySession(token) : null;
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let text = "";
   try {
