@@ -266,7 +266,10 @@ $("flash").addEventListener("click", async () => {
     const loader = new ESPLoader({ transport, baudrate: 460800, terminal });
     setStatus($("flashstatus"), "Connecting to the ESP32…", "");
     const chip = await loader.main();
-    if (!/^ESP32(?!-[A-Z])/.test(chip)) throw new Error(`This is a ${chip}. These programs are for a classic ESP32 DevKit.`);
+    // Classic ESP32 reports e.g. "ESP32-D0WD-V3 (revision 3)"; refuse only the newer families.
+    if (!/^ESP32/.test(chip) || /^ESP32-(S2|S3|C2|C3|C5|C6|C61|H2|P4)/.test(chip)) {
+      throw new Error(`This is a ${chip}. These programs are for a classic ESP32 DevKit (ESP32-WROOM).`);
+    }
     setStatus($("flashstatus"), `Connected to ${chip}. Writing…`, "");
     await loader.writeFlash({
       fileArray: [{ data: firmware.bytes, address: 0x0 }],
