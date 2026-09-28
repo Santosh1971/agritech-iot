@@ -158,6 +158,10 @@ def build():
                   + (HERE / "practical" / f"body.{lang}.html").read_text() + "\n" + script)
         (SITE / "practical" / lang).mkdir()
         (SITE / "practical" / lang / "index.html").write_text(page_l)
+    # AGR 322 workshop overview for the college (/workshop/agr322).
+    (SITE / "agr322").mkdir()
+    shutil.copy(HERE / "agr322" / "index.html", SITE / "agr322" / "index.html")
+
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():
             shutil.rmtree(WEBAPP_PUBLIC)

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AGR 322 IoT Workshop · AgriSense and Control</title>
+<meta name="description" content="One-day farm IoT workshop for AGR 322 students at GPS Institute of Agricultural Management: what they studied, what they will build, the day plan and preparation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6;
+  --sky:#2466A8; --sky-soft:#E1ECF7; --muted-pill:#E3E7E1;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+    --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216;
+    --sky:#7DB3EA; --sky-soft:#17263A; --muted-pill:#26332B;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+  --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216;
+  --sky:#7DB3EA; --sky-soft:#17263A; --muted-pill:#26332B;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.45rem,3vw,1.9rem);font-weight:800}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0}
+a{color:var(--sky)}
+a:focus-visible{outline:3px solid var(--copper);outline-offset:2px;border-radius:4px}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);font-weight:600}
+.muted{color:var(--ink-2)}
+header{padding-block:40px 26px;display:grid;gap:16px;border-bottom:2px solid var(--ink)}
+header h1{font-size:clamp(2rem,5.5vw,3.3rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.08rem;max-width:66ch;color:var(--ink-2)}
+.meta{display:flex;flex-wrap:wrap;gap:10px 28px;font-size:.95rem}
+.meta div{display:flex;flex-direction:column}
+.meta b{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+main{display:grid;gap:48px;margin-top:36px;min-width:0}
+section{display:grid;gap:16px;min-width:0}
+.intro{max-width:70ch;color:var(--ink-2)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.stat .n{font-family:var(--display);font-size:2rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--mask)}
+.stat .l{font-size:.92rem;color:var(--ink-2)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.93rem;min-width:680px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:var(--panel-2);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.no{font-family:var(--mono);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+td b.t{display:block}
+.pill{display:inline-block;font-family:var(--mono);font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.p-full{background:var(--mask);color:var(--mask-ink)}
+.p-talk{background:var(--sky-soft);color:var(--sky);border:1px solid var(--sky)}
+.p-part{background:var(--copper-soft);color:var(--copper);border:1px solid var(--copper)}
+.p-none{background:var(--muted-pill);color:var(--ink-2);border:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.88rem;color:var(--ink-2);align-items:center}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.day{display:grid;border-left:3px solid var(--mask);margin-left:6px}
+.slot{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:12px 0 12px 20px;position:relative}
+.slot::before{content:"";position:absolute;left:-8px;top:18px;width:13px;height:13px;border-radius:50%;background:var(--bg);border:3px solid var(--mask)}
+.slot.brk::before{border-color:var(--line)}
+.slot.brk{padding-block:6px;color:var(--ink-2)}
+.time{font-family:var(--mono);font-size:.84rem;font-weight:600;font-variant-numeric:tabular-nums;padding-top:2px}
+.what{display:grid;gap:4px}
+.what .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.tag{font-family:var(--mono);font-size:.68rem;padding:2px 8px;border-radius:5px;background:var(--sky-soft);color:var(--sky)}
+.new{font-family:var(--mono);font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--copper);margin-left:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;align-content:start}
+.box h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.box ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.note{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:12px 16px;font-size:.95rem}
+.check{list-style:none;padding-left:0!important}
+.check li{padding-left:26px;position:relative}
+.check li::before{content:"";position:absolute;left:0;top:5px;width:14px;height:14px;border:2px solid var(--mask);border-radius:3px}
+footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+@media (max-width:560px){.wrap{padding-inline:16px}.slot{grid-template-columns:1fr;gap:2px}}
+@media print{
+  body{background:#fff;font-size:12px}
+  .wrap{max-width:none;padding:0}
+  header{padding-block:0 14px}
+  main{gap:24px;margin-top:18px}
+  .tbl{overflow:visible;border-radius:0}
+  table{min-width:0}
+  section{break-inside:auto}
+  tr,.box,.slot{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">AGR 322 · Contemporary Agriculture · IoT workshop</div>
+  <h1>From studying IoT <span>to building it</span></h1>
+  <p class="lede">You have studied wireless sensors, monitoring systems, IoT devices, plant health, soil moisture, tractors and drones, and seen a commercial system at Fyllo. On Thursday you build small versions yourself: program real farm devices, see live data, and make your own phone app. No electronics or programming background needed; you tell an AI assistant in plain English what you want, and use your agriculture knowledge to decide what the device should do.</p>
+  <div class="meta">
+    <div><b>Institution</b>GPS Institute of Agricultural Management, Bengaluru</div>
+    <div><b>Date</b>Thursday 1 October 2026 · from 10:15 am</div>
+    <div><b>Participants</b>11 students · 5 pairs + 1 team of 3</div>
+    <div><b>Facilitators</b>Santosh &amp; Avinash, AgriSense and Control</div>
+    <div><b>Language</b>English (Kannada and Hindi pages available)</div>
+  </div>
+</header>
+
+<main>
+
+<section id="topics">
+  <div class="eyebrow">Your topics</div>
+  <h2>What you studied, and what you’ll build on Thursday</h2>
+  <div class="legend">
+    <span><i class="pill p-full">Build</i> you make it work yourself</span>
+    <span><i class="pill p-talk">See + discuss</i> shown with real devices</span>
+    <span><i class="pill p-part">Partly</i> a first version; more as a project</span>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Topic you studied</th><th>On Thursday</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td class="no">1</td><td><b class="t">Wireless sensors in smart agriculture</b></td><td>Connect and read real sensors: temperature and humidity (DHT22), soil moisture, water flow. Send the readings wirelessly over WiFi to your phone.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">2</td><td><b class="t">IoT-based tractor</b></td><td>The same building blocks you’ll use all day (GPS and engine sensors, a mobile-network modem, the cloud, an app) applied to tractor telematics and auto-steering.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">3</td><td><b class="t">Monitoring system in smart agriculture</b></td><td>Build a temperature-humidity monitoring system with alerts and history stored on the device. Pump teams build pump monitoring: is water really flowing, and how many litres?</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">4</td><td><b class="t">IoT device in smart agriculture</b></td><td>Program a real TH monitor unit (yours to keep). Open our field products (FlowGuard, Wireless Pump Controller, WaterMaster) and name every block inside.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">5</td><td><b class="t">Plant health monitoring</b></td><td>Turn temperature and humidity into a disease-risk alert for a crop you choose (e.g. late blight hours for tomato), the same idea behind the crop advisories you saw at Fyllo. Leaf-camera monitoring is a follow-up project.</td><td><span class="pill p-part">Partly</span></td></tr>
+      <tr><td class="no">6</td><td><b class="t">Drones in smart agriculture</b></td><td>Spraying vs survey drones, NDVI crop-health maps, and the rules for flying in India, linked to the sensor data you collect on the ground.</td><td><span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">7</td><td><b class="t">Soil moisture system in smart agriculture</b></td><td>Calibrate a soil moisture sensor in dry and wet soil, then build automatic irrigation: pump on when dry, off when wet, never with an empty tank.</td><td><span class="pill p-full">Build</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><b>New for you on Thursday:</b> you make the device and the app yourself. You program the hardware with help from AI, build a phone app that works in the field without internet, and then make it work from anywhere over the internet.</p>
+</section>
+
+<section id="day">
+  <div class="eyebrow">Thursday 1 October</div>
+  <h2>How the day runs</h2>
+  <div class="day">
+    <div class="slot"><div class="time">10:15–10:45</div><div class="what"><h3>From what you studied to what you’ll build</h3><p class="muted">Our farm devices, live: flow and pump control (FG1), pumps across a field over LoRa (WPC), drip and fertigation scheduling (WM1). Why temperature, humidity and water flow matter for disease, pests, irrigation, spraying and storage.</p><div class="tags"><span class="tag">Topics 3, 4</span></div></div></div>
+    <div class="slot"><div class="time">10:45–11:20</div><div class="what"><h3>The building blocks of any IoT system</h3><p class="muted">Sense → decide → communicate → store → act. WiFi, LoRa, mobile network and Bluetooth on a farm; how data reaches your phone.</p><div class="tags"><span class="tag">Topics 1, 4</span></div></div></div>
+    <div class="slot brk"><div class="time">11:20–11:30</div><div class="what">Tea</div></div>
+    <div class="slot"><div class="time">11:30–13:00</div><div class="what"><h3>Hands-on 1: sensors and your first device</h3><p class="muted">Program your device and see live readings. Breathe on the humidity sensor; blow into the flow sensor; put the soil sensor in dry and wet soil. Build automatic irrigation logic.</p><div class="tags"><span class="tag">Topics 1, 3, 7</span></div></div></div>
+    <div class="slot brk"><div class="time">13:00–13:45</div><div class="what">Lunch</div></div>
+    <div class="slot"><div class="time">13:45–15:15</div><div class="what"><h3>Hands-on 2: talk to your farm device</h3><p class="muted"><b>Project A:</b> temperature-humidity monitor. <b>Project B:</b> remote pump (a bulb stands in for the motor) with flow feedback. For each: a field app with no internet → readings stored on the device → an internet app you can use from home.</p><div class="tags"><span class="tag">Topics 3, 4</span></div></div></div>
+    <div class="slot"><div class="time">15:15–15:30</div><div class="what"><h3>Tractors and drones: where they fit</h3><div class="tags"><span class="tag">Topics 2, 6</span></div></div></div>
+    <div class="slot brk"><div class="time">15:30–15:40</div><div class="what">Tea</div></div>
+    <div class="slot"><div class="time">15:40–16:20</div><div class="what"><h3>Your crop rule, your app, show-and-tell</h3><p class="muted">Each team adds one farm rule (disease risk, spray window, dry-run stop), gets its app on their phones, and explains why a farmer would pay for it.</p><div class="tags"><span class="tag">Topic 5</span></div></div></div>
+    <div class="slot"><div class="time">16:20–16:35</div><div class="what"><h3>Close: what to build next, and an IoT lab for the college</h3></div></div>
+  </div>
+  <p class="intro">Timings are indicative and will be fitted to the college timetable.</p>
+</section>
+
+<section id="before">
+  <div class="eyebrow">Before Thursday</div>
+  <h2>Please get ready</h2>
+  <div class="cols">
+    <div class="box"><h3>Bring</h3><ul class="check">
+      <li>Laptop, fully charged, with the <b>Chrome</b> browser</li>
+      <li>Android phone, charged (the app is an Android APK; iPhone users can use the browser version)</li>
+      <li>A micro-USB <b>data</b> cable if you have one (we also bring cables)</li>
+    </ul></div>
+    <div class="box"><h3>Set up</h3><ul class="check">
+      <li>Create a free account at <b>claude.ai</b> (email or Google login)</li>
+      <li>Optional: a free account at <b>wokwi.com</b> to save simulator work</li>
+      <li>Windows laptops: we will help install the USB driver on the day</li>
+    </ul></div>
+    <div class="box"><h3>Think about</h3><ul class="check">
+      <li>One crop you know well (your family farm, or a field visit)</li>
+      <li>One problem on that crop that temperature, humidity or water data could help with</li>
+      <li>What you saw at Fyllo that you would like to understand from the inside</li>
+    </ul></div>
+  </div>
+  <p class="intro">Student pages with every step and prompt: <a href="/workshop/practical">agrisenseandcontrol.in/workshop/practical</a> (also in <a href="/workshop/practical/kn">Kannada</a> and <a href="/workshop/practical/hi">Hindi</a>).</p>
+</section>
+
+<section id="call">
+  <div class="eyebrow">Today · Google Meet · 2:30 pm</div>
+  <h2>Our first call (about 1 hour)</h2>
+  <div class="cols">
+    <div class="box"><h3>Agenda</h3><ul>
+      <li><b>5 min</b> Introductions</li>
+      <li><b>10 min</b> What you’ve studied so far, and the Fyllo visit</li>
+      <li><b>15 min</b> Live: talking to an AI that programs a real TH monitor, with readings appearing on screen</li>
+      <li><b>10 min</b> What you’ll build on Thursday (this page)</li>
+      <li><b>5 min</b> Getting ready (checklist above)</li>
+      <li><b>15 min</b> Your questions, and our questions for you</li>
+    </ul></div>
+    <div class="box"><h3>Questions for you</h3><ul>
+      <li>Which crops do you know best?</li>
+      <li>Have you written any code, or used Arduino, before?</li>
+      <li>Laptop: Windows or Mac? Phone: Android or iPhone?</li>
+      <li>Which project interests you more: A (temperature-humidity monitor) or B (remote pump)?</li>
+      <li>What did Fyllo’s system measure, and what did it tell the farmer?</li>
+      <li>What would you most like to be able to do after Thursday?</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="units">
+  <div class="eyebrow">For the faculty</div>
+  <h2>AGR 322 mapping</h2>
+  <p class="intro">How the day maps to the course units. The seven topics above are the practical topics the students have already studied in theory.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Unit</th><th>Syllabus topics</th><th>Workshop activity</th><th>Depth</th></tr></thead>
+    <tbody>
+      <tr><td class="no">Unit 1</td><td>Sustainable and conservation agriculture; LEIA / HEIA</td><td>Applied: measured litres per field and disease-timed sprays reduce water and chemical inputs.</td><td><span class="pill p-part">Partly</span></td></tr>
+      <tr><td class="no">Unit 2</td><td>Wireless sensors; soil, water, nutrient and crop-health monitoring</td><td>Temperature and humidity, soil moisture, water flow and tank level, read on real devices; crop-health alerts from climate data.</td><td><span class="pill p-full">Build</span></td></tr>
+      <tr><td class="no">Unit 3</td><td>Cellular, Zigbee, Bluetooth, WiFi, GPRS, LoRa, Sigfox; apps; cloud</td><td>WiFi in field (no internet) and internet (MQTT cloud) modes, hands-on; LoRa and mobile network shown on our products; students get a working phone app.</td><td><span class="pill p-full">Build</span> <span class="pill p-talk">See + discuss</span></td></tr>
+      <tr><td class="no">Unit 4</td><td>Configure IoT devices; cloud; web apps with APIs; reports from templates; UAVs</td><td>Program and set up a device; connect it to the cloud; use its web API from an app; download stored readings as CSV for a report. Drones: briefing.</td><td><span class="pill p-full">Build</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="outcomes">
+  <div class="eyebrow">Outcomes</div>
+  <h2>After the workshop, students can</h2>
+  <div class="cols">
+    <div class="box"><h3>Do</h3><ul>
+      <li>Program a farm IoT device and read live sensor data</li>
+      <li>Use the device from a phone, in the field and over the internet</li>
+      <li>Retrieve logged data and turn it into a report</li>
+      <li>Describe a farm problem clearly enough for an AI assistant to build a working app</li>
+    </ul></div>
+    <div class="box"><h3>Explain</h3><ul>
+      <li>How temperature and humidity drive disease, pest, irrigation, spraying and storage decisions</li>
+      <li>Why pump control needs flow feedback</li>
+      <li>When to choose WiFi, LoRa, a mobile network or Bluetooth on a farm</li>
+      <li>Why devices store data when the network drops</li>
+    </ul></div>
+    <div class="box"><h3>Take home</h3><ul>
+      <li>A TH monitor unit, programmed by the student</li>
+      <li>Their app (Android APK or browser version)</li>
+      <li>Lab sheets and prompt cards at agrisenseandcontrol.in/workshop</li>
+      <li>Project ideas for the practical record</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="needs">
+  <div class="eyebrow">Logistics</div>
+  <h2>What we bring, and what the college arranges</h2>
+  <div class="cols">
+    <div class="box"><h3>We bring</h3><ul>
+      <li>All hardware: TH monitor units, ESP32/ESP8266 boards, sensors, relays, a closed bulb box for the pump project, cables</li>
+      <li>Our field products for demonstration, a WiFi router and a projector-ready laptop</li>
+      <li>All software, lab sheets and apps</li>
+    </ul></div>
+    <div class="box"><h3>College arranges</h3><ul>
+      <li>A room with power sockets for 6 teams, and a projector</li>
+      <li>Permission for student laptops to install a USB driver if needed</li>
+    </ul></div>
+  </div>
+  <p class="intro">Safety: students work only with USB and 5 V circuits. The 230 V bulb used as a pump stand-in is pre-wired in a closed box and handled only by the facilitators.</p>
+</section>
+
+</main>
+
+<footer>
+  <span>AgriSense and Control · agrisenseandcontrol.in</span>
+  <span>Student pages: <a href="/workshop/practical">Practical session</a> · <a href="/workshop">Farm IoT Labs</a></span>
+</footer>
+</div>
+
+</body>
+</html>
