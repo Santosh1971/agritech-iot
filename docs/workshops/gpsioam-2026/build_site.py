@@ -164,6 +164,13 @@ def build():
     # Student questionnaire (/workshop/survey); answers POST to /api/workshop/survey.
     (SITE / "survey").mkdir()
     shutil.copy(HERE / "survey" / "index.html", SITE / "survey" / "index.html")
+    # Browser flasher (/workshop/flash) with ready-built ESP32 programs, and the MQTT viewer.
+    (SITE / "flash" / "programs").mkdir(parents=True)
+    shutil.copy(HERE / "flash" / "index.html", SITE / "flash" / "index.html")
+    for f in (HERE / "flash" / "programs").glob("*.bin"):
+        shutil.copy(f, SITE / "flash" / "programs" / f.name)
+    (SITE / "mqtt").mkdir()
+    shutil.copy(HERE / "mqtt" / "index.html", SITE / "mqtt" / "index.html")
     # Anonymised questionnaire summary for the college (unlisted, noindex).
     (SITE / "insights").mkdir()
     shutil.copy(HERE / "insights" / "index.html", SITE / "insights" / "index.html")

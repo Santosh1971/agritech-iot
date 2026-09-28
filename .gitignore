@@ -46,3 +46,7 @@ webapp/agrisense-webapp/.next/cache/
 
 # Personal Claude Code settings (shared launch.json is fine)
 .claude/settings.local.json
+
+# Workshop ESP32 ready programs are served to students, so they are committed
+!docs/workshops/gpsioam-2026/flash/programs/*.bin
+!webapp/agrisense-webapp/public/workshop/flash/programs/*.bin

@@ -25,6 +25,13 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    name: "Hands-on tools",
+    topics: [
+      { id: "flash", title: "ESP32 flasher", note: "Ready programs + build from Claude", kind: "page", href: "/workshop/flash" },
+      { id: "mqtt", title: "MQTT live viewer", note: "Program 7 from anywhere", kind: "page", href: "/workshop/mqtt" },
+    ],
+  },
+  {
     name: "Student questionnaire",
     topics: [
       { id: "survey", title: "Questionnaire form", note: "What students fill in", kind: "page", href: "/workshop/survey" },

@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Flasher · AgriSense and Control</title>
+<meta name="description" content="Program an ESP32 from the browser: flash ready workshop programs, or paste a program written by Claude, build it and flash it. No software to install.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --err:#9B2C1F; --err-soft:#FBE7E3;
+  --code-bg:#122019; --code-ink:#D8E8DC;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{color-scheme:dark;--bg:#0F1612;--panel:#16201A;--panel-2:#1D2A22;--ink:#E4EDE6;--ink-2:#A3B4A8;--line:#2C3B31;
+    --mask:#3FB585;--mask-ink:#08130D;--copper:#E0A062;--copper-soft:#2E2216;--err:#F08A78;--err-soft:#351A15;--code-bg:#0A100C}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:20px;padding-block:0 64px;display:grid;gap:22px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
+h2{font-size:1.3rem;font-weight:800}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);font-weight:600}
+header{padding-block:30px 18px;display:grid;gap:10px;border-bottom:2px solid var(--ink)}
+header h1{font-size:clamp(1.9rem,5vw,3rem);font-weight:800}
+header h1 span{color:var(--mask)}
+.lede{color:var(--ink-2);max-width:70ch}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;align-content:start}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+input[type=text],input[type=password],textarea{font:inherit;padding:9px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink)}
+textarea{width:100%;min-height:260px;font-family:var(--mono);font-size:.82rem;resize:vertical}
+input:focus,textarea:focus{outline:none;border-color:var(--mask)}
+button{font:inherit;font-weight:700;padding:9px 16px;border-radius:9px;border:1.5px solid var(--mask);background:var(--mask);color:var(--mask-ink);cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,a:focus-visible{outline:3px solid var(--copper);outline-offset:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{background:transparent;color:var(--ink);border-color:var(--line)}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.progs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:10px}
+.prog{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px;align-content:start;background:var(--panel)}
+.prog b{font-family:var(--display);font-size:1.05rem}
+.prog small{color:var(--ink-2)}
+.wire{font-family:var(--mono);font-size:.75rem;color:var(--copper)}
+.status{font-family:var(--mono);font-size:.85rem;padding:8px 12px;border-radius:8px;background:var(--panel-2)}
+.status.ok{background:var(--mask);color:var(--mask-ink)}
+.status.bad{background:var(--err-soft);color:var(--err)}
+.bar{height:10px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--mask);transition:width .2s}
+pre.log{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:.78rem;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto}
+#monitor{min-height:220px;max-height:420px}
+.tips{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink-2);font-size:.95rem}
+.warn{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:10px 14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;align-items:start}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+@media (max-width:560px){.wrap{padding-inline:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">AgriSense and Control · Farm IoT workshop</div>
+  <h1>Program your <span>ESP32</span> from the browser</h1>
+  <p class="lede">Plug the ESP32 into your laptop with a USB data cable. Flash a ready program, or paste a program that Claude wrote for you, build it on our server and flash it. Nothing to install except the USB driver. Works in <b>Google Chrome</b> or <b>Microsoft Edge</b> on a laptop.</p>
+  <p class="warn" id="nosupport" hidden><b>This browser can’t talk to USB devices.</b> Open this page in Google Chrome or Microsoft Edge on a laptop (not on a phone, not Firefox or Safari).</p>
+</header>
+
+<div class="grid2">
+<div style="display:grid;gap:16px">
+  <div class="card">
+    <div class="row"><label for="access"><b>Workshop access code</b></label>
+      <input type="password" id="access" autocomplete="off" placeholder="from your instructor" style="width:220px">
+      <small style="color:var(--ink-2)">Needed to build and flash.</small></div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-ready" aria-selected="true" aria-controls="panel-ready">Ready programs</button>
+    <button type="button" role="tab" id="tab-claude" aria-selected="false" aria-controls="panel-claude">Program from Claude</button>
+  </div>
+
+  <section class="card" id="panel-ready" role="tabpanel" aria-labelledby="tab-ready">
+    <h2>Ready programs</h2>
+    <p style="color:var(--ink-2)">Programs 1–3 need no wiring: they use the ESP32’s blue LED and its <b>BOOT</b> button. Programs 4–7 need a DHT22 sensor: <span class="wire">+ → 3V3 · OUT → GPIO 4 · − → GND</span></p>
+    <div class="progs" id="progs"></div>
+  </section>
+
+  <section class="card" id="panel-claude" role="tabpanel" aria-labelledby="tab-claude" hidden>
+    <h2>Program from Claude</h2>
+    <ol class="tips" style="color:var(--ink)">
+      <li>Ask Claude, e.g. <i>“Write an Arduino program for an ESP32 DevKit that blinks the blue LED on GPIO 2 faster each time I press the BOOT button on GPIO 0.”</i></li>
+      <li>Click <b>Copy</b> on Claude’s code and paste it below.</li>
+      <li>Click <b>Build</b> (30–90 seconds), then <b>Flash</b>.</li>
+    </ol>
+    <textarea id="code" spellcheck="false" placeholder="Paste the complete program from Claude here (it must have setup() and loop())"></textarea>
+    <div class="row">
+      <button type="button" id="build">Build</button>
+      <button type="button" class="ghost" id="clearcode">Clear</button>
+      <span id="buildstatus" class="status" hidden></span>
+    </div>
+    <div id="builderr" hidden style="display:grid;gap:8px">
+      <pre class="log" id="buildlog"></pre>
+      <div class="row"><button type="button" class="ghost" id="copyerr">Copy error for Claude</button>
+        <small style="color:var(--ink-2)">Paste it back into Claude and ask it to fix the program.</small></div>
+    </div>
+  </section>
+</div>
+
+<div style="display:grid;gap:16px">
+  <section class="card">
+    <h2>Flash</h2>
+    <p id="flashwhat" style="color:var(--ink-2)">Choose a ready program or build one from Claude.</p>
+    <div class="row"><button type="button" id="flash" disabled>Flash to my ESP32</button></div>
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    <div id="flashstatus" class="status">Waiting</div>
+    <ul class="tips">
+      <li>Chrome asks which port: pick the one called <b>CP210x</b>, <b>USB-SERIAL CH340</b> or <b>USB Serial</b>.</li>
+      <li>Stuck at “Connecting”? Hold the <b>BOOT</b> button, click Flash, and release when it starts writing.</li>
+      <li>No port listed? Use a USB <b>data</b> cable and install the USB driver.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h2>Serial monitor</h2>
+      <span class="row"><button type="button" class="ghost" id="monconnect">Connect</button><button type="button" class="ghost" id="monclear">Clear</button></span></div>
+    <pre class="log" id="monitor">Readings from the ESP32 appear here after flashing.</pre>
+    <div class="row"><input type="text" id="sendtext" placeholder="Send text to the ESP32" style="flex:1;min-width:0"><button type="button" class="ghost" id="send">Send</button></div>
+  </section>
+</div>
+</div>
+</div>
+
+<script type="module">
+import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.js";
+
+const PROGRAMS = [
+  { file: "1-blink", name: "1 · Blink", what: "The blue LED blinks every second.", wire: "No wiring" },
+  { file: "2-button-led", name: "2 · Button → LED", what: "Hold the BOOT button: the LED lights up.", wire: "No wiring" },
+  { file: "3-blink-rate", name: "3 · Blink rate", what: "Each press of BOOT makes the LED blink faster.", wire: "No wiring" },
+  { file: "4-temp-humidity", name: "4 · Temperature & humidity", what: "Prints temperature and humidity every 2 seconds.", wire: "DHT22 on GPIO 4" },
+  { file: "5-bluetooth", name: "5 · Bluetooth", what: "Sends readings to the phone app Serial Bluetooth Terminal. Type LED ON / LED OFF in the app.", wire: "DHT22 on GPIO 4" },
+  { file: "6-wifi-softap", name: "6 · WiFi (own network)", what: "Phone joins WiFi FarmIoT-xxxx (12345678) and opens 192.168.4.1.", wire: "DHT22 on GPIO 4" },
+  { file: "7-mqtt", name: "7 · Internet (MQTT)", what: "Readings from anywhere. First set up WiFi from a phone, then open the MQTT viewer page.", wire: "DHT22 on GPIO 4" },
+];
+
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let firmware = null;       // { bytes: Uint8Array, label: string }
+let port = null;           // the chosen SerialPort, reused for flash and monitor
+let reader = null, monOpen = false;
+
+if (!("serial" in navigator)) { $("nosupport").hidden = false; $("flash").disabled = true; $("monconnect").disabled = true; }
+$("access").value = store.get("fw-access") || "";
+$("access").addEventListener("input", () => store.set("fw-access", $("access").value));
+$("code").value = store.get("fw-code") || "";
+$("code").addEventListener("input", () => store.set("fw-code", $("code").value));
+
+// Tabs
+for (const [tab, panel] of [["tab-ready", "panel-ready"], ["tab-claude", "panel-claude"]]) {
+  $(tab).addEventListener("click", () => {
+    for (const [t, p] of [["tab-ready", "panel-ready"], ["tab-claude", "panel-claude"]]) {
+      $(t).setAttribute("aria-selected", String(t === tab)); $(p).hidden = p !== panel;
+    }
+  });
+}
+
+function setStatus(el, text, kind) { el.textContent = text; el.className = "status" + (kind ? " " + kind : ""); el.hidden = false; }
+function access() { return $("access").value.trim(); }
+
+// Ready programs
+for (const p of PROGRAMS) {
+  const div = document.createElement("div");
+  div.className = "prog";
+  div.innerHTML = `<b></b><small></small><span class="wire"></span><div class="row"><button type="button" class="ghost">Choose</button></div>`;
+  div.querySelector("b").textContent = p.name;
+  div.querySelector("small").textContent = p.what;
+  div.querySelector(".wire").textContent = p.wire;
+  div.querySelector("button").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const r = await fetch(`programs/${p.file}.bin`, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      choose(new Uint8Array(await r.arrayBuffer()), p.name);
+    } catch (err) { setStatus($("flashstatus"), "Could not load the program: " + err.message, "bad"); }
+    btn.disabled = false;
+  });
+  $("progs").appendChild(div);
+}
+
+function choose(bytes, label) {
+  firmware = { bytes, label };
+  $("flashwhat").textContent = `Ready to flash: ${label} (${Math.round(bytes.length / 1024)} KB)`;
+  $("flash").disabled = !("serial" in navigator);
+  setStatus($("flashstatus"), "Plug in the ESP32 and click Flash", "");
+  $("bar").style.width = "0";
+}
+
+// Build from Claude
+$("clearcode").addEventListener("click", () => { $("code").value = ""; store.set("fw-code", ""); $("builderr").hidden = true; });
+$("build").addEventListener("click", async () => {
+  const code = $("code").value;
+  $("builderr").hidden = true;
+  if (!access()) return setStatus($("buildstatus"), "Enter the workshop access code first", "bad");
+  if (!code.trim()) return setStatus($("buildstatus"), "Paste the program from Claude first", "bad");
+  $("build").disabled = true;
+  try {
+    const r = await fetch("/api/workshop/build", { method: "POST", headers: { "Content-Type": "application/json", "x-access-code": access() }, body: JSON.stringify({ code }) });
+    const j = await r.json();
+    if (!r.ok) throw Object.assign(new Error(j.error || "Build refused"), { log: j.error });
+    const started = Date.now();
+    for (;;) {
+      const s = await (await fetch(`/api/workshop/build/${j.id}`, { headers: { "x-access-code": access() } })).json();
+      const secs = Math.round((Date.now() - started) / 1000);
+      if (s.status === "queued") setStatus($("buildstatus"), `Waiting in line: ${s.position} build(s) ahead · ${secs}s`, "");
+      else if (s.status === "building") setStatus($("buildstatus"), `Building on the server… ${secs}s`, "");
+      else if (s.status === "done") break;
+      else throw Object.assign(new Error("Build failed"), { log: s.log || s.error });
+      await new Promise((res) => setTimeout(res, 2000));
+    }
+    const bin = await fetch(`/api/workshop/build/${j.id}/bin`, { headers: { "x-access-code": access() } });
+    if (!bin.ok) throw new Error("Could not download the firmware");
+    choose(new Uint8Array(await bin.arrayBuffer()), "your program from Claude");
+    setStatus($("buildstatus"), "Built. Now click Flash", "ok");
+  } catch (err) {
+    setStatus($("buildstatus"), err.message, "bad");
+    if (err.log) { $("buildlog").textContent = err.log; $("builderr").hidden = false; }
+  }
+  $("build").disabled = false;
+});
+$("copyerr").addEventListener("click", () => {
+  const text = "My ESP32 program failed to build with this error. Please fix the program and give me the complete corrected code:\n\n" + $("buildlog").textContent;
+  navigator.clipboard?.writeText(text).then(() => { $("copyerr").textContent = "Copied"; setTimeout(() => ($("copyerr").textContent = "Copy error for Claude"), 1500); });
+});
+
+// Serial port handling
+async function getPort() {
+  if (port) return port;
+  port = await navigator.serial.requestPort();
+  return port;
+}
+async function stopMonitor() {
+  monOpen = false;
+  try { await reader?.cancel(); } catch {}
+  reader = null;
+  try { await port?.close(); } catch {}
+  $("monconnect").textContent = "Connect";
+}
+
+$("flash").addEventListener("click", async () => {
+  if (!firmware) return;
+  if (!access()) return setStatus($("flashstatus"), "Enter the workshop access code first", "bad");
+  $("flash").disabled = true;
+  let transport;
+  try {
+    await stopMonitor();
+    const p = await getPort();
+    transport = new Transport(p, false);
+    const terminal = { clean() {}, writeLine(t) { logMon(t + "\n"); }, write(t) { logMon(t); } };
+    const loader = new ESPLoader({ transport, baudrate: 460800, terminal });
+    setStatus($("flashstatus"), "Connecting to the ESP32…", "");
+    const chip = await loader.main();
+    if (!/^ESP32(?!-[A-Z])/.test(chip)) throw new Error(`This is a ${chip}. These programs are for a classic ESP32 DevKit.`);
+    setStatus($("flashstatus"), `Connected to ${chip}. Writing…`, "");
+    await loader.writeFlash({
+      fileArray: [{ data: firmware.bytes, address: 0x0 }],
+      flashMode: "keep", flashFreq: "keep", flashSize: "keep", eraseAll: false, compress: true,
+      reportProgress: (_i, written, total) => { $("bar").style.width = `${Math.round((written / total) * 100)}%`; },
+    });
+    await loader.after("hard_reset");
+    await transport.disconnect();
+    setStatus($("flashstatus"), `Done: ${firmware.label} is running on your ESP32`, "ok");
+    await startMonitor(true);
+  } catch (err) {
+    try { await transport?.disconnect(); } catch {}
+    setStatus($("flashstatus"), "Flash failed: " + (err.message || err) + ". Hold BOOT and try again.", "bad");
+  }
+  $("flash").disabled = false;
+});
+
+function logMon(text) {
+  const el = $("monitor");
+  if (el.dataset.fresh !== "1") { el.textContent = ""; el.dataset.fresh = "1"; }
+  el.textContent = (el.textContent + text).slice(-30000);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function startMonitor(clear) {
+  const p = await getPort();
+  if (clear) { $("monitor").textContent = ""; $("monitor").dataset.fresh = "1"; }
+  await p.open({ baudRate: 115200 });
+  monOpen = true;
+  $("monconnect").textContent = "Disconnect";
+  const decoder = new TextDecoder();
+  (async () => {
+    while (monOpen && p.readable) {
+      reader = p.readable.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          logMon(decoder.decode(value, { stream: true }));
+        }
+      } catch { /* port closed or unplugged */ }
+      finally { reader?.releaseLock(); }
+      if (!monOpen) break;
+    }
+  })();
+}
+
+$("monconnect").addEventListener("click", async () => {
+  try {
+    if (monOpen) await stopMonitor();
+    else await startMonitor(false);
+  } catch (err) { logMon(`\n[Could not open the port: ${err.message}]\n`); }
+});
+$("monclear").addEventListener("click", () => { $("monitor").textContent = ""; });
+async function sendLine() {
+  const text = $("sendtext").value;
+  if (!monOpen || !port?.writable || !text) return;
+  const w = port.writable.getWriter();
+  await w.write(new TextEncoder().encode(text + "\n"));
+  w.releaseLock();
+  logMon(`> ${text}\n`);
+  $("sendtext").value = "";
+}
+$("send").addEventListener("click", sendLine);
+$("sendtext").addEventListener("keydown", (e) => { if (e.key === "Enter") sendLine(); });
+</script>
+</body>
+</html>
