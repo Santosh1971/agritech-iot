@@ -164,6 +164,9 @@ def build():
     # Student questionnaire (/workshop/survey); answers POST to /api/workshop/survey.
     (SITE / "survey").mkdir()
     shutil.copy(HERE / "survey" / "index.html", SITE / "survey" / "index.html")
+    # Anonymised questionnaire summary for the college (unlisted, noindex).
+    (SITE / "insights").mkdir()
+    shutil.copy(HERE / "insights" / "index.html", SITE / "insights" / "index.html")
 
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():

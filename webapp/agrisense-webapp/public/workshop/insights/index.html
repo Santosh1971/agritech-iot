@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>What Students Told Us · AgriSense and Control</title>
+<meta name="description" content="Anonymised summary of the GPSIOAM students' pre-workshop questionnaire: farm problems, technology hurdles and what they want to build.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --bar-bg:#E3EAE0;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{color-scheme:dark;--bg:#0F1612;--panel:#16201A;--panel-2:#1D2A22;--ink:#E4EDE6;--ink-2:#A3B4A8;--line:#2C3B31;
+    --mask:#3FB585;--mask-ink:#08130D;--copper:#E0A062;--copper-soft:#2E2216;--bar-bg:#223029}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:980px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.35rem,3vw,1.75rem);font-weight:800}
+h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+p{margin:0}
+a{color:var(--mask)}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+header{padding-block:36px 22px;display:grid;gap:14px;border-bottom:2px solid var(--ink)}
+header h1{font-size:clamp(2rem,5.5vw,3.2rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.08rem;max-width:66ch;color:var(--ink-2)}
+main{display:grid;gap:44px;margin-top:32px}
+section{display:grid;gap:14px}
+.intro{max-width:68ch;color:var(--ink-2)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px}
+.stat .n{font-family:var(--display);font-size:2.2rem;font-weight:800;line-height:1;color:var(--mask);font-variant-numeric:tabular-nums}
+.stat .l{font-size:.93rem;color:var(--ink-2)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:10px;align-content:start}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.bars li{display:grid;grid-template-columns:minmax(0,11rem) minmax(0,1fr) 2.2rem;gap:10px;align-items:center;font-size:.93rem}
+.bars .track{height:12px;background:var(--bar-bg);border-radius:99px;overflow:hidden}
+.bars .fill{height:100%;background:var(--mask);border-radius:99px}
+.bars .hot .fill{background:var(--copper)}
+.bars b{font-family:var(--mono);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
+.bars .zero .lbl{color:var(--ink-2)}
+@media (max-width:480px){.bars li{grid-template-columns:minmax(0,8.5rem) minmax(0,1fr) 2rem}}
+.insight{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:12px 16px}
+.insight b{color:var(--copper)}
+blockquote{margin:0;padding:10px 14px;border-left:3px solid var(--mask);background:var(--panel);border-radius:0 8px 8px 0;font-style:italic;color:var(--ink)}
+.quotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px}
+ul.plain{margin:0;padding-left:20px;display:grid;gap:6px}
+.note{font-size:.9rem;color:var(--ink-2)}
+footer{margin-top:52px;padding-top:16px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">GPSIOAM · Farm IoT workshop · Pre-workshop questionnaire</div>
+  <h1>What the students <span>told us</span></h1>
+  <p class="lede">Before building anything, we asked the students about the farms they know: where farmers lose money, how they decide to spray and irrigate, why they don’t adopt technology, and what the students themselves want to build. This is an anonymised summary of their answers. Thank you for making the time for it.</p>
+  <p class="note">10 of 11 students responded · 28 September 2026 · Numbers show how many students chose each option (more than one could be chosen).</p>
+</header>
+
+<main>
+
+<section>
+  <div class="eyebrow">The class</div>
+  <h2>Close to the farm, and eager to build a business</h2>
+  <div class="stats">
+    <div class="stat"><span class="n">8 of 10</span><span class="l">come from farming families, mostly rain-fed farms around Bengaluru</span></div>
+    <div class="stat"><span class="n">8 of 10</span><span class="l">rated their interest in starting their own business 5 out of 5</span></div>
+    <div class="stat"><span class="n">6 of 10</span><span class="l">want to start their own business after graduating</span></div>
+    <div class="stat"><span class="n">7 of 10</span><span class="l">say farmers spray only after they see the disease</span></div>
+  </div>
+  <p class="intro">Crops they know best: ragi, paddy, maize, pulses (cowpea, green gram, field bean), groundnut, sunflower, coconut, tomato and flowers.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Farm reality</div>
+  <h2>Where farmers lose money</h2>
+  <div class="cols">
+    <div class="card"><h3>Biggest losses</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Pests &amp; disease</span><span class="track"><span class="fill" style="width:90%"></span></span><b>9</b></li>
+      <li><span class="lbl">Market price</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Labour</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Weather</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Water shortage</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+      <li><span class="lbl">Input costs</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+      <li><span class="lbl">Storage losses</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+    </ul></div>
+    <div class="card"><h3>How farmers decide when to spray</h3><ul class="bars">
+      <li class="hot"><span class="lbl">After seeing disease</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Input dealer’s advice</span><span class="track"><span class="fill" style="width:50%"></span></span><b>5</b></li>
+      <li><span class="lbl">Fixed calendar</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+      <li><span class="lbl">Neighbour</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+      <li><span class="lbl">App or company advisory</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+      <li><span class="lbl">KVK / university</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+    </ul></div>
+  </div>
+  <p class="insight"><b>What this means:</b> most spraying is a reaction to damage that is already visible. Temperature and humidity records can warn of disease risk days earlier, which means fewer, better-timed sprays. This is the core of the TH monitor project.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Pumps and water</div>
+  <h2>Motors run dry, burn out and get stolen</h2>
+  <div class="cols">
+    <div class="card"><h3>Pump problems they have seen</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Running dry</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li class="hot"><span class="lbl">Motor burnt</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Cable or starter theft</span><span class="track"><span class="fill" style="width:50%"></span></span><b>5</b></li>
+      <li><span class="lbl">Phase failure / low voltage</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+      <li><span class="lbl">Night trips to switch on</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+    </ul></div>
+    <div class="card"><h3>In their words</h3>
+      <blockquote>“The pump is near the river. It’s horrible to switch it on at midnight.”</blockquote>
+      <blockquote>“Power comes at a fixed time and the farmer has to go to the farm to switch on the pump.”</blockquote>
+      <p class="note">Irrigation they know: drip (6), borewell (4), sprinkler (4), rain-fed only (4), flood, open well and canal.</p>
+    </div>
+  </div>
+  <p class="insight"><b>What this means:</b> students were unsure whether farmers would pay just to switch a pump from a phone. But dry running, burnt motors and theft are costly and common. So the pump project focuses on <b>protecting the motor</b>: confirm water is flowing, stop on dry run, and alert on tampering, with remote switching as a bonus.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Adoption</div>
+  <h2>Why farmers don’t use technology yet, and whom they trust</h2>
+  <div class="cols">
+    <div class="card"><h3>Hurdles</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Too costly</span><span class="track"><span class="fill" style="width:80%"></span></span><b>8</b></li>
+      <li><span class="lbl">Land too small</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Don’t trust it</span><span class="track"><span class="fill" style="width:60%"></span></span><b>6</b></li>
+      <li><span class="lbl">Don’t know about it</span><span class="track"><span class="fill" style="width:50%"></span></span><b>5</b></li>
+      <li><span class="lbl">Language</span><span class="track"><span class="fill" style="width:40%"></span></span><b>4</b></li>
+      <li><span class="lbl">Power problems</span><span class="track"><span class="fill" style="width:40%"></span></span><b>4</b></li>
+      <li><span class="lbl">No mobile network</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+      <li><span class="lbl">Smartphone use</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+    </ul></div>
+    <div class="card"><h3>Whom farmers trust for anything new</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Input dealer</span><span class="track"><span class="fill" style="width:90%"></span></span><b>9</b></li>
+      <li class="hot"><span class="lbl">Neighbour farmer</span><span class="track"><span class="fill" style="width:90%"></span></span><b>9</b></li>
+      <li><span class="lbl">KVK / university</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+      <li><span class="lbl">YouTube</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+      <li><span class="lbl">WhatsApp groups</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+      <li><span class="lbl">Agriculture officer</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+      <li class="zero"><span class="lbl">Company representative</span><span class="track"><span class="fill" style="width:0"></span></span><b>0</b></li>
+    </ul></div>
+  </div>
+  <div class="quotes">
+    <blockquote>“Seeing is believing.”</blockquote>
+    <blockquote>“Demonstrate and use the technology in his own language.”</blockquote>
+    <blockquote>“Free trials and showing results on the same crop.”</blockquote>
+  </div>
+  <p class="insight"><b>What this means:</b> farmers adopt what a trusted dealer or neighbour has shown working on a real farm. Most of these students have family farms, so the devices they build can become demonstration units in their own villages. That is the most credible way to reach farmers, and the start of a real business.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Business</div>
+  <h2>Ideas and who could pay</h2>
+  <div class="cols">
+    <div class="card"><h3>Who could pay for a solution</h3><ul class="bars">
+      <li><span class="lbl">Government scheme</span><span class="track"><span class="fill" style="width:70%"></span></span><b>7</b></li>
+      <li><span class="lbl">Bank / insurance</span><span class="track"><span class="fill" style="width:40%"></span></span><b>4</b></li>
+      <li><span class="lbl">Farmer</span><span class="track"><span class="fill" style="width:30%"></span></span><b>3</b></li>
+      <li><span class="lbl">Company buying the crop</span><span class="track"><span class="fill" style="width:20%"></span></span><b>2</b></li>
+      <li><span class="lbl">FPO</span><span class="track"><span class="fill" style="width:10%"></span></span><b>1</b></li>
+    </ul>
+    <p class="note">Willingness to pay for a disease-risk device: 4 said ₹2,000–5,000, 4 said only if free, 2 were unsure.</p></div>
+    <div class="card"><h3>Business ideas students named</h3><ul class="plain">
+      <li>Pest and disease monitoring (with irrigation scheduling)</li>
+      <li>Storage of agricultural commodities</li>
+      <li>Soil nutrient (NPK) testing</li>
+      <li>Disease detection in sericulture</li>
+      <li>Market risk and fair prices</li>
+      <li>Input supply and processing</li>
+      <li>Services for small landholders</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Their goals</div>
+  <h2>What they want from Thursday</h2>
+  <div class="quotes">
+    <blockquote>“Proper technical and practical knowledge about the devices rather than theory.”</blockquote>
+    <blockquote>“How to make sensors, and how they work.”</blockquote>
+    <blockquote>“How to create an app for farmers.”</blockquote>
+    <blockquote>“Farm solutions with low-cost technology.”</blockquote>
+  </div>
+  <div class="card"><h3>The farm problems they want to solve</h3><ul class="plain">
+    <li><b>Pest and disease, detected early</b>, before it is visible in the field</li>
+    <li><b>Market price</b>, getting a fair price for the crop</li>
+    <li><b>Irrigation</b> scheduling and pump problems</li>
+  </ul></div>
+</section>
+
+<section>
+  <div class="eyebrow">Next</div>
+  <h2>How we will use this on Thursday</h2>
+  <ul class="plain">
+    <li><b>Start from their problems.</b> The day opens with these findings, not with our slides.</li>
+    <li><b>Teams around real uses:</b> a disease-risk alert, a storage monitor for grain and commodities, and pump protection against dry running and theft.</li>
+    <li><b>Low cost first,</b> with each team costing its device, because cost was the number one hurdle.</li>
+    <li><b>Market price:</b> we discuss how farm data connects to better prices, through storage conditions and timing of sale.</li>
+    <li><b>Demonstration units:</b> students take their devices home to show on their family farms.</li>
+  </ul>
+  <p class="note">Workshop plan: <a href="/workshop/agr322">agrisenseandcontrol.in/workshop/agr322</a></p>
+</section>
+
+</main>
+
+<footer>
+  <span>AgriSense and Control · agrisenseandcontrol.in</span>
+  <span>Anonymised summary; individual answers are kept only with the facilitators.</span>
+</footer>
+</div>
+</body>
+</html>

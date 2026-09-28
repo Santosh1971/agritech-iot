@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       { source: "/workshop/practical/kn", destination: "/workshop/practical/kn/index.html" },
       { source: "/workshop/agr322", destination: "/workshop/agr322/index.html" },
       { source: "/workshop/survey", destination: "/workshop/survey/index.html" },
+      { source: "/workshop/insights", destination: "/workshop/insights/index.html" },
     ];
   },
 };
