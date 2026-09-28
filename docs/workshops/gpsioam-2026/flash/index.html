@@ -185,7 +185,7 @@ for (const p of PROGRAMS) {
     const btn = e.currentTarget;
     btn.disabled = true;
     try {
-      const r = await fetch(`programs/${p.file}.bin`, { cache: "no-store" });
+      const r = await fetch(`/workshop/flash/programs/${p.file}.bin`, { cache: "no-store" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       choose(new Uint8Array(await r.arrayBuffer()), p.name);
     } catch (err) { setStatus($("flashstatus"), "Could not load the program: " + err.message, "bad"); }
