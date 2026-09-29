@@ -138,7 +138,7 @@ details.asks>summary{cursor:pointer;padding:4px 0}
 
   <section class="card">
     <div class="row" style="justify-content:space-between"><h2>Serial monitor</h2>
-      <span class="row"><button type="button" class="ghost" id="monconnect">Connect</button><button type="button" class="ghost" id="monclear">Clear</button></span></div>
+      <span class="row"><button type="button" class="ghost" id="monconnect">Connect</button><button type="button" class="ghost" id="monrestart">Restart board</button><button type="button" class="ghost" id="monclear">Clear</button></span></div>
     <pre class="log" id="monitor">Readings from the ESP32 appear here after flashing.</pre>
     <div class="row"><input type="text" id="sendtext" placeholder="Send text to the ESP32" style="flex:1;min-width:0"><button type="button" class="ghost" id="send">Send</button></div>
   </section>
@@ -318,7 +318,7 @@ $("flash").addEventListener("click", async () => {
     await loader.after("hard_reset");
     await transport.disconnect();
     setStatus($("flashstatus"), `Done: ${firmware.label} is running on your ESP32`, "ok");
-    await startMonitor(true);
+    await startMonitor(true, true);
   } catch (err) {
     try { await transport?.disconnect(); } catch {}
     setStatus($("flashstatus"), "Flash failed: " + (err.message || err) + ". Hold BOOT and try again.", "bad");
@@ -333,10 +333,24 @@ function logMon(text) {
   el.scrollTop = el.scrollHeight;
 }
 
-async function startMonitor(clear) {
+// Restart the ESP32 into its program. On DevKit boards RTS drives EN (reset) and DTR drives
+// GPIO0 (BOOT): pulse RTS with DTR released, like pressing the EN button.
+async function restartBoard(p) {
+  await p.setSignals({ dataTerminalReady: false, requestToSend: true });
+  await new Promise((r) => setTimeout(r, 150));
+  await p.setSignals({ dataTerminalReady: false, requestToSend: false });
+}
+
+async function startMonitor(clear, restart) {
   const p = await getPort();
   if (clear) { $("monitor").textContent = ""; $("monitor").dataset.fresh = "1"; }
   await p.open({ baudRate: 115200 });
+  // Opening the port can leave the board held in reset; always release it,
+  // and restart it after flashing so the new program starts on its own.
+  try {
+    if (restart) await restartBoard(p);
+    else await p.setSignals({ dataTerminalReady: false, requestToSend: false });
+  } catch { /* some adapters don't support control lines */ }
   monOpen = true;
   $("monconnect").textContent = "Disconnect";
   const decoder = new TextDecoder();
@@ -363,6 +377,13 @@ $("monconnect").addEventListener("click", async () => {
   } catch (err) { logMon(`\n[Could not open the port: ${err.message}]\n`); }
 });
 $("monclear").addEventListener("click", () => { $("monitor").textContent = ""; });
+$("monrestart").addEventListener("click", async () => {
+  try {
+    if (!monOpen) await startMonitor(false, true);
+    else await restartBoard(port);
+    logMon("\n[Board restarted]\n");
+  } catch (err) { logMon(`\n[Could not restart: ${err.message}]\n`); }
+});
 async function sendLine() {
   const text = $("sendtext").value;
   if (!monOpen || !port?.writable || !text) return;
