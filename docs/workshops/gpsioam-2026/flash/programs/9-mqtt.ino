@@ -16,7 +16,7 @@
 #include <time.h>
 
 const int DHT_PIN = 23, FLOW_PIN = 35, RELAY = 19, BUTTON = 0, LED = 2;
-const bool RELAY_ACTIVE_LOW = true;  // if the relay works the wrong way round, change to false
+const bool RELAY_ACTIVE_LOW = false;  // this kit's relay turns ON with HIGH; change to true for an active-LOW module
 const unsigned long NO_FLOW_STOP_MS = 10000;
 const uint32_t MIN_PULSES = 5;
 const float PULSES_PER_LITRE = 450.0;
