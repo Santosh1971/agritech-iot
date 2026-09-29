@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       { source: "/workshop/lab", destination: "/workshop/lab/index.html" },
       { source: "/workshop/app", destination: "/workshop/app/index.html" },
       { source: "/workshop/myapp", destination: "/workshop/myapp/index.html" },
+      { source: "/workshop/station", destination: "/workshop/station/index.html" },
     ];
   },
 };

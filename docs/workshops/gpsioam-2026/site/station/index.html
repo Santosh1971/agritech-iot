@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Lab Station History · AgriSense and Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{--bg:#F3F6F1;--panel:#FFFFFF;--panel-2:#E8EEE5;--ink:#17231C;--ink-2:#4A5A50;--line:#CBD6CC;--grid:#E3EAE0;--mask:#0E5E43;--copper:#A5621F;--sky:#2466A8;--water:#0F7C80;
+--display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root{color-scheme:dark;--bg:#0F1612;--panel:#16201A;--panel-2:#1D2A22;--ink:#E4EDE6;--ink-2:#A3B4A8;--line:#2C3B31;--grid:#223029;--mask:#3FB585;--copper:#E0A062;--sky:#7DB3EA;--water:#4FC3C9}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:18px;padding-block:24px 48px;display:grid;gap:16px}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(1.8rem,5vw,2.6rem);margin:0;line-height:1.1}
+h1 span{color:var(--mask)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input{font:inherit;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:170px}
+button{font:inherit;font-weight:700;padding:9px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.go{background:var(--mask);border-color:var(--mask);color:#fff}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.stat span{font-size:.85rem;color:var(--ink-2)}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:6px}
+.chart h2{font-size:1rem;margin:0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chart h2 small{font-weight:400;color:var(--ink-2)}
+canvas{width:100%;height:220px;display:block}
+.note{color:var(--ink-2);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">GPSIOAM · Agri IoT Lab</div>
+  <h1>Lab Station <span>history</span></h1>
+  <div class="row">
+    <input id="dev" placeholder="FarmIoT-XXXX" aria-label="Lab Station name">
+    <button type="button" class="go" id="load">Show</button>
+    <span class="row" id="ranges">
+      <button type="button" data-days="1">24 hours</button>
+      <button type="button" data-days="7" aria-pressed="true">7 days</button>
+      <button type="button" data-days="30">30 days</button>
+    </span>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>Last seen online</span><b id="seen">--</b></div>
+    <div class="stat"><span>Temperature (now · min–max)</span><b id="tstat">--</b></div>
+    <div class="stat"><span>Humidity (now · min–max)</span><b id="hstat">--</b></div>
+    <div class="stat"><span>Water in this period</span><b id="water">--</b></div>
+  </div>
+  <p class="note" id="info"></p>
+  <div class="chart"><h2>Temperature <small>°C</small></h2><canvas id="ct" width="1000" height="260"></canvas></div>
+  <div class="chart"><h2>Humidity <small>%</small></h2><canvas id="ch" width="1000" height="260"></canvas></div>
+  <div class="chart"><h2>Water used <small>litres per 5 minutes</small></h2><canvas id="cw" width="1000" height="260"></canvas></div>
+  <p class="note">Readings are logged every 5 minutes on the device, even without internet, and uploaded whenever it is online.</p>
+</div>
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var days = 7;
+var css = function (v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); };
+try { $("dev").value = new URLSearchParams(location.search).get("d") || localStorage.getItem("station-dev") || ""; } catch (e) {}
+
+function fmtTime(ts, withDate) {
+  var d = new Date(ts * 1000);
+  return withDate ? d.toLocaleDateString([], { day: "2-digit", month: "short" }) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function plot(id, rows, key, color, bars) {
+  var c = $(id), g = c.getContext("2d"), W = c.width, H = c.height, L = 48, R = 12, T = 12, B = 30;
+  g.clearRect(0, 0, W, H);
+  var pts = rows.filter(function (r) { return r[key] != null; });
+  g.font = "13px system-ui"; g.fillStyle = css("--ink-2");
+  if (pts.length < 2) { g.fillText("No readings in this period yet", L, H / 2); return; }
+  var vals = pts.map(function (r) { return r[key]; });
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if (bars) lo = 0;
+  if (hi - lo < 1) { hi += 0.5; lo -= bars ? 0 : 0.5; }
+  var pad = (hi - lo) * 0.1; hi += pad; if (!bars) lo -= pad;
+  var t0 = rows[0].ts, t1 = rows[rows.length - 1].ts || t0 + 1;
+  var x = function (ts) { return L + ((ts - t0) / Math.max(1, t1 - t0)) * (W - L - R); };
+  var y = function (v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); };
+  g.strokeStyle = css("--grid"); g.lineWidth = 1; g.textAlign = "right"; g.textBaseline = "middle";
+  for (var i = 0; i <= 4; i++) {
+    var v = lo + (hi - lo) * i / 4, yy = y(v);
+    g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke();
+    g.fillText(v.toFixed(bars ? 2 : 1), L - 6, yy);
+  }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (var k = 0; k <= 4; k++) { var ts = t0 + (t1 - t0) * k / 4; g.fillText(fmtTime(ts, days > 1), x(ts), H - B + 8); }
+  g.fillStyle = color; g.strokeStyle = color;
+  if (bars) {
+    var bw = Math.max(1, (W - L - R) / pts.length * 0.8);
+    pts.forEach(function (r) { var yy = y(r[key]); g.fillRect(x(r.ts) - bw / 2, yy, bw, y(0) - yy); });
+  } else {
+    g.lineWidth = 2.5; g.beginPath();
+    pts.forEach(function (r, i) { var gap = i && r.ts - pts[i - 1].ts > 1800; if (i && !gap) g.lineTo(x(r.ts), y(r[key])); else g.moveTo(x(r.ts), y(r[key])); });
+    g.stroke();
+    var last = pts[pts.length - 1]; g.beginPath(); g.arc(x(last.ts), y(last[key]), 4, 0, 7); g.fill();
+  }
+}
+
+function range(rows, key) {
+  var v = rows.map(function (r) { return r[key]; }).filter(function (x) { return x != null; });
+  if (!v.length) return "--";
+  return v[v.length - 1].toFixed(1) + " · " + Math.min.apply(null, v).toFixed(1) + "–" + Math.max.apply(null, v).toFixed(1);
+}
+
+async function load() {
+  var dev = "FarmIoT-" + $("dev").value.trim().replace(/^farmiot-?/i, "").toUpperCase();
+  if (!/^FarmIoT-[0-9A-F]{4}$/.test(dev)) { $("info").textContent = "Type the Lab Station name, like FarmIoT-E0E3."; return; }
+  $("dev").value = dev;
+  try { localStorage.setItem("station-dev", dev); } catch (e) {}
+  var r = await fetch("/api/lab/readings?device=" + dev + "&days=" + days).then(function (x) { return x.json(); });
+  var rows = r.rows || [];
+  $("seen").textContent = r.lastSeen ? new Date(r.lastSeen).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "never";
+  $("tstat").textContent = range(rows, "t");
+  $("hstat").textContent = range(rows, "h");
+  $("water").textContent = rows.reduce(function (s, x) { return s + (x.l || 0); }, 0).toFixed(1) + " L";
+  $("info").textContent = rows.length + " readings · running " + (r.program || "?") + (r.version ? " " + r.version : "") + (r.updatePending ? " · update waiting: " + r.updatePending : "");
+  plot("ct", rows, "t", css("--copper"));
+  plot("ch", rows, "h", css("--sky"));
+  plot("cw", rows, "l", css("--water"), true);
+}
+$("load").addEventListener("click", load);
+$("dev").addEventListener("keydown", function (e) { if (e.key === "Enter") load(); });
+document.querySelectorAll("#ranges button").forEach(function (b) {
+  b.addEventListener("click", function () {
+    days = Number(b.dataset.days);
+    document.querySelectorAll("#ranges button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    load();
+  });
+});
+if ($("dev").value) load();
+</script>
+</body>
+</html>

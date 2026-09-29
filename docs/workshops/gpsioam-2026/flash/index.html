@@ -22,6 +22,7 @@
     --mask:#3FB585;--mask-ink:#08130D;--copper:#E0A062;--copper-soft:#2E2216;--err:#F08A78;--err-soft:#351A15;--code-bg:#0A100C}
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
 .wrap{max-width:1100px;margin:0 auto;padding-inline:20px;padding-block:0 64px;display:grid;gap:22px}
 h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
@@ -114,6 +115,12 @@ details.asks>summary{cursor:pointer;padding:4px 0}
       <button type="button" class="ghost" id="clearcode">Clear</button>
       <span id="buildstatus" class="status" hidden></span>
     </div>
+    <div id="sendwifi" class="card" hidden style="background:var(--panel-2)">
+      <b>Or send it to the Lab Station over WiFi</b>
+      <small style="color:var(--ink-2)">The college unit installs it within a minute, no cable needed. To go back, flash the “Lab Station” ready program over USB.</small>
+      <div class="row"><input type="text" id="labdev" placeholder="FarmIoT-XXXX" style="width:180px"><button type="button" id="sendbtn">Send over WiFi</button></div>
+      <span id="sendstatus" class="status" hidden></span>
+    </div>
     <div id="builderr" hidden style="display:grid;gap:8px">
       <pre class="log" id="buildlog"></pre>
       <div class="row"><button type="button" class="ghost" id="copyerr">Copy error for Claude</button>
@@ -158,6 +165,7 @@ const PROGRAMS = [
   { file: "6-pump-flow-check", name: "6 · Pump with flow check", what: "BOOT (or typing ON / OFF) switches the pump relay. No flow for 10 seconds: pump stops to protect the motor.", wire: "Relay on D19 · flow sensor on D35" },
   { file: "7-bluetooth", name: "7 · Bluetooth to the phone", what: "Time, temperature, humidity, flow and pump in the Serial Bluetooth Terminal app. Type PUMP ON / PUMP OFF. On a bare DevKit the blue LED is the pump.", wire: "Everything connected, or DevKit only" },
   { file: "8-wifi-softap", name: "8 · WiFi dashboard (own network)", what: "Phone joins FarmIoT-xxxx (12345678) and opens 192.168.4.1: live readings, PUMP ON / OFF buttons, set the clock from the phone.", wire: "Everything connected, or DevKit only" },
+  { api: "/api/lab/firmware", name: "Lab Station (college unit)", what: "The gifted unit’s own program: logs temperature, humidity and water every 5 minutes, uploads the log, keeps your farm apps working, and installs updates over WiFi. Flash this to restore the unit.", wire: "Full kit" },
   { file: "9-mqtt", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first. Then make it your own app at agrisenseandcontrol.in/workshop/app: your app name and icon on your phone, pump control over the internet.", wire: "Everything connected, or DevKit only" },
 ];
 
@@ -166,6 +174,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 let firmware = null;       // { bytes: Uint8Array, label: string }
 let port = null;           // the chosen SerialPort, reused for flash and monitor
 let reader = null, monOpen = false;
+let lastBuildId = null;    // the last successful build from Claude, for sending over WiFi
 
 if (!("serial" in navigator)) { $("nosupport").hidden = false; $("flash").disabled = true; $("monconnect").disabled = true; }
 $("access").value = store.get("fw-access") || "";
@@ -197,8 +206,10 @@ for (const p of PROGRAMS) {
     const btn = e.currentTarget;
     btn.disabled = true;
     try {
-      const r = await fetch(`/workshop/flash/programs/${p.file}.bin`, { cache: "no-store" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const r = p.api
+        ? await fetch(p.api, { cache: "no-store", headers: { "x-access-code": access() } })
+        : await fetch(`/workshop/flash/programs/${p.file}.bin`, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status === 401 ? "enter the workshop access code first" : `HTTP ${r.status}`);
       choose(new Uint8Array(await r.arrayBuffer()), p.name);
     } catch (err) { setStatus($("flashstatus"), "Could not load the program: " + err.message, "bad"); }
     btn.disabled = false;
@@ -266,12 +277,27 @@ $("build").addEventListener("click", async () => {
     const bin = await fetch(`/api/workshop/build/${j.id}/bin`, { headers: { "x-access-code": access() } });
     if (!bin.ok) throw new Error("Could not download the firmware");
     choose(new Uint8Array(await bin.arrayBuffer()), "your program from Claude");
-    setStatus($("buildstatus"), "Built. Now click Flash", "ok");
+    lastBuildId = j.id;
+    $("sendwifi").hidden = false;
+    setStatus($("buildstatus"), "Built. Flash it over USB, or send it to the Lab Station over WiFi", "ok");
   } catch (err) {
     setStatus($("buildstatus"), err.message, "bad");
     if (err.log) { $("buildlog").textContent = err.log; $("builderr").hidden = false; }
   }
   $("build").disabled = false;
+});
+$("labdev").value = store.get("fw-labdev") || "";
+$("sendbtn").addEventListener("click", async () => {
+  if (!lastBuildId) return;
+  store.set("fw-labdev", $("labdev").value);
+  $("sendbtn").disabled = true;
+  try {
+    const r = await fetch(`/api/workshop/build/${lastBuildId}/send`, { method: "POST", headers: { "Content-Type": "application/json", "x-access-code": access() }, body: JSON.stringify({ device: $("labdev").value }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "Could not send");
+    setStatus($("sendstatus"), `Sent to ${j.device}. It installs within about a minute and restarts with your program.`, "ok");
+  } catch (err) { setStatus($("sendstatus"), err.message, "bad"); }
+  $("sendbtn").disabled = false;
 });
 $("copyerr").addEventListener("click", () => {
   const text = "My ESP32 program failed to build with this error. Please fix the program and give me the complete corrected code:\n\n" + $("buildlog").textContent;

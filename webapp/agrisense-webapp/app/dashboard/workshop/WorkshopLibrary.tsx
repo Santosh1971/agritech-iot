@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 type Topic =
   | { id: string; title: string; note?: string; kind: "page"; href: string }
   | { id: string; title: string; note?: string; kind: "external"; href: string }
-  | { id: string; title: string; note?: string; kind: "responses"; survey: SurveyId };
+  | { id: string; title: string; note?: string; kind: "responses"; survey: SurveyId }
+  | { id: string; title: string; note?: string; kind: "labadmin" };
 
 type SurveyId = "gpsioam-2026" | "lab-idea";
 
@@ -32,6 +33,8 @@ const GROUPS: Group[] = [
       { id: "flash", title: "ESP32 flasher", note: "Ready programs + build from Claude", kind: "page", href: "/workshop/flash" },
       { id: "mqtt", title: "MQTT live viewer", note: "Program 9 from anywhere", kind: "page", href: "/workshop/mqtt" },
       { id: "app-maker", title: "Make my farm app", note: "Students name and install their own app", kind: "page", href: "/workshop/app" },
+      { id: "lab-station", title: "Lab Station (college unit)", note: "Status · remote update · history", kind: "labadmin" },
+      { id: "station-history", title: "Lab Station history", note: "Graph page (college can see it)", kind: "page", href: "/workshop/station" },
       { id: "lab-students", title: "IoT lab idea: student version", note: "No costs · for the 16:00 session", kind: "page", href: "/workshop/lab" },
     ],
   },
@@ -128,6 +131,7 @@ export default function WorkshopLibrary() {
           <iframe key={topic.id} src={topic.href} title={topic.title} style={{ flex: 1, width: "100%", minHeight: "80vh", border: 0, background: "#fff" }} />
         )}
         {topic.kind === "responses" && <Responses key={topic.survey} survey={topic.survey} />}
+        {topic.kind === "labadmin" && <LabAdmin />}
       </main>
     </div>
   );
@@ -211,3 +215,70 @@ function Responses({ survey }: { survey: SurveyId }) {
 
 const th: React.CSSProperties = { textAlign: "left", padding: "8px 10px", background: "#E8EEE5", borderBottom: "1px solid #CBD6CC", position: "sticky", top: 0, whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #CBD6CC", verticalAlign: "top", maxWidth: 260 };
+
+type LabDevice = {
+  device: string; version?: string; ip?: string; ssid?: string; rssi?: number; lastSeen?: string; program?: string;
+  pending?: { id: string; label: string; size: number; queuedAt: string } | null;
+};
+
+// Lab Station control: status of each gifted unit, remote firmware update, history graph.
+function LabAdmin() {
+  const [data, setData] = useState<{ latestFirmware: string | null; devices: LabDevice[] } | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+  const [graph, setGraph] = useState<string | null>(null);
+
+  const load = () =>
+    fetch("/api/admin/lab")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((j) => { setData(j); if (!graph && j.devices[0]) setGraph(j.devices[0].device); })
+      .catch((e) => setError(e.message));
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function act(device: string, action: "update" | "cancel") {
+    setBusy(device);
+    const r = await fetch("/api/admin/lab", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device, action }) });
+    if (!r.ok) setError((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    setBusy("");
+    load();
+  }
+
+  if (error) return <p style={{ padding: 16 }}>Could not load: {error}</p>;
+  if (!data) return <p style={{ padding: 16 }}>Loading…</p>;
+  const ago = (iso?: string) => {
+    if (!iso) return "never";
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+  };
+  return (
+    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <p style={{ margin: 0, color: C.ink2 }}>
+        Latest Lab Station firmware on the server: <b>{data.latestFirmware ?? "not built yet"}</b>. A queued update is installed the next time the unit checks in (every minute while online).
+      </p>
+      {data.devices.length === 0 && <p style={{ margin: 0 }}>No Lab Station has checked in yet. Flash the “Lab Station” ready program and put it on WiFi.</p>}
+      {data.devices.map((d) => {
+        const online = d.lastSeen && Date.now() - new Date(d.lastSeen).getTime() < 3 * 60000;
+        return (
+          <div key={d.device} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, display: "flex", flexWrap: "wrap", gap: "8px 24px", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 17 }}>{d.device} <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 99, background: online ? C.green : "#E3E7E1", color: online ? "#fff" : C.ink2 }}>{online ? "online" : "offline"}</span></div>
+              <div style={{ fontSize: 13, color: C.ink2 }}>
+                Running {d.program ?? "?"} {d.version ?? ""} · last seen {ago(d.lastSeen)} · WiFi {d.ssid ?? "?"} {d.rssi != null ? `(${d.rssi} dBm)` : ""} · IP {d.ip ?? "?"}
+              </div>
+              {d.pending && <div style={{ fontSize: 13, color: C.copper }}>Update waiting: {d.pending.label} ({Math.round(d.pending.size / 1024)} KB), queued {ago(d.pending.queuedAt)}</div>}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+              <button type="button" disabled={busy === d.device || !data.latestFirmware} onClick={() => act(d.device, "update")}
+                style={{ padding: "8px 12px", borderRadius: 8, border: 0, background: C.green, color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                Update to Lab Station {data.latestFirmware ?? ""}
+              </button>
+              {d.pending && <button type="button" onClick={() => act(d.device, "cancel")} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.line}`, background: "transparent", cursor: "pointer" }}>Cancel update</button>}
+              <button type="button" onClick={() => setGraph(d.device)} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.line}`, background: "transparent", cursor: "pointer" }}>History</button>
+            </div>
+          </div>
+        );
+      })}
+      {graph && <iframe key={graph} src={`/workshop/station?d=${graph}`} title="Lab Station history" style={{ width: "100%", height: 1100, border: 0, borderRadius: 12, background: "#fff" }} />}
+    </div>
+  );
+}

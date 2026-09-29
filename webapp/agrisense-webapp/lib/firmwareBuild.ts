@@ -100,6 +100,15 @@ export async function readBin(id: string): Promise<Buffer | null> {
   return bin.subarray(0, Math.min(bin.length, Math.ceil(end / 4) * 4));
 }
 
+// The app image alone (no bootloader/partition table): what an over-the-air update installs.
+export async function readAppBin(id: string): Promise<Buffer | null> {
+  try {
+    return await readFile(join(BUILDS_DIR, id, "out", "sketch.ino.bin"));
+  } catch {
+    return null;
+  }
+}
+
 export async function enqueueBuild(source: string): Promise<BuildJob> {
   prune();
   const id = randomBytes(8).toString("hex");

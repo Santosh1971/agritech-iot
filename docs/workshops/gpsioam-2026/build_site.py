@@ -175,6 +175,9 @@ def build():
     (SITE / "app").mkdir()
     shutil.copy(HERE / "app" / "index.html", SITE / "app" / "index.html")
     shutil.copytree(HERE / "myapp", SITE / "myapp")
+    # Lab Station history graph (public, read-only).
+    (SITE / "station").mkdir()
+    shutil.copy(HERE / "station" / "index.html", SITE / "station" / "index.html")
     # Student version of the IoT lab idea, without any costs (unlisted, noindex).
     (SITE / "lab").mkdir()
     shutil.copy(HERE / "lab" / "index.html", SITE / "lab" / "index.html")
