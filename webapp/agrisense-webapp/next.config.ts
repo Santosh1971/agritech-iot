@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       { source: "/workshop/insights", destination: "/workshop/insights/index.html" },
       { source: "/workshop/flash", destination: "/workshop/flash/index.html" },
       { source: "/workshop/mqtt", destination: "/workshop/mqtt/index.html" },
+      { source: "/workshop/lab", destination: "/workshop/lab/index.html" },
     ];
   },
 };

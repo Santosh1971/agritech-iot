@@ -29,6 +29,7 @@ const GROUPS: Group[] = [
     topics: [
       { id: "flash", title: "ESP32 flasher", note: "Ready programs + build from Claude", kind: "page", href: "/workshop/flash" },
       { id: "mqtt", title: "MQTT live viewer", note: "Program 7 from anywhere", kind: "page", href: "/workshop/mqtt" },
+      { id: "lab-students", title: "IoT lab idea: student version", note: "No costs · for the 16:00 session", kind: "page", href: "/workshop/lab" },
     ],
   },
   {
@@ -45,7 +46,7 @@ const GROUPS: Group[] = [
       { id: "plan", title: "Workshop plan & prep board", kind: "external", href: "https://claude.ai/artifact/LxUjbPrZEWeVsqq9KVibsr" },
       { id: "deck", title: "Talk slides", kind: "external", href: "https://claude.ai/artifact/Xkw873R9jmvASsLWURGwYk" },
       { id: "call-sheet", title: "Student call sheet", kind: "external", href: "https://claude.ai/artifact/Xy15bscG74huzeVMJoM54j" },
-      { id: "lab-proposal", title: "Agri IoT lab proposal", note: "Draft", kind: "external", href: "https://claude.ai/artifact/TKMa2XFG7c795dvSFcipBE" },
+      { id: "lab-proposal", title: "Agri IoT lab proposal", note: "Full draft with costs · for management", kind: "external", href: "https://claude.ai/artifact/TKMa2XFG7c795dvSFcipBE" },
     ],
   },
 ];

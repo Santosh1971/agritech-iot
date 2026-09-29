@@ -171,6 +171,9 @@ def build():
         shutil.copy(f, SITE / "flash" / "programs" / f.name)
     (SITE / "mqtt").mkdir()
     shutil.copy(HERE / "mqtt" / "index.html", SITE / "mqtt" / "index.html")
+    # Student version of the IoT lab idea, without any costs (unlisted, noindex).
+    (SITE / "lab").mkdir()
+    shutil.copy(HERE / "lab" / "index.html", SITE / "lab" / "index.html")
     # Anonymised questionnaire summary for the college (unlisted, noindex).
     (SITE / "insights").mkdir()
     shutil.copy(HERE / "insights" / "index.html", SITE / "insights" / "index.html")

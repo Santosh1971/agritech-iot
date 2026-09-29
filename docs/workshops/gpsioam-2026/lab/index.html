@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agri IoT Innovation Lab · AgriSense and Control</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="An idea for a campus lab where agriculture students go from their first sensor to their own agri-tech venture.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6;
+  --sky:#2466A8; --sky-soft:#E1ECF7;
+  --y1:#6E9A4E; --y2:#2E7D5B; --y3:#0E5E43; --y4:#A5621F;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+    --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216; --sky:#7DB3EA; --sky-soft:#17263A;
+    --y1:#9BC47A; --y2:#5FBF8E; --y3:#3FB585; --y4:#E0A062;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F1612; --panel:#16201A; --panel-2:#1D2A22; --ink:#E4EDE6; --ink-2:#A3B4A8; --line:#2C3B31;
+  --mask:#3FB585; --mask-ink:#08130D; --copper:#E0A062; --copper-soft:#2E2216; --sky:#7DB3EA; --sky-soft:#17263A;
+  --y1:#9BC47A; --y2:#5FBF8E; --y3:#3FB585; --y4:#E0A062;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.45rem,3vw,1.95rem);font-weight:800}
+h3{font-size:1.12rem;font-weight:700}
+p{margin:0}
+a{color:var(--sky)}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper);font-weight:600}
+.muted{color:var(--ink-2)}
+header{padding-block:40px 26px;display:grid;gap:16px;border-bottom:2px solid var(--ink)}
+header h1{font-size:clamp(2.2rem,6vw,3.8rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.1rem;max-width:66ch;color:var(--ink-2)}
+.meta{display:flex;flex-wrap:wrap;gap:10px 28px;font-size:.95rem}
+.meta div{display:flex;flex-direction:column}
+.meta b{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.draft{justify-self:start;font-family:var(--mono);font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border:1.5px dashed var(--copper);color:var(--copper);border-radius:6px;padding:3px 10px}
+main{display:grid;gap:52px;margin-top:36px;min-width:0}
+section{display:grid;gap:16px;min-width:0}
+.intro{max-width:70ch;color:var(--ink-2)}
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px}
+.why div{border-top:3px solid var(--mask);padding-top:10px;display:grid;gap:4px}
+.why b{font-family:var(--display);font-size:1.05rem}
+.why p{color:var(--ink-2);font-size:.95rem}
+
+/* the four-year ladder */
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+.rung{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:10px;align-content:start;border-top:6px solid var(--c)}
+.rung:nth-child(1){--c:var(--y1);margin-top:84px}
+.rung:nth-child(2){--c:var(--y2);margin-top:56px}
+.rung:nth-child(3){--c:var(--y3);margin-top:28px}
+.rung:nth-child(4){--c:var(--y4)}
+.rung .yr{font-family:var(--mono);font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.rung h3{font-size:1.45rem;font-weight:800}
+.rung .goal{font-size:.95rem}
+.rung dl{margin:0;display:grid;gap:8px;font-size:.9rem}
+.rung dt{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.rung dd{margin:0}
+@media (max-width:860px){.ladder{grid-template-columns:repeat(2,minmax(0,1fr))}.rung:nth-child(n){margin-top:0}}
+@media (max-width:520px){.ladder{grid-template-columns:1fr}}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.93rem;min-width:720px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:var(--panel-2);font-weight:600}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:700;white-space:nowrap}
+.yrs{display:flex;gap:4px}
+.yrs i{font-style:normal;font-family:var(--mono);font-size:.68rem;font-weight:600;width:24px;text-align:center;border-radius:4px;padding:1px 0;border:1px solid var(--line);color:var(--ink-2)}
+.yrs i.on1{background:var(--y1);border-color:var(--y1);color:#fff}
+.yrs i.on2{background:var(--y2);border-color:var(--y2);color:#fff}
+.yrs i.on3{background:var(--y3);border-color:var(--y3);color:#fff}
+.yrs i.on4{background:var(--y4);border-color:var(--y4);color:#fff}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;align-content:start}
+.box h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.box ul{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.95rem}
+
+.note{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:12px 16px;font-size:.95rem}
+
+.rhythm{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.rhythm div{padding:14px 16px;border-right:1px solid var(--line);display:grid;gap:4px;align-content:start}
+.rhythm div:last-child{border-right:0}
+.rhythm b{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--copper)}
+.rhythm p{font-size:.93rem}
+
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start}
+.steps li::before{content:counter(s);font-family:var(--mono);font-weight:600;width:28px;height:28px;border-radius:50%;background:var(--mask);color:var(--mask-ink);display:grid;place-items:center;font-size:.85rem}
+.steps b{display:block}
+.chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.chain div{padding:14px 16px;display:grid;gap:4px;align-content:start;border-right:1px solid var(--line)}
+.chain div:last-child{border-right:0}
+.chain b{font-family:var(--display);font-size:1.05rem}
+.chain span{font-family:var(--mono);font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.chain div:nth-child(1) span{color:var(--y4)}.chain div:nth-child(2) span{color:var(--y3)}.chain div:nth-child(3) span{color:var(--y2)}.chain div:nth-child(4) span{color:var(--y1)}
+.chain p{font-size:.92rem;color:var(--ink-2)}
+@media (max-width:760px){.chain{grid-template-columns:1fr 1fr}.chain div:nth-child(2){border-right:0}.chain div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media (max-width:420px){.chain{grid-template-columns:1fr}.chain div{border-right:0;border-bottom:1px solid var(--line)}}
+footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+@media (max-width:560px){.wrap{padding-inline:16px}}
+@media print{body{background:#fff;font-size:12px}.tbl{overflow:visible}table{min-width:0}.rung,.tier,.box,tr{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <span class="draft">An idea, for your feedback</span>
+  <div class="eyebrow">GPSIOAM × AgriSense and Control · For students</div>
+  <h1>Agri IoT <span>Innovation Lab</span></h1>
+  <p class="lede">Imagine a lab on campus where you go from your first sensor reading in Year 1 to running your own agri-tech venture by Year 4. You build farm devices with the help of AI, test them on the college farm and with real farmers, and learn everything that turns a working prototype into a product that sells: design, manufacturing, pricing, marketing and funding. This is an idea we are exploring with your college, and we want to know what you would expect from it.</p>
+  <div class="meta">
+    <div><b>For</b>B.Sc (Hons) Agricultural Skill and Entrepreneurship, all years</div>
+    <div><b>Shared at</b>Farm IoT workshop, 1 October 2026</div>
+    <div><b>With</b>Santosh &amp; Avinash, AgriSense and Control</div>
+  </div>
+</header>
+
+<main>
+
+<section id="why">
+  <div class="eyebrow">Why a lab</div>
+  <h2>Agriculture needs graduates who can build, not only use, farm technology</h2>
+  <div class="why">
+    <div><b>Theory without practice</b><p>Students study wireless sensors, monitoring systems, IoT devices and drones, but rarely build or program one themselves.</p></div>
+    <div><b>AI lowers the barrier</b><p>With AI assistants, an agriculture student can program a device and build a phone app by describing what the farm needs. Crop knowledge becomes the advantage.</p></div>
+    <div><b>Industry is hiring</b><p>Agri-tech companies (sensor networks, advisories, precision irrigation, drones) need people who understand both the crop and the device.</p></div>
+    <div><b>Founders, not only employees</b><p>A student who has piloted a device with real farmers has what investors and incubators ask for: a validated problem and a working product.</p></div>
+  </div>
+</section>
+
+<section id="ladder">
+  <div class="eyebrow">Four years, four steps</div>
+  <h2>From first exposure to entrepreneur</h2>
+  <p class="intro">Designed for the four-year <b>B.Sc (Hons) Agricultural Skill and Entrepreneurship</b> programme, whose focus on entrepreneurship matches the lab’s goal. Each year builds on the one before. Activities run as lab sessions, a student club and project work alongside the regular courses, and connect to the ICAR programmes students already take. The college’s diploma and PG programmes can join later as shorter modules.</p>
+  <div class="ladder">
+    <article class="rung">
+      <span class="yr">Year 1</span>
+      <h3>Discover</h3>
+      <p class="goal">See what farm technology can do, and make a device work for the first time.</p>
+      <dl>
+        <div><dt>Students do</dt><dd>Read a temperature-humidity sensor in a free simulator, then on a real board; see readings on a phone; field visits to our deployed devices.</dd></div>
+        <div><dt>Output</dt><dd>A working sensor reading and a first phone screen.</dd></div>
+        <div><dt>Time</dt><dd>About 6 sessions a year, plus the club.</dd></div>
+      </dl>
+    </article>
+    <article class="rung">
+      <span class="yr">Year 2</span>
+      <h3>Build</h3>
+      <p class="goal">Build complete monitoring systems and use the data for agronomic decisions.</p>
+      <dl>
+        <div><dt>Students do</dt><dd>Weather, soil moisture, water flow and storage monitors; cloud dashboards; phone apps built with AI; link readings to what they learn in agronomy, plant pathology and entomology (disease risk, degree-days, irrigation need).</dd></div>
+        <div><dt>Output</dt><dd>A prototype running on the college farm, with a month of data.</dd></div>
+        <div><dt>Time</dt><dd>A semester project plus workshops.</dd></div>
+      </dl>
+    </article>
+    <article class="rung">
+      <span class="yr">Year 3</span>
+      <h3>Solve</h3>
+      <p class="goal">Find a real farmer problem and take a device from prototype toward product.</p>
+      <dl>
+        <div><dt>Students do</dt><dd>Interview farmers and dealers; pilot devices on partner farms; design for the field (solar power, enclosures, surge protection); a first circuit board; costing; the AGR 322 workshop and an annual Agri-IoT hackathon.</dd></div>
+        <div><dt>Output</dt><dd>A field-tested device with farmer feedback and a cost sheet.</dd></div>
+        <div><dt>Time</dt><dd>Course work, hackathon and a field pilot.</dd></div>
+      </dl>
+    </article>
+    <article class="rung">
+      <span class="yr">Year 4</span>
+      <h3>Launch</h3>
+      <p class="goal">Turn the product into a venture during the final-year experiential programmes.</p>
+      <dl>
+        <div><dt>Students do</dt><dd>Use RAWE and the Experiential Learning Programme (ELP) to run a small production batch, sell to farmers or FPOs, set pricing and service, and pitch to incubators; internships with agri-tech companies, including ours.</dd></div>
+        <div><dt>Output</dt><dd>A pilot batch in farmers’ hands, a business plan and an incubation application.</dd></div>
+        <div><dt>Time</dt><dd>ELP / RAWE semester.</dd></div>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="peers">
+  <div class="eyebrow">A culture that lasts</div>
+  <h2>Seniors teach juniors</h2>
+  <p class="intro">The lab should keep running long after we step back. The way to get there is for every batch to teach the batch below it. Teaching also deepens the seniors’ own skills, and it is the best training for the founders and team leaders they want to become.</p>
+  <div class="chain">
+    <div><span>Year 4 mentors Year 3</span><b>Product and venture</b><p>Share pilots, costing, dealer and farmer lessons; review Year 3 field designs.</p></div>
+    <div><span>Year 3 mentors Year 2</span><b>Field and design</b><p>Take Year 2 teams on farm pilots; teach enclosures, power and board design.</p></div>
+    <div><span>Year 2 teaches Year 1</span><b>Build sessions</b><p>Run the Year 1 Discover sessions as teaching assistants, with our support.</p></div>
+    <div><span>Year 1 learns</span><b>First devices</b><p>Joins the club, helps maintain the living lab, and gets ready to teach next year.</p></div>
+  </div>
+  <div class="cols">
+    <div class="box"><h3>Activities</h3><ul>
+      <li><b>Buddy teams:</b> every junior team has a senior buddy for its project</li>
+      <li><b>Student-run sessions:</b> seniors teach the Year 1 and Year 2 labs; faculty and we observe and coach</li>
+      <li><b>Open lab hours:</b> two evenings a week, staffed by seniors on a rota</li>
+      <li><b>Apprenticeships:</b> juniors join seniors’ farmer pilots and hackathon teams</li>
+      <li><b>Monthly show-and-tell:</b> mixed-year teams present what they built and what failed</li>
+      <li><b>Hand-over day:</b> at year end, each batch hands its living-lab devices, kits and open projects to the next</li>
+    </ul></div>
+    <div class="box"><h3>Student lab committee</h3><ul>
+      <li><b>Lab lead:</b> runs the lab calendar and the committee</li>
+      <li><b>Kit keeper:</b> inventory, issue and return of kits, repairs</li>
+      <li><b>Field lead:</b> keeps the living-lab devices on the farm running</li>
+      <li><b>Knowledge lead:</b> keeps the lab handbook and project library up to date</li>
+      <li><b>Outreach lead:</b> farmer demos, hackathon and industry links</li>
+      <li>Chosen each year; each role hands over to a junior deputy</li>
+    </ul></div>
+    <div class="box"><h3>Keeping the knowledge</h3><ul>
+      <li>A <b>lab handbook</b> that each batch improves</li>
+      <li>A <b>project library</b>: every project leaves its code, wiring, photos, a short video and lessons learned</li>
+      <li>Ready-made <b>lesson plans</b> and prompt cards seniors can teach from</li>
+      <li><b>Train-the-mentor</b> sessions each semester, run by us until the committee can run them</li>
+    </ul></div>
+    <div class="box"><h3>Recognition</h3><ul>
+      <li>Skill levels: <b>Maker → Builder → Field engineer → Mentor</b>; Mentor level needs a set number of sessions taught</li>
+      <li>Certificates and letters of recommendation from the college and AgriSense</li>
+      <li>Mentoring counted towards co-curricular credit, RAWE and ELP</li>
+      <li>A mentor-of-the-year award at demo day</li>
+      <li>Alumni and student founders return as guest mentors and offer internships</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="journey">
+  <div class="eyebrow">Every aspect of a product</div>
+  <h2>The product journey, taught with real products</h2>
+  <p class="intro">Students learn each stage from devices we design, manufacture and sell to farmers today: FlowGuard (FG1, flow and pump control), the Wireless Pump Controller (WPC, pumps across a field over LoRa) and WaterMaster (WM1/WM2, drip and fertigation).</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Stage</th><th>What students learn</th><th>Real example</th><th>Years</th></tr></thead>
+    <tbody>
+      <tr><td>Problem</td><td>Talk to farmers and dealers; define who pays and why; size the market</td><td>Farmers walking to the field at night to start pumps, because power comes in fixed slots</td><td><div class="yrs"><i class="on1">1</i><i class="on2">2</i><i class="on3">3</i><i>4</i></div></td></tr>
+      <tr><td>Prototype</td><td>Sensors, controllers, apps and cloud, built with AI; test on the bench and in a simulator</td><td>Pump relay + flow sensor proving that water actually flows</td><td><div class="yrs"><i class="on1">1</i><i class="on2">2</i><i class="on3">3</i><i>4</i></div></td></tr>
+      <tr><td>Field trial</td><td>Deploy on the college farm and partner farms; collect data and feedback; fix what breaks</td><td>Flow-monitoring pilots; SoftAP fallback when the village WiFi drops</td><td><div class="yrs"><i>1</i><i class="on2">2</i><i class="on3">3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Product design</td><td>Circuit board design (KiCad), enclosures and IP rating, solar and battery power, surge and lightning protection, fail-safe behaviour</td><td>WaterMaster redesigned for a solar-powered farm; pump nodes that switch off if contact is lost</td><td><div class="yrs"><i>1</i><i>2</i><i class="on3">3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Manufacturing</td><td>Bill of materials and sourcing, board fabrication and assembly partners, test jigs, flashing many units, quality checks</td><td>Production test jig; a phone app dealers use to program units in the field</td><td><div class="yrs"><i>1</i><i>2</i><i class="on3">3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Compliance</td><td>Approvals for wireless devices, electrical safety, labelling, warranty terms</td><td>Radio approval for LoRa and WiFi products sold in India</td><td><div class="yrs"><i>1</i><i>2</i><i>3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Pricing &amp; business model</td><td>Unit cost vs price, dealer margin, one-time sale vs subscription, subsidies farmers can use</td><td>Device price plus an optional app and cloud subscription</td><td><div class="yrs"><i>1</i><i>2</i><i class="on3">3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Marketing &amp; sales</td><td>Farmer demos, dealer networks, FPOs and KVKs, brochures in local languages, WhatsApp and video</td><td>Hindi and English brochures; dealer-led sales and installation</td><td><div class="yrs"><i>1</i><i>2</i><i class="on3">3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Service &amp; support</td><td>Remote updates, diagnostics, installation training, handling returns</td><td>Over-the-air firmware updates; connectivity diagnostics built into the device</td><td><div class="yrs"><i>1</i><i>2</i><i>3</i><i class="on4">4</i></div></td></tr>
+      <tr><td>Funding &amp; company</td><td>Incubators and grants, company registration, protecting the idea (patents, design registration), pitching</td><td>Agri-business incubators and state and central startup schemes</td><td><div class="yrs"><i>1</i><i>2</i><i>3</i><i class="on4">4</i></div></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="lab">
+  <div class="eyebrow">The lab</div>
+  <h2>Spaces and equipment</h2>
+  <div class="cols">
+    <div class="box"><h3>Build bench</h3><ul>
+      <li>6 workstations for teams of two</li>
+      <li>Microcontroller kits (ESP32 / ESP8266), breadboards, cables</li>
+      <li>Soldering stations, multimeters, bench power supplies, a basic oscilloscope</li>
+      <li>Student laptops (own) with free tools; lab seats for an AI assistant</li>
+    </ul></div>
+    <div class="box"><h3>Sensor and radio library</h3><ul>
+      <li>Temperature-humidity, soil moisture, leaf wetness, light, rain, water level and flow, pH/EC, soil NPK</li>
+      <li>Relays, solenoid valves, small pumps</li>
+      <li>WiFi, LoRa, 4G/GSM and Bluetooth modules; a solar power kit</li>
+    </ul></div>
+    <div class="box"><h3>Living lab on the college farm</h3><ul>
+      <li>A weather and temperature-humidity station</li>
+      <li>A soil moisture network in one crop block</li>
+      <li>A drip block with a smart irrigation controller</li>
+      <li>A pump with flow monitoring and remote control</li>
+      <li>A storage-room monitor (onion or grain); polyhouse or nursery corner if available</li>
+    </ul></div>
+    <div class="box"><h3>Product studio</h3><ul>
+      <li>3D printer for enclosures and brackets</li>
+      <li>Sample circuit boards, enclosures and our products for teardown</li>
+      <li>A small test jig and flashing station, to learn batch production</li>
+      <li>A display wall of student products and pilot results</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="handover">
+  <div class="eyebrow">Built to run on its own</div>
+  <h2>Over time, the lab is run by students</h2>
+  <p class="intro">Each year the students and faculty take on more, and our role shrinks from running the lab to advising it.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Year</th><th>Who teaches</th><th>Student leadership</th><th>Our role</th></tr></thead>
+    <tbody>
+      <tr><td>Year 1</td><td>We run all sessions; faculty coordinator co-teaches</td><td>First lab committee chosen; seniors assist as helpers</td><td>Weekly visits; set up the lab and living lab</td></tr>
+      <tr><td>Year 2</td><td>Year 2 students teach Year 1, with us coaching</td><td>Committee runs open lab hours and kits</td><td>Weekly visits; train mentors; advanced product sessions</td></tr>
+      <tr><td>Year 3</td><td>Students run Discover and Build; faculty lead the course links</td><td>Committee runs the hackathon and farmer demos</td><td>Weekly visits focused on field pilots, product and business</td></tr>
+      <tr><td>Year 4</td><td>Student mentors and faculty run the full ladder</td><td>First student ventures in incubation</td><td>Visits reduce to every two weeks; venture mentoring</td></tr>
+      <tr><td>Year 5</td><td>Self-running; alumni return as guest mentors</td><td>Committee trains its own successors</td><td>Advisory: termly review, demo day, on call</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="roles">
+  <div class="eyebrow">Together</div>
+  <h2>Who does what</h2>
+  <div class="cols">
+    <div class="box"><h3>College</h3><ul>
+      <li>Lab space with power and internet</li>
+      <li>Plots on the college farm for the living lab</li>
+      <li>A faculty coordinator</li>
+      <li>Time in the timetable; credit for projects, RAWE and ELP</li>
+    </ul></div>
+    <div class="box"><h3>AgriSense and Control</h3><ul>
+      <li>A weekly visit: teaching, mentor coaching and project reviews</li>
+      <li>Lab design, equipment sourcing and setup</li>
+      <li>Curriculum for all four years; faculty training</li>
+      <li>Workshops, hackathon and demo day</li>
+      <li>Our products and design know-how as teaching material</li>
+      <li>Internships, ELP placements and mentoring for student ventures</li>
+    </ul></div>
+    <div class="box"><h3>Students</h3><ul>
+      <li>Build, test and document their devices</li>
+      <li>Run farmer pilots and share results</li>
+      <li>Teach and mentor the year below them</li>
+      <li>Run the student lab committee</li>
+      <li>Present at the annual demo day</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="year">
+  <div class="eyebrow">Every year</div>
+  <h2>The annual rhythm</h2>
+  <div class="rhythm">
+    <div><b>Semester start</b><p>Orientation workshop for each year group.</p></div>
+    <div><b>Every month</b><p>Build sessions and club meetings in the lab.</p></div>
+    <div><b>Mid-year</b><p>Agri-IoT hackathon on a real farm problem.</p></div>
+    <div><b>Kisan Mela / farmers’ day</b><p>Students demonstrate devices to farmers.</p></div>
+    <div><b>Year end</b><p>Demo day: final-year ventures pitch to incubators and industry.</p></div>
+  </div>
+</section>
+
+<section id="success">
+  <div class="eyebrow">What we aim for</div>
+  <h2>In the first two years</h2>
+  <div class="cols">
+    <div class="box"><h3>Year one</h3><ul>
+      <li>Every third-year student completes the AGR 322 workshop</li>
+      <li>30–40 first- and second-year students active in the club</li>
+      <li>5 student devices running on the college farm</li>
+    </ul></div>
+    <div class="box"><h3>Year two</h3><ul>
+      <li>10 or more farmer pilots with student-built devices</li>
+      <li>A hackathon with teams from other colleges</li>
+      <li>At least 2 student teams applying to an incubator</li>
+    </ul></div>
+  </div>
+</section>
+
+<section id="next">
+  <div class="eyebrow">Your turn</div>
+  <h2>Tell us what you think</h2>
+  <ol class="steps">
+    <li><div><b>Would you use a lab like this?</b><span class="muted">How often: once a week, only for projects, or whenever it is open?</span></div></li>
+    <li><div><b>What would you build first?</b><span class="muted">Which farm problem from your village or family farm would you start with?</span></div></li>
+    <li><div><b>Would you teach your juniors?</b><span class="muted">What would make you want to be a mentor?</span></div></li>
+    <li><div><b>What would stop you?</b><span class="muted">Time, marks, fear of electronics, not knowing where to start?</span></div></li>
+    <li><div><b>What would make it worth it for you?</b><span class="muted">A job, your own business, a certificate, an internship, farmers using your device?</span></div></li>
+  </ol>
+</section>
+
+</main>
+
+<footer>
+  <span>AgriSense and Control · agrisenseandcontrol.in</span>
+  <span>An idea for discussion with GPSIOAM students</span>
+</footer>
+</div>
+
+</body>
+</html>
