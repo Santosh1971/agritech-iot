@@ -39,11 +39,17 @@ export async function POST(req: NextRequest) {
     const v = clean(value);
     if (v !== null && v !== "") answers[key] = v;
   }
-  if (typeof answers.name !== "string" || typeof answers.problem !== "string") {
-    return NextResponse.json({ error: "Name and one farm problem are required" }, { status: 400 });
+  // Which form sent this: the pre-workshop questionnaire (default) or the
+  // end-of-workshop lab-idea feedback on /workshop/lab.
+  const survey = (body as Record<string, unknown>).survey === "lab-idea" ? "lab-idea" : "gpsioam-2026";
+  delete answers.survey;
+  const required = survey === "lab-idea" ? ["name", "would_use"] : ["name", "problem"];
+  if (required.some((k) => typeof answers[k] !== "string")) {
+    const what = survey === "lab-idea" ? "Name and whether you would use the lab" : "Name and one farm problem";
+    return NextResponse.json({ error: `${what} are required` }, { status: 400 });
   }
 
-  const entry = { at: new Date().toISOString(), survey: "gpsioam-2026", answers };
+  const entry = { at: new Date().toISOString(), survey, answers };
   const file = surveyFile();
   await mkdir(file.substring(0, file.lastIndexOf("/")), { recursive: true });
   await appendFile(file, JSON.stringify(entry) + "\n", "utf8");

@@ -117,6 +117,29 @@ td:first-child{font-weight:700;white-space:nowrap}
 footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
 @media (max-width:560px){.wrap{padding-inline:16px}}
 @media print{body{background:#fff;font-size:12px}.tbl{overflow:visible}table{min-width:0}.rung,.tier,.box,tr{break-inside:avoid}}
+/* feedback form */
+.fb{display:grid;gap:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.fb fieldset{border:0;margin:0;padding:0;display:grid;gap:14px}
+.fb .sec{border-top:1px solid var(--line);padding-top:16px}
+.fb .num{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--copper)}
+.fb .q{display:grid;gap:8px}
+.fb .q>label,.fb .q>.lbl{font-weight:700}
+.fb .q small{color:var(--ink-2);font-weight:400}
+.fb .req{color:var(--copper)}
+.fb input[type=text],.fb textarea,.fb select{font:inherit;font-size:16px;width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.fb textarea{min-height:80px;resize:vertical}
+.fb input:focus,.fb textarea:focus,.fb select:focus{outline:none;border-color:var(--mask)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{display:inline-flex}
+.chips input{position:absolute;opacity:0;pointer-events:none}
+.chips span{padding:8px 13px;border:1.5px solid var(--line);border-radius:999px;background:var(--panel);font-size:.95rem;cursor:pointer;user-select:none}
+.chips input:checked+span{background:var(--mask);border-color:var(--mask);color:var(--mask-ink)}
+.chips input:focus-visible+span{outline:3px solid var(--copper);outline-offset:2px}
+.fb button{font:inherit;font-weight:700;font-size:1.05rem;padding:14px;border:0;border-radius:12px;background:var(--mask);color:var(--mask-ink);cursor:pointer}
+.fb button:disabled{opacity:.6}
+.fb .msg{padding:12px 14px;border-radius:10px;font-weight:700}
+.fb .msg.ok{background:var(--mask);color:var(--mask-ink)}
+.fb .msg.bad{background:var(--copper-soft);color:var(--copper)}
 </style>
 </head>
 <body>
@@ -367,13 +390,36 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
 <section id="next">
   <div class="eyebrow">Your turn</div>
   <h2>Tell us what you think</h2>
-  <ol class="steps">
-    <li><div><b>Would you use a lab like this?</b><span class="muted">How often: once a week, only for projects, or whenever it is open?</span></div></li>
-    <li><div><b>What would you build first?</b><span class="muted">Which farm problem from your village or family farm would you start with?</span></div></li>
-    <li><div><b>Would you teach your juniors?</b><span class="muted">What would make you want to be a mentor?</span></div></li>
-    <li><div><b>What would stop you?</b><span class="muted">Time, marks, fear of electronics, not knowing where to start?</span></div></li>
-    <li><div><b>What would make it worth it for you?</b><span class="muted">A job, your own business, a certificate, an internship, farmers using your device?</span></div></li>
-  </ol>
+  <p class="intro">About 5 minutes on your phone. No marks and no wrong answers. Your answers go only to the facilitators and shape whether and how this lab is built. Only your name and the first question are required.</p>
+  <form class="fb" id="labform" novalidate>
+    <fieldset>
+      <div class="q"><label for="name">Your name <span class="req">*</span></label><input type="text" id="name" name="name" autocomplete="name"></div>
+      <div class="q"><span class="lbl">Year of study</span><div class="chips"><label><input type="radio" name="year" value="1st year"><span>1st year</span></label><label><input type="radio" name="year" value="2nd year"><span>2nd year</span></label><label><input type="radio" name="year" value="3rd year"><span>3rd year</span></label><label><input type="radio" name="year" value="4th year"><span>4th year</span></label></div></div>
+    </fieldset>
+
+    <fieldset class="sec">
+      <span class="num">The lab idea</span>
+      <div class="q"><span class="lbl">Would you use a lab like this? <span class="req">*</span></span><div class="chips"><label><input type="radio" name="would_use" value="Yes, regularly"><span>Yes, regularly</span></label><label><input type="radio" name="would_use" value="Only for projects"><span>Only for projects</span></label><label><input type="radio" name="would_use" value="Maybe"><span>Maybe</span></label><label><input type="radio" name="would_use" value="No"><span>No</span></label></div></div>
+      <div class="q"><span class="lbl">How often could you come?</span><div class="chips"><label><input type="radio" name="how_often" value="Every week"><span>Every week</span></label><label><input type="radio" name="how_often" value="Twice a month"><span>Twice a month</span></label><label><input type="radio" name="how_often" value="Only for projects"><span>Only for projects</span></label><label><input type="radio" name="how_often" value="Evenings, when open"><span>Evenings, when open</span></label></div></div>
+      <div class="q"><span class="lbl">What interests you most? <small>(pick all that apply)</small></span><div class="chips"><label><input type="checkbox" name="interests" value="Building devices"><span>Building devices</span></label><label><input type="checkbox" name="interests" value="Programming with AI"><span>Programming with AI</span></label><label><input type="checkbox" name="interests" value="Phone apps"><span>Phone apps</span></label><label><input type="checkbox" name="interests" value="Trials with farmers"><span>Trials with farmers</span></label><label><input type="checkbox" name="interests" value="Product and PCB design"><span>Product and PCB design</span></label><label><input type="checkbox" name="interests" value="Manufacturing"><span>Manufacturing</span></label><label><input type="checkbox" name="interests" value="Marketing and sales"><span>Marketing and sales</span></label><label><input type="checkbox" name="interests" value="Business and funding"><span>Business and funding</span></label></div></div>
+      <div class="q"><label for="build_first">What would you build first? Which farm problem?</label><textarea id="build_first" name="build_first"></textarea></div>
+      <div class="q"><span class="lbl">Would you teach your juniors?</span><div class="chips"><label><input type="radio" name="teach_juniors" value="Yes, happily"><span>Yes, happily</span></label><label><input type="radio" name="teach_juniors" value="Maybe, with support"><span>Maybe, with support</span></label><label><input type="radio" name="teach_juniors" value="No"><span>No</span></label></div></div>
+      <div class="q"><span class="lbl">What would stop you?</span><div class="chips"><label><input type="checkbox" name="blockers" value="No time"><span>No time</span></label><label><input type="checkbox" name="blockers" value="Exams and marks first"><span>Exams and marks first</span></label><label><input type="checkbox" name="blockers" value="Electronics feels hard"><span>Electronics feels hard</span></label><label><input type="checkbox" name="blockers" value="Don't know where to start"><span>Don't know where to start</span></label><label><input type="checkbox" name="blockers" value="Lab timings"><span>Lab timings</span></label><label><input type="checkbox" name="blockers" value="Cost of parts"><span>Cost of parts</span></label><label><input type="checkbox" name="blockers" value="Nothing"><span>Nothing</span></label></div></div>
+      <div class="q"><span class="lbl">What would make it worth it for you?</span><div class="chips"><label><input type="checkbox" name="worth_it" value="A job"><span>A job</span></label><label><input type="checkbox" name="worth_it" value="My own business"><span>My own business</span></label><label><input type="checkbox" name="worth_it" value="A certificate"><span>A certificate</span></label><label><input type="checkbox" name="worth_it" value="An internship"><span>An internship</span></label><label><input type="checkbox" name="worth_it" value="Farmers using my device"><span>Farmers using my device</span></label><label><input type="checkbox" name="worth_it" value="Credit for RAWE or ELP"><span>Credit for RAWE or ELP</span></label><label><input type="checkbox" name="worth_it" value="New skills"><span>New skills</span></label></div></div>
+      <div class="q"><label for="expect">What would you expect from this lab, and from us?</label><textarea id="expect" name="expect"></textarea></div>
+    </fieldset>
+
+    <fieldset class="sec">
+      <span class="num">About today</span>
+      <div class="q"><span class="lbl">How useful was today? <small>(1 = not at all, 5 = very)</small></span><div class="chips"><label><input type="radio" name="rate_today" value="1"><span>1</span></label><label><input type="radio" name="rate_today" value="2"><span>2</span></label><label><input type="radio" name="rate_today" value="3"><span>3</span></label><label><input type="radio" name="rate_today" value="4"><span>4</span></label><label><input type="radio" name="rate_today" value="5"><span>5</span></label></div></div>
+      <div class="q"><label for="liked">What did you like most today?</label><textarea id="liked" name="liked"></textarea></div>
+      <div class="q"><label for="difficult">What was difficult or unclear?</label><textarea id="difficult" name="difficult"></textarea></div>
+      <div class="q"><span class="lbl">Now, how much do you want to start your own business? <small>(1 = not at all, 5 = very much)</small></span><div class="chips"><label><input type="radio" name="startup_interest" value="1"><span>1</span></label><label><input type="radio" name="startup_interest" value="2"><span>2</span></label><label><input type="radio" name="startup_interest" value="3"><span>3</span></label><label><input type="radio" name="startup_interest" value="4"><span>4</span></label><label><input type="radio" name="startup_interest" value="5"><span>5</span></label></div></div>
+    </fieldset>
+
+    <div id="labmsg" class="msg" role="status" hidden></div>
+    <button type="submit" id="labsend">Send my answers</button>
+  </form>
 </section>
 
 </main>
@@ -384,5 +430,28 @@ footer{margin-top:56px;padding-top:18px;border-top:2px solid var(--ink);font-siz
 </footer>
 </div>
 
+<script>
+(function(){
+  var f=document.getElementById('labform'), msg=document.getElementById('labmsg'), btn=document.getElementById('labsend'), KEY='lab-idea-draft';
+  function collect(){ var d={}; Array.prototype.forEach.call(f.elements,function(el){ if(!el.name)return;
+    if(el.type==='checkbox'){ if(!d[el.name])d[el.name]=[]; if(el.checked)d[el.name].push(el.value); }
+    else if(el.type==='radio'){ if(el.checked)d[el.name]=el.value; } else d[el.name]=el.value; }); return d; }
+  function save(){ try{localStorage.setItem(KEY,JSON.stringify(collect()));}catch(e){} }
+  function restore(){ var d; try{d=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){} if(!d)return;
+    Array.prototype.forEach.call(f.elements,function(el){ if(!el.name||!(el.name in d))return; var v=d[el.name];
+      if(el.type==='checkbox')el.checked=Array.isArray(v)&&v.indexOf(el.value)>=0; else if(el.type==='radio')el.checked=(v===el.value); else el.value=v; }); }
+  function show(t,ok){ msg.hidden=false; msg.className='msg '+(ok?'ok':'bad'); msg.textContent=t; }
+  restore(); f.addEventListener('input',save); f.addEventListener('change',save);
+  f.addEventListener('submit',function(e){ e.preventDefault(); var d=collect();
+    if(!(d.name||'').trim()||!d.would_use){ show('Please add your name and answer “Would you use a lab like this?”',false); return; }
+    d.survey='lab-idea'; btn.disabled=true; btn.textContent='Sending…';
+    fetch('/api/workshop/survey',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(res){ if(!res.ok)throw new Error(res.j&&res.j.error||'Could not send');
+        try{localStorage.removeItem(KEY);}catch(e){} show('Thank you, '+d.name.trim()+'! Your answers are in.',true); btn.textContent='Sent'; })
+      .catch(function(err){ show('Not sent: '+err.message+'. Check your internet and tap Send again; your answers are still here.',false); btn.disabled=false; btn.textContent='Send my answers'; });
+  });
+})();
+</script>
 </body>
 </html>

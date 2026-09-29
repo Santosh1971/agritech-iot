@@ -9,7 +9,9 @@ import { useEffect, useState } from "react";
 type Topic =
   | { id: string; title: string; note?: string; kind: "page"; href: string }
   | { id: string; title: string; note?: string; kind: "external"; href: string }
-  | { id: string; title: string; note?: string; kind: "responses" };
+  | { id: string; title: string; note?: string; kind: "responses"; survey: SurveyId };
+
+type SurveyId = "gpsioam-2026" | "lab-idea";
 
 type Group = { name: string; topics: Topic[] };
 
@@ -37,7 +39,8 @@ const GROUPS: Group[] = [
     topics: [
       { id: "survey", title: "Questionnaire form", note: "What students fill in", kind: "page", href: "/workshop/survey" },
       { id: "insights", title: "What students told us", note: "Anonymised summary", kind: "page", href: "/workshop/insights" },
-      { id: "responses", title: "Individual responses", note: "Private, with names", kind: "responses" },
+      { id: "responses", title: "Individual responses", note: "Private, with names", kind: "responses", survey: "gpsioam-2026" },
+      { id: "lab-responses", title: "Lab idea feedback responses", note: "End of workshop · private", kind: "responses", survey: "lab-idea" },
     ],
   },
   {
@@ -123,7 +126,7 @@ export default function WorkshopLibrary() {
         {topic.kind === "page" && (
           <iframe key={topic.id} src={topic.href} title={topic.title} style={{ flex: 1, width: "100%", minHeight: "80vh", border: 0, background: "#fff" }} />
         )}
-        {topic.kind === "responses" && <Responses />}
+        {topic.kind === "responses" && <Responses key={topic.survey} survey={topic.survey} />}
       </main>
     </div>
   );
@@ -144,7 +147,14 @@ function CopyLink({ href }: { href: string }) {
   );
 }
 
-type Entry = { at: string; answers: Record<string, string | string[] | number> };
+type Entry = { at: string; survey?: string; answers: Record<string, string | string[] | number> };
+
+const LAB_COLUMNS: [string, string][] = [
+  ["name", "Name"], ["year", "Year"], ["would_use", "Would use"], ["how_often", "How often"],
+  ["interests", "Interests"], ["build_first", "Would build first"], ["teach_juniors", "Teach juniors"],
+  ["blockers", "What would stop them"], ["worth_it", "What makes it worth it"], ["expect", "Expectations"],
+  ["rate_today", "Today 1–5"], ["liked", "Liked most"], ["difficult", "Difficult"], ["startup_interest", "Startup 1–5 now"],
+];
 
 const COLUMNS: [string, string][] = [
   ["name", "Name"], ["district", "Home"], ["family_farms", "Family farms"], ["crops", "Crops"],
@@ -157,20 +167,21 @@ const COLUMNS: [string, string][] = [
   ["laptop", "Laptop"], ["phone", "Phone"], ["project", "Project"],
 ];
 
-function Responses() {
+function Responses({ survey }: { survey: SurveyId }) {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/workshop-survey")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((j) => setEntries(j.entries))
+      .then((j) => setEntries((j.entries as Entry[]).filter((e) => (e.survey ?? "gpsioam-2026") === survey)))
       .catch((e) => setError(e.message));
   }, []);
 
   if (error) return <p style={{ padding: 16 }}>Could not load responses: {error}</p>;
   if (!entries) return <p style={{ padding: 16 }}>Loading…</p>;
 
+  const cols = survey === "lab-idea" ? LAB_COLUMNS : COLUMNS;
   const show = (v: unknown) => (Array.isArray(v) ? v.join(", ") : v == null ? "" : String(v));
   return (
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -180,14 +191,14 @@ function Responses() {
           <thead>
             <tr>
               <th style={th}>Submitted</th>
-              {COLUMNS.map(([, label]) => <th key={label} style={th}>{label}</th>)}
+              {cols.map(([, label]) => <th key={label} style={th}>{label}</th>)}
             </tr>
           </thead>
           <tbody>
             {entries.map((e, i) => (
               <tr key={i}>
                 <td style={td}>{new Date(e.at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}</td>
-                {COLUMNS.map(([key]) => <td key={key} style={td}>{show(e.answers[key])}</td>)}
+                {cols.map(([key]) => <td key={key} style={td}>{show(e.answers[key])}</td>)}
               </tr>
             ))}
           </tbody>
