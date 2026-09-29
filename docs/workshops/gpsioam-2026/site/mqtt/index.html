@@ -34,16 +34,19 @@ small{color:var(--ink-2)}
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Farm IoT workshop · Program 7</div>
+  <div class="eyebrow">Farm IoT workshop · Program 9</div>
   <h1>Your ESP32, <span>live from anywhere</span></h1>
-  <p><small>Type your device name (shown in the serial monitor, like <b>FarmIoT-E0E3</b>) and tap Connect. Works on a phone over mobile data.</small></p>
+  <p><small>Type your device name (shown in the serial monitor, like <b>FarmIoT-E0E3</b>) and tap Connect. Works on a phone over mobile data. On a bare DevKit the blue LED is the pump.</small></p>
   <div class="row"><input id="dev" placeholder="FarmIoT-XXXX" autocomplete="off"><button id="go" type="button">Connect</button></div>
   <span class="pill" id="status">Not connected</span>
   <div class="cards">
     <div class="card">Temperature<div class="v"><span id="t">--</span>°C</div></div>
     <div class="card">Humidity<div class="v"><span id="h">--</span>%</div></div>
+    <div class="card">Flow<div class="v"><span id="f">--</span></div><small>L/min</small></div>
+    <div class="card">Total<div class="v"><span id="l">--</span></div><small>litres</small></div>
   </div>
-  <div class="row"><button type="button" id="on">LED ON</button><button type="button" class="ghost" id="off">LED OFF</button></div>
+  <p><b>Pump: <span id="pump">--</span></b> <small id="msg"></small></p>
+  <div class="row"><button type="button" id="on">PUMP ON</button><button type="button" class="ghost" id="off">PUMP OFF</button></div>
   <small id="when"></small>
   <pre id="log">Messages appear here.</pre>
   <small>Uses the free public broker broker.emqx.io, topics agrisense/workshop/&lt;device&gt;/data, /status and /cmd. Anyone who knows your device name can see these readings.</small>
@@ -68,15 +71,21 @@ function connect() {
     log(topic.split("/").pop() + ": " + text);
     if (topic.endsWith("/status")) { $("status").textContent = `${dev} is ${text}`; $("status").className = "pill" + (text === "online" ? " on" : ""); }
     if (topic.endsWith("/data")) {
-      try { const r = JSON.parse(text); $("t").textContent = r.t ?? "--"; $("h").textContent = r.h ?? "--"; $("when").textContent = r.error ? r.error : "Last reading " + new Date().toLocaleTimeString(); } catch {}
+      try {
+        const r = JSON.parse(text);
+        for (const k of ["t", "h", "f", "l"]) $(k).textContent = r[k] ?? "--";
+        $("pump").textContent = r.pump === undefined ? "--" : r.pump ? "ON" : "OFF";
+        $("msg").textContent = r.msg || "";
+        $("when").textContent = (r.time && r.time.length > 12 ? "Device time " + r.time : "Last reading " + new Date().toLocaleTimeString());
+      } catch {}
     }
   });
   client.on("error", (e) => log("error: " + e.message));
 }
 $("go").addEventListener("click", connect);
 $("dev").addEventListener("keydown", (e) => { if (e.key === "Enter") connect(); });
-$("on").addEventListener("click", () => client && client.publish(`agrisense/workshop/${dev}/cmd`, "LED ON"));
-$("off").addEventListener("click", () => client && client.publish(`agrisense/workshop/${dev}/cmd`, "LED OFF"));
+$("on").addEventListener("click", () => client && client.publish(`agrisense/workshop/${dev}/cmd`, "PUMP ON"));
+$("off").addEventListener("click", () => client && client.publish(`agrisense/workshop/${dev}/cmd`, "PUMP OFF"));
 if ($("dev").value) connect();
 </script>
 </body>

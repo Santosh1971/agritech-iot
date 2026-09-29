@@ -93,7 +93,7 @@ details.asks>summary{cursor:pointer;padding:4px 0}
 
   <section class="card" id="panel-ready" role="tabpanel" aria-labelledby="tab-ready">
     <h2>Ready programs</h2>
-    <p style="color:var(--ink-2)">Programs 1–3 need no wiring: they use the ESP32’s blue LED and its <b>BOOT</b> button. Programs 4–7 need a DHT22 sensor: <span class="wire">+ → 3V3 · OUT → GPIO 4 · − → GND</span></p>
+    <p style="color:var(--ink-2)">Programs 1–3 need only the ESP32 DevKit: its blue LED (GPIO 2) and <b>BOOT</b> button (GPIO 0). The workshop kit adds: <span class="wire">DHT22 → D23 · flow sensor → D35 (through the divider) · relay → D19 · clock (RTC) SDA → D21, SCL → D22</span>. Programs 7–9 also work on a bare DevKit: the blue LED plays the pump.</p>
     <div class="progs" id="progs"></div>
   </section>
 
@@ -150,13 +150,15 @@ details.asks>summary{cursor:pointer;padding:4px 0}
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.js";
 
 const PROGRAMS = [
-  { file: "1-blink", name: "1 · Blink", what: "The blue LED blinks every second.", wire: "No wiring" },
-  { file: "2-button-led", name: "2 · Button → LED", what: "Hold the BOOT button: the LED lights up.", wire: "No wiring" },
-  { file: "3-blink-rate", name: "3 · Blink rate", what: "Each press of BOOT makes the LED blink faster.", wire: "No wiring" },
-  { file: "4-temp-humidity", name: "4 · Temperature & humidity", what: "Prints temperature and humidity every 2 seconds.", wire: "DHT22 on GPIO 4" },
-  { file: "5-bluetooth", name: "5 · Bluetooth", what: "Sends readings to the phone app Serial Bluetooth Terminal. Type LED ON / LED OFF in the app.", wire: "DHT22 on GPIO 4" },
-  { file: "6-wifi-softap", name: "6 · WiFi (own network)", what: "Phone joins WiFi FarmIoT-xxxx (12345678) and opens 192.168.4.1.", wire: "DHT22 on GPIO 4" },
-  { file: "7-mqtt", name: "7 · Internet (MQTT)", what: "Readings from anywhere. First set up WiFi from a phone, then open the MQTT viewer page.", wire: "DHT22 on GPIO 4" },
+  { file: "1-blink", name: "1 · Blink", what: "The blue LED blinks every second.", wire: "DevKit only" },
+  { file: "2-button-led", name: "2 · Button → LED", what: "Hold the BOOT button: the LED lights up.", wire: "DevKit only" },
+  { file: "3-blink-rate", name: "3 · Blink speed", what: "Each press of BOOT makes the LED blink faster.", wire: "DevKit only" },
+  { file: "4-temp-humidity", name: "4 · Temperature & humidity", what: "Temperature and humidity every 2 seconds, with the time from the clock (RTC). Type T 2026-10-01 10:30:00 to set the clock.", wire: "DHT22 on D23 · RTC on D21/D22" },
+  { file: "5-flow-meter", name: "5 · Flow meter", what: "Blow into the flow sensor: see litres per minute and total litres.", wire: "Flow sensor on D35" },
+  { file: "6-pump-flow-check", name: "6 · Pump with flow check", what: "BOOT (or typing ON / OFF) switches the pump relay. No flow for 10 seconds: pump stops to protect the motor.", wire: "Relay on D19 · flow sensor on D35" },
+  { file: "7-bluetooth", name: "7 · Bluetooth to the phone", what: "Time, temperature, humidity, flow and pump in the Serial Bluetooth Terminal app. Type PUMP ON / PUMP OFF. On a bare DevKit the blue LED is the pump.", wire: "Everything connected, or DevKit only" },
+  { file: "8-wifi-softap", name: "8 · WiFi dashboard (own network)", what: "Phone joins FarmIoT-xxxx (12345678) and opens 192.168.4.1: live readings, PUMP ON / OFF buttons, set the clock from the phone.", wire: "Everything connected, or DevKit only" },
+  { file: "9-mqtt", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first, then open the MQTT viewer page: readings and pump control over the internet.", wire: "Everything connected, or DevKit only" },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -206,15 +208,17 @@ for (const p of PROGRAMS) {
 
 // Prompts for Claude, in the order of the day. Each starts with the board facts so
 // Claude's code builds on our server (these libraries are installed there).
-const CONTEXT = "I am an agriculture student. I use an ESP32 DevKit (ESP32-WROOM) programmed with the Arduino framework (ESP32 core 3.x). The blue LED is on GPIO 2, the BOOT button is on GPIO 0 (LOW when pressed), and a DHT22 sensor is on GPIO 4. Available libraries: DHTesp (DHT sensor library for ESPx), BluetoothSerial, WiFi, WebServer, WiFiManager, PubSubClient, ArduinoJson. Give me one complete .ino program with setup() and loop(), and print what it is doing on Serial at 115200.\n\n";
+const CONTEXT = "I am an agriculture student. I use an ESP32 DevKit V1 (ESP32-WROOM) programmed with the Arduino framework (ESP32 core 3.x). Pins: blue LED on GPIO 2, BOOT button on GPIO 0 (LOW when pressed), DHT22 sensor on GPIO 23, YF-S201 hall-effect water flow sensor on GPIO 35 (input only, about 450 pulses per litre), relay (the pump) on GPIO 19 (active LOW), real-time clock on I2C SDA GPIO 21 / SCL GPIO 22 (use RTClib's RTC_DS1307 class, it also works with a DS3231). Available libraries: DHTesp (DHT sensor library for ESPx), RTClib, BluetoothSerial, WiFi, WebServer, WiFiManager, PubSubClient, ArduinoJson. Give me one complete .ino program with setup() and loop(), and print what it is doing on Serial at 115200.\n\n";
 const ASKS = [
   ["1 · Blink your way", "Make the blue LED blink twice quickly, then pause for 1 second, again and again."],
   ["2 · Button", "When I press the BOOT button, turn on the blue LED for 3 seconds and print \"Pressed\"."],
   ["3 · Blink speed", "Each press of the BOOT button should change the blink speed: slow, medium, fast, then back to slow. Print the current speed."],
-  ["4 · Temperature & humidity", "Read the DHT22 every 2 seconds and print the temperature and humidity. If humidity is above 80%, turn on the blue LED and print \"High humidity: disease risk\"."],
-  ["5 · Bluetooth to my phone", "Send the temperature and humidity every 2 seconds over classic Bluetooth using BluetoothSerial, with the device name FarmIoT-MyName. When I type LED ON or LED OFF from my phone, switch the blue LED."],
-  ["6 · WiFi page on my phone", "Make the ESP32 create its own WiFi called FarmIoT-MyName with password 12345678, and show a phone-friendly web page at 192.168.4.1 with big temperature and humidity numbers that refresh every 3 seconds, and buttons to switch the blue LED."],
-  ["7 · From anywhere (MQTT)", "Connect to WiFi using WiFiManager (setup network FarmIoT-MyName-setup, password 12345678). Every 5 seconds publish the temperature and humidity as JSON like {\"name\":\"FarmIoT-MyName\",\"t\":28.4,\"h\":61.2} to broker.emqx.io port 1883 on the topic agrisense/workshop/FarmIoT-MyName/data, and switch the blue LED when LED ON or LED OFF arrives on agrisense/workshop/FarmIoT-MyName/cmd. (Then open agrisenseandcontrol.in/workshop/mqtt and type FarmIoT-MyName.)"],
+  ["4 · Temperature, humidity and time", "Every 2 seconds print the time from the clock, the temperature and the humidity. If humidity is above 80%, turn on the blue LED and print \"High humidity: disease risk\"."],
+  ["5 · Water meter", "Count the pulses from the flow sensor and print litres per minute and total litres every second. Turn on the blue LED while water is flowing."],
+  ["6 · Pump that protects itself", "Switch the pump relay on and off with the BOOT button. If no water flows within 10 seconds of switching on, switch the pump off and print \"NO FLOW - pump stopped\". Print the litres used in each run."],
+  ["7 · Bluetooth to my phone", "Every 2 seconds send the time, temperature, humidity, litres per minute and pump state over classic Bluetooth using BluetoothSerial, with the device name FarmIoT-MyName. When I type PUMP ON or PUMP OFF from my phone, switch the relay and the blue LED."],
+  ["8 · WiFi page on my phone", "Make the ESP32 create its own WiFi called FarmIoT-MyName with password 12345678 and show a phone-friendly page at 192.168.4.1 with the time, temperature, humidity, flow and litres, refreshing every 2 seconds, and big PUMP ON and PUMP OFF buttons."],
+  ["9 · From anywhere (MQTT)", "Connect to WiFi using WiFiManager (setup network FarmIoT-MyName-setup, password 12345678). Every 5 seconds publish JSON like {\"name\":\"FarmIoT-MyName\",\"t\":28.4,\"h\":61.2,\"f\":1.5,\"l\":3.2,\"pump\":true} to broker.emqx.io port 1883 on topic agrisense/workshop/FarmIoT-MyName/data, and switch the pump when PUMP ON or PUMP OFF arrives on agrisense/workshop/FarmIoT-MyName/cmd. (Then open agrisenseandcontrol.in/workshop/mqtt and type FarmIoT-MyName.)"],
 ];
 for (const [title, text] of ASKS) {
   const div = document.createElement("div");
