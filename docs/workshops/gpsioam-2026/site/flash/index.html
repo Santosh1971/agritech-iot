@@ -158,7 +158,7 @@ const PROGRAMS = [
   { file: "6-pump-flow-check", name: "6 · Pump with flow check", what: "BOOT (or typing ON / OFF) switches the pump relay. No flow for 10 seconds: pump stops to protect the motor.", wire: "Relay on D19 · flow sensor on D35" },
   { file: "7-bluetooth", name: "7 · Bluetooth to the phone", what: "Time, temperature, humidity, flow and pump in the Serial Bluetooth Terminal app. Type PUMP ON / PUMP OFF. On a bare DevKit the blue LED is the pump.", wire: "Everything connected, or DevKit only" },
   { file: "8-wifi-softap", name: "8 · WiFi dashboard (own network)", what: "Phone joins FarmIoT-xxxx (12345678) and opens 192.168.4.1: live readings, PUMP ON / OFF buttons, set the clock from the phone.", wire: "Everything connected, or DevKit only" },
-  { file: "9-mqtt", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first, then open the MQTT viewer page: readings and pump control over the internet.", wire: "Everything connected, or DevKit only" },
+  { file: "9-mqtt", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first. Then make it your own app at agrisenseandcontrol.in/workshop/app: your app name and icon on your phone, pump control over the internet.", wire: "Everything connected, or DevKit only" },
 ];
 
 const $ = (id) => document.getElementById(id);

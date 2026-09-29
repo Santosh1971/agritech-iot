@@ -3,7 +3,7 @@ import { verifySession } from "@/lib/session";
 
 // "/workshop" is the public student labs page (static files in public/workshop,
 // built by docs/workshops/gpsioam-2026/build_site.py) -- no login needed.
-const PUBLIC_PATHS = ["/login", "/api/auth/request-otp", "/api/auth/verify-otp", "/workshop", "/api/workshop/survey", "/api/workshop/build"];
+const PUBLIC_PATHS = ["/login", "/api/auth/request-otp", "/api/auth/verify-otp", "/workshop", "/api/workshop/survey", "/api/workshop/build", "/api/workshop/manifest"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

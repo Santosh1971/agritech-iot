@@ -30,7 +30,8 @@ const GROUPS: Group[] = [
     name: "Hands-on tools",
     topics: [
       { id: "flash", title: "ESP32 flasher", note: "Ready programs + build from Claude", kind: "page", href: "/workshop/flash" },
-      { id: "mqtt", title: "MQTT live viewer", note: "Program 7 from anywhere", kind: "page", href: "/workshop/mqtt" },
+      { id: "mqtt", title: "MQTT live viewer", note: "Program 9 from anywhere", kind: "page", href: "/workshop/mqtt" },
+      { id: "app-maker", title: "Make my farm app", note: "Students name and install their own app", kind: "page", href: "/workshop/app" },
       { id: "lab-students", title: "IoT lab idea: student version", note: "No costs · for the 16:00 session", kind: "page", href: "/workshop/lab" },
     ],
   },
