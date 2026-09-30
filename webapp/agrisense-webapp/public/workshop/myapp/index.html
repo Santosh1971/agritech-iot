@@ -69,13 +69,20 @@ canvas{width:100%;height:120px;display:block}
 .install button{background:var(--accent);font-size:1rem;padding:12px}
 .foot{font-size:.78rem;color:var(--ink-2);text-align:center}
 .setup{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px}
+.devbtn{font:inherit;font-size:.9rem;background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:8px;padding:3px 10px;margin-top:3px;cursor:pointer}
+.devlist{display:flex;flex-wrap:wrap;gap:8px}
+.devlist span{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.devlist span.cur{border-color:var(--accent)}
+.devlist button{background:transparent;color:var(--ink);font-size:.95rem;padding:8px 12px;border-radius:0}
+.devlist span.cur button:first-child{background:var(--accent);color:#fff}
+.devlist button.x{padding:8px 10px;color:var(--ink-2)}
 .setup input{font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="top">
   <div class="avatar" id="avatar">F</div>
-  <div><h1 id="appname">My Farm App</h1><small id="devname">—</small></div>
+  <div><h1 id="appname">My Farm App</h1><button type="button" class="devbtn" id="devname">Choose device ▾</button></div>
   <span class="chip" id="status">Connecting…</span>
 </div>
 
@@ -88,9 +95,10 @@ canvas{width:100%;height:120px;display:block}
 
   <div class="setup" id="setup" hidden>
     <b>Which device?</b>
-    <span class="msg">Type your ESP32’s name from the serial monitor, like FarmIoT-E0E3.</span>
+    <div class="devlist" id="devlist"></div>
+    <span class="msg">Add a device: type its name from the serial monitor, like FarmIoT-E0E3.</span>
     <input id="devinput" placeholder="FarmIoT-XXXX" autocomplete="off">
-    <button type="button" id="devsave" style="background:var(--accent)">Connect</button>
+    <button type="button" id="devsave" style="background:var(--accent)">Add and connect</button>
   </div>
 
   <div class="grid">
@@ -137,16 +145,37 @@ canvas{width:100%;height:120px;display:block}
   window.addEventListener("appinstalled", function () { $("install").classList.remove("show"); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/workshop/myapp/sw.js", { scope: "/workshop/myapp/" }).catch(function () {});
 
-  // Device name: from the link, or ask once and remember
-  var dev = A.device;
-  try { if (!dev) dev = localStorage.getItem("myapp-dev-" + A.name) || ""; } catch (e) {}
-  if (!/^FarmIoT-[0-9A-F]{4}$/.test(dev)) { $("setup").hidden = false; $("status").textContent = "No device"; }
+  // Devices: the one in the link plus any added in the app. The last one chosen is remembered.
+  var OK = /^FarmIoT-[0-9A-F]{4}$/, KEY = "myapp-dev-" + A.name, LIST = "myapp-devs-" + A.name;
+  var dev = "", devs = [];
+  try { dev = localStorage.getItem(KEY) || ""; devs = JSON.parse(localStorage.getItem(LIST) || "[]"); } catch (e) {}
+  if (!OK.test(dev)) dev = A.device;
+  devs = [A.device, dev].concat(devs).filter(function (d, i, a) { return OK.test(d) && a.indexOf(d) === i; });
+  function save() { try { localStorage.setItem(KEY, dev); localStorage.setItem(LIST, JSON.stringify(devs)); } catch (e) {} }
+  function showList() {
+    var box = $("devlist"); box.textContent = "";
+    devs.forEach(function (d) {
+      var s = document.createElement("span"), b = document.createElement("button"), x = document.createElement("button");
+      if (d === dev) s.className = "cur";
+      b.type = x.type = "button"; b.textContent = d; x.textContent = "×"; x.className = "x"; x.title = "Remove " + d;
+      b.addEventListener("click", function () { choose(d); });
+      x.addEventListener("click", function () { devs = devs.filter(function (v) { return v !== d; }); if (d === dev) dev = devs[0] || ""; save(); showList(); if (dev) choose(dev, true); });
+      s.appendChild(b); s.appendChild(x); box.appendChild(s);
+    });
+  }
+  function choose(d, keepOpen) {
+    if (devs.indexOf(d) < 0) devs.push(d);
+    var changed = d !== dev || !client; dev = d; save(); showList();
+    if (!keepOpen) $("setup").hidden = true;
+    if (changed) start();
+  }
+  $("devname").addEventListener("click", function () { showList(); $("setup").hidden = !$("setup").hidden; $("devinput").value = ""; });
   $("devsave").addEventListener("click", function () {
     var v = "FarmIoT-" + $("devinput").value.trim().replace(/^farmiot-?/i, "").toUpperCase();
-    if (!/^FarmIoT-[0-9A-F]{4}$/.test(v)) { $("devinput").focus(); return; }
-    try { localStorage.setItem("myapp-dev-" + A.name, v); } catch (e) {}
-    dev = v; $("setup").hidden = true; start();
+    if (!OK.test(v)) { $("devinput").focus(); return; }
+    $("devinput").value = ""; choose(v);
   });
+  if (!OK.test(dev)) { $("setup").hidden = false; $("status").textContent = "No device"; }
 
   var hist = [];
   function draw() {
@@ -169,17 +198,28 @@ canvas{width:100%;height:120px;display:block}
     line("h", "#2466A8", 0, 100);
   }
 
-  var client;
+  var client, quiet;
+  // The board sends a reading every 5 s; no reading for 20 s means it is off.
+  function setOnline(on) { $("status").textContent = on ? "Online" : "Offline"; $("status").classList.toggle("on", on); }
   function start() {
-    $("devname").textContent = dev;
-    client = mqtt.connect("wss://broker.emqx.io:8084/mqtt");
-    client.on("connect", function () { client.subscribe("agrisense/workshop/" + dev + "/#"); $("status").textContent = "Waiting…"; });
-    client.on("close", function () { $("status").textContent = "Reconnecting…"; $("status").classList.remove("on"); });
-    client.on("message", function (topic, payload) {
+    clearTimeout(quiet);
+    if (client) client.end(true);
+    $("devname").textContent = dev + " ▾";
+    ["t", "h", "f", "l", "pump"].forEach(function (k) { $(k).textContent = "--"; });
+    $("pumpdot").classList.remove("on"); $("msg").textContent = ""; $("when").textContent = "";
+    $("status").textContent = "Connecting…"; $("status").classList.remove("on");
+    hist = []; draw();
+    var c = client = mqtt.connect("wss://broker.emqx.io:8084/mqtt");
+    var me = dev;
+    c.on("connect", function () { c.subscribe("agrisense/workshop/" + me + "/#"); $("status").textContent = "Waiting…"; });
+    c.on("close", function () { if (c !== client) return; $("status").textContent = "Reconnecting…"; $("status").classList.remove("on"); });
+    c.on("message", function (topic, payload) {
+      if (c !== client) return;
       var text = payload.toString();
-      if (/\/status$/.test(topic)) { $("status").textContent = text === "online" ? "Online" : "Offline"; $("status").classList.toggle("on", text === "online"); }
+      if (/\/status$/.test(topic)) setOnline(text === "online");
       if (/\/data$/.test(topic)) {
         try {
+          setOnline(true); clearTimeout(quiet); quiet = setTimeout(function () { if (c === client) setOnline(false); }, 20000);
           var r = JSON.parse(text);
           ["t", "h", "f", "l"].forEach(function (k) { $(k).textContent = r[k] == null ? "--" : r[k]; });
           var on = r.pump === true;
@@ -195,7 +235,7 @@ canvas{width:100%;height:120px;display:block}
   function send(cmd) { if (client && dev) client.publish("agrisense/workshop/" + dev + "/cmd", cmd); $("msg").textContent = "Sent: " + cmd; }
   $("on").addEventListener("click", function () { send("PUMP ON"); });
   $("off").addEventListener("click", function () { send("PUMP OFF"); });
-  if (/^FarmIoT-[0-9A-F]{4}$/.test(dev)) start();
+  if (OK.test(dev)) { save(); start(); }
   draw();
 })();
 </script>
