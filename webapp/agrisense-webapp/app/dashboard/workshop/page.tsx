@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/session";
 import WorkshopLibrary from "./WorkshopLibrary";
 
-export const metadata = { title: "Workshop library · Agri Sense and Control" };
+export const metadata = { title: "Workshop library · Agri Sensors and Controls" };
 
 export default async function WorkshopLibraryPage() {
   const token = (await cookies()).get("agrisense_session")?.value;

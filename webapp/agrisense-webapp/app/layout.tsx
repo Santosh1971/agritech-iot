@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Agri Sense and Control",
+  title: "Agri Sensors and Controls",
   description: "Device monitoring & control for AgriTech IoT products",
 };
 

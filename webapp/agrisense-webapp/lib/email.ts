@@ -12,7 +12,7 @@ export async function sendOtpEmail(email: string, code: string): Promise<void> {
   await resend.emails.send({
     from,
     to: email,
-    subject: "Your Agri Sense and Control login code",
+    subject: "Your Agri Sensors and Controls login code",
     html: `
       <div style="font-family: sans-serif; padding: 20px;">
         <h2>Your login code</h2>

@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
-      <h1>Agri Sense and Control</h1>
+      <h1>Agri Sensors and Controls</h1>
 
       {step === "email" && (
         <>

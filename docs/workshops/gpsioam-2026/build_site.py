@@ -115,8 +115,8 @@ def lab_section(info):
 
 
 PRACTICAL_LANGS = {
-    "hi": ("फ़ार्म IoT प्रैक्टिकल · AgriSense and Control", "Noto Sans Devanagari"),
-    "kn": ("ಕೃಷಿ IoT ಪ್ರಾಯೋಗಿಕ · AgriSense and Control", "Noto Sans Kannada"),
+    "hi": ("फ़ार्म IoT प्रैक्टिकल · Agri Sensors and Controls", "Noto Sans Devanagari"),
+    "kn": ("ಕೃಷಿ IoT ಪ್ರಾಯೋಗಿಕ · Agri Sensors and Controls", "Noto Sans Kannada"),
 }
 
 
@@ -153,7 +153,7 @@ def build():
                  f'--mono:"JetBrains Mono","{font}",ui-monospace,monospace}}'
                  f'.prompt{{font-family:var(--body);font-size:.9rem}}</style>\n')
         page_l = (head.replace('<html lang="en">', f'<html lang="{lang}">')
-                      .replace("<title>Farm IoT Practical · AgriSense and Control</title>", f"<title>{title}</title>")
+                      .replace("<title>Farm IoT Practical · Agri Sensors and Controls</title>", f"<title>{title}</title>")
                       .replace("</head>", fonts + "</head>")
                   + (HERE / "practical" / f"body.{lang}.html").read_text() + "\n" + script)
         (SITE / "practical" / lang).mkdir()
