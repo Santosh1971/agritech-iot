@@ -1,59 +1,73 @@
 #include "WiFiScanner.h"
 #include <ArduinoJson.h>
+#include <esp_wifi.h>
 
 void WiFiScanner::startScan() {
     Serial.println("[WiFi] Scanning networks (async)...");
     _lastFound = WIFI_SCAN_RUNNING;
     _retries = 0;
+    _zeroRetried = false;
+    _restartAt = 0;
+    _begin();
+}
+
+void WiFiScanner::_begin() {
     _scanStartMillis = millis();
     // Default per-channel dwell (~120ms) is often too short to catch
-    // other APs' beacon frames while concurrently running our own
-    // SoftAP — confirmed on real hardware (scan technically succeeded
-    // but consistently found 0 networks). Explicit params: async=true,
-    // show_hidden=false, passive=false (active probe — faster and more
-    // reliable than passive for this case), max_ms_per_chan=500 (up
-    // from the ~120ms default).
-    WiFi.scanNetworks(true, false, false, 500);
+    // other APs' beacons while concurrently running our own SoftAP
+    // (confirmed: consistently 0 networks). 500ms made each scan run
+    // right into the core's 10s timeout (see WiFiScanner.h); 300ms
+    // keeps the longer dwell with the scan finishing in ~5s.
+    // Params: async, no hidden, active probe, ms per channel.
+    int16_t r = WiFi.scanNetworks(true, false, false, SCAN_MS_PER_CHAN);
+    _startRejected = (r == WIFI_SCAN_FAILED);
+    if (_startRejected) Serial.println("[WiFi] Driver rejected scan start");
 }
 
 bool WiFiScanner::checkComplete() {
-    int result = WiFi.scanComplete();
+    if (_restartAt) {
+        if ((int32_t)(millis() - _restartAt) < 0) return false;
+        _restartAt = 0;
+        WiFi.scanDelete();  // drop the aborted scan's SCAN_DONE
+        _begin();
+        return false;
+    }
 
-    if (result == WIFI_SCAN_RUNNING) {
-        // Confirmed live: with STA already connected to a router, the
-        // driver can sit in WIFI_SCAN_RUNNING forever and never report
-        // FAILED either — this hard ceiling is what actually bounds
-        // that case, since the retry logic below only ever triggers on
-        // an explicit FAILED result.
-        if (millis() - _scanStartMillis > MAX_SCAN_MS) {
-            Serial.println("[WiFi] Scan stuck RUNNING past the time limit — aborting");
+    int result = WiFi.scanComplete();
+    uint32_t elapsed = millis() - _scanStartMillis;
+
+    if (result >= 0) {
+        // A genuine 0 is rare (the Mac next to the bench alone sees a
+        // dozen APs) — one quiet re-scan is cheap insurance.
+        if (result == 0 && !_zeroRetried) {
+            _zeroRetried = true;
+            Serial.println("[WiFi] Scan found 0 networks — rescanning once");
             WiFi.scanDelete();
-            _lastFound = WIFI_SCAN_FAILED;
-            return true;
+            _begin();
+            return false;
         }
         _lastFound = result;
-        return false;
+        return true;
     }
 
-    if (result == WIFI_SCAN_FAILED && _retries < MAX_RETRIES) {
+    // RUNNING, or FAILED from the core's own timeout while the driver is
+    // actually still scanning — keep waiting either way. Exception: the
+    // driver refused to start at all, so there's nothing to wait for.
+    uint32_t limit = _startRejected ? REJECTED_RETRY_MS : MAX_SCAN_MS;
+    if (elapsed < limit) return false;
+
+    if (!_startRejected) {
+        Serial.println("[WiFi] Scan did not finish in time — stopping it");
+        esp_wifi_scan_stop();
+    }
+    if (_retries < MAX_RETRIES) {
         _retries++;
-        Serial.printf("[WiFi] Scan failed — retrying (%d/%d)...\n", _retries, MAX_RETRIES);
-        // Bug fix: this used to retry with WiFi.scanNetworks(true) —
-        // bare defaults, NOT the tuned params startScan() uses. The
-        // whole reason for those params (500ms/channel dwell) is that
-        // the default is too short under concurrent AP+STA; retrying
-        // with the untuned default undermined the retry's own purpose,
-        // and confirmed live: every retry failed the same way the
-        // original attempt did.
-        WiFi.scanNetworks(true, false, false, 500);
-        _lastFound = WIFI_SCAN_RUNNING;
-        _scanStartMillis = millis();  // ceiling above applies per-attempt, not cumulatively
+        Serial.printf("[WiFi] Retrying scan (%d/%d)...\n", _retries, MAX_RETRIES);
+        _restartAt = millis() + RESTART_DELAY_MS;
         return false;
     }
-
-    // Either a real result (>=0) or we've exhausted retries on repeated
-    // failure — either way, this is final.
-    _lastFound = result;
+    WiFi.scanDelete();
+    _lastFound = WIFI_SCAN_FAILED;
     return true;
 }
 

@@ -26,15 +26,34 @@
 // only fires on an explicit FAILED result. _maxScanMillis below is a
 // hard ceiling so a scan can never hang the wifi_scan feature
 // indefinitely regardless of why the driver never resolves it.
+//
+// v2 (confirmed on the bench, 30 Sep 2026): the core's scanComplete()
+// reports WIFI_SCAN_FAILED once 20 x max_ms_per_chan has passed — a
+// fixed guess, NOT the driver's verdict. Under AP+STA with a phone on
+// the SoftAP a real scan runs right up to (or past) that guess, so
+// "failed" usually meant "still scanning". The old retry then started
+// a new scan on top of it, which aborts the running one and posts a
+// bogus SCAN_DONE with 0 results — exactly the "Scan failed — retrying
+// (1/5)... Scan found 0 networks" pair seen in the log. Now a FAILED
+// from the core is treated as "keep waiting" until our own ceiling;
+// only then is the driver scan explicitly stopped, and the retry is
+// delayed so the stop's own SCAN_DONE can't be mistaken for a result.
 class WiFiScanner {
 public:
     void   startScan();
     bool   checkComplete();
     String resultAsJson();
 private:
+    void _begin();
     int _lastFound = WIFI_SCAN_RUNNING;
     int _retries = 0;
+    bool _zeroRetried = false;
+    bool _startRejected = false;
     uint32_t _scanStartMillis = 0;
-    static const int MAX_RETRIES = 5;
-    static constexpr uint32_t MAX_SCAN_MS = 12000;
+    uint32_t _restartAt = 0;          // non-zero = stopped, waiting to restart
+    static const int MAX_RETRIES = 2;
+    static constexpr uint32_t SCAN_MS_PER_CHAN = 300;  // core's own timeout = 20x this = 6s
+    static constexpr uint32_t MAX_SCAN_MS = 15000;     // our ceiling per attempt
+    static constexpr uint32_t REJECTED_RETRY_MS = 1000;
+    static constexpr uint32_t RESTART_DELAY_MS = 500;
 };
