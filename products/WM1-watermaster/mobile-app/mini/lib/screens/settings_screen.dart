@@ -50,8 +50,17 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Target Device (Cloud mode)',
               subtitle: deviceSuffix.isEmpty ? 'Not set — Cloud mode won\'t reach any device' : 'Talking to device WM1_$deviceSuffix',
               onTap: () {
+                // Local is connected only while the picker is open (so it
+                // can offer the locally-connected device) — in Cloud mode,
+                // stop it again afterwards and connect the MQTT service,
+                // which is a fresh, unconnected instance if the suffix changed.
                 ref.read(localServiceProvider).connect();
-                _showDeviceSuffixDialog(context, ref, deviceSuffix);
+                _showDeviceSuffixDialog(context, ref, deviceSuffix).then((_) {
+                  if (ref.read(transportModeProvider) == TransportMode.cloud) {
+                    ref.read(localServiceProvider).disconnect();
+                    ref.read(deviceServiceProvider).connect();
+                  }
+                });
               },
             ),
           ]),
@@ -65,7 +74,6 @@ class SettingsScreen extends ConsumerWidget {
               selected: mode == TransportMode.local,
               onTap: () async {
                 await ref.read(transportModeProvider.notifier).setMode(TransportMode.local);
-                await ref.read(deviceServiceProvider).connect();
               },
             ),
             _ModeTile(
@@ -76,7 +84,6 @@ class SettingsScreen extends ConsumerWidget {
               selected: mode == TransportMode.cloud,
               onTap: () async {
                 await ref.read(transportModeProvider.notifier).setMode(TransportMode.cloud);
-                await ref.read(deviceServiceProvider).connect();
               },
             ),
           ]),
@@ -220,9 +227,9 @@ class _InfoTile extends StatelessWidget {
       );
 }
 
-void _showDeviceSuffixDialog(BuildContext context, WidgetRef ref, String current) {
+Future<void> _showDeviceSuffixDialog(BuildContext context, WidgetRef ref, String current) {
   final ctrl = TextEditingController(text: current);
-  showDialog(
+  return showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Target Device'),

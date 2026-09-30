@@ -148,6 +148,16 @@ class TransportModeNotifier extends StateNotifier<TransportMode> {
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_transportPrefsKey, mode == TransportMode.cloud ? 'cloud' : 'local');
+    // Stop the transport we're leaving BEFORE starting the new one —
+    // left running, its retry loop fights the new one over the
+    // process-wide WiFi binding (MQTT unbinds, Local re-binds), which
+    // is why a mid-session mode/network switch only ever worked after
+    // restarting the app.
+    if (mode == TransportMode.cloud) {
+      ref.read(localServiceProvider).disconnect();
+    } else {
+      ref.read(mqttServiceProvider).disconnect();
+    }
     ref.read(deviceServiceProvider).connect();
   }
 }

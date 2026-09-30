@@ -19,6 +19,14 @@ abstract class DeviceService {
 
   Future<bool> connect();
 
+  /// Stops this transport entirely: closes the connection AND its
+  /// background auto-retry loop, until the next connect(). Called on
+  /// whichever transport is NOT the active mode — both services touch
+  /// the process-wide network binding (Local binds to WiFi, Cloud
+  /// unbinds), so an inactive one left retrying in the background
+  /// undoes the active one's binding every few seconds.
+  void disconnect();
+
   void manualSet(String channel, bool state); // channel: "dosing"|"valve1".."valve4"
   void triggerProgram(int programId, int seqIndex);
   void forceStop();

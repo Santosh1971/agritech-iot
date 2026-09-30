@@ -45,6 +45,12 @@ class MqttService implements DeviceService {
 
   MqttServerClient? _client;
   bool _isConnecting = false;
+  // False after disconnect() (the app switched to Local mode) — stops
+  // the retry loop, whose every attempt calls NetworkBinding.unbind()
+  // and would otherwise keep yanking Local mode off the SoftAP.
+  bool _active = false;
+  Timer? _retryTimer;
+  static const Duration _retryDelay = Duration(seconds: 5);
 
   final _statusController = StreamController<DeviceStatus>.broadcast();
   final _programsController = StreamController<List<Program>>.broadcast();
@@ -71,9 +77,53 @@ class MqttService implements DeviceService {
 
   @override
   Future<bool> connect() async {
+    _active = true;
+    _retryTimer?.cancel();
+    if (isConnected) return true;
     if (_isConnecting) return false;
     _isConnecting = true;
+    var ok = false;
+    try {
+      ok = await _connectOnce();
+    } catch (e) {
+      print('[MQTT] Connect error: $e');
+    } finally {
+      _isConnecting = false;
+    }
+    if (ok && !_active) {
+      // Switched back to Local while this attempt was in flight.
+      try { _client?.disconnect(); } catch (_) {}
+      return false;
+    }
+    if (!ok) {
+      _connectedController.add(false);
+      // Bug fix: a FAILED connect never retried — only a drop after a
+      // successful connect did (_onDisconnected). Switching to Cloud
+      // while the phone was still on the device's no-internet SoftAP
+      // therefore stayed dead even after moving the phone to home WiFi,
+      // until the app was restarted.
+      _scheduleRetry();
+    }
+    return ok;
+  }
 
+  @override
+  void disconnect() {
+    _active = false;
+    _retryTimer?.cancel();
+    try { _client?.disconnect(); } catch (_) {}
+    _connectedController.add(false);
+  }
+
+  void _scheduleRetry() {
+    if (!_active) return;
+    _retryTimer?.cancel();
+    _retryTimer = Timer(_retryDelay, () {
+      if (_active && !isConnected) connect();
+    });
+  }
+
+  Future<bool> _connectOnce() async {
     // Undo Local mode's WiFi-only network binding, if any — Cloud mode
     // needs a network that actually has internet, and staying bound to
     // a no-internet SoftAP would strand this connection attempt exactly
@@ -102,20 +152,14 @@ class MqttService implements DeviceService {
       await _client!.connect();
     } on SocketException catch (e) {
       print('[MQTT] Socket error: $e');
-      _isConnecting = false;
-      _connectedController.add(false);
       return false;
     } catch (e) {
       print('[MQTT] Connect error: $e');
-      _isConnecting = false;
-      _connectedController.add(false);
       return false;
     }
 
     if (_client!.connectionStatus!.state != MqttConnectionState.connected) {
       print('[MQTT] Not connected: ${_client!.connectionStatus!.returnCode}');
-      _isConnecting = false;
-      _connectedController.add(false);
       return false;
     }
 
@@ -138,7 +182,6 @@ class MqttService implements DeviceService {
       }
     }, onError: (e) => print('[MQTT] Stream error: $e'), cancelOnError: false);
 
-    _isConnecting = false;
     _connectedController.add(true);
     // Bug fix: programs/library only ever populated if whichever screen
     // needs them happened to be freshly (re)mounted after connecting —
@@ -247,16 +290,17 @@ class MqttService implements DeviceService {
 
   void _onConnected() => _connectedController.add(true);
   void _onDisconnected() {
-    print('[MQTT] Disconnected — retrying in 5s');
     _connectedController.add(false);
     _deviceOnlineController.add(false);
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!isConnected) connect();
-    });
+    if (!_active) return; // disconnect() — Local mode is active now
+    print('[MQTT] Disconnected — retrying in ${_retryDelay.inSeconds}s');
+    _scheduleRetry();
   }
 
   @override
   void dispose() {
+    _active = false;
+    _retryTimer?.cancel();
     _statusController.close();
     _programsController.close();
     _libraryController.close();

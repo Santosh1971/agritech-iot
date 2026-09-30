@@ -98,7 +98,8 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
     // Firmware retries internally on a failed scan; if nothing comes
     // back at all within a generous window, stop spinning rather than
     // leaving the user staring at a spinner forever.
-    Future.delayed(const Duration(seconds: 12), () {
+    // ~7s per scan attempt, plus up to 2 firmware-side retries.
+    Future.delayed(const Duration(seconds: 25), () {
       if (mounted && _scanning) setState(() => _scanning = false);
     });
   }

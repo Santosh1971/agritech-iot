@@ -43,6 +43,14 @@ class LocalService implements DeviceService {
   StreamSubscription? _sub;
   bool _connected = false;
   bool _disposed = false;
+  // False after disconnect() (the app switched to Cloud mode) — stops
+  // the auto-retry loop from re-binding the process to WiFi behind
+  // MqttService's back. connect() turns it back on.
+  bool _active = false;
+  // Guards against overlapping attempts (auto-retry + Retry button +
+  // mode switch) — a second attempt used to close the first one's
+  // socket mid-handshake.
+  bool _connecting = false;
   Timer? _reconnectTimer;
   Timer? _livenessTimer;
   DateTime? _lastMessageAt;
@@ -110,9 +118,27 @@ class LocalService implements DeviceService {
   /// loop is trying again".
   Future<bool> retryNow() => _connectInternal();
 
+  @override
+  void disconnect() {
+    _active = false;
+    _reconnectTimer?.cancel();
+    _livenessTimer?.cancel();
+    _sub?.cancel();
+    try { _channel?.sink.close(); } catch (_) {}
+    _channel = null;
+    if (_connected) {
+      _connected = false;
+      _connectedController.add(false);
+    }
+    _log('Stopped (Cloud mode active)');
+  }
+
   Future<bool> _connectInternal() async {
+    _active = true;
     _reconnectTimer?.cancel();
     if (_connected && _channel != null) return true;
+    if (_connecting) return false;
+    _connecting = true;
 
     try { await _channel?.sink.close(); } catch (_) {}
     _sub?.cancel();
@@ -149,6 +175,12 @@ class LocalService implements DeviceService {
       // This is the actual fix: wait for the real handshake to complete
       // (or fail/time out) before believing we're connected at all.
       await channel.ready.timeout(_handshakeTimeout);
+
+      // Switched to Cloud while this attempt was in flight.
+      if (!_active) {
+        try { await channel.sink.close(); } catch (_) {}
+        return false;
+      }
 
       _sub = channel.stream.listen(
         _handleMessage,
@@ -193,6 +225,7 @@ class LocalService implements DeviceService {
       _connectedController.add(false);
       return false;
     } finally {
+      _connecting = false;
       if (!_connected) _scheduleReconnect();
     }
   }
@@ -215,10 +248,10 @@ class LocalService implements DeviceService {
   }
 
   void _scheduleReconnect() {
-    if (_disposed) return;
+    if (_disposed || !_active) return;
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(_reconnectDelay, () {
-      if (!_disposed && !_connected) connect();
+      if (!_disposed && _active && !_connected) connect();
     });
   }
 
