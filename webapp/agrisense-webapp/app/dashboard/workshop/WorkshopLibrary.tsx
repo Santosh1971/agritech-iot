@@ -54,6 +54,7 @@ const GROUPS: Group[] = [
       { id: "plan", title: "Workshop plan & prep board", kind: "external", href: "https://claude.ai/artifact/LxUjbPrZEWeVsqq9KVibsr" },
       { id: "deck", title: "Talk slides", kind: "external", href: "https://claude.ai/artifact/Xkw873R9jmvASsLWURGwYk" },
       { id: "call-sheet", title: "Student call sheet", kind: "external", href: "https://claude.ai/artifact/Xy15bscG74huzeVMJoM54j" },
+      { id: "talk-notes", title: "Talk notes: business + temperature & humidity", note: "For the 10:15 and 10:45 sessions", kind: "external", href: "https://claude.ai/artifact/2LuQ5jgcEgebvCFSXbNSYx" },
       { id: "lab-proposal", title: "Agri IoT lab proposal", note: "Full draft with costs · for management", kind: "external", href: "https://claude.ai/artifact/TKMa2XFG7c795dvSFcipBE" },
     ],
   },
