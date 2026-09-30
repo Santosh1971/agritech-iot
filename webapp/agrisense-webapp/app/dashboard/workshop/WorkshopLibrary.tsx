@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
     name: "GPSIOAM workshop · 1 Oct 2026",
     topics: [
       { id: "overview", title: "Workshop overview (AGR 322)", note: "Shared with the professor", kind: "page", href: "/workshop/agr322" },
+      { id: "facilitators", title: "Meet your facilitators", note: "Bios + host introductions", kind: "page", href: "/workshop/facilitators" },
       { id: "practical", title: "Practical session (earlier plan)", note: "English", kind: "page", href: "/workshop/practical" },
       { id: "practical-kn", title: "Practical session (earlier plan)", note: "ಕನ್ನಡ", kind: "page", href: "/workshop/practical/kn" },
       { id: "practical-hi", title: "Practical session (earlier plan)", note: "हिंदी", kind: "page", href: "/workshop/practical/hi" },
