@@ -176,8 +176,7 @@ def build():
     shutil.copy(HERE / "app" / "index.html", SITE / "app" / "index.html")
     shutil.copytree(HERE / "myapp", SITE / "myapp")
     # Facilitator bios for the college (unlisted, noindex).
-    (SITE / "facilitators").mkdir()
-    shutil.copy(HERE / "facilitators" / "index.html", SITE / "facilitators" / "index.html")
+    shutil.copytree(HERE / "facilitators", SITE / "facilitators")
     # Lab Station history graph (public, read-only).
     (SITE / "station").mkdir()
     shutil.copy(HERE / "station" / "index.html", SITE / "station" / "index.html")

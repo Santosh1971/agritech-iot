@@ -28,7 +28,7 @@ main{display:grid;gap:40px;margin-top:30px}
 .people{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:18px;align-items:start}
 .person{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;display:grid;gap:14px;align-content:start}
 .id{display:flex;gap:14px;align-items:center}
-.mono{width:62px;height:62px;border-radius:16px;background:var(--mask);color:var(--mask-ink);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1.5rem;flex:0 0 auto}
+.photo{width:96px;height:96px;border-radius:18px;object-fit:cover;flex:0 0 auto;border:3px solid var(--panel-2);background:var(--panel-2)}
 .person h2{font-size:1.55rem;font-weight:800}
 .role{font-weight:700;color:var(--mask)}
 .meta{font-size:.92rem;color:var(--ink-2)}
@@ -67,7 +67,7 @@ footer{margin-top:52px;padding-top:16px;border-top:2px solid var(--ink);font-siz
 <main>
 <section class="people">
   <article class="person" id="avinash">
-    <div class="id"><div class="mono" aria-hidden="true">AJ</div>
+    <div class="id"><img class="photo" src="/workshop/facilitators/avinash.jpg" alt="Avinash Jha" width="96" height="96">
       <div><h2>Avinash Jha</h2><div class="role">CEO, Agri Sensors and Controls</div><div class="meta">IoT engineer · 5+ years in connected devices</div></div></div>
     <p class="about">Avinash has built, tested and deployed connected devices from the circuit board to the customer’s site. He brings a practical view of how sensors, wireless modules, cloud platforms and mobile apps come together in a working IoT system, and of what it takes to install and support these systems for real users.</p>
     <h3 class="sub">Career</h3>
@@ -82,7 +82,7 @@ footer{margin-top:52px;padding-top:16px;border-top:2px solid var(--ink);font-siz
   </article>
 
   <article class="person" id="santosh">
-    <div class="id"><div class="mono" aria-hidden="true">SJ</div>
+    <div class="id"><img class="photo" src="/workshop/facilitators/santosh.jpg" alt="Santosh Kumar Jha" width="96" height="96">
       <div><h2>Santosh Kumar Jha</h2><div class="role">CTO, Agri Sensors and Controls</div><div class="meta">Electronics engineer · 30+ years in embedded systems, IoT and telematics</div></div></div>
     <p class="about">Santosh has spent three decades building embedded and connected systems, from defence electronics to vehicle telematics, and since 2015 has applied that experience to farming. He designs the hardware, firmware and mobile apps of Agri Sensors and Controls’s products, and takes them from a farmer’s problem through manufacturing to the field.</p>
     <h3 class="sub">Career</h3>
