@@ -4,11 +4,19 @@ import { verifySession } from "@/lib/session";
 // "/workshop" is the public student labs page (static files in public/workshop,
 // built by docs/workshops/gpsioam-2026/build_site.py) -- no login needed.
 const PUBLIC_PATHS = ["/login", "/api/auth/request-otp", "/api/auth/verify-otp", "/workshop", "/api/workshop/survey", "/api/workshop/build", "/api/workshop/manifest", "/api/lab/"];
+// The public company website (app/(site)) and its images. "/" is matched
+// exactly, since every path starts with "/".
+const SITE_PATHS = ["/products", "/education", "/about", "/contact", "/api/contact", "/brand/"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next")) {
+  if (
+    pathname === "/" ||
+    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
+    SITE_PATHS.some((p) => pathname.startsWith(p)) ||
+    pathname.startsWith("/_next")
+  ) {
     return NextResponse.next();
   }
 
