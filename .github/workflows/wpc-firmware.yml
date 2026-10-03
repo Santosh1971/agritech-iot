@@ -3,9 +3,21 @@ name: WPC firmware — build and upload
 # master_node and pump_node are separate PlatformIO projects (not just
 # different environments of one project, unlike FG1's DS3231/DS1307 split),
 # so this matrixes over directories instead.
+#
+# A push to main uploads a dev-<shortsha> build (never shown to a non-admin
+# flasher grantee, see the backend's /api/flasher/builds). Pushing a tag
+# matching wpc-v* instead cuts a real, dealer-visible release: the version
+# uploaded is the tag with the "wpc-v" prefix stripped (e.g. tag "wpc-v0.4.2"
+# -> version "0.4.2"), and FIRMWARE_VERSION_OVERRIDE is set to that same
+# string either way, so the boot log / /status JSON always matches what the
+# dashboard shows, whether or not main.cpp's own hand-set FW_VERSION was
+# bumped to match (see scripts/inject_firmware_version.py). Both triggers
+# also upload bootloader.bin and partitions.bin (not just the app), so the
+# NB Agri Flasher's admin-only full-flash path works on a blank chip too.
 on:
   push:
     branches: [main]
+    tags: ["wpc-v*"]
     paths:
       - "products/WPC-pumpcontroller/firmware/master_node/**"
       - "products/WPC-pumpcontroller/firmware/pump_node/**"
@@ -32,8 +44,19 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == wpc-v* ]]; then
+            echo "value=${GITHUB_REF_NAME#wpc-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build (${{ matrix.variant }})
         working-directory: ${{ matrix.dir }}
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
         run: pio run -e esp32dev
 
       - name: Upload to NB Agri Flasher
@@ -41,11 +64,12 @@ jobs:
         env:
           CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
           curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
             -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
             -F "product=WPC" \
-            -F "version=dev-${SHORT_SHA}" \
+            -F "version=${{ steps.version.outputs.value }}" \
             -F "variant=${{ matrix.variant }}" \
-            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
-            -F "file=@.pio/build/esp32dev/firmware.bin;type=application/octet-stream"
+            -F "notes=Built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@.pio/build/esp32dev/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@.pio/build/esp32dev/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@.pio/build/esp32dev/partitions.bin;type=application/octet-stream"
