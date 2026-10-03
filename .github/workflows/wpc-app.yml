@@ -30,7 +30,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Pinned, not "channel: stable" -- the project's Gradle wrapper
+          # (android/gradle/wrapper/gradle-wrapper.properties) is 8.3.0, and
+          # current Flutter stable (3.47+) requires Gradle >= 8.14.0 and
+          # fails outright ("your project's Gradle version is lower than
+          # Flutter's minimum supported version"). 3.27.4 is the version
+          # already proven to build this app (same one used for every local
+          # build so far this project).
+          flutter-version: "3.27.4"
           cache: true
 
       - uses: actions/setup-java@v4
