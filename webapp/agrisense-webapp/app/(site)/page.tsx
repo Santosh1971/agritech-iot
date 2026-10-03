@@ -87,11 +87,10 @@ export default function Home() {
               <Link href="/education" className="btn btn-primary">For colleges</Link>
             </div>
           </div>
-          <div className="numbers">
-            <div><strong>4.7/5</strong><span className="muted">students' rating, GPSIOAM workshop, Oct 2026</span></div>
-            <div><strong>11/11</strong><span className="muted">students programmed hardware on day one</span></div>
-            <div><strong>4 years</strong><span className="muted">from first sensor to first customer</span></div>
-          </div>
+          <figure className="photo-card">
+            <img src="/brand/workshop/group-photo.jpg" alt="Students, faculty and our team after the GPSIOAM workshop" width={1400} height={787} loading="lazy" />
+            <figcaption>GPSIOAM workshop, 1 Oct 2026: 11 students programmed real farm hardware and rated the day 4.7/5</figcaption>
+          </figure>
         </div>
       </section>
 

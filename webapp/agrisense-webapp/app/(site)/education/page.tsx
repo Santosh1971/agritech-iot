@@ -71,6 +71,37 @@ export default function Education() {
       <section>
         <div className="wrap">
           <div className="section-head">
+            <p className="eyebrow">From the workshop · 1 Oct 2026</p>
+            <h2>A day of building at GPSIOAM</h2>
+          </div>
+          <div className="gallery">
+            <figure className="wide">
+              <img src="/brand/workshop/group-photo.jpg" alt="Students, faculty and our team after the GPSIOAM workshop" width={1400} height={787} loading="lazy" />
+              <figcaption>Students and faculty of GPS Institute of Agricultural Management with our team</figcaption>
+            </figure>
+            <figure>
+              <img src="/brand/workshop/hands-on-flashing.jpg" alt="Students flashing a program to the farm IoT kit from their laptops" width={1400} height={787} loading="lazy" />
+              <figcaption>Flashing a program to the kit from the browser</figcaption>
+            </figure>
+            <figure>
+              <img src="/brand/workshop/team-work.jpg" alt="A student team working on laptops with a mentor" width={1400} height={787} loading="lazy" />
+              <figcaption>Teams writing their own programs with AI</figcaption>
+            </figure>
+            <figure>
+              <img src="/brand/workshop/teaching-class.jpg" alt="Santosh Kumar Jha and Avinash Jha talking with the students" width={1400} height={787} loading="lazy" />
+              <figcaption>From input and output to feedback: how a farm system works</figcaption>
+            </figure>
+            <figure>
+              <img src="/brand/workshop/session-overview.jpg" alt="The workshop hall with students at their laptops" width={1400} height={787} loading="lazy" />
+              <figcaption>Questions and answers between lab sessions</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="wrap">
+          <div className="section-head">
             <p className="eyebrow">The four-year programme</p>
             <h2>From first blink to first customer</h2>
             <p className="lead">About 70% hands-on, a kit for every student, and every practical tied to a farm problem.</p>
