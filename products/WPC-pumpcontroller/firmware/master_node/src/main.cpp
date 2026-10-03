@@ -11,7 +11,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "0.4.2"
+#define FW_VERSION "1.0.0"
 #endif
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
