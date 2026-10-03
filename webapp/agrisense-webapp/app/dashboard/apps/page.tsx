@@ -74,6 +74,14 @@ export default async function MyAppsPage() {
                   <a href={`/api/flasher/apps/${a.id}`} style={{ color: "#1a7f37", fontWeight: 600 }}>
                     Download APK
                   </a>
+                  {a.product === "WPC" && (
+                    <>
+                      {" · "}
+                      <a href="/dashboard/wpc-test-plan" style={{ color: "#1a7f37", fontWeight: 600 }}>
+                        Test plan
+                      </a>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
