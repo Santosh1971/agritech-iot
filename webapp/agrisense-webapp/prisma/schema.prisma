@@ -128,14 +128,20 @@ model FirmwareBuild {
   @@index([product, version])
 }
 
-// The NB Agri Flasher Android app itself — separate from FirmwareBuild since
-// one app build serves every product, so it doesn't fit under any single
-// product's heading. buildType distinguishes CI's auto-built, debug-signed
-// APKs (see .github/workflows/nb-agri-flasher-app.yml) from the manually
-// built, release-signed ones meant to actually reach Kamta — CI never has
-// the release keystore, by design (it lives only on a dev machine).
+// The NB Agri Flasher Android app itself, OR a product's own companion app
+// (WPC's wpc_app, etc) — same model, same storage, same CI-upload shape,
+// distinguished only by `product`. `product = null` means the flasher tool
+// itself (serves every product, so it doesn't fit under any single
+// product's heading); a real Product value means that product's own app
+// (see /api/flasher/apps, added 2026-10-03 for WPC). buildType
+// distinguishes CI's auto-built, debug-signed APKs (see
+// .github/workflows/nb-agri-flasher-app.yml / wpc-app.yml) from the
+// manually built, release-signed ones meant to actually reach a dealer —
+// CI never has the release keystore, by design (it lives only on a dev
+// machine).
 model MobileAppBuild {
   id           String   @id @default(cuid())
+  product      Product? // null = the flasher tool itself; a value = that product's own app
   versionName  String
   buildType    String   @default("debug") // "debug" | "release"
   storagePath  String   // path relative to FIRMWARE_STORAGE_DIR, same disk as firmware
@@ -147,6 +153,7 @@ model MobileAppBuild {
   createdAt    DateTime @default(now())
 
   @@index([createdAt])
+  @@index([product, createdAt])
 }
 
 // A grant, not a role — kept separate from Role/DEALER so access to the

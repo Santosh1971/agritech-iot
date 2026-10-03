@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { Product } from "@prisma/client";
 import { verifySession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { saveFirmwareBuild } from "@/lib/firmwareStorage";
@@ -38,6 +39,8 @@ export async function GET() {
 }
 
 // multipart/form-data: versionName, buildType (optional, "debug"|"release"),
+// product (optional — omit/empty for the flasher tool itself; a Product
+// value for that product's own companion app, see /api/flasher/apps),
 // notes (optional), file (the .apk). Checksum computed server-side, same as
 // firmware uploads.
 export async function POST(req: NextRequest) {
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
   const form = await req.formData();
   const versionName = form.get("versionName");
   const buildType = form.get("buildType") || "debug";
+  const productRaw = form.get("product");
   const notes = form.get("notes");
   const file = form.get("file");
 
@@ -57,6 +61,13 @@ export async function POST(req: NextRequest) {
   }
   if (buildType !== "debug" && buildType !== "release") {
     return NextResponse.json({ error: 'buildType must be "debug" or "release"' }, { status: 400 });
+  }
+  let product: Product | null = null;
+  if (typeof productRaw === "string" && productRaw.length > 0) {
+    if (!(Object.values(Product) as string[]).includes(productRaw)) {
+      return NextResponse.json({ error: `Unknown product "${productRaw}"` }, { status: 400 });
+    }
+    product = productRaw as Product;
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -70,6 +81,7 @@ export async function POST(req: NextRequest) {
     data: {
       versionName,
       buildType: buildType as string,
+      product,
       storagePath,
       sha256,
       sizeBytes,

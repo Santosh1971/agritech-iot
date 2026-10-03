@@ -1,0 +1,66 @@
+name: WPC app — build and upload
+
+# Mirrors wpc-firmware.yml's release pattern exactly: a push to main uploads
+# a dev-<shortsha> build (never shown to a non-admin on /dashboard/apps --
+# see /api/flasher/apps); pushing a tag matching wpc-app-v* instead cuts a
+# real, dealer-visible release (the tag with its "wpc-app-v" prefix
+# stripped). Debug-signed only -- WPC's android/app/build.gradle has no
+# separate release keystore (its "release" build type still uses
+# signingConfigs.debug), so buildType is always "debug" here regardless of
+# which Gradle/Flutter build mode produced the APK; see nb-agri-flasher-app.yml
+# for the pattern this follows (a product with a real release keystore
+# would instead build and sign locally, not in CI).
+on:
+  push:
+    branches: [main]
+    tags: ["wpc-app-v*"]
+    paths:
+      - "products/WPC-pumpcontroller/mobile-app/wpc_app/**"
+      - ".github/workflows/wpc-app.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/WPC-pumpcontroller/mobile-app/wpc_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == wpc-app-v* ]]; then
+            echo "value=${GITHUB_REF_NAME#wpc-app-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release --build-name="${{ steps.version.outputs.value }}"
+
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "versionName=${{ steps.version.outputs.value }}" \
+            -F "buildType=debug" \
+            -F "product=WPC" \
+            -F "notes=Built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk;type=application/vnd.android.package-archive"

@@ -23,10 +23,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!appBuild) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const bytes = await readFirmwareBuild(appBuild.storagePath);
+  const label = appBuild.product ? `${appBuild.product.toLowerCase()}-app` : "nb-agri-flasher";
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": "application/vnd.android.package-archive",
-      "Content-Disposition": `attachment; filename="nb-agri-flasher-${appBuild.versionName}-${appBuild.buildType}.apk"`,
+      "Content-Disposition": `attachment; filename="${label}-${appBuild.versionName}-${appBuild.buildType}.apk"`,
     },
   });
 }

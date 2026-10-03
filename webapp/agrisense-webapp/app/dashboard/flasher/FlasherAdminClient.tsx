@@ -34,6 +34,7 @@ type AppBuild = {
   id: string;
   versionName: string;
   buildType: string;
+  product: string | null; // null = the flasher tool itself; a Product value = that product's own app
   sizeBytes: number;
   createdAt: string;
   uploadedBy: { name: string };
@@ -290,17 +291,21 @@ export default function FlasherAdminClient() {
       </section>
 
       <section style={{ marginTop: 32 }}>
-        <h2>Mobile App (NB Agri Flasher)</h2>
+        <h2>Mobile apps</h2>
         <p style={{ color: "#666" }}>
-          One app serves every product, so it lives here rather than under any single product above.
-          Debug builds are produced automatically on every push (see the GitHub Actions workflow);
-          release (signed) builds — the ones that actually go to Kamta — are still uploaded by hand.
+          NB Agri Flasher (the tool itself, "App" = NB Agri Flasher below) plus each product&apos;s
+          own companion app. Everyone with an active grant for that product sees only the latest
+          non-dev build on their <code>My apps</code> page — dev-&lt;sha&gt; builds (every push) are
+          admin-only, visible here. A product&apos;s own app ships its own release workflow
+          (e.g. <code>wpc-app.yml</code>, tag-triggered); the flasher tool itself is still mostly
+          uploaded by hand for a signed release.
         </p>
         {appBuilds.length === 0 && <p>No app builds uploaded yet.</p>}
         {appBuilds.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+                <th style={{ padding: 8 }}>App</th>
                 <th style={{ padding: 8 }}>Version</th>
                 <th style={{ padding: 8 }}>Type</th>
                 <th style={{ padding: 8 }}>Size</th>
@@ -312,6 +317,7 @@ export default function FlasherAdminClient() {
             <tbody>
               {appBuilds.map((a) => (
                 <tr key={a.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td style={{ padding: 8, fontWeight: 600 }}>{a.product ?? "NB Agri Flasher"}</td>
                   <td style={{ padding: 8, fontFamily: "monospace" }}>{a.versionName}</td>
                   <td style={{ padding: 8 }}>{a.buildType}</td>
                   <td style={{ padding: 8 }}>{(a.sizeBytes / 1024 / 1024).toFixed(1)} MB</td>
