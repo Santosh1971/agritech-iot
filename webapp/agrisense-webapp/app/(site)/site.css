@@ -121,6 +121,10 @@ body:has(> .as-site) { margin: 0; }
 .as-site .crumbs { font-size: 0.9rem; color: #c3d8cc; margin-bottom: 18px; }
 .as-site .crumbs a { color: #c3d8cc; }
 
+/* Team (About) */
+.as-site .person { display: flex; align-items: center; gap: 18px; margin-bottom: 6px; }
+.as-site .person img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid var(--paper-2); flex: none; }
+
 /* Timeline (About) */
 .as-site .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-left: 3px solid var(--teal); }
 .as-site .timeline li { padding: 0 0 28px 24px; position: relative; display: grid; gap: 4px; }

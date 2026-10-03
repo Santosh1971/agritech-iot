@@ -46,8 +46,13 @@ export default function About() {
           <div className="grid-2">
             {team.map((t) => (
               <div key={t.name} className="card">
-                <h3>{t.name}</h3>
-                <p className="tag">{t.role}</p>
+                <div className="person">
+                  <img src={t.photo} alt={t.name} width={96} height={96} />
+                  <div className="stack" style={{ gap: 8 }}>
+                    <h3>{t.name}</h3>
+                    <p className="tag">{t.role}</p>
+                  </div>
+                </div>
                 <p className="muted">{t.bio}</p>
               </div>
             ))}

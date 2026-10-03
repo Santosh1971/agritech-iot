@@ -22,11 +22,13 @@ export const team = [
   {
     name: "Avinash Jha",
     role: "CEO",
+    photo: "/brand/team/avinash.jpg",
     bio: "5+ years building IoT products at Sasya Systems, Amazon India and Tinymesh. Leads customers, dealers and field deployments.",
   },
   {
     name: "Santosh Kumar Jha",
     role: "CTO",
+    photo: "/brand/team/santosh.jpg",
     bio: "30+ years in embedded systems, IoT and telematics: ACTIA, General Motors, Director of the Autocop Excellence Center. MANIT Bhopal; M.Eng, University of Michigan. Designs our hardware, firmware and apps.",
   },
 ];
