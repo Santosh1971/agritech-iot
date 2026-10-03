@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Default is 10MB -- too small for an app APK upload (/api/admin/app-builds,
+  // /api/admin/builds). A release APK is routinely 20-25MB (WPC's own app build
+  // is ~23MB); middleware runs in front of every request, including these
+  // uploads, so its own body-size cap is what actually bites, not any limit in
+  // the route handler itself. Found 2026-10-03 when the first WPC app release
+  // upload failed with "Request body exceeded 10MB" / "Failed to parse body as
+  // FormData" (CI's curl got a 4xx, not a useful error message either).
+  experimental: {
+    middlewareClientMaxBodySize: "40mb",
+  },
   // Serve the static student labs pages (public/workshop/...) at /workshop and /workshop/practical (+ /hi, /kn).
   async rewrites() {
     return [
