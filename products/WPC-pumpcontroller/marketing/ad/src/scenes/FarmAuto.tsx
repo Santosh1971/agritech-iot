@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { BODY, C, Caption, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 13-20 s: level low -> pumps switch ON one by one -> tank fills -> pumps OFF.
 const PUMPS: [number, number][] = [
@@ -41,12 +42,12 @@ export const FarmAuto: React.FC<{ dur: number }> = ({ dur }) => {
           <>
             <Pop at={4}>
               <Caption size={80} color={C.green} style={{ textShadow: "none" }}>
-                टंकी का लेवल कम?
+                {t("टंकी का लेवल कम?")}
               </Caption>
             </Pop>
             <Pop at={40}>
               <Caption size={92} color={C.ink} style={{ textShadow: "none" }}>
-                पंप <span style={{ color: "#1F8A45" }}>अपने-आप ON</span>
+                {t("पंप")} <span style={{ color: "#1F8A45" }}>{t("अपने-आप ON")}</span>
               </Caption>
             </Pop>
           </>
@@ -54,12 +55,12 @@ export const FarmAuto: React.FC<{ dur: number }> = ({ dur }) => {
           <>
             <Pop at={FULL_AT}>
               <Caption size={80} color={C.green} style={{ textShadow: "none" }}>
-                टंकी भर गई
+                {t("टंकी भर गई")}
               </Caption>
             </Pop>
             <Pop at={FULL_AT + 6}>
               <Caption size={92} color={C.ink} style={{ textShadow: "none" }}>
-                पंप <span style={{ color: C.red }}>अपने-आप OFF</span>
+                {t("पंप")} <span style={{ color: C.red }}>{t("अपने-आप OFF")}</span>
               </Caption>
             </Pop>
           </>
@@ -134,7 +135,7 @@ export const FarmAuto: React.FC<{ dur: number }> = ({ dur }) => {
         />
         <rect x="378" y="636" width="244" height="46" rx="23" fill={full ? "#1F8A45" : C.red} />
         <text x="500" y="668" textAnchor="middle" fontSize="28" fontWeight="700" fill="#fff">
-          {full ? "टंकी FULL ✓" : `टंकी ${Math.round(level * 100)}%`}
+          {full ? t("टंकी FULL ✓") : `${t("टंकी")} ${Math.round(level * 100)}%`}
         </text>
         {/* master */}
         <line x1="617" y1="516" x2="617" y2="560" stroke={C.line} strokeWidth="7" />
@@ -144,7 +145,7 @@ export const FarmAuto: React.FC<{ dur: number }> = ({ dur }) => {
         <circle cx={TIP[0]} cy={TIP[1]} r="7" fill={C.amberDark} />
         <rect x="646" y="440" width="120" height="40" rx="20" fill={C.green} />
         <text x="706" y="468" textAnchor="middle" fontSize="24" fontWeight="700" fill="#fff">
-          मास्टर
+          {t("मास्टर")}
         </text>
         {/* pumps */}
         {PUMPS.map(([x, y], i) => {
@@ -162,7 +163,7 @@ export const FarmAuto: React.FC<{ dur: number }> = ({ dur }) => {
               <circle cx={x + 43} cy={y - 6} r="5" fill={on ? C.ok : "#666"} />
               <rect x={x - 58} y={y + 34} width="84" height="36" rx="18" fill="#fff" />
               <text x={x - 16} y={y + 60} textAnchor="middle" fontSize="22" fontWeight="700" fill={C.ink}>
-                पंप {i + 1}
+                {t("पंप")} {i + 1}
               </text>
               <rect x={x + 30} y={y + 34} width="62" height="36" rx="18" fill={on ? "#1F8A45" : "#6B6B6B"} />
               <text x={x + 61} y={y + 59} textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff" fontFamily="sans-serif">

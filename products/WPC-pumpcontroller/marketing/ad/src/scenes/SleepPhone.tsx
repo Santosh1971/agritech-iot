@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { BODY, C, Caption, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 20-25 s: the farmer sleeps; the phone shows every pump's status.
 const Row: React.FC<{ n: number; at: number }> = ({ n, at }) => (
@@ -19,10 +20,10 @@ const Row: React.FC<{ n: number; at: number }> = ({ n, at }) => (
         color: C.ink,
       }}
     >
-      <span style={{ fontWeight: 700 }}>पंप {n}</span>
+      <span style={{ fontWeight: 700 }}>{t("पंप")} {n}</span>
       <span style={{ padding: "4px 12px", borderRadius: 12, background: "#1F8A45", color: "#fff", fontWeight: 700, fontSize: 22 }}>ON</span>
-      <span style={{ color: "#1F6B3A", fontWeight: 600 }}>बिजली ✓</span>
-      <span style={{ color: C.water, fontWeight: 600 }}>पानी ✓</span>
+      <span style={{ color: "#1F6B3A", fontWeight: 600 }}>{t("बिजली ✓")}</span>
+      <span style={{ color: C.water, fontWeight: 600 }}>{t("पानी ✓")}</span>
     </div>
   </Pop>
 );
@@ -37,7 +38,7 @@ export const SleepPhone: React.FC<{ dur: number }> = ({ dur }) => {
   return (
     <AbsoluteFill style={{ opacity: fade, background: "linear-gradient(#0B1622, #13283A)", alignItems: "center" }}>
       <Pop at={4} style={{ marginTop: 130 }}>
-        <Caption size={92}>आप चैन से सोइए</Caption>
+        <Caption size={92}>{t("आप चैन से सोइए")}</Caption>
       </Pop>
       {/* phone */}
       <div
@@ -55,13 +56,13 @@ export const SleepPhone: React.FC<{ dur: number }> = ({ dur }) => {
       >
         <div style={{ width: "100%", height: "100%", borderRadius: 44, background: C.cream, padding: "34px 26px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontFamily: BODY, fontSize: 24, color: "#4B5A4F" }}>
-            <span>रात 3:15</span>
-            <span style={{ color: "#1F8A45", fontWeight: 700 }}>● ऑनलाइन</span>
+            <span>{t("रात 3:15")}</span>
+            <span style={{ color: "#1F8A45", fontWeight: 700 }}>{t("● ऑनलाइन")}</span>
           </div>
-          <div style={{ fontFamily: BODY, fontWeight: 700, fontSize: 36, color: C.green }}>WPC मास्टर</div>
+          <div style={{ fontFamily: BODY, fontWeight: 700, fontSize: 36, color: C.green }}>{t("WPC मास्टर")}</div>
           <div style={{ padding: 20, borderRadius: 20, background: C.green, color: "#fff", fontFamily: BODY }}>
-            <div style={{ fontSize: 26, opacity: 0.85 }}>टंकी का लेवल</div>
-            <div style={{ fontSize: 48, fontWeight: 700 }}>{Math.round(bar * 100)}% · भर रही है</div>
+            <div style={{ fontSize: 26, opacity: 0.85 }}>{t("टंकी का लेवल")}</div>
+            <div style={{ fontSize: 48, fontWeight: 700 }}>{Math.round(bar * 100)}% · {t("भर रही है")}</div>
             <div style={{ marginTop: 10, height: 18, borderRadius: 9, background: "rgba(255,255,255,0.2)" }}>
               <div style={{ width: `${bar * 100}%`, height: "100%", borderRadius: 9, background: C.waterLight }} />
             </div>
@@ -73,7 +74,7 @@ export const SleepPhone: React.FC<{ dur: number }> = ({ dur }) => {
       </div>
       <Pop at={60} style={{ marginTop: 40 }}>
         <Caption size={76} color={C.amber}>
-          फोन पर पूरा स्टेटस
+          {t("फोन पर पूरा स्टेटस")}
         </Caption>
       </Pop>
       {/* sleeping farmer */}

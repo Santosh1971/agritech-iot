@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { BODY, C, Caption, DISPLAY, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 20-25 s: away from the farm, the phone shows today's watering.
 const HISTORY = [38, 45, 50, 42, 50, 48, 50];
@@ -16,11 +17,11 @@ export const PhoneAway: React.FC<{ dur: number }> = ({ dur }) => {
     <AbsoluteFill style={{ opacity: fade, background: "linear-gradient(#FCE3B0, #F4F1E6)", alignItems: "center" }}>
       <Pop at={3} style={{ marginTop: 110 }}>
         <Caption size={90} color={C.teal} style={{ textShadow: "none" }}>
-          कहीं से भी फोन पर
+          {t("कहीं से भी फोन पर")}
         </Caption>
       </Pop>
       <Pop at={10}>
-        <div style={{ fontFamily: BODY, fontSize: 30, color: "#4A5A52" }}>(नर्सरी में Wi-Fi हो तो)</div>
+        <div style={{ fontFamily: BODY, fontSize: 30, color: "#4A5A52" }}>{t("(नर्सरी में Wi-Fi हो तो)")}</div>
       </Pop>
       <div
         style={{
@@ -37,12 +38,12 @@ export const PhoneAway: React.FC<{ dur: number }> = ({ dur }) => {
       >
         <div style={{ width: "100%", height: "100%", borderRadius: 44, background: C.cream, padding: "30px 26px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 16, fontFamily: BODY }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: "#4A5A52" }}>
-            <span>FG1 फ्लोगार्ड</span>
-            <span style={{ color: "#1F8A45", fontWeight: 700 }}>● ऑनलाइन</span>
+            <span>{t("FG1 फ्लोगार्ड")}</span>
+            <span style={{ color: "#1F8A45", fontWeight: 700 }}>{t("● ऑनलाइन")}</span>
           </div>
           <div style={{ padding: 22, borderRadius: 22, background: C.teal, color: "#fff" }}>
-            <div style={{ fontSize: 26, opacity: 0.85 }}>आज का पानी</div>
-            <div style={{ fontSize: 60, fontWeight: 700, lineHeight: 1.1 }}>50 लीटर ✓</div>
+            <div style={{ fontSize: 26, opacity: 0.85 }}>{t("आज का पानी")}</div>
+            <div style={{ fontSize: 60, fontWeight: 700, lineHeight: 1.1 }}>{t("50 लीटर ✓")}</div>
             <div style={{ marginTop: 14, height: 110, display: "flex", alignItems: "flex-end", gap: 12 }}>
               {HISTORY.map((v, i) => {
                 const h = interpolate(f, [16 + i * 3, 30 + i * 3], [0, v * 2], clamp);
@@ -52,27 +53,27 @@ export const PhoneAway: React.FC<{ dur: number }> = ({ dur }) => {
           </div>
           <Pop at={30} rise={20}>
             <div style={{ padding: "16px 20px", borderRadius: 18, background: "#fff", border: "2px solid #DED6C0", display: "flex", justifyContent: "space-between", fontSize: 28 }}>
-              <span style={{ fontWeight: 700 }}>सुबह 6:00 · 50 लीटर</span>
-              <span style={{ color: "#1F8A45", fontWeight: 700 }}>पूरा ✓</span>
+              <span style={{ fontWeight: 700 }}>{t("सुबह 6:00 · 50 लीटर")}</span>
+              <span style={{ color: "#1F8A45", fontWeight: 700 }}>{t("पूरा ✓")}</span>
             </div>
           </Pop>
           <Pop at={38} rise={20}>
             <div style={{ padding: "16px 20px", borderRadius: 18, background: "#fff", border: "2px solid #DED6C0", display: "flex", justifyContent: "space-between", fontSize: 28 }}>
-              <span style={{ fontWeight: 700 }}>शाम 5:30 · 20 मिनट</span>
-              <span style={{ color: "#8A5200", fontWeight: 700 }}>बाकी</span>
+              <span style={{ fontWeight: 700 }}>{t("शाम 5:30 · 20 मिनट")}</span>
+              <span style={{ color: "#8A5200", fontWeight: 700 }}>{t("बाकी")}</span>
             </div>
           </Pop>
           <Pop at={46} rise={20}>
             <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
-              <div style={{ flexGrow: 1, padding: "20px 0", borderRadius: 20, background: "#1F8A45", color: "#fff", textAlign: "center", fontSize: 34, fontWeight: 700 }}>चालू करें</div>
-              <div style={{ flexGrow: 1, padding: "20px 0", borderRadius: 20, background: C.red, color: "#fff", textAlign: "center", fontSize: 34, fontWeight: 700 }}>बंद करें</div>
+              <div style={{ flexGrow: 1, padding: "20px 0", borderRadius: 20, background: "#1F8A45", color: "#fff", textAlign: "center", fontSize: 34, fontWeight: 700 }}>{t("चालू करें")}</div>
+              <div style={{ flexGrow: 1, padding: "20px 0", borderRadius: 20, background: C.red, color: "#fff", textAlign: "center", fontSize: 34, fontWeight: 700 }}>{t("बंद करें")}</div>
             </div>
           </Pop>
         </div>
       </div>
       <Pop at={70} style={{ marginTop: 34 }}>
         <div style={{ padding: "16px 32px", borderRadius: 20, background: C.teal, color: "#fff", fontFamily: DISPLAY, fontWeight: 800, fontSize: 46, textAlign: "center" }}>
-          बिजली गई? लौटते ही पानी फिर शुरू
+          {t("बिजली गई? लौटते ही पानी फिर शुरू")}
         </div>
       </Pop>
       {/* bus passing by */}

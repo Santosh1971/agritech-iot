@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, Caption, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 import { Drop, Seedling } from "./parts";
 
 // 0-5 s: early morning, carrying buckets along the nursery beds.
@@ -63,12 +64,12 @@ export const Chore: React.FC<{ dur: number }> = ({ dur }) => {
       <div style={{ position: "absolute", top: 330, width: "100%", display: "flex", flexDirection: "column", gap: 20 }}>
         <Pop at={10}>
           <Caption color={C.ink} style={{ textShadow: "none" }}>
-            रोज़ सुबह-शाम…
+            {t("रोज़ सुबह-शाम…")}
           </Caption>
         </Pop>
         <Pop at={60}>
           <Caption size={108} color={C.teal} style={{ textShadow: "none" }}>
-            बाल्टी से पानी?
+            {t("बाल्टी से पानी?")}
           </Caption>
         </Pop>
       </div>

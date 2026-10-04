@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, Caption, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 0-5 s: 2 AM, power arrives, the farmer walks out with a torch.
 export const NightTrip: React.FC<{ dur: number }> = ({ dur }) => {
@@ -84,11 +85,11 @@ export const NightTrip: React.FC<{ dur: number }> = ({ dur }) => {
       </Pop>
       <div style={{ position: "absolute", top: 420, width: "100%", display: "flex", flexDirection: "column", gap: 24 }}>
         <Pop at={12}>
-          <Caption>रात 2 बजे बिजली आई…</Caption>
+          <Caption>{t("रात 2 बजे बिजली आई…")}</Caption>
         </Pop>
         <Pop at={70}>
           <Caption size={104} color={C.amber}>
-            फिर खेत जाना?
+            {t("फिर खेत जाना?")}
           </Caption>
         </Pop>
       </div>

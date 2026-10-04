@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, Caption, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 import { Drop, Fg1Device, Seedling } from "./parts";
 
 // 13-20 s: 6:00 -> FG1 switches the pump on, the meter counts to 50 L, pump off.
@@ -29,12 +30,12 @@ export const Watering: React.FC<{ dur: number }> = ({ dur }) => {
           <>
             <Pop at={4}>
               <Caption size={82} color={C.teal} style={{ textShadow: "none" }}>
-                सुबह 6:00 बजे —
+                {t("सुबह 6:00 बजे —")}
               </Caption>
             </Pop>
             <Pop at={TICK + 2}>
               <Caption size={100} color={C.leafDark} style={{ textShadow: "none" }}>
-                अपने-आप चालू
+                {t("अपने-आप चालू")}
               </Caption>
             </Pop>
           </>
@@ -43,12 +44,12 @@ export const Watering: React.FC<{ dur: number }> = ({ dur }) => {
           <>
             <Pop at={95}>
               <Caption size={80} color={C.teal} style={{ textShadow: "none" }}>
-                हर लीटर गिनता है
+                {t("हर लीटर गिनता है")}
               </Caption>
             </Pop>
             <Pop at={100}>
               <Caption size={130} color={C.water} style={{ textShadow: "none" }}>
-                {liters} लीटर
+                {liters} {t("लीटर")}
               </Caption>
             </Pop>
           </>
@@ -57,12 +58,12 @@ export const Watering: React.FC<{ dur: number }> = ({ dur }) => {
           <>
             <Pop at={FULL}>
               <Caption size={82} color={C.teal} style={{ textShadow: "none" }}>
-                50 लीटर पूरे
+                {t("50 लीटर पूरे")}
               </Caption>
             </Pop>
             <Pop at={FULL + 6}>
               <Caption size={100} color={C.red} style={{ textShadow: "none" }}>
-                अपने-आप बंद ✓
+                {t("अपने-आप बंद ✓")}
               </Caption>
             </Pop>
           </>

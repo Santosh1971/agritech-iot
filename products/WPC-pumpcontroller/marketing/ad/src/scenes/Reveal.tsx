@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { C, Caption, DISPLAY, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 9-13 s: impact flash, the Master appears with radio pulses.
 export const MasterDevice: React.FC<{ f: number; pulses?: boolean }> = ({ f, pulses = true }) => (
@@ -34,7 +35,7 @@ export const Reveal: React.FC<{ dur: number }> = ({ dur }) => {
   return (
     <AbsoluteFill style={{ opacity: fade, background: `radial-gradient(circle at 50% 55%, #2E6B47, ${C.green} 55%, ${C.deep})`, alignItems: "center", justifyContent: "center" }}>
       <Pop at={3}>
-        <Caption size={130}>अब नहीं।</Caption>
+        <Caption size={130}>{t("अब नहीं।")}</Caption>
       </Pop>
       <div style={{ marginTop: 40, transform: `scale(${s})` }}>
         <MasterDevice f={f} />
@@ -51,7 +52,7 @@ export const Reveal: React.FC<{ dur: number }> = ({ dur }) => {
             fontSize: 92,
           }}
         >
-          WPC लगाइए।
+          {t("WPC लगाइए।")}
         </div>
       </Pop>
       <AbsoluteFill style={{ background: "#FFFFFF", opacity: flash }} />

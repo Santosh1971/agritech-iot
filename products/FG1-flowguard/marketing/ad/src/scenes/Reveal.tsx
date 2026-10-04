@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { C, Caption, DISPLAY, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 import { Drop, Fg1Device } from "./parts";
 
 // 9-13 s: chime, the FG1 box appears with drops and a clock ring.
@@ -15,7 +16,7 @@ export const Reveal: React.FC<{ dur: number }> = ({ dur }) => {
   return (
     <AbsoluteFill style={{ opacity: fade, background: `radial-gradient(circle at 50% 55%, ${C.tealMid}, ${C.teal} 55%, ${C.deep})`, alignItems: "center", justifyContent: "center" }}>
       <Pop at={3}>
-        <Caption size={128}>अब आसान।</Caption>
+        <Caption size={128}>{t("अब आसान।")}</Caption>
       </Pop>
       <div style={{ marginTop: 40, position: "relative", width: 560, height: 600, transform: `scale(${s})` }}>
         <svg width="560" height="600" viewBox="0 0 560 600" style={{ position: "absolute", inset: 0 }}>
@@ -29,7 +30,7 @@ export const Reveal: React.FC<{ dur: number }> = ({ dur }) => {
       </div>
       <Pop at={50} style={{ marginTop: 10 }}>
         <div style={{ padding: "18px 44px", borderRadius: 24, background: C.leaf, color: C.ink, fontFamily: DISPLAY, fontWeight: 800, fontSize: 84 }}>
-          FG1 फ्लोगार्ड
+          {t("FG1 फ्लोगार्ड")}
         </div>
       </Pop>
       <AbsoluteFill style={{ background: "#FFFFFF", opacity: flash }} />

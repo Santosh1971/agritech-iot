@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, Caption, DISPLAY, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 import { Seedling } from "./parts";
 
 // 5-9 s: three everyday problems.
@@ -74,18 +75,18 @@ export const Problems: React.FC<{ dur: number }> = ({ dur }) => {
     <AbsoluteFill style={{ opacity: fade, background: "#F6E7D2", transform: `translateX(${shake}px)`, alignItems: "center", justifyContent: "center" }}>
       <Pop at={0}>
         <Caption size={96} color="#7A3A1E" style={{ textShadow: "none" }}>
-          रोज़ की परेशानी
+          {t("रोज़ की परेशानी")}
         </Caption>
       </Pop>
       <div style={{ marginTop: 110, display: "flex", flexDirection: "column", gap: 70, alignItems: "center" }}>
         <Pop at={hits[0]}>
-          <Card icon={<Wilted />} text="एक दिन भूले — पौध मुरझाई" size={64} />
+          <Card icon={<Wilted />} text={t("एक दिन भूले — पौध मुरझाई")} size={64} />
         </Pop>
         <Pop at={hits[1]}>
-          <Card icon={<Overflow f={f} />} text="ज़्यादा पानी — बर्बाद" size={64} />
+          <Card icon={<Overflow f={f} />} text={t("ज़्यादा पानी — बर्बाद")} size={64} />
         </Pop>
         <Pop at={hits[2]}>
-          <Card icon={<Bag />} text="बाहर गए? पानी कौन देगा?" size={64} />
+          <Card icon={<Bag />} text={t("बाहर गए? पानी कौन देगा?")} size={64} />
         </Pop>
       </div>
     </AbsoluteFill>

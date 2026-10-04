@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { C, Caption, DISPLAY, Pop, clamp, useSceneFade } from "../common";
+import { t } from "../i18n";
 
 // 5-9 s: the three pains, each card lands with a small shake.
 const TankIcon: React.FC<{ f: number }> = ({ f }) => (
@@ -94,17 +95,17 @@ export const Problems: React.FC<{ dur: number }> = ({ dur }) => {
       }}
     >
       <Pop at={0}>
-        <Caption size={92}>हर रात की परेशानी</Caption>
+        <Caption size={92}>{t("हर रात की परेशानी")}</Caption>
       </Pop>
       <div style={{ marginTop: 120, display: "flex", flexDirection: "column", gap: 70, alignItems: "center" }}>
         <Pop at={hits[0]}>
-          <ProblemCard icon={<TankIcon f={f} />} text="टंकी ओवरफ्लो" />
+          <ProblemCard icon={<TankIcon f={f} />} text={t("टंकी ओवरफ्लो")} />
         </Pop>
         <Pop at={hits[1]}>
-          <ProblemCard icon={<CoinIcon />} text="मज़दूरी का खर्च" />
+          <ProblemCard icon={<CoinIcon />} text={t("मज़दूरी का खर्च")} />
         </Pop>
         <Pop at={hits[2]}>
-          <ProblemCard icon={<ClockIcon f={f} />} text="नींद खराब" />
+          <ProblemCard icon={<ClockIcon f={f} />} text={t("नींद खराब")} />
         </Pop>
       </div>
     </AbsoluteFill>
