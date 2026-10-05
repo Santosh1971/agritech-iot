@@ -128,4 +128,12 @@ class WpcApi {
   static Future<void> setMasterWifi(String ssid, String password) =>
       _localPost('/wifi', {'ssid': ssid, 'password': password},
           timeout: const Duration(seconds: 12));
+
+  /// Connects/disconnects the Master's farm-WiFi link without forgetting the saved network --
+  /// unlike [setMasterWifi] with an empty SSID, this can be reversed without re-entering the
+  /// password. Meant for testing: get the Master off the internet (back to Local-mode-only) on
+  /// demand, instead of power-cycling it or turning off the whole farm/home router. LOCAL ONLY,
+  /// same reasoning as [setMasterWifi] -- changing connectivity isn't a cloud command.
+  static Future<void> setMasterWifiEnabled(bool enabled) =>
+      _localPost('/wifi', {'enabled': enabled}, timeout: const Duration(seconds: 12));
 }

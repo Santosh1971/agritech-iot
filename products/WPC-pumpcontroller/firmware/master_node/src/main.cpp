@@ -901,10 +901,30 @@ String cmdForget(JsonDocument& doc) {
   return "";
 }
 
-// {"ssid": "...", "password": "..."}   empty ssid = stop using WiFi
+// {"ssid": "...", "password": "..."}   empty ssid = forget the network entirely
+// {"enabled": false}                   disconnect now, keep the saved network for later
+// {"enabled": true}                    reconnect to whatever network is already saved
 // LOCAL ONLY (HTTP / serial) -- deliberately not reachable from the cloud
 // command topic, so nobody can knock a Master off the internet remotely.
+//
+// enabled/disabled is for testing: switching to Local mode in the app previously meant either
+// walking over to power-cycle the Master, or turning off the whole farm/home router (affecting
+// every other device on it) just to get the Master off the internet. This disconnects the STA
+// link without forgetting the saved SSID/password, so re-enabling doesn't need them re-entered.
 String cmdWifi(JsonDocument& doc) {
+  if (doc["enabled"].is<bool>()) {
+    bool enabled = doc["enabled"];
+    if (!enabled) {
+      cloud.disableWifi();
+      Serial.println(F("[WIFI] STA disabled (disconnected for local testing, credentials kept)"));
+      return "";
+    }
+    String ssid = prefs.getString("wifiSsid", "");
+    if (!ssid.length()) return "no saved WiFi to reconnect to";
+    cloud.setWifi(ssid, prefs.getString("wifiPass", ""));
+    Serial.println(F("[WIFI] STA re-enabled"));
+    return "";
+  }
   String ssid = doc["ssid"] | "";
   String pass = doc["password"] | "";
   // 802.11 limits are in bytes, and String::length() counts bytes: SSID up to 32, WPA passphrase 8-63.
@@ -1259,11 +1279,15 @@ void handleConsoleLine(String line) {
     d["txPower"] = args.toInt();
     cmdSetConfig(d);
     reply("OK", String("txPower=") + loraTxPowerDbm);
-  } else if (cmd == "WIFI") {             // WIFI <ssid> [password]  |  WIFI "ssid with spaces" [password]  |  WIFI CLEAR
+  } else if (cmd == "WIFI") {             // WIFI <ssid> [password]  |  WIFI "ssid with spaces" [password]  |  WIFI CLEAR  |  WIFI DISABLE  |  WIFI ENABLE
     JsonDocument d;
     String err;
     if (args.equalsIgnoreCase("CLEAR")) {
       d["ssid"] = "";
+    } else if (args.equalsIgnoreCase("DISABLE")) {
+      d["enabled"] = false;
+    } else if (args.equalsIgnoreCase("ENABLE")) {
+      d["enabled"] = true;
     } else if (args.startsWith("\"")) {      // quoted SSID: everything up to the closing quote, spaces included
       int q = args.indexOf('"', 1);
       if (q < 0) {

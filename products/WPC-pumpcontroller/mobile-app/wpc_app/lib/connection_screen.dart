@@ -167,6 +167,23 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
     await _refreshLocal();
   }
 
+  // Disconnects/reconnects the farm WiFi without forgetting it -- for testing Local mode without
+  // power-cycling the Master or turning off the whole router. Reuses _busy: the Save/Scan/
+  // Disconnect actions in this section are never meant to run at the same time as each other.
+  Future<void> _toggleWifiEnabled(bool enable) async {
+    setState(() => _busy = true);
+    try {
+      await WpcApi.setMasterWifiEnabled(enable);
+      _snack(enable ? 'Reconnecting to the farm WiFi...' : 'Disconnected. The Master is Local-mode only until reconnected.');
+    } catch (e) {
+      _snack('No confirmation ($e). Wait a moment and refresh to check.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    await Future.delayed(const Duration(seconds: 2));
+    await _refreshLocal();
+  }
+
   // SSIDs are limited by 802.11 to 32 BYTES (not characters), so count UTF-8 bytes.
   static int _bytes(String s) => utf8.encode(s).length;
 
@@ -363,6 +380,23 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     : 'not set up',
                 wifi['connected'] == true),
             _statusRow('Cloud', localCloudUp ? 'connected' : 'not connected', localCloudUp),
+            if (wifi['configured'] == true) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _toggleWifiEnabled(wifi['state'] == 'disabled'),
+                icon: Icon(wifi['state'] == 'disabled' ? Icons.wifi : Icons.wifi_off),
+                label: Text(wifi['state'] == 'disabled' ? 'Reconnect to farm WiFi' : 'Disconnect from farm WiFi'),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  wifi['state'] == 'disabled'
+                      ? 'The saved network is kept -- reconnecting doesn\'t need the password again.'
+                      : "For testing Local mode without touching your router. The saved network isn't forgotten.",
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: _scanning ? null : _scan,
@@ -488,6 +522,8 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
       case 'disconnected':
       case 'connecting':
         return 'not connected - retrying';
+      case 'disabled':
+        return 'disconnected for local testing - tap Reconnect to resume';
       default:
         return 'not connected';
     }

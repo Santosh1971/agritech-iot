@@ -63,13 +63,28 @@ public:
   }
 
   // Store credentials for the task to use; an empty SSID disconnects and
-  // stops trying. Persisting them is the caller's job (NVS).
+  // forgets them (the caller is responsible for also clearing NVS). This
+  // always (re)enables the STA, including after a prior disableWifi() --
+  // supplying credentials is as explicit a request to use them as there is.
   void setWifi(const String& ssid, const String& pass) {
     _ssid = ssid;   // main-loop-side copy, only used by ssid()/wifiConfigured()
     xSemaphoreTake(_statusMutex, portMAX_DELAY);
     _pendSsid = ssid;
     _pendPass = pass;
+    _pendDisable = false;
     _wifiRequested = true;
+    xSemaphoreGive(_statusMutex);
+  }
+
+  // Disconnects the STA link right now WITHOUT forgetting the saved
+  // credentials or touching NVS -- lets a tester take the Master off the
+  // farm WiFi (back to AP-only / "Local mode" testing) and resume later
+  // with the same setWifi(savedSsid, savedPass) the caller already has
+  // cached from NVS, rather than re-entering it. Distinct from setWifi("",
+  // "") further up, which forgets the network entirely.
+  void disableWifi() {
+    xSemaphoreTake(_statusMutex, portMAX_DELAY);
+    _pendDisable = true;
     xSemaphoreGive(_statusMutex);
   }
 
@@ -78,10 +93,12 @@ public:
   bool mqttConnected() { return _mqttUp; }
 
   // Short machine-readable reason the app/dealer can act on -- "Internet: not connected" alone
-  // gives no clue whether the farm WiFi's name is wrong, its password is wrong, or it's simply out
-  // of the Master's range; this is exactly what a WiFi.status() vs the stored SSID tells you.
+  // gives no clue whether the farm WiFi's name is wrong, its password is wrong, it's simply out
+  // of the Master's range, or someone deliberately disconnected it for testing; this is exactly
+  // what a WiFi.status() vs the stored SSID (and the disable flag below) tells you.
   const char* wifiStateStr() const {
     if (!wifiConfigured()) return "not_configured";
+    if (_wifiDisabledByRequest) return "disabled";
     switch (WiFi.status()) {
       case WL_CONNECTED:        return "connected";
       case WL_NO_SSID_AVAIL:    return "no_ssid";          // this SSID is not visible to the radio at all
@@ -139,6 +156,7 @@ private:
     // long-unreachable farm WiFi disrupts the SoftAP less often; reset to the base interval the
     // moment a connection actually succeeds, so real farm WiFi hiccups still recover promptly.
     uint32_t wifiRetryIntervalMs = CLOUD_WIFI_RETRY_MS;
+    bool enabled = true;   // task-local; false while a disableWifi() request is in effect
 
     for (;;) {
       if (_wifiRequested) {
@@ -147,6 +165,8 @@ private:
         pass = _pendPass;
         _wifiRequested = false;
         xSemaphoreGive(_statusMutex);
+        enabled = true;
+        _wifiDisabledByRequest = false;
         WiFi.disconnect(false, false);   // keep the AP up, drop only the STA side
         wifiRetryIntervalMs = CLOUD_WIFI_RETRY_MS;   // a fresh SSID/password deserves a fresh try promptly
         if (ssid.length()) {
@@ -155,7 +175,16 @@ private:
         }
       }
 
-      if (ssid.length() && WiFi.status() != WL_CONNECTED &&
+      if (_pendDisable) {
+        xSemaphoreTake(_statusMutex, portMAX_DELAY);
+        _pendDisable = false;
+        xSemaphoreGive(_statusMutex);
+        enabled = false;
+        _wifiDisabledByRequest = true;
+        WiFi.disconnect(false, false);   // keep the AP up, drop only the STA side; ssid/pass stay cached above
+      }
+
+      if (enabled && ssid.length() && WiFi.status() != WL_CONNECTED &&
           millis() - lastWifiBegin > wifiRetryIntervalMs) {
         WiFi.begin(ssid.c_str(), pass.length() ? pass.c_str() : nullptr);   // open network = no password
         lastWifiBegin = millis();
@@ -173,7 +202,7 @@ private:
       // (WL_NO_SSID_AVAIL / WL_IDLE_STATUS never advancing) or a real drop (WL_CONNECTION_LOST),
       // none of which the connected/lost transition above (only fires on WL_CONNECTED itself) shows.
       static uint32_t lastStatusLog = 0;
-      if (ssid.length() && !up && millis() - lastStatusLog > 5000) {
+      if (enabled && ssid.length() && !up && millis() - lastStatusLog > 5000) {
         lastStatusLog = millis();
         Serial.printf("[CLOUD] WiFi STA not connected, status=%d (0=idle 1=no-ssid 3=connected "
                       "4=connect-failed 5=connection-lost 6=disconnected), ap-channel=%d\n",
@@ -246,6 +275,8 @@ private:
   SemaphoreHandle_t _statusMutex = nullptr;
   QueueHandle_t _cmdQueue = nullptr;
   volatile bool _wifiRequested = false;
+  volatile bool _pendDisable = false;          // guarded by _statusMutex, like _wifiRequested
+  volatile bool _wifiDisabledByRequest = false;   // task-owned; main loop only reads it (wifiStateStr())
   volatile bool _mqttUp = false;
   volatile bool _forcePublish = false;
 };
