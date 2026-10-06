@@ -120,6 +120,12 @@ details.asks>summary{cursor:pointer;padding:4px 0}
     </ol>
     <details class="asks" open>
       <summary><b>What to ask Claude</b> <small>(copy a prompt, change it to your idea)</small></summary>
+      <div class="ask" style="border-style:solid;border-color:var(--mask)">
+        <b>Your board’s pins are added for you</b>
+        <p>Every <b>Copy prompt</b> starts with your board details, so Claude knows the pins: blue LED GPIO 2 · BOOT button GPIO 0 · DHT22 GPIO 23 · flow sensor GPIO 35 · relay (pump) GPIO 19 · clock SDA 21 / SCL 22. You don’t need to remember them.</p>
+        <p>Own idea? Click this, paste it into Claude, then write your idea after it.</p>
+        <button type="button" class="ghost" id="copyboard">Copy board details only</button>
+      </div>
       <div class="asklist" id="asks"></div>
     </details>
     <textarea id="code" spellcheck="false" placeholder="Paste the complete program from Claude here (it must have setup() and loop())"></textarea>
@@ -251,6 +257,10 @@ const ASKS = [
   ["8 · WiFi page on my phone", "Make the ESP32 create its own WiFi called FarmIoT-MyName with password 12345678 and show a phone-friendly page at 192.168.4.1 with the time, temperature, humidity, flow and litres, refreshing every 2 seconds, and big PUMP ON and PUMP OFF buttons."],
   ["9 · From anywhere (MQTT)", "Connect to WiFi using WiFiManager (setup network FarmIoT-MyName-setup, password 12345678). Every 5 seconds publish JSON like {\"name\":\"FarmIoT-MyName\",\"t\":28.4,\"h\":61.2,\"f\":1.5,\"l\":3.2,\"pump\":true} to broker.emqx.io port 1883 on topic agrisense/workshop/FarmIoT-MyName/data, and switch the pump when PUMP ON or PUMP OFF arrives on agrisense/workshop/FarmIoT-MyName/cmd. (Then open agrisenseandcontrol.in/workshop/mqtt and type FarmIoT-MyName.)"],
 ];
+$("copyboard").addEventListener("click", (e) => {
+  const b = e.currentTarget;
+  navigator.clipboard?.writeText(CONTEXT + "My idea: ").then(() => { b.textContent = "Copied: paste into Claude and add your idea"; setTimeout(() => (b.textContent = "Copy board details only"), 2500); });
+});
 for (const [title, text] of ASKS) {
   const div = document.createElement("div");
   div.className = "ask";
