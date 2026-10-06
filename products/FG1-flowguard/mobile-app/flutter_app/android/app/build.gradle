@@ -30,7 +30,11 @@ android {
         applicationId = "com.nbagri.automation"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Play Store's automatic app protection requires minSdk 24+ (set
+        // explicitly -- flutter.minSdkVersion defaults to 21, which Play
+        // Console rejected on upload with "Play automatic protection
+        // requires a minimum SDK version of 24 or higher").
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
