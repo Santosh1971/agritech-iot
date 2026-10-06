@@ -1,0 +1,191 @@
+(session pass4
+  (base_design pass4)
+  (placement
+    (resolution um 10)
+    (component Resistor_SMD:R_0402_1005Metric
+      (place RS12 1079000 -920000 front 270)
+      (place RS7 1159000 -920000 front 270)
+      (place RS8 1143000 -920000 front 270)
+      (place RS13 1271000 -920000 front 270)
+      (place RS9 1127000 -920000 front 270)
+      (place RS6 1175000 -920000 front 270)
+      (place RS1 1255000 -920000 front 270)
+      (place RS5 1191000 -920000 front 270)
+      (place RS2 1239000 -920000 front 270)
+      (place RS11 1095000 -920000 front 270)
+      (place RS4 1207000 -920000 front 270)
+      (place RS10 1111000 -920000 front 270)
+      (place RS3 1223000 -920000 front 270)
+    )
+    (component AWD:SensePad_8x18mm
+      (place E8 1175000 -2750000 front 0)
+      (place E3 1175000 -1750000 front 0)
+      (place E9 1175000 -2950000 front 0)
+      (place E4 1175000 -1950000 front 0)
+      (place E5 1175000 -2150000 front 0)
+      (place E12 1175000 -3550000 front 0)
+      (place E7 1175000 -2550000 front 0)
+      (place E10 1175000 -3150000 front 0)
+      (place E11 1175000 -3350000 front 0)
+      (place E6 1175000 -2350000 front 0)
+      (place E1 1175000 -1350000 front 0)
+      (place E2 1175000 -1550000 front 0)
+    )
+    (component Resistor_SMD:R_0603_1608Metric
+      (place R4 1290000 -660000 front 90)
+      (place R3 1030000 -475000 front 90)
+      (place R5 1310000 -660000 front 90)
+    )
+    (component "Package_TO_SOT_SMD:SOT-23"
+      (place Q2 1300000 -710000 front 0)
+      (place Q1 1020000 -890000 front 0)
+    )
+    (component "RF_Module:ESP32-S2-MINI-1"
+      (place U1 1175000 -502500 front 0)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C2 1055000 -475000 front 90)
+      (place C5 1035000 -730000 front 90)
+    )
+    (component TestPoint:TestPoint_Pad_D1.5mm
+      (place TP1 1345000 -920000 front 0)
+    )
+    (component AWD:SensePad_8x12mm
+      (place E13 1175000 -1160000 front 0)
+    )
+    (component Resistor_SMD:R_0603_1608Metric::1
+      (place R7 1280000 -565000 front 0)
+      (place R1 1020000 -920000 front 0)
+      (place R6 1340000 -710000 front 0)
+      (place R2 1275000 -465000 front 0)
+    )
+    (component Button_Switch_SMD:SW_SPST_TL3342
+      (place SW1 1025000 -540000 front 90)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric
+      (place C3 1078000 -475000 front 90)
+      (place C7 1330000 -660000 front 90)
+      (place C4 1060000 -730000 front 90)
+    )
+    (component Capacitor_SMD:C_0603_1608Metric::1
+      (place C6 1275000 -485000 front 0)
+    )
+    (component Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical
+      (place J2 1315000 -480000 front 0)
+    )
+    (component LED_SMD:LED_0603_1608Metric
+      (place D1 1280000 -585000 front 0)
+    )
+    (component Capacitor_SMD:C_1206_3216Metric
+      (place C1 1020000 -955000 front 0)
+    )
+    (component "RF_Module:Ai-Thinker-Ra-01-LoRa"
+      (place U2 1175000 -720000 front 0)
+    )
+    (component AWD:ReturnPad_8x20mm
+      (place E14 1175000 -3840000 front 0)
+    )
+    (component Connector_Coaxial:SMA_Amphenol_132289_EdgeMount
+      (place J1 986000 -650000 front 180)
+    )
+    (component "Connector_JST:JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal"
+      (place J3 1175000 -700000 back 0)
+    )
+  )
+  (was_is
+  )
+  (routes 
+    (resolution um 10)
+    (parser
+      (host_cad "KiCad's Pcbnew")
+      (host_version 9.0.7)
+    )
+    (library_out 
+      (padstack "Via[0-3]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle In1.Cu 6000 0 0)
+        )
+        (shape
+          (circle In2.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-3]_800:400_um"
+        (shape
+          (circle F.Cu 8000 0 0)
+        )
+        (shape
+          (circle In1.Cu 8000 0 0)
+        )
+        (shape
+          (circle In2.Cu 8000 0 0)
+        )
+        (shape
+          (circle B.Cu 8000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-3]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle In1.Cu 6000 0 0)
+        )
+        (shape
+          (circle In2.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-3]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle In1.Cu 6000 0 0)
+        )
+        (shape
+          (circle In2.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-3]_800:400_um"
+        (shape
+          (circle F.Cu 8000 0 0)
+        )
+        (shape
+          (circle In1.Cu 8000 0 0)
+        )
+        (shape
+          (circle In2.Cu 8000 0 0)
+        )
+        (shape
+          (circle B.Cu 8000 0 0)
+        )
+        (attach off)
+      )
+    )
+    (network_out 
+      (net /LED_A
+        (wire
+          (path F.Cu 2500
+            1287875 -585000
+            1287880 -585000
+          )
+        )
+      )
+    )
+  )
+)

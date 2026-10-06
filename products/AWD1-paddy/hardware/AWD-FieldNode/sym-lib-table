@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "AWD")(type "KiCad")(uri "${KIPRJMOD}/AWD.kicad_sym")(options "")(descr "AWD field node parts"))
+)

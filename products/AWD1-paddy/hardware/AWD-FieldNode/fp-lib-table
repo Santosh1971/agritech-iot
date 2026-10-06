@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "AWD")(type "KiCad")(uri "${KIPRJMOD}/AWD.pretty")(options "")(descr "AWD sensing pads"))
+)

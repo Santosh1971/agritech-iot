@@ -1,0 +1,7 @@
+(version 1)
+
+# 50 ohm antenna feed: 0.36 mm on F.Cu over the In1 GND plane (JLC04161H-7628, h = 0.21 mm, er 4.4).
+# Keep the F.Cu GND pour 0.5 mm away so the line behaves as a microstrip.
+(rule "RF feed pour gap"
+  (constraint clearance (min 0.5mm))
+  (condition "A.NetClass == 'RF' && B.Type == 'Zone'"))
