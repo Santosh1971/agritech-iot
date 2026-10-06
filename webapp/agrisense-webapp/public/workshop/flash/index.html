@@ -47,8 +47,14 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--copper);outline-off
 .tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .progs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:10px}
 .prog{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px;align-content:start;background:var(--panel)}
-.prog b{font-family:var(--display);font-size:1.05rem}
+.prog>b{font-family:var(--display);font-size:1.05rem}
 .prog small{color:var(--ink-2)}
+.prog details{border-top:1px dashed var(--line);padding-top:6px}
+.prog summary{cursor:pointer;font-weight:700;color:var(--mask)}
+.prog .learn{font-size:.92rem;margin:6px 0}
+.prog ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:.92rem}
+.prog .see{font-family:var(--mono);font-size:.75rem;background:var(--code-bg);color:var(--code-ink);border-radius:6px;padding:6px 8px;margin-top:6px;word-break:break-word}
+.steps4{margin:0;padding-left:20px;display:grid;gap:3px}
 .wire{font-family:var(--mono);font-size:.75rem;color:var(--copper)}
 .status{font-family:var(--mono);font-size:.85rem;padding:8px 12px;border-radius:8px;background:var(--panel-2)}
 .status.ok{background:var(--mask);color:var(--mask-ink)}
@@ -95,6 +101,13 @@ details.asks>summary{cursor:pointer;padding:4px 0}
   <section class="card" id="panel-ready" role="tabpanel" aria-labelledby="tab-ready">
     <h2>Ready programs</h2>
     <p style="color:var(--ink-2)">Programs 1–3 need only the ESP32 DevKit: its blue LED (GPIO 2) and <b>BOOT</b> button (GPIO 0). The workshop kit adds: <span class="wire">DHT22 → D23 · flow sensor → D35 (through the divider) · relay → D19 · clock (RTC) SDA → D21, SCL → D22</span>. Programs 7–9 also work on a bare DevKit: the blue LED plays the pump.</p>
+    <div class="warn"><b>Every program, the same 4 steps:</b>
+      <ol class="steps4">
+        <li>Type the <b>access code</b> at the top (once).</li>
+        <li>Click <b>Choose</b> on a program below.</li>
+        <li>Click <b>Flash to my ESP32</b> and pick the port (CP210x, CH340 or USB Serial). Wait for 100%.</li>
+        <li>In the <b>Serial monitor</b> click <b>Connect</b> to see what the ESP32 is doing. Open <b>How to use</b> on the program card for what to try.</li>
+      </ol></div>
     <div class="progs" id="progs"></div>
   </section>
 
@@ -157,16 +170,16 @@ details.asks>summary{cursor:pointer;padding:4px 0}
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.js";
 
 const PROGRAMS = [
-  { file: "1-blink", name: "1 · Blink", what: "The blue LED blinks every second.", wire: "DevKit only" },
-  { file: "2-button-led", name: "2 · Button → LED", what: "Hold the BOOT button: the LED lights up.", wire: "DevKit only" },
-  { file: "3-blink-rate", name: "3 · Blink speed", what: "Each press of BOOT makes the LED blink faster.", wire: "DevKit only" },
-  { file: "4-temp-humidity", name: "4 · Temperature & humidity", what: "Temperature and humidity every 2 seconds, with the time from the clock (RTC). Type T 2026-10-01 10:30:00 to set the clock.", wire: "DHT22 on D23 · RTC on D21/D22" },
-  { file: "5-flow-meter", name: "5 · Flow meter", what: "Blow into the flow sensor: see litres per minute and total litres.", wire: "Flow sensor on D35" },
-  { file: "6-pump-flow-check", name: "6 · Pump with flow check", what: "BOOT (or typing ON / OFF) switches the pump relay. No flow for 10 seconds: pump stops to protect the motor.", wire: "Relay on D19 · flow sensor on D35" },
-  { file: "7-bluetooth", name: "7 · Bluetooth to the phone", what: "Time, temperature, humidity, flow and pump in the Serial Bluetooth Terminal app. Type PUMP ON / PUMP OFF. On a bare DevKit the blue LED is the pump.", wire: "Everything connected, or DevKit only" },
-  { file: "8-wifi-softap", name: "8 · WiFi dashboard (own network)", what: "Phone joins FarmIoT-xxxx (12345678) and opens 192.168.4.1: live readings, PUMP ON / OFF buttons, set the clock from the phone.", wire: "Everything connected, or DevKit only" },
+  { file: "1-blink", learn: "An <b>output</b>: the ESP32 switches something on and off by itself. Later the same idea switches a pump.", steps: ["Click <b>Choose</b>, then <b>Flash to my ESP32</b> and pick the port.", "Look at the small <b>blue LED</b> near the USB socket: 1 second on, 1 second off, again and again.", "Click <b>Connect</b> on the Serial monitor to see what the ESP32 is saying."], see: "LED ON · LED OFF · LED ON …", name: "1 · Blink", what: "The blue LED blinks every second.", wire: "DevKit only" },
+  { file: "2-button-led", learn: "An <b>input</b> controls an output. A button is <b>digital</b>: only two states, pressed or not pressed (0 or 1).", steps: ["Flash the program and click <b>Connect</b> on the Serial monitor.", "Press and hold the <b>BOOT</b> button (the small button next to the USB socket, marked BOOT or IO0).", "The blue LED stays on while you hold it and goes off when you let go."], see: "Button pressed -> LED ON · Button released -> LED OFF", name: "2 · Button → LED", what: "Hold the BOOT button: the LED lights up.", wire: "DevKit only" },
+  { file: "3-blink-rate", learn: "The <b>controller</b> decides: it remembers your presses and changes the output. Input → decide → output.", steps: ["Flash the program and click <b>Connect</b>.", "The LED starts blinking slowly (once a second).", "Press <b>BOOT</b> once: it blinks faster. Press again: faster still. The 4th press takes it back to slow."], see: "Button pressed -> blinking every 500 ms", name: "3 · Blink speed", what: "Each press of BOOT makes the LED blink faster.", wire: "DevKit only" },
+  { file: "4-temp-humidity", learn: "A <b>sensor</b>: the DHT22 measures air temperature and humidity. The <b>clock (RTC)</b> adds the date and time, and its battery keeps time even when the power is off.", steps: ["Check the wiring: DHT22 data → D23, clock SDA → D21, SCL → D22.", "Flash, then click <b>Connect</b>. A new line appears every 2 seconds.", "If it says <b>clock not set</b>, type in the box under the monitor: <b>T 2026-10-06 10:30:00</b> (today’s date and time) and click <b>Send</b>.", "Breathe gently on the sensor: humidity goes up. Hold it in your fingers: temperature goes up."], see: "2026-10-06 10:30:02  Temperature 27.4 C  Humidity 61.2 %", name: "4 · Temperature & humidity", what: "Temperature and humidity every 2 seconds, with the time from the clock (RTC). Type T 2026-10-01 10:30:00 to set the clock.", wire: "DHT22 on D23 · RTC on D21/D22" },
+  { file: "5-flow-meter", learn: "Counting <b>pulses</b>: a small wheel inside the sensor spins with the water, and each turn sends a pulse. About 450 pulses = 1 litre.", steps: ["Check the wiring: sensor yellow wire → divider → D35, red → 5V (VIN), black → GND.", "Flash, then click <b>Connect</b>. A new line appears every second.", "Blow gently into the sensor (in the direction of the arrow): flow goes up and the total litres add up. The blue LED is on while water flows."], see: "Flow 1.52 L/min   Total 0.084 L   (38 pulses)", name: "5 · Flow meter", what: "Blow into the flow sensor: see litres per minute and total litres.", wire: "Flow sensor on D35" },
+  { file: "6-pump-flow-check", learn: "<b>Feedback</b>: the ESP32 switches the pump (relay) and then checks with the flow sensor that water is really coming. No water = the pump is <b>running dry</b>, which burns the motor, so it stops it.", steps: ["Check the wiring: relay → D19, flow sensor → D35.", "Flash, click <b>Connect</b>. Press <b>BOOT</b> (or type <b>ON</b> and click Send): the relay clicks on and the blue LED lights.", "Do nothing for 10 seconds: the pump switches off by itself. That is the protection working.", "Switch on again and keep blowing into the flow sensor: the pump keeps running. Press BOOT or type <b>OFF</b> to stop it and see the litres used."], see: "PUMP ON (button). Checking for flow... · NO FLOW - pump stopped to protect the motor", name: "6 · Pump with flow check", what: "BOOT (or typing ON / OFF) switches the pump relay. No flow for 10 seconds: pump stops to protect the motor.", wire: "Relay on D19 · flow sensor on D35" },
+  { file: "7-bluetooth", learn: "<b>Bluetooth</b>: the farm data goes to your phone without any internet, up to about 10 metres.", steps: ["Flash, click <b>Connect</b>, and note the name it prints, for example <b>FarmIoT-D0FA</b>.", "On your Android phone install <b>Serial Bluetooth Terminal</b> (Play Store).", "Phone Settings → Bluetooth → pair with <b>FarmIoT-xxxx</b>. Then in the app: ☰ → Devices → tap FarmIoT-xxxx → tap the connect icon at the top.", "Readings arrive every 2 seconds. Type <b>PUMP ON</b> or <b>PUMP OFF</b> in the app and send.", "Testing without the flow sensor? The pump stops after 10 s. Type <b>PROTECT OFF</b> to switch the check off, and <b>PROTECT ON</b> to switch it back on."], see: "Program 7: Bluetooth name FarmIoT-D0FA - pair your phone with it", name: "7 · Bluetooth to the phone", what: "Time, temperature, humidity, flow and pump in the Serial Bluetooth Terminal app. Type PUMP ON / PUMP OFF. On a bare DevKit the blue LED is the pump.", wire: "Everything connected, or DevKit only" },
+  { file: "8-wifi-softap", learn: "<b>WiFi without internet</b>: the ESP32 makes its own WiFi network and shows a web page on your phone, like a small website inside the device.", steps: ["Flash, click <b>Connect</b>, and note the name it prints, for example <b>FarmIoT-D0FA</b>.", "On your phone open WiFi settings and join <b>FarmIoT-xxxx</b>, password <b>12345678</b>. If the phone says “no internet”, choose to stay connected.", "Open Chrome on the phone and type <b>192.168.4.1</b>.", "You see live readings and big <b>PUMP ON</b> / <b>PUMP OFF</b> buttons. Tap <b>Set the device clock from this phone</b> (at the bottom) to copy the phone’s time into the clock.", "Without the flow sensor the pump stops after 10 s: that is the dry-run protection."], see: "Program 8: join WiFi FarmIoT-D0FA (password 12345678) and open http://192.168.4.1", name: "8 · WiFi dashboard (own network)", what: "Phone joins FarmIoT-xxxx (12345678) and opens 192.168.4.1: live readings, PUMP ON / OFF buttons, set the clock from the phone.", wire: "Everything connected, or DevKit only" },
   { api: "/api/lab/firmware", name: "Lab Station (college unit)", what: "The gifted unit’s own program: logs temperature, humidity and water every 5 minutes, uploads the log, keeps your farm apps working, and installs updates over WiFi. Flash this to restore the unit.", wire: "Full kit" },
-  { file: "9-mqtt", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first. Then make it your own app at agrisenseandcontrol.in/workshop/app: your app name and icon on your phone, pump control over the internet.", wire: "Everything connected, or DevKit only" },
+  { file: "9-mqtt", learn: "<b>Internet (MQTT)</b>: the ESP32 sends readings to a server on the internet, so you can watch the farm and switch the pump from anywhere. This is how real farm IoT products work.", steps: ["Flash, click <b>Connect</b>, and note the name it prints, for example <b>FarmIoT-D0FA</b>.", "First time only: on your phone join WiFi <b>FarmIoT-xxxx-setup</b> (password <b>12345678</b>). A page opens (if not, open <b>192.168.4.1</b>). Tap <b>Configure WiFi</b>, pick a WiFi that has internet (your phone hotspot works), type its password and save. The ESP32 remembers it.", "When the monitor says <b>Connected to the internet broker</b>, open <b>agrisenseandcontrol.in/workshop/mqtt</b> and type your device name: readings appear and the pump buttons work.", "Make it your own app: open <b>agrisenseandcontrol.in/workshop/app</b>, type an app name and your device name, click <b>Create my app</b>, scan the QR code with your phone and tap <b>Install my app</b>. Your app gets its own icon on your home screen.", "Have two boards? In your app tap the device name at the top to add and switch boards."], see: "Connected to the internet broker. Open agrisenseandcontrol.in/workshop/mqtt and type FarmIoT-D0FA", name: "9 · From anywhere (MQTT)", what: "Set up WiFi from a phone first. Then make it your own app at agrisenseandcontrol.in/workshop/app: your app name and icon on your phone, pump control over the internet.", wire: "Everything connected, or DevKit only" },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -202,6 +215,13 @@ for (const p of PROGRAMS) {
   div.querySelector("b").textContent = p.name;
   div.querySelector("small").textContent = p.what;
   div.querySelector(".wire").textContent = p.wire;
+  if (p.steps) {
+    // Our own fixed text (not user input), so innerHTML is safe here.
+    const d = document.createElement("details");
+    d.innerHTML = `<summary>How to use</summary><p class="learn">${p.learn}</p><ol>${p.steps.map((x) => `<li>${x}</li>`).join("")}</ol><div class="see"></div>`;
+    d.querySelector(".see").textContent = "You will see: " + p.see;
+    div.insertBefore(d, div.querySelector(".row"));
+  }
   div.querySelector("button").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.disabled = true;
