@@ -186,6 +186,8 @@ def build():
     # Anonymised questionnaire summary for the college (unlisted, noindex).
     (SITE / "insights").mkdir()
     shutil.copy(HERE / "insights" / "index.html", SITE / "insights" / "index.html")
+    (SITE / "feedback").mkdir()
+    shutil.copy(HERE / "feedback" / "index.html", SITE / "feedback" / "index.html")
 
     if WEBAPP_PUBLIC.parent.parent.exists():
         if WEBAPP_PUBLIC.exists():

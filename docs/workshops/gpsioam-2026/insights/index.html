@@ -46,7 +46,7 @@ section{display:grid;gap:14px}
 .bars{list-style:none;margin:0;padding:0;display:grid;gap:7px}
 .bars li{display:grid;grid-template-columns:minmax(0,11rem) minmax(0,1fr) 2.2rem;gap:10px;align-items:center;font-size:.93rem}
 .bars .track{height:12px;background:var(--bar-bg);border-radius:99px;overflow:hidden}
-.bars .fill{height:100%;background:var(--mask);border-radius:99px}
+.bars .fill{display:block;height:100%;background:var(--mask);border-radius:99px}
 .bars .hot .fill{background:var(--copper)}
 .bars b{font-family:var(--mono);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
 .bars .zero .lbl{color:var(--ink-2)}

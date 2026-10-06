@@ -44,6 +44,7 @@ const GROUPS: Group[] = [
     topics: [
       { id: "survey", title: "Questionnaire form", note: "What students fill in", kind: "page", href: "/workshop/survey" },
       { id: "insights", title: "What students told us", note: "Anonymised summary", kind: "page", href: "/workshop/insights" },
+      { id: "feedback", title: "What students said after", note: "Feedback summary for the professor", kind: "page", href: "/workshop/feedback" },
       { id: "responses", title: "Individual responses", note: "Private, with names", kind: "responses", survey: "gpsioam-2026" },
       { id: "lab-responses", title: "Lab idea feedback responses", note: "End of workshop · private", kind: "responses", survey: "lab-idea" },
     ],
