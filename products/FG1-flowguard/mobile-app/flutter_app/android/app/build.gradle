@@ -13,7 +13,9 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.nbagri.automation"
-    compileSdk = flutter.compileSdkVersion
+    // Play requires targetSdk 36 for new releases (Console rejected 35);
+    // Flutter 3.27 defaults to 35, so both are pinned here.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -35,7 +37,7 @@ android {
         // Console rejected on upload with "Play automatic protection
         // requires a minimum SDK version of 24 or higher").
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

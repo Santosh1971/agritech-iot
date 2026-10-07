@@ -1,7 +1,7 @@
 name: smart_water_controller
 description: Smart Water Controller — hybrid SoftAP/MQTT irrigation control
 publish_to: none
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
