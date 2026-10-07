@@ -141,7 +141,7 @@ The app is the shared **ASC Studio app** (Flutter), described in `docs/student-p
 ## 8. Open decisions
 
 1. ~~Feature split~~: decided on 2026-10-07. Mini has 4 sensor ports and 2 relays. Mega has 8 ports and 4 relays and keeps the RS-485, valve, LoRa and GSM slots. Both have the RTC and BLE (BLE only is accepted).
-2. Architecture decisions A1–A6 (latching relays on Mega, port connector, Grove I²C, cell size, 4G Cat-1, module variant): see `StudentKit_Architecture_v0.1.md` §6.
+2. ~~Architecture decisions A1–A6~~: all agreed on 2026-10-07 (latching relays on Mega, 4-pin sensor ports, Grove I²C, 18650 cell, 4G Cat-1, the -N8 module).
 3. RTC part: DS3231-class proposed (HW-15).
 4. Which candidate sample boxes to buy (ME-01).
 5. Target prices for the kits (HW-14) and per-batch pricing for colleges.

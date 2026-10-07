@@ -169,6 +169,7 @@ How *teach while hiding* works in practice:
 - 2026-10-07: There will be **two kits, Mini and Mega**. Their contents are still to be decided. They are designed through the studio's own stages (Project #0), using a sample ready-made box.
 - 2026-10-07: **Mini** gets an RTC, Bluetooth and 2 relays. **Mega** gets 4 relays and more sensor ports. Both kits have Bluetooth.
 - 2026-10-07: Mini has **4 sensor ports**. Mega keeps its RS-485, valve, LoRa and GSM slots. **BLE only** is accepted. Architecture (stage 3) drafted: `products/ASC-StudentKit/docs/StudentKit_Architecture_v0.1.md` and a checked `hardware/pinmap.json`.
+- 2026-10-07: Architecture decisions A1–A6 agreed. **The platform is built before the Mini schematic.** Mini is the first project run through the platform, end to end.
 - 2026-10-07: **A mobile app is part of the system** (§3.4): one shared ASC Studio app whose screen is built from each student's design.
 
 ## 10. Open questions

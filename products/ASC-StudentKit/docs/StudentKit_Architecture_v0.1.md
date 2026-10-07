@@ -2,7 +2,7 @@
 
 **Follows from:** `StudentKit_Specification_v0.1.md` (stage 2). Requirement IDs (SYS-, HW-, SW-, APP-) refer to that document.
 **Machine-readable pin map:** `../hardware/pinmap.json`, checked by `../hardware/tools/check_pinmap.py`
-**Date:** 7 Oct 2026. **Status:** draft for review (the stage-3 gate).
+**Date:** 7 Oct 2026. **Status:** agreed on 2026-10-07 (stage-3 gate passed).
 
 This is studio stage 3 run on our own kits. The pin map is a data file, and a rule checker enforces the hardware rules. This is the same split the studio will use for students: the AI proposes, the rules decide (studio decision D5). Every power and battery figure below is an **estimate from typical datasheet values**. Bring-up measurements replace them in stage 6.
 
@@ -170,7 +170,9 @@ boot → read BOARD_ID (ADC2, radio still off) → load board map from pinmap.js
 - Each driver talks only to *ports* (S1, OUT2, I2C-1), never to GPIO numbers (SYS-04).
 - The BLE service and MQTT carry the same messages: config, live values, commands, app layout. The app (APP-01) therefore uses one data model whichever link it is on.
 
-## 6. Decisions needed at this gate
+## 6. Decisions at this gate
+
+**A1–A6 were all agreed on 2026-10-07, as recommended.** The stage-3 gate is passed.
 
 | # | Decision | Recommendation |
 |---|---|---|
