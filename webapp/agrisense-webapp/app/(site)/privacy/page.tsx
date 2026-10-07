@@ -35,7 +35,7 @@ export default function Privacy() {
                 <span><b>Device connection information</b> &mdash; the App stores your device&rsquo;s
                 identifier and connection details locally on your phone so it can reconnect to
                 your device automatically. This never leaves your phone except to talk directly
-                to your own device or your own configured MQTT broker.</span>
+                to your own device or the NB Agri MQTT relay server described below.</span>
               </li>
               <li>
                 <span><b>Irrigation history</b> &mdash; cycle logs, water volumes, and timestamps are
@@ -77,8 +77,12 @@ export default function Privacy() {
             <h3>Data transmission</h3>
             <p className="muted">
               Communication with your device happens either directly over your local WiFi
-              network or via an encrypted connection to the MQTT broker configured for your
-              device. We do not operate a separate server that stores your irrigation data.
+              network or through the NB Agri MQTT relay server (mqtt.agrisenseandcontrol.in),
+              which we operate. The relay passes commands and status messages between the App
+              and your device; it may hold the latest status or a pending command until your
+              device reconnects, but it does not keep a history of your irrigation data and is
+              not linked to your name or any other personal information. This connection is
+              not currently encrypted; we plan to add encryption in a future update.
             </p>
           </div>
 
