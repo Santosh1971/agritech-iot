@@ -26,7 +26,11 @@ export default function LoginPage() {
       method: "POST",
       body: JSON.stringify({ email, code }),
     });
-    if (res.ok) router.push("/dashboard");
+    if (res.ok) {
+      // Students and teachers only use the Product Studio.
+      const { role } = await res.json();
+      router.push(role === "STUDENT" || role === "TEACHER" ? "/studio" : "/dashboard");
+    }
     else {
       const data = await res.json();
       setError(data.error || "Invalid code.");

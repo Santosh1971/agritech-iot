@@ -78,6 +78,14 @@ def main():
         if lora and lora != set(awd):
             errors.append(f"{n}: LoRa pins {sorted(lora)} differ from AWD1's {sorted(awd)}")
 
+    # The studio web app ships its own copy, so the platform's rules and the
+    # hardware can never disagree.
+    copy = os.path.normpath(os.path.join(HW, "../../../webapp/agrisense-webapp/lib/studio/pinmap.json"))
+    if os.path.exists(copy):
+        with open(copy) as f, open(os.path.join(HW, "pinmap.json")) as g:
+            if f.read() != g.read():
+                errors.append(f"{copy} differs from pinmap.json; copy pinmap.json over it")
+
     for n, b in boards.items():
         used = {int(g) for g in b["pins"]}
         print(f"{n}: {len(used)} of {len(module)} module GPIOs used, "

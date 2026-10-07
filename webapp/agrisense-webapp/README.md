@@ -53,6 +53,25 @@ One app, role-based — no separate admin app needed (same call WM1-Mini's spec 
   matching `User` row gets a clear "not registered, contact your dealer" message rather than an
   account being silently created.
 
+## Student Product Studio (`/studio`)
+
+The studio is where BSc Agriculture students take a farm IoT product from problem to field trial. The plan is in `docs/student-product-studio.md` and the student kits are in `products/ASC-StudentKit/`.
+
+- **Roles.** `TEACHER` and `STUDENT` were added to `Role`.
+  - Admins create cohorts (one class at one college, or our internal Project #0) and act as the ASC designers.
+  - Teachers add students and sign off the mentor gates.
+  - Students see only their own team's projects.
+  - There is still no self-signup. Adding someone to a cohort creates their account, and they log in with the usual email OTP. After login, students and teachers land on `/studio`.
+- **Stages working now:** Problem → Specification (mentor sign-off) → Architecture. The other six stages show what is coming.
+- **Code layout:**
+  - `lib/studio/`: stages, kits, block library and rule checks. These run in the browser and on the server.
+  - `app/studio/`: the pages.
+  - `app/api/studio/`: the API routes.
+- **Pin map copy.** `lib/studio/pinmap.json` is a copy of `products/ASC-StudentKit/hardware/pinmap.json`. `python3 products/ASC-StudentKit/hardware/tools/check_pinmap.py` fails if the two differ.
+- **Claude drafts the spec** when `ANTHROPIC_API_KEY` is set in the server's environment. It uses Claude Opus 5.5 with server-side refusal fallback. Without a key, or if a call fails, a fixed template drafts it instead, so the stage always works. Each project gets at most 10 drafts a day.
+
+**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
+
 ## Running locally (before the VPS is reachable)
 
 ```bash

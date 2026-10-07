@@ -10,6 +10,8 @@ enum Role {
   ADMIN
   DEALER
   CUSTOMER
+  TEACHER // Student Product Studio: mentors a cohort, signs off gates
+  STUDENT // Student Product Studio: works on their team's projects only
 }
 
 enum Product {
@@ -42,6 +44,13 @@ model User {
   buildsUploaded  FirmwareBuild[]  @relation("BuildsUploaded")
   appBuildsUploaded MobileAppBuild[] @relation("AppBuildsUploaded")
   grantsIssued    FlasherGrant[]  @relation("GrantsIssued")
+
+  cohortsCreated  StudioCohort[]        @relation("CohortsCreated")
+  cohortMembers   StudioCohortMember[]
+  studioProjects  StudioProjectMember[]
+  projectsCreated StudioProject[]       @relation("ProjectsCreated")
+  stageSignOffs   StudioStage[]         @relation("StageSignOffs")
+  designsSaved    StudioDesign[]        @relation("DesignsSaved")
 }
 
 model OtpCode {
@@ -190,4 +199,108 @@ model FlashEvent {
   occurredAt DateTime      @default(now())
 
   @@index([grantId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Student Product Studio (docs/student-product-studio.md). A cohort is one
+// class at one college (e.g. GPSIOAM AGR 322, 2026-27) or our own internal
+// "Project #0" group. Teachers and students see only cohorts they belong to;
+// admins see everything and act as the ASC designers.
+// ---------------------------------------------------------------------------
+
+enum StudioKit {
+  MINI
+  MEGA
+}
+
+enum StudioStageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED // waiting for a mentor's sign-off (mentor-gated stages only)
+  DONE
+}
+
+model StudioCohort {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "AGR 322 Farm IoT practical"
+  institution String   // e.g. "GPSIOAM" or "Agri Sensors and Controls"
+  session     String?  // e.g. "2026-27"
+  createdById String
+  createdBy   User     @relation("CohortsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  members  StudioCohortMember[]
+  projects StudioProject[]
+}
+
+model StudioCohortMember {
+  cohortId String
+  cohort   StudioCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt  DateTime     @default(now())
+
+  @@id([cohortId, userId])
+  @@index([userId])
+}
+
+model StudioProject {
+  id          String       @id @default(cuid())
+  title       String
+  kit         StudioKit    @default(MINI)
+  cohortId    String
+  cohort      StudioCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User         @relation("ProjectsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members StudioProjectMember[]
+  stages  StudioStage[]
+  designs StudioDesign[]
+
+  @@index([cohortId])
+}
+
+model StudioProjectMember {
+  projectId String
+  project   StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+// One row per project per stage, created the first time the stage is saved.
+// `data` is the stage's own output (problem facts, spec draft, test log...);
+// the port assignment lives in StudioDesign so every version is kept.
+model StudioStage {
+  id            String            @id @default(cuid())
+  projectId     String
+  project       StudioProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage         String            // key from lib/studio/stages.ts, e.g. "problem", "spec"
+  status        StudioStageStatus @default(NOT_STARTED)
+  data          Json?
+  signedOffById String?
+  signedOffBy   User?             @relation("StageSignOffs", fields: [signedOffById], references: [id])
+  signedOffAt   DateTime?
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([projectId, stage])
+}
+
+// A saved block-to-port assignment (plus, later, rules and the app layout).
+// Each save is a new version; the newest is what gets sent to the board.
+model StudioDesign {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version     Int
+  ports       Json          // { "S1": "soil", "OUT1": "pump", ... }
+  createdById String
+  createdBy   User          @relation("DesignsSaved", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@unique([projectId, version])
 }
