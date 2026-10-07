@@ -79,9 +79,10 @@ export default function Privacy() {
               Communication with your device happens either directly over your local WiFi
               network or through the NB Agri MQTT relay server (mqtt.agrisenseandcontrol.in),
               which we operate. The relay passes commands and status messages between the App
-              and your device; it may hold the latest status or a pending command until your
-              device reconnects, but it does not keep a history of your irrigation data and is
-              not linked to your name or any other personal information. This connection is
+              and your device. Our server records your device&rsquo;s ID, when it was last online
+              and its most recent status (for example pump on/off), and may hold a pending
+              command until the device reconnects. It does not keep a history of your irrigation
+              data, and none of this is linked to your name or any other personal information. This connection is
               not currently encrypted; we plan to add encryption in a future update.
             </p>
           </div>
