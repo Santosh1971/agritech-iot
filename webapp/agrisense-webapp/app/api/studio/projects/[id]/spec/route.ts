@@ -25,7 +25,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const n = prev.drafts?.day === today ? prev.drafts.n : 0;
   if (n >= DRAFTS_PER_DAY) return err(`This project has used its ${DRAFTS_PER_DAY} drafts for today. Edit the text by hand, or try again tomorrow.`, 429);
 
-  const spec = await draftSpec((state.stages.problem.data ?? {}) as ProblemData, state.kit);
+  // Once the board is designed, the spec describes those parts.
+  const spec = await draftSpec((state.stages.problem.data ?? {}) as ProblemData, state.kit, state.design?.ports);
   const data = { ...spec, drafts: { day: today, n: n + 1 } };
   await saveStage(id, "spec", { status: "IN_PROGRESS", data });
   return NextResponse.json({ spec: data });

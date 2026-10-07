@@ -17,14 +17,16 @@ const SAFETY = "The board never touches 230 V. Pumps and other mains loads are s
 
 // ---------- Template (no API key, or Claude unavailable) ----------
 
-export function templateSpec(p: ProblemData, kit: KitKey, note?: string): SpecData {
+// `design` is the board from the Architecture stage, once there is one: the
+// spec then describes the parts actually chosen instead of guessing.
+export function templateSpec(p: ProblemData, kit: KitKey, note?: string, design?: Ports): SpecData {
   const k = KITS[kit];
   const text = `${p.story ?? ""} ${p.crop ?? ""} ${p.water ?? ""} ${p.climate ?? ""}`.toLowerCase();
   const pick: string[] = [];
   const want = (id: string, ...words: string[]) => { if (words.some((w) => text.includes(w))) pick.push(id); };
-  want("soil", "soil", "moisture", "dry", "irrigat", "water");
+  want("soil", "soil", "moisture", "dry");
   want("float", "tank");
-  want("flow", "flow", "litre", "liter");
+  want("flow", "flow", "litre", "liter", "quantity", "volume", "how much water");
   want("dht", "humid", "hot", "temperature", "heat", "°c");
   want("light", "light", "shade", "sun");
   want("pump", "pump", "irrigat");
@@ -33,7 +35,7 @@ export function templateSpec(p: ProblemData, kit: KitKey, note?: string): SpecDa
   if (kit === "MEGA") { want("npk", "npk", "fertil", "nutrient"); if (p.network === "none") pick.push("lora"); if (p.network === "mobile") pick.push("gsm"); }
   if (!pick.length) pick.push("soil", "dht");
 
-  const suggested = placeBlocks(kit, pick);
+  const suggested = hasParts(design) ? cleanPorts(kit, design) : placeBlocks(kit, pick);
   const used = Object.entries(suggested).filter(([, b]) => b) as [string, string][];
   const sensors = used.filter(([, b]) => !BLOCK_BY_ID[b].output).map(([, b]) => BLOCK_BY_ID[b].name.toLowerCase());
   const outputs = used.filter(([, b]) => BLOCK_BY_ID[b].output).map(([, b]) => BLOCK_BY_ID[b].name.toLowerCase());
@@ -59,6 +61,10 @@ export function templateSpec(p: ProblemData, kit: KitKey, note?: string): SpecDa
     note,
     generatedAt: new Date().toISOString(),
   };
+}
+
+function hasParts(design?: Ports): design is Ports {
+  return !!design && Object.values(design).some(Boolean);
 }
 
 // Put each wanted block on the first free port that takes it.
@@ -121,7 +127,7 @@ Rules:
 - Requirements: 6 to 10 short, testable lines. Use ids SYS-01…, HW-01…, SW-01…, APP-01…, ME-01… (system, hardware, software, phone app, mechanical). Put concrete thresholds in SW requirements where the problem allows (for example, "pump ON below 30 % soil moisture, OFF at 45 %").`;
 }
 
-export async function claudeSpec(p: ProblemData, kit: KitKey): Promise<SpecData> {
+export async function claudeSpec(p: ProblemData, kit: KitKey, design?: Ports): Promise<SpecData> {
   const client = new Anthropic();
   const facts = [
     `Problem in the student's words: ${p.story ?? ""}`,
@@ -131,6 +137,7 @@ export async function claudeSpec(p: ProblemData, kit: KitKey): Promise<SpecData>
     `Mains power at the site: ${p.power === "mains" ? "yes" : p.power === "solar" ? "no, solar only" : "no"}`,
     `Network at the site: ${p.network === "wifi" ? "WiFi" : p.network === "mobile" ? "mobile signal only" : "none"}`,
     p.climate && `Climate notes: ${p.climate}`,
+    hasParts(design) && `The student has already chosen these parts in the Architecture stage. Describe exactly these, suggest exactly these ports, and add nothing else:\n${Object.entries(design).filter(([, b]) => b).map(([port, b]) => `${port}: ${b}`).join("\n")}`,
   ].filter(Boolean).join("\n");
 
   const res = await client.beta.messages.create({
@@ -161,27 +168,27 @@ export async function claudeSpec(p: ProblemData, kit: KitKey): Promise<SpecData>
     use: out.use,
     safety: SAFETY,
     requirements: out.requirements.slice(0, 14),
-    suggested: cleanPorts(kit, raw),
+    suggested: hasParts(design) ? cleanPorts(kit, design) : cleanPorts(kit, raw),
     source: "claude",
     generatedAt: new Date().toISOString(),
   };
 }
 
-export async function draftSpec(p: ProblemData, kit: KitKey): Promise<SpecData> {
+export async function draftSpec(p: ProblemData, kit: KitKey, design?: Ports): Promise<SpecData> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return templateSpec(p, kit, "Drafted from a template. Add an Anthropic API key on the server to have Claude draft it.");
+    return templateSpec(p, kit, "Drafted from a template. Add an Anthropic API key on the server to have Claude draft it.", design);
   }
   try {
-    return await claudeSpec(p, kit);
+    return await claudeSpec(p, kit, design);
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) {
-      return templateSpec(p, kit, "Claude is busy right now, so this was drafted from a template. Try again in a minute.");
+      return templateSpec(p, kit, "Claude is busy right now, so this was drafted from a template. Try again in a minute.", design);
     }
     if (e instanceof Anthropic.APIError) {
       console.error("studio spec: Claude API error", e.status, e.message);
     } else {
       console.error("studio spec:", e);
     }
-    return templateSpec(p, kit, "Claude could not draft this one, so it was drafted from a template.");
+    return templateSpec(p, kit, "Claude could not draft this one, so it was drafted from a template.", design);
   }
 }

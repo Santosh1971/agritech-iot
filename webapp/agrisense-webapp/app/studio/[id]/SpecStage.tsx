@@ -48,7 +48,10 @@ export default function SpecStage(props: StageProps) {
         : <p>{f[k]}</p>}
     </div>
   );
-  const suggested = spec ? Object.entries(spec.suggested ?? {}).filter(([, b]) => b) as [string, string][] : [];
+  // Once Architecture has a design, show what is really on the board.
+  const onBoard = state.design ? Object.entries(state.design.ports).filter(([, b]) => b) as [string, string][] : [];
+  const suggested = onBoard.length ? onBoard : spec ? Object.entries(spec.suggested ?? {}).filter(([, b]) => b) as [string, string][] : [];
+  const partsDiffer = onBoard.length > 0 && !!spec && JSON.stringify(Object.fromEntries(onBoard)) !== JSON.stringify(Object.fromEntries(Object.entries(spec.suggested ?? {}).filter(([, b]) => b)));
 
   return (
     <>
@@ -66,6 +69,7 @@ export default function SpecStage(props: StageProps) {
           {spec && (
             <>
               {spec.note && <div className="msg warn"><span className="ic">!</span><span>{spec.note}</span></div>}
+              {partsDiffer && editable && <div className="msg warn"><span className="ic">!</span><span>This draft was written for different parts than your board has now. Press <b>Draft again</b> to describe the parts on your board, or edit the text by hand.</span></div>}
               {para("what", "What it does")}
               {para("madeOf", "What it is made of")}
               {para("use", "How you use it")}
@@ -86,8 +90,10 @@ export default function SpecStage(props: StageProps) {
           </Why>
           {spec && suggested.length > 0 && (
             <div className="card grid">
-              <div className="eyebrow">Suggested parts</div>
-              <p className="small muted">These go onto the board in the Architecture stage, where you can change them. The rules have already checked that each one fits its port.</p>
+              <div className="eyebrow">{onBoard.length ? `Parts on your board (design version ${state.design!.version})` : "Suggested parts"}</div>
+              <p className="small muted">{onBoard.length
+                ? "These come from the Architecture stage. Change them there."
+                : "These go onto the board in the Architecture stage, where you can change them. The rules have already checked that each one fits its port."}</p>
               <div className="tbl-wrap"><table><tbody>
                 {suggested.map(([port, b]) => <tr key={port}><td className="mono">{port}</td><td>{BLOCK_BY_ID[b]?.name ?? b}</td></tr>)}
               </tbody></table></div>
