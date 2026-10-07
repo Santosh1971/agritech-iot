@@ -32,15 +32,15 @@ export default function Privacy() {
             <h3>Data we collect</h3>
             <ul className="ticks">
               <li>
-                <b>Device connection information</b> &mdash; the App stores your device&rsquo;s
+                <span><b>Device connection information</b> &mdash; the App stores your device&rsquo;s
                 identifier and connection details locally on your phone so it can reconnect to
                 your device automatically. This never leaves your phone except to talk directly
-                to your own device or your own configured MQTT broker.
+                to your own device or your own configured MQTT broker.</span>
               </li>
               <li>
-                <b>Irrigation history</b> &mdash; cycle logs, water volumes, and timestamps are
+                <span><b>Irrigation history</b> &mdash; cycle logs, water volumes, and timestamps are
                 read from your device and displayed in the App. This data lives on your device
-                and is not collected or stored by us on any server we operate.
+                and is not collected or stored by us on any server we operate.</span>
               </li>
             </ul>
             <p className="muted">
@@ -55,20 +55,20 @@ export default function Privacy() {
             <h3>Permissions the App requests</h3>
             <ul className="ticks">
               <li>
-                <b>WiFi access</b> &mdash; to connect to your device directly over your local
+                <span><b>WiFi access</b> &mdash; to connect to your device directly over your local
                 network when you&rsquo;re nearby, and to help you find and set up your
-                device&rsquo;s WiFi during initial setup.
+                device&rsquo;s WiFi during initial setup.</span>
               </li>
               <li>
-                <b>Location</b> &mdash; on Android, scanning for nearby WiFi networks requires
+                <span><b>Location</b> &mdash; on Android, scanning for nearby WiFi networks requires
                 the system&rsquo;s location permission, even though the App does not use, store,
                 or transmit your actual location. This permission is used solely to let the WiFi
-                network scan function, as required by Android.
+                network scan function, as required by Android.</span>
               </li>
               <li>
-                <b>Network/Internet access</b> &mdash; to reach your device over the cloud (via
+                <span><b>Network/Internet access</b> &mdash; to reach your device over the cloud (via
                 MQTT) when you&rsquo;re not on the same local network, so you can monitor and
-                control it from anywhere.
+                control it from anywhere.</span>
               </li>
             </ul>
           </div>
