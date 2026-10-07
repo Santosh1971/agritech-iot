@@ -83,7 +83,13 @@ void blocksBegin(Design& d, const BoardMap& board) {
       pinMode(s.gpio, INPUT_PULLUP);
     } else if (is(s, "flow")) {
       setKeys(s, {""});
+#if CONFIG_IDF_TARGET_ESP32
+      // GPIO34-39 on a classic ESP32 are input only, with no pull-up; the
+      // flow sensor's own pull-up holds the line.
+      pinMode(s.gpio, s.gpio >= 34 ? INPUT : INPUT_PULLUP);
+#else
       pinMode(s.gpio, INPUT_PULLUP);
+#endif
       attachInterruptArg(s.gpio, onPulse, (void*)&dr.pulses, FALLING);
       dr.irqPin = s.gpio;
       dr.lastPulseMs = millis();

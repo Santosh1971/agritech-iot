@@ -17,18 +17,18 @@ CI (`.github/workflows/asc-kit-firmware.yml`) builds every push that touches thi
 
 ## GPSIOAM workshop kit
 
-The classic ESP32 DevKit V1 kit from the GPSIOAM workshop can stand in for a Mini without rewiring. Flash it with `pio run -e asc_gpsioam -t upload`. Its ports keep the Mini's names, but use the labs' wiring (`src/standin_gpsioam.h`):
+The classic ESP32 DevKit V1 kit from the GPSIOAM workshop can stand in for a Mini without rewiring. Flash it with `pio run -e asc_gpsioam -t upload`. Its ports keep the Mini's names (`src/standin_gpsioam.h`):
 
 | Port | GPIO | Part |
 |---|---|---|
-| S1 | 34 | Soil sensor or potentiometer |
-| S2 | 14 | Float switch to GND |
-| S3 | 4 | DHT22 |
-| S4 | 27 | Flow pulses |
-| OUT1 | 26 | Pump LED or relay |
-| OUT2 | 2 | On-board LED |
-| I2C-1 | SDA 21, SCL 22 | |
-| PAIR | BOOT button | |
+| S1 | 23 | DHT22 |
+| S2 | 35 | YF-S201 flow sensor (about 450 pulses per litre) |
+| OUT1 | 19 | Pump relay (HIGH = ON) |
+| OUT2 | 2 | On-board blue LED |
+| RTC | SDA 21, SCL 22 | DS1307 or DS3231 |
+| PAIR | 0 | BOOT button |
+
+The kit has no S3, S4 or student I²C port, so the board refuses a design that uses them. In the studio, put the DHT22 on S1, the flow sensor on S2, and outputs on OUT1 and OUT2.
 
 This build replies `"standInKit":"gpsioam"` to `hello`. The studio can't flash this board from the browser (its flasher is for the ESP32-S3), so flash it with PlatformIO.
 

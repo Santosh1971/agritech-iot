@@ -31,7 +31,15 @@ static bool standIn = false;  // no BOARD_ID divider: an ESP32-S3 DevKit wired t
 static Design design;
 static bool haveDesign = false;
 static Preferences prefs;
+#ifdef ASC_STANDIN_GPSIOAM
+// The workshop kit may carry a DS1307 or a DS3231. The DS1307 class drives
+// both, because their time registers match.
+static RTC_DS1307 rtc;
+static bool rtcTimeValid() { return rtc.isrunning(); }
+#else
 static RTC_DS3231 rtc;
+static bool rtcTimeValid() { return !rtc.lostPower(); }
+#endif
 static bool haveRtc = false;
 
 // Wall clock: from the RTC when there is one, else from the studio's "time" command.
@@ -355,7 +363,7 @@ void setup() {
     Wire.begin(board->i2cIntSda, board->i2cIntScl);
     haveRtc = rtc.begin(&Wire);
   }
-  if (haveRtc && !rtc.lostPower()) { clockUnix = rtc.now().unixtime(); clockAtMs = millis(); }
+  if (haveRtc && rtcTimeValid()) { clockUnix = rtc.now().unixtime(); clockAtMs = millis(); }
 
   fieldlog::begin();
   // Firmware 0.1 kept the design in NVS; move it to flash once.

@@ -18,6 +18,9 @@ export function useDevice() {
   return device;
 }
 
+// The GPSIOAM workshop kit (firmware build asc_gpsioam) only has these ports.
+const GPSIOAM_PORTS: Record<string, string> = { S1: "GPIO23 · DHT22", S2: "GPIO35 · flow sensor", OUT1: "GPIO19 · pump relay", OUT2: "GPIO2 · blue LED" };
+
 type BuildData = { flashed?: { fw: string; at: string; id?: string }; sent?: { design: number; at: string; id: string; fw: string } };
 
 export default function BuildStage(props: StageProps) {
@@ -50,6 +53,8 @@ export default function BuildStage(props: StageProps) {
   const kitName = state.kit === "MEGA" ? "mega" : "mini";
   const boardMismatch = dev.hello && dev.hello.board !== kitName;
   const onBoard = dev.hello?.design?.design;
+  const gpsioam = dev.hello?.standInKit === "gpsioam";
+  const notOnKit = gpsioam ? used.map(([p]) => p).filter((p) => !GPSIOAM_PORTS[p]) : [];
 
   const flash = async () => {
     if (!fw) return;
@@ -144,9 +149,15 @@ export default function BuildStage(props: StageProps) {
                 <tr><th>Firmware</th><td>{dev.hello?.fw}</td></tr>
                 <tr><th>Design on the board</th><td>{onBoard ? `version ${onBoard}` : "none yet"}{onBoard === design.version ? " ✓ latest" : ""}</td></tr>
               </tbody></table></div>
+              {gpsioam && (
+                <div className={`msg ${notOnKit.length ? "bad" : "ok"}`}><span className="ic">{notOnKit.length ? "✗" : "i"}</span><span>
+                  This is the GPSIOAM workshop kit. Its ports: {Object.entries(GPSIOAM_PORTS).map(([p, w]) => `${p} = ${w}`).join(", ")}.
+                  {notOnKit.length > 0 && <> Your design uses {notOnKit.join(", ")}, which this kit doesn&apos;t have. Go back to Architecture and move {notOnKit.length > 1 ? "those modules" : "that module"}.</>}
+                </span></div>
+              )}
               {boardMismatch && <div className="msg bad"><span className="ic">✗</span><span>This is a {dev.hello!.board} board, but the project uses the {KITS[state.kit].name} kit.</span></div>}
               <div className="row">
-                <button className="btn" disabled={!!busy || locked || !rulesOk || rulesDirty || !!boardMismatch} onClick={send}>{busy === "send" ? "Sending…" : `Send design version ${design.version}`}</button>
+                <button className="btn" disabled={!!busy || locked || !rulesOk || rulesDirty || !!boardMismatch || notOnKit.length > 0} onClick={send}>{busy === "send" ? "Sending…" : `Send design version ${design.version}`}</button>
                 <button className="btn ghost small" onClick={() => dev.disconnect()}>Disconnect</button>
               </div>
               {!rulesOk && <p className="small muted">Save rules with no red checks first.</p>}

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import type { DeviceConfig } from "@/lib/studio/deviceConfig";
 
 export type Hello = {
-  type: "hello"; fw: string; board: "mini" | "mega"; standIn: boolean; id: string; rtc: boolean; time: number;
+  type: "hello"; fw: string; board: "mini" | "mega"; standIn: boolean; standInKit?: string; id: string; rtc: boolean; time: number;
   design?: { design: number; name: string; ports: Record<string, string>; rules: number };
 };
 export type Live = { type: "live"; time: number; values: Record<string, number | null>; outputs: Record<string, number>; manual: Record<string, boolean> };
