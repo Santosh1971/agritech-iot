@@ -21,11 +21,25 @@ client.on("connect", () => {
 
 client.on("error", (err) => console.error("[bridge] mqtt error", err));
 
+// Topic product segment -> Prisma Product enum. WM1 units publish under
+// agrisense/WM1/ but are WM1_MINI in the DB (see lib/deviceIdentity.ts).
+const TOPIC_PRODUCTS = { FG1: "FG1", FM1: "FM1", WM1: "WM1_MINI", WPC: "WPC", TH: "TH" };
+const warnedProducts = new Set();
+
 client.on("message", async (topic, payloadBuf) => {
   const parts = topic.split("/");
   if (parts[0] !== "agrisense" || parts.length < 4) return;
 
-  const [, product, deviceId, kind, sub] = parts;
+  const [, topicProduct, deviceId, kind, sub] = parts;
+  const product = TOPIC_PRODUCTS[topicProduct];
+  if (!product) {
+    // Warn once per product instead of logging a DB error on every message.
+    if (!warnedProducts.has(topicProduct)) {
+      warnedProducts.add(topicProduct);
+      console.warn(`[bridge] unknown product "${topicProduct}" on ${topic}, ignoring its messages`);
+    }
+    return;
+  }
   let payload;
   try {
     payload = JSON.parse(payloadBuf.toString());
