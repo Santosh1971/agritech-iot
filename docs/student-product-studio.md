@@ -1,7 +1,7 @@
 # Student Product Studio: plan
 
 **Status:** plan v0.1, 2026-10-07. Nothing is built yet.
-**Owner:** Agri Sense and Control (agrisenseandcontrol.in)
+**Owner:** Agri Sensors and Controls (https://agrisenseandcontrol.in/)
 **Users:** BSc Agriculture students, with their teachers and mentors.
 
 ## 1. Goal
@@ -18,7 +18,7 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 |---|---|---|
 | D1 | **Students do not design PCBs.** We supply a **Student Carrier Board**, designed and tested once by us. Students choose which modules plug into which port. | This removes the hardest and most error-prone step. One tested board means students get repeatable results, it is cheap at volume, and we can support it. |
 | D2 | **Everything runs on the existing GigaNodes VPS.** The Next.js app, Postgres and PM2 are already there. Heavy jobs run in a separate PM2 worker process, the same pattern as `bridge/`. | There is no new hosting bill. Section 6 shows how the load stays small. |
-| D3 | **Students can order both ways:** (a) order a kit from Agri Sense and Control, or (b) order themselves using a downloaded package for JLC3DP and parts. | This is what was asked for. Path (a) is also a revenue line. |
+| D3 | **Students can order both ways:** (a) order a kit from Agri Sensors and Controls, or (b) order themselves using a downloaded package for JLC3DP and parts. | This is what was asked for. Path (a) is also a revenue line. |
 | D4 | **Teach while hiding the tools.** Every step has a "Why?" card, an *Engineer's view* toggle, and a short check before the gate. | Students learn the engineering ideas without having to learn the tools. |
 | D5 | **The AI proposes, fixed rules decide.** Claude drafts the spec and writes the explanations. Rule checks against the block library (pins, power, ports, range) are the final word on what can be built. | A student can never be handed a design that cannot be built. |
 | D6 | **No mains on student hardware.** Pumps and other 230 V loads are switched through our certified contactor or WPC box. The carrier board only switches low voltage (12 V relay or driver outputs). | Student safety. |
@@ -29,7 +29,7 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 
 This is designed in-house using the same generator flow as `products/AWD1-paddy/hardware/AWD-FieldNode/tools/`. Draft feature list, to be finalised:
 
-- **MCU:** ESP32-S3 module. The pin map is fixed and published.
+- **MCU:** ESP32-S3 module (decided 2026-10-07), the same family as AWD1. Its native USB makes browser flashing over Web Serial simple. The pin map is fixed and published.
 - **Power:** 12 V DC in, USB-C, and an optional LiFePO4 cell with charger (the AWD1 power block). Battery voltage is read on an ADC pin.
 - **Sensor ports:** 4 keyed ports (3-pin JST), each able to work as analog, digital or 1-Wire. The port number is all a student needs to know.
 - **I²C ports:** 2 Grove/Qwiic-style ports, for the display, BME280, light sensor and RTC.
@@ -95,7 +95,7 @@ How *teach while hiding* works in practice:
 
 ## 5. Ordering
 
-**Path A: kit from Agri Sense and Control.** The student or the college places an order in the studio. The kit is a carrier board, the modules from their design (the BOM is generated automatically), and the stock enclosure, optionally pre-drilled. An admin page shows orders as *requested → paid → packed → shipped*. The student's project page shows the same status. Colleges can place one batch order for a whole class.
+**Path A: kit from Agri Sensors and Controls.** The student or the college places an order in the studio. The kit is a carrier board, the modules from their design (the BOM is generated automatically), and the stock enclosure, optionally pre-drilled. Kits are **priced and ordered per college batch** (decided 2026-10-07): the college places one order for a cohort, and an admin page tracks it as *requested → quoted → paid → packed → shipped*. Each student's project page shows the batch status and which kit is theirs.
 
 **Path B: self-order.**
 - **Enclosure:** download a ZIP with the STL and step-by-step JLC3DP instructions (material, colour, quantity), and the drilling-template PDF.
@@ -132,7 +132,7 @@ How *teach while hiding* works in practice:
 - `StudioProject`: owner (student or team), cohort, title, problem text, current stage.
 - `StudioStage`: project, stage number, status, output (JSON: spec, design configuration, test log), gate result, mentor sign-off (who and when).
 - `StudioDesign`: a versioned block-and-port configuration. It is the JSON that is flashed to the device.
-- `StudioOrder`: path (KIT or SELF), items, status, cohort batch.
+- `StudioOrder`: path (KIT or SELF), placed by the institution for a cohort (KIT) or by a student (SELF), items aggregated from the cohort's designs, quote, status.
 - `StudioJob`: type, input, status, output path, for the worker.
 - A student's flashed device becomes an ordinary `Device` row, so the existing dashboard, MQTT bridge and readings all work unchanged.
 
@@ -146,10 +146,13 @@ How *teach while hiding* works in practice:
 | **3: Grow** | Code mode with server builds. Wokwi simulation (stage 4). Hindi interface. More blocks. Teacher analytics. | Students who want to can move on to real code |
 | **Later** | An "advanced board" path: a custom PCB generated to fit a chosen stock enclosure, for final-year projects, using the AWD1 generator flow and kicad-cli. | — |
 
-## 9. Open questions
+## 9. Decisions log
 
-1. **Brand name:** which spelling is correct, "Agri Sense and Control" (the domain), "Agri Sensors and Controls" (the privacy page) or "Agri Sensor and Controls"? The same name should be used everywhere.
-2. **Carrier board MCU:** ESP32-S3 (the same as AWD1, with native USB for browser flashing) or classic ESP32 (`esp32dev`, the same as the workshop labs)?
-3. **Stock enclosure:** which IP65 box do we standardise on? This sets the board outline.
-4. **Kit pricing**, and whether colleges pay per student or per batch.
-5. **VPS specification:** RAM and disk, to confirm the worker fits (§6).
+- 2026-10-07: Company name is **Agri Sensors and Controls** (https://agrisenseandcontrol.in/).
+- 2026-10-07: Carrier board MCU is **ESP32-S3**.
+- 2026-10-07: Kits are priced and ordered **per college batch**.
+
+## 10. Open questions
+
+1. **Stock enclosure:** which IP65 box do we standardise on? This sets the carrier board outline.
+2. **VPS specification:** RAM and disk, to confirm the worker fits (§6).
