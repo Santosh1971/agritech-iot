@@ -15,6 +15,23 @@ pio test -e native                # rule-engine unit tests on your computer
 
 CI (`.github/workflows/asc-kit-firmware.yml`) builds every push that touches this folder. Pushes to `main` upload a `dev-<sha>` build as product `ASC_KIT`. A tag `asc-v1.2.3` uploads release `1.2.3`. The studio's Build stage flashes the newest release; admins also see dev builds.
 
+## GPSIOAM workshop kit
+
+The classic ESP32 DevKit V1 kit from the GPSIOAM workshop can stand in for a Mini without rewiring. Flash it with `pio run -e asc_gpsioam -t upload`. Its ports keep the Mini's names, but use the labs' wiring (`src/standin_gpsioam.h`):
+
+| Port | GPIO | Part |
+|---|---|---|
+| S1 | 34 | Soil sensor or potentiometer |
+| S2 | 14 | Float switch to GND |
+| S3 | 4 | DHT22 |
+| S4 | 27 | Flow pulses |
+| OUT1 | 26 | Pump LED or relay |
+| OUT2 | 2 | On-board LED |
+| I2C-1 | SDA 21, SCL 22 | |
+| PAIR | BOOT button | |
+
+This build replies `"standInKit":"gpsioam"` to `hello`. The studio can't flash this board from the browser (its flasher is for the ESP32-S3), so flash it with PlatformIO.
+
 ## DevKit stand-in
 
 Use an **ESP32-S3-DevKitC-1-N8**, which has no PSRAM. On the N8R8 and N16R8 DevKits, GPIO35–37 are wired to the octal PSRAM, and those are the Mini's relay pins OUT1 and OUT2. Wire modules to the GPIOs in the Mini column of `../docs/StudentKit_Architecture_v0.1.md` §2: S1–S4 on GPIO1–4, the student I²C port on SDA 14 / SCL 15, OUT1 on GPIO35, OUT2 on GPIO36. Use the board's **USB** connector, not the UART one.

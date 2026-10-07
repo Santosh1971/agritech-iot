@@ -52,6 +52,11 @@ jobs:
           FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
         run: pio run -e asc_s3
 
+      - name: Build the GPSIOAM workshop-kit stand-in
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
+        run: pio run -e asc_gpsioam
+
       - name: Keep the firmware with this run (download it from the run's page)
         uses: actions/upload-artifact@v4
         with:
@@ -60,6 +65,7 @@ jobs:
             products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/firmware.bin
             products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/bootloader.bin
             products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/partitions.bin
+            products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_gpsioam/firmware.bin
           retention-days: 30
 
       - name: Upload to the studio

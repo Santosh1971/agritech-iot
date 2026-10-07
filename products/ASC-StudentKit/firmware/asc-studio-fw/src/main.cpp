@@ -18,6 +18,9 @@
 #include "fieldlog.h"
 #include "link_ble.h"
 #include "rules.h"
+#ifdef ASC_STANDIN_GPSIOAM
+#include "standin_gpsioam.h"
+#endif
 
 #ifndef FW_VERSION
 #define FW_VERSION "0.2.0"
@@ -128,6 +131,11 @@ static String deviceId() {
 // ---------- board and design ----------
 
 static void detectBoard() {
+#ifdef ASC_STANDIN_GPSIOAM
+  board = &GPSIOAM_BOARD;
+  standIn = true;
+  return;
+#endif
   // The weak internal pull-down holds a missing divider (the DevKit stand-in)
   // near 0 V; a real divider (tens of kΩ) easily overrides it.
   pinMode(BOARD_ID_PIN, INPUT_PULLDOWN);
@@ -248,6 +256,9 @@ static void handle(Link from, const String& text) {
     doc["fw"] = FW_VERSION;
     doc["board"] = board->name;
     doc["standIn"] = standIn;
+#ifdef ASC_STANDIN_GPSIOAM
+    doc["standInKit"] = "gpsioam";
+#endif
     doc["id"] = deviceId();
     doc["rtc"] = haveRtc;
     doc["time"] = nowUnix();
@@ -340,8 +351,10 @@ void setup() {
   Serial.begin(115200);
   line.reserve(4096);
 
-  Wire.begin(board->i2cIntSda, board->i2cIntScl);
-  haveRtc = rtc.begin(&Wire);
+  if (board->i2cIntSda >= 0) {
+    Wire.begin(board->i2cIntSda, board->i2cIntScl);
+    haveRtc = rtc.begin(&Wire);
+  }
   if (haveRtc && !rtc.lostPower()) { clockUnix = rtc.now().unixtime(); clockAtMs = millis(); }
 
   fieldlog::begin();

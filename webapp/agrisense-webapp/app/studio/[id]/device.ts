@@ -52,8 +52,10 @@ class Device {
     if (this.connected) await this.disconnect();
     this.port = port ?? (await this.pickPort());
     await this.port.open({ baudRate: 115200, bufferSize: 16384 });
-    // Hold the chip out of reset (RTS) on the native USB port.
-    await this.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
+    // Release both control lines. On an ESP32-S3's native USB they drive reset,
+    // and on a classic ESP32 DevKit's auto-reset circuit DTR alone would hold
+    // GPIO0 (the BOOT/PAIR button) low.
+    await this.port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
     this.readLoop();
     this.changed();
     const hello = (await this.request({ cmd: "hello" }, "hello", 4000)) as unknown as Hello;
