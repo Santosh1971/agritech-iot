@@ -43,18 +43,18 @@ Rows marked ✅ were **decided on 2026-10-07**. All other rows are still *propos
 | MCU | ESP32-S3 module | ESP32-S3 module | Same module on both. Native USB is used for flashing from the browser. |
 | USB-C (power + flashing) | ✔ | ✔ | |
 | 12 V DC input | ✔ | ✔ (9–24 V) | Reverse-polarity protected |
-| LiFePO4 cell + charger | — | ✔ | AWD1 power block |
+| LiFePO4 cell + charger | — | ✔ | New design. AWD1 runs straight from its cell and has no charger. Mega needs an 18650 or larger cell; see the architecture §4. |
 | Solar input (charge) | — | ✔ | |
 | Battery voltage monitor | — | ✔ | |
-| Sensor ports **S1…** (analog / digital / 1-Wire, 3-pin) | 3 | 8 (✅ more than Mini) | Same connector on both kits (SYS-01). 8 on Mega is the ADC1 limit; see HW-04. |
+| ✅ Sensor ports **S1…** (analog / digital / 1-Wire) | **4** | **8** | Same connector on both kits (SYS-01). 8 on Mega is the ADC1 limit; see HW-04. The architecture proposes a 4-pin connector (GND, 3V3, 5V, SIG). |
 | I²C ports (4-pin, Grove/Qwiic-style) | 1 | 2 | For the display, BME280, light sensor and similar |
-| RS-485 port (industrial NPK and moisture probes) | — | 1 | With 12 V probe supply |
+| ✅ RS-485 port (industrial NPK and moisture probes) | — | 1 | With 12 V probe supply |
 | ✅ Low-voltage relay outputs **OUT1…** | **2** | **4** | Dry contact, low voltage only (SYS-03) |
-| 12 V solenoid/valve driver (MOSFET) | — | 1 | |
+| ✅ 12 V solenoid/valve driver (MOSFET) | — | 1 | |
 | WiFi | ✔ | ✔ | |
-| ✅ Bluetooth LE | ✔ | ✔ | Built into the ESP32-S3, so it adds no parts cost. **The S3 has Bluetooth LE only, not Classic Bluetooth** (no SPP serial profile, no audio). BLE is what the phone app needs. |
-| LoRa SX1262 (866 MHz) | — | ✔ (slot) | Same module and pin map as WPC and AWD1 |
-| GSM/4G modem | — | ✔ (slot) | Same family as PC-gsmpump |
+| ✅ Bluetooth LE | ✔ | ✔ | Built into the ESP32-S3, so it adds no parts cost. The S3 has Bluetooth LE only, not Classic Bluetooth. **BLE only was accepted on 2026-10-07.** |
+| ✅ LoRa SX1262 (866 MHz) | — | ✔ (slot) | Same module and pin map as WPC and AWD1 |
+| ✅ GSM/4G modem | — | ✔ (slot) | Same family as PC-gsmpump |
 | ✅ RTC with backup cell | ✔ | ✔ | Needed on Mini for time-based experiments. Proposed: a **DS3231-class** RTC (3.3 V, about ±2 ppm, roughly a minute a year) on the internal I²C bus, not the DS1307 (5 V, drifts minutes a month). Time is synced from NTP or the phone whenever the device is online. |
 | OLED display | via I²C port | via I²C port, plus an onboard header | |
 | Status LED, buzzer, PAIR/BOOT button | ✔ | ✔ | |
@@ -71,7 +71,7 @@ Rows marked ✅ were **decided on 2026-10-07**. All other rows are still *propos
 | HW-04 | Every sensor port pin connects to an **ADC1** channel, so analog readings still work while WiFi or Bluetooth is on. The ESP32-S3 has only **10 ADC1 channels** (GPIO1–10). Mega uses 8 for S1–S8 and 2 for battery and solar/12 V sensing. The board ID (HW-12) is read on an ADC2 pin at boot, before the radio starts. If more analog inputs are needed, an I²C ADC block (ADS1115) adds 4 per I²C port. | ✔ | ✔ |
 | HW-05 | Relay outputs (Mini 2, Mega 4) have a coil driver, a flyback diode and an indicator LED. Contacts are rated for low voltage only, and the silkscreen says "LOW VOLTAGE ONLY". | ✔ | ✔ |
 | HW-06 | The 12 V input is protected against reverse polarity and over-voltage (TVS). A buck regulator converts it to 3.3 V. | ✔ | ✔ |
-| HW-07 | LiFePO4 charger with a solar/12 V input. The battery voltage is read through a switched divider (the AWD1 VBAT_EN pattern). | — | ✔ |
+| HW-07 | LiFePO4 charger with a solar/12 V input. The battery voltage is read through a switched divider (the AWD1 VBAT_EN pattern). The cell must supply 1–2 A GSM peaks, so an 18650 or larger is needed (the AWD1 14500 is too small). | — | ✔ |
 | HW-08 | RS-485 transceiver with automatic direction control. It has a switched 12 V probe supply, so the probe can be powered off between readings. | — | ✔ |
 | HW-09 | LoRa slot: the ISC-SX1262-B footprint with the same SPI and control assignment as WPC and AWD1, and an SMA or u.FL antenna connector. | — | ✔ |
 | HW-10 | GSM/4G slot with its own supply rail sized for transmit peaks, and a SIM holder. | — | ✔ |
@@ -140,12 +140,11 @@ The app is the shared **ASC Studio app** (Flutter), described in `docs/student-p
 
 ## 8. Open decisions
 
-1. Remaining rows of the feature split (§3): Mini's I²C port count, Mega's valve driver, LoRa and GSM slots.
-2. Mini sensor ports: is 3 enough? Mega is proposed at 8 (HW-04).
+1. ~~Feature split~~: decided on 2026-10-07. Mini has 4 sensor ports and 2 relays. Mega has 8 ports and 4 relays and keeps the RS-485, valve, LoRa and GSM slots. Both have the RTC and BLE (BLE only is accepted).
+2. Architecture decisions A1–A6 (latching relays on Mega, port connector, Grove I²C, cell size, 4G Cat-1, module variant): see `StudentKit_Architecture_v0.1.md` §6.
 3. RTC part: DS3231-class proposed (HW-15).
-4. Bluetooth: confirm that BLE only is acceptable (the ESP32-S3 has no Classic Bluetooth).
-5. Which candidate sample boxes to buy (ME-01).
-6. Target prices for the kits (HW-14) and per-batch pricing for colleges.
+4. Which candidate sample boxes to buy (ME-01).
+5. Target prices for the kits (HW-14) and per-batch pricing for colleges.
 
 ## 9. Notes for the studio templates (learned while writing this)
 

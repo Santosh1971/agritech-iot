@@ -29,8 +29,8 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 
 There are **two kits**, both built on an ESP32-S3 carrier board:
 
-- **Mini**: classroom-first and low-cost. USB or 12 V power, WiFi, **Bluetooth LE**, **RTC** (for time-based experiments), 3 sensor ports, 1 I²C port, **2 low-voltage relays**.
-- **Mega**: field-first. Everything in Mini, plus **more sensor ports** (8 proposed), **4 relays**, LiFePO4 battery and solar power, RS-485, and LoRa and GSM slots.
+- **Mini**: classroom-first and low-cost. USB or 12 V power, WiFi, **Bluetooth LE**, **RTC** (for time-based experiments), **4 sensor ports**, 1 I²C port, **2 low-voltage relays**.
+- **Mega**: field-first. Everything in Mini, plus **8 sensor ports**, **4 relays**, LiFePO4 battery and solar power, RS-485, and LoRa and GSM slots.
 
 The remaining details of the split are still to be decided. The draft spec, `products/ASC-StudentKit/docs/StudentKit_Specification_v0.1.md`, holds the feature table and the HW/SW/ME requirements. Two rules apply whatever the final split:
 
@@ -168,6 +168,7 @@ How *teach while hiding* works in practice:
 - 2026-10-07: Kits are priced and ordered **per college batch**.
 - 2026-10-07: There will be **two kits, Mini and Mega**. Their contents are still to be decided. They are designed through the studio's own stages (Project #0), using a sample ready-made box.
 - 2026-10-07: **Mini** gets an RTC, Bluetooth and 2 relays. **Mega** gets 4 relays and more sensor ports. Both kits have Bluetooth.
+- 2026-10-07: Mini has **4 sensor ports**. Mega keeps its RS-485, valve, LoRa and GSM slots. **BLE only** is accepted. Architecture (stage 3) drafted: `products/ASC-StudentKit/docs/StudentKit_Architecture_v0.1.md` and a checked `hardware/pinmap.json`.
 - 2026-10-07: **A mobile app is part of the system** (§3.4): one shared ASC Studio app whose screen is built from each student's design.
 
 ## 10. Open questions
