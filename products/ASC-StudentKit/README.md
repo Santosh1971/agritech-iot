@@ -8,4 +8,4 @@ The kits are also **Project #0** of the studio: they are designed by following t
 - `docs/StudentKit_Architecture_v0.1.md`: architecture (stage 3), covering block diagrams, pin map, connectors, power budget and battery life.
 - `hardware/pinmap.json`: the pin map for both boards, checked by `python3 hardware/tools/check_pinmap.py`.
 - `firmware/`: the ASC Studio firmware, one image for both kits and the DevKit stand-in. See `firmware/README.md` for the build and the serial protocol.
-- `mobile-app/`: not started. The mobile app is the shared ASC Studio app (spec §5A).
+- `mobile-app/asc_studio_app/`: the shared ASC Studio phone app (Flutter, Android, spec §5A). It builds each student's screen from the layout in their design.
