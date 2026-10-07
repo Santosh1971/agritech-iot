@@ -69,6 +69,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
                 <li><Link href="/education">Education & Labs</Link></li>
                 <li><Link href="/about">About us</Link></li>
                 <li><Link href="/contact">Contact</Link></li>
+                <li><Link href="/privacy">Privacy Policy</Link></li>
                 <li><Link href="/login">Customer login</Link></li>
               </ul>
               {distributors.map((d) => (

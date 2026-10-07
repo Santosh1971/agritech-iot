@@ -6,7 +6,7 @@ import { verifySession } from "@/lib/session";
 const PUBLIC_PATHS = ["/login", "/api/auth/request-otp", "/api/auth/verify-otp", "/workshop", "/api/workshop/survey", "/api/workshop/build", "/api/workshop/manifest", "/api/lab/"];
 // The public company website (app/(site)) and its images. "/" is matched
 // exactly, since every path starts with "/".
-const SITE_PATHS = ["/products", "/education", "/about", "/contact", "/api/contact", "/brand/"];
+const SITE_PATHS = ["/products", "/education", "/about", "/contact", "/api/contact", "/brand/", "/privacy"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
