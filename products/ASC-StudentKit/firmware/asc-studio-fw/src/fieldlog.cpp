@@ -12,6 +12,7 @@ const size_t ROTATE_AT = 256 * 1024;  // about 14 days at one record every 10 mi
 bool mounted = false;
 
 size_t readFile(const char* path, uint32_t since, const std::function<void(const String&)>& each) {
+  if (!LittleFS.exists(path)) return 0;
   File f = LittleFS.open(path, "r");
   if (!f) return 0;
   size_t n = 0;
@@ -35,9 +36,12 @@ bool begin() {
 
 void append(const String& jsonLine) {
   if (!mounted) return;
-  File cur = LittleFS.open(LOG, "r");
-  size_t size = cur ? cur.size() : 0;
-  if (cur) cur.close();
+  size_t size = 0;
+  if (LittleFS.exists(LOG)) {
+    File cur = LittleFS.open(LOG, "r");
+    size = cur ? cur.size() : 0;
+    if (cur) cur.close();
+  }
   if (size > ROTATE_AT) {
     LittleFS.remove(OLD);
     LittleFS.rename(LOG, OLD);
@@ -74,7 +78,7 @@ bool saveDesign(const String& json) {
 }
 
 String loadDesign() {
-  if (!mounted) return "";
+  if (!mounted || !LittleFS.exists(DESIGN)) return "";  // no design yet: say nothing
   File f = LittleFS.open(DESIGN, "r");
   if (!f) return "";
   String s = f.readString();

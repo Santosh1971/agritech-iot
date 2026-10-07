@@ -360,8 +360,11 @@ void setup() {
   fieldlog::begin();
   // Firmware 0.1 kept the design in NVS; move it to flash once.
   prefs.begin("asc", false);
-  String old = prefs.getString("design", "");
-  if (old.length()) { fieldlog::saveDesign(old); prefs.remove("design"); }
+  if (prefs.isKey("design")) {
+    String old = prefs.getString("design", "");
+    if (old.length()) fieldlog::saveDesign(old);
+    prefs.remove("design");
+  }
   String saved = fieldlog::loadDesign();
   if (saved.length()) {
     String error;
