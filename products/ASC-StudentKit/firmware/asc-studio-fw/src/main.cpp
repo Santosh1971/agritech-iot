@@ -1,10 +1,11 @@
 // ASC Studio firmware: one image for every ASC Student Kit.
 //
 // At boot it works out which board it is on (BOARD_ID divider, HW-12), loads
-// the student's design from NVS, and runs the design's rules once a second.
-// The studio talks to it over USB serial with one JSON object per line; the
-// protocol is documented in ../README.md and mirrored by the web app's
-// app/studio/[id]/device.ts.
+// the student's design from flash, and runs the design's rules once a second.
+// The studio (USB serial) and the ASC Studio app (Bluetooth LE) both talk to
+// it with one JSON object per line; the protocol is documented in ../README.md
+// and mirrored by the web app's app/studio/[id]/device.ts and the app's
+// lib/board.dart. Every few minutes it appends the readings to the field log.
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
@@ -14,10 +15,12 @@
 #include "blocks.h"
 #include "board_map.h"
 #include "design.h"
+#include "fieldlog.h"
+#include "link_ble.h"
 #include "rules.h"
 
 #ifndef FW_VERSION
-#define FW_VERSION "0.1.0"
+#define FW_VERSION "0.2.0"
 #endif
 
 static const BoardMap* board = &BOARDS[0];
@@ -38,16 +41,37 @@ static bool outOn[MAX_OUT];
 static int8_t manual[MAX_OUT];
 static uint32_t manualUntilMs[MAX_OUT];
 
-static bool liveOn = false;
+// Where a command came from, so its reply (and live frames) go back there.
+enum Link : uint8_t { LINK_SERIAL, LINK_BLE };
+static Link replyTo = LINK_SERIAL;
+static bool liveOn[2] = {false, false};
 static uint32_t lastTickMs = 0;
 static String line;
 
+// Changes over Bluetooth (a new design, switching outputs) need the PAIR
+// button pressed within the last two minutes, so a stranger nearby can't
+// take control (SW-10). USB needs no button: it needs the cable.
+static uint32_t bleUnlockedUntilMs = 0;
+static const uint32_t BLE_UNLOCK_MS = 2UL * 60 * 1000;
+
+// Field log: one record every logEveryMin minutes once the time is known.
+static uint16_t logEveryMin = 10;
+static uint32_t lastLogMinute = 0;
+
 // ---------- helpers ----------
 
-static void send(JsonDocument& doc) {
-  serializeJson(doc, Serial);
-  Serial.println();
+static void sendTo(Link link, JsonDocument& doc) {
+  if (link == LINK_SERIAL) {
+    serializeJson(doc, Serial);
+    Serial.println();
+  } else {
+    String s;
+    serializeJson(doc, s);
+    ble::sendLine(s);
+  }
 }
+
+static void send(JsonDocument& doc) { sendTo(replyTo, doc); }
 
 static void reply(const char* type, bool ok, const String& error = "") {
   JsonDocument doc;
@@ -124,8 +148,37 @@ static bool applyDesign(const String& json, String& error) {
   allOutputsOff();
   design = next;
   haveDesign = true;
+  logEveryMin = constrain((int)(doc["logEveryMin"] | 10), 1, 60);
   blocksBegin(design, *board);
   return true;
+}
+
+static void fillValues(JsonObject values) {
+  for (int s = 0; s < design.nSlots; s++) {
+    const Slot& slot = design.slots[s];
+    for (int v = 0; v < slot.nValues; v++) {
+      String key = String(slot.port) + (slot.valueKeys[v][0] ? String(":") + slot.valueKeys[v] : "");
+      if (isnan(slot.values[v])) values[key] = nullptr;
+      else values[key] = roundf(slot.values[v] * 10) / 10;
+    }
+  }
+}
+
+static void logRecord() {
+  uint32_t t = nowUnix();
+  if (t == 0 || !haveDesign) return;  // records need a real time
+  uint32_t minute = t / 60;
+  if (minute == lastLogMinute || minute % logEveryMin != 0) return;
+  lastLogMinute = minute;
+  JsonDocument rec;
+  rec["t"] = t;  // must stay first: fieldlog reads it without parsing
+  rec["d"] = design.version;
+  fillValues(rec["v"].to<JsonObject>());
+  JsonObject o = rec["o"].to<JsonObject>();
+  for (int i = 0; i < board->relays; i++) o[String("OUT") + (i + 1)] = outOn[i] ? 1 : 0;
+  String s;
+  serializeJson(rec, s);
+  fieldlog::append(s);
 }
 
 // ---------- the once-a-second tick ----------
@@ -153,19 +206,14 @@ static void tick() {
   blocksShow(design, standIn ? "stand-in board" : board->name);
   if (board->led >= 0) digitalWrite(board->led, (now / 1000) % 2);
 
-  if (liveOn) {
+  logRecord();
+  if (!ble::connected()) liveOn[LINK_BLE] = false;
+
+  if (liveOn[LINK_SERIAL] || liveOn[LINK_BLE]) {
     JsonDocument doc;
     doc["type"] = "live";
     doc["time"] = nowUnix();
-    JsonObject values = doc["values"].to<JsonObject>();
-    for (int s = 0; s < design.nSlots; s++) {
-      const Slot& slot = design.slots[s];
-      for (int v = 0; v < slot.nValues; v++) {
-        String key = String(slot.port) + (slot.valueKeys[v][0] ? String(":") + slot.valueKeys[v] : "");
-        if (isnan(slot.values[v])) values[key] = nullptr;
-        else values[key] = roundf(slot.values[v] * 10) / 10;
-      }
-    }
+    fillValues(doc["values"].to<JsonObject>());
     JsonObject outs = doc["outputs"].to<JsonObject>();
     JsonObject man = doc["manual"].to<JsonObject>();
     for (int i = 0; i < board->relays; i++) {
@@ -173,16 +221,26 @@ static void tick() {
       outs[p] = outOn[i] ? 1 : 0;
       man[p] = manual[i] >= 0;
     }
-    send(doc);
+    if (liveOn[LINK_SERIAL]) sendTo(LINK_SERIAL, doc);
+    if (liveOn[LINK_BLE]) sendTo(LINK_BLE, doc);
   }
 }
 
 // ---------- commands from the studio ----------
 
-static void handle(const String& text) {
+static bool changesThings(const char* cmd) {
+  return !strcmp(cmd, "config") || !strcmp(cmd, "out") || !strcmp(cmd, "auto") || !strcmp(cmd, "log_clear");
+}
+
+static void handle(Link from, const String& text) {
+  replyTo = from;
   JsonDocument in;
   if (deserializeJson(in, text)) { reply("error", false, "Not JSON."); return; }
   const char* cmd = in["cmd"] | "";
+  if (from == LINK_BLE && changesThings(cmd) && (int32_t)(millis() - bleUnlockedUntilMs) > 0) {
+    reply(cmd, false, "Press the PAIR button on the board, then try again within 2 minutes.");
+    return;
+  }
 
   if (!strcmp(cmd, "hello")) {
     JsonDocument doc;
@@ -193,14 +251,26 @@ static void handle(const String& text) {
     doc["id"] = deviceId();
     doc["rtc"] = haveRtc;
     doc["time"] = nowUnix();
+    doc["link"] = from == LINK_BLE ? "ble" : "usb";
+    doc["unlocked"] = from == LINK_SERIAL || (int32_t)(millis() - bleUnlockedUntilMs) <= 0;
+    doc["logBytes"] = fieldlog::bytesUsed();
     if (haveDesign) designToJson(design, doc["design"].to<JsonObject>());
+    send(doc);
+  } else if (!strcmp(cmd, "get_design")) {
+    // The whole saved design, including the app layout the phone builds its screen from.
+    JsonDocument doc;
+    doc["type"] = "design";
+    String saved = fieldlog::loadDesign();
+    JsonDocument stored;
+    if (saved.length() && !deserializeJson(stored, saved)) doc["design"] = stored;
+    else doc["design"] = nullptr;
     send(doc);
   } else if (!strcmp(cmd, "config")) {
     String json;
     serializeJson(in["config"], json);
     String error;
     if (!applyDesign(json, error)) { reply("config", false, error); return; }
-    prefs.putString("design", json);
+    if (!fieldlog::saveDesign(json)) { reply("config", false, "The board couldn't save the design. Try again."); return; }
     beep(60);
     JsonDocument doc;
     doc["type"] = "config";
@@ -213,7 +283,7 @@ static void handle(const String& text) {
     if (haveRtc && clockUnix) rtc.adjust(DateTime(clockUnix));
     reply("time", clockUnix != 0);
   } else if (!strcmp(cmd, "live")) {
-    liveOn = in["on"] | true;
+    liveOn[from] = in["on"] | true;
     reply("live", true);
   } else if (!strcmp(cmd, "out")) {
     int i = outIndex(in["port"] | "");
@@ -231,6 +301,21 @@ static void handle(const String& text) {
     doc["type"] = "selftest";
     blocksSelfTest(design, doc["results"].to<JsonArray>());
     send(doc);
+  } else if (!strcmp(cmd, "log")) {
+    // Stream the field log: one {"type":"logrec",...} per record, then {"type":"logend"}.
+    uint32_t since = in["since"] | 0;
+    size_t n = fieldlog::read(since, [&](const String& rec) {
+      String line = String("{\"type\":\"logrec\",\"rec\":") + rec + "}";
+      if (from == LINK_SERIAL) Serial.println(line); else ble::sendLine(line);
+    });
+    JsonDocument doc;
+    doc["type"] = "logend";
+    doc["ok"] = true;
+    doc["count"] = n;
+    send(doc);
+  } else if (!strcmp(cmd, "log_clear")) {
+    fieldlog::clear();
+    reply("log_clear", true);
   } else if (!strcmp(cmd, "beep")) {
     beep(150);
     reply("beep", true);
@@ -259,12 +344,29 @@ void setup() {
   haveRtc = rtc.begin(&Wire);
   if (haveRtc && !rtc.lostPower()) { clockUnix = rtc.now().unixtime(); clockAtMs = millis(); }
 
+  fieldlog::begin();
+  // Firmware 0.1 kept the design in NVS; move it to flash once.
   prefs.begin("asc", false);
-  String saved = prefs.getString("design", "");
+  String old = prefs.getString("design", "");
+  if (old.length()) { fieldlog::saveDesign(old); prefs.remove("design"); }
+  String saved = fieldlog::loadDesign();
   if (saved.length()) {
     String error;
-    if (!applyDesign(saved, error)) prefs.remove("design");  // a design for another board, or from an older firmware
+    if (!applyDesign(saved, error)) fieldlog::removeDesign();  // a design for another board, or from an older firmware
   }
+
+  if (board->pairBtn >= 0) pinMode(board->pairBtn, INPUT_PULLUP);
+  ble::begin(deviceId());
+}
+
+static void checkPairButton() {
+  static bool wasDown = false;
+  bool down = board->pairBtn >= 0 && digitalRead(board->pairBtn) == LOW;
+  if (down && !wasDown) {
+    bleUnlockedUntilMs = millis() + BLE_UNLOCK_MS;
+    beep(40);
+  }
+  wasDown = down;
 }
 
 void loop() {
@@ -272,12 +374,18 @@ void loop() {
     char c = Serial.read();
     if (c == '\n') {
       line.trim();
-      if (line.length()) handle(line);
+      if (line.length()) handle(LINK_SERIAL, line);
       line = "";
     } else if (line.length() < 8192) {
       line += c;
     }
   }
+  String bleLine;
+  if (ble::takeLine(bleLine)) {
+    bleLine.trim();
+    if (bleLine.length()) handle(LINK_BLE, bleLine);
+  }
+  checkPairButton();
   if (millis() - lastTickMs >= 1000) {
     lastTickMs = millis();
     tick();
