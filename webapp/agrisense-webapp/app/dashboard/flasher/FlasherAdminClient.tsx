@@ -40,7 +40,7 @@ type AppBuild = {
   uploadedBy: { name: string };
 };
 
-const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH"];
+const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH", "ASC_KIT"];
 
 export default function FlasherAdminClient() {
   const [builds, setBuilds] = useState<Build[]>([]);

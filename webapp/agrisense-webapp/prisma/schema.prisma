@@ -21,6 +21,7 @@ enum Product {
   WM1_PRO
   WPC
   TH
+  ASC_KIT // ASC Student Kit firmware (Mini and Mega share one image)
 }
 
 enum CommandStatus {
@@ -298,6 +299,7 @@ model StudioDesign {
   project     StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   version     Int
   ports       Json          // { "S1": "soil", "OUT1": "pump", ... }
+  rules       Json?         // automation rules, lib/studio/automation.ts
   createdById String
   createdBy   User          @relation("DesignsSaved", fields: [createdById], references: [id])
   createdAt   DateTime      @default(now())

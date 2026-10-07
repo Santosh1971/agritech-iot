@@ -9,6 +9,9 @@ import { call } from "./api";
 import ProblemStage from "./ProblemStage";
 import SpecStage from "./SpecStage";
 import ArchStage from "./ArchStage";
+import SimStage from "./SimStage";
+import BuildStage from "./BuildStage";
+import TestStage from "./TestStage";
 
 export type StageProps = { state: ProjectState; access: ProjectAccess; refresh: () => void };
 
@@ -70,6 +73,9 @@ export default function ProjectClient({ state, access }: { state: ProjectState; 
           {stage === "problem" && <ProblemStage {...props} />}
           {stage === "spec" && <SpecStage {...props} />}
           {stage === "arch" && <ArchStage {...props} />}
+          {stage === "sim" && <SimStage {...props} />}
+          {stage === "build" && <BuildStage {...props} />}
+          {stage === "test" && <TestStage {...props} />}
           {!def.ready && (
             <div className="card grid">
               <p>{def.summary}</p>

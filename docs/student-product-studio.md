@@ -1,6 +1,6 @@
 # Student Product Studio: plan
 
-**Status:** plan v0.1, 2026-10-07. Build started: the `/studio` web app has stages 1–3 working (see the web app README).
+**Status:** plan v0.1, 2026-10-07. Build in progress: the `/studio` web app has stages 1–6 working (see the web app README).
 **Owner:** Agri Sensors and Controls (https://agrisenseandcontrol.in/)
 **Users:** BSc Agriculture students, with their teachers and mentors.
 
@@ -171,6 +171,7 @@ How *teach while hiding* works in practice:
 - 2026-10-07: Mini has **4 sensor ports**. Mega keeps its RS-485, valve, LoRa and GSM slots. **BLE only** is accepted. Architecture (stage 3) drafted: `products/ASC-StudentKit/docs/StudentKit_Architecture_v0.1.md` and a checked `hardware/pinmap.json`.
 - 2026-10-07: Architecture decisions A1–A6 agreed. **The platform is built before the Mini schematic.** Mini is the first project run through the platform, end to end.
 - 2026-10-07: Mock-up approved (https://claude.ai/artifact/W8Roz6MRqduxyadTjj2pXs). Web app build started: cohorts, teacher and student roles, projects, and stages 1–3 (Problem, Specification with mentor sign-off, Architecture with the rule checks).
+- 2026-10-07: Stages 4–6 built. One ASC Studio firmware for both kits, built by CI as product ASC_KIT. Students write rules in plain words, flash and send the design from the browser over USB (Web Serial), and run a live test checklist. Bluetooth moves to the App stage.
 - 2026-10-07: **A mobile app is part of the system** (§3.4): one shared ASC Studio app whose screen is built from each student's design.
 
 ## 10. Open questions

@@ -62,7 +62,11 @@ The studio is where BSc Agriculture students take a farm IoT product from proble
   - Teachers add students and sign off the mentor gates.
   - Students see only their own team's projects.
   - There is still no self-signup. Adding someone to a cohort creates their account, and they log in with the usual email OTP. After login, students and teachers land on `/studio`.
-- **Stages working now:** Problem → Specification (mentor sign-off) → Architecture. The other six stages show what is coming.
+- **Stages working now:** Problem → Specification (mentor sign-off) → Architecture → Simulate (Wokwi project files, optional) → Build (rules, flashing in the browser, sending the design over USB) → Test (a live checklist driven by the board's readings). App, Enclosure and Report show what is coming.
+- **Talking to boards.** Build and Test use Web Serial, so they need Chrome or Edge on a laptop or desktop.
+  - `app/studio/[id]/device.ts` speaks the firmware's JSON-lines protocol.
+  - `app/studio/[id]/flash.ts` flashes with esptool-js. It loads only when someone presses Flash.
+  - The firmware is `products/ASC-StudentKit/firmware/asc-studio-fw`. CI uploads it as product `ASC_KIT`: `main` uploads dev builds (admins only), and an `asc-v*` tag uploads a release (everyone).
 - **Code layout:**
   - `lib/studio/`: stages, kits, block library and rule checks. These run in the browser and on the server.
   - `app/studio/`: the pages.
@@ -70,7 +74,13 @@ The studio is where BSc Agriculture students take a farm IoT product from proble
 - **Pin map copy.** `lib/studio/pinmap.json` is a copy of `products/ASC-StudentKit/hardware/pinmap.json`. `python3 products/ASC-StudentKit/hardware/tools/check_pinmap.py` fails if the two differ.
 - **Claude drafts the spec** when `ANTHROPIC_API_KEY` is set in the server's environment. It uses Claude Opus 5.5 with server-side refusal fallback. Without a key, or if a call fails, a fixed template drafts it instead, so the stage always works. Each project gets at most 10 drafts a day.
 
-**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
+**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio` and `20261007150000_studio_firmware_and_rules`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
+
+### Trying stages 4–6 with a DevKit on a Mac
+
+1. **Firmware.** Flash a ESP32-S3-DevKitC-1-**N8** over its **USB** connector with `cd products/ASC-StudentKit/firmware/asc-studio-fw && pio run -t upload`. Or upload `firmware.bin`, `bootloader.bin` and `partitions.bin` from `.pio/build/asc_s3/` on the Flasher admin page as product **ASC_KIT**, and let the studio flash it.
+2. **Wiring.** Wire the parts your design uses to the GPIOs in the Build stage's Engineer's view. For Mini: S1–S4 on GPIO1–4, I²C on SDA 14 / SCL 15, OUT1 on GPIO35, OUT2 on GPIO36.
+3. **Studio.** Open the project in Chrome, finish Architecture, save rules, and in Build press **Connect to the board** then **Send design**. Then run the Test checklist.
 
 ## Running locally (before the VPS is reachable)
 

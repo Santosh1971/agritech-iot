@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { projectAccess, studioUser } from "@/lib/studio/access";
 import { canBuild } from "@/lib/studio/rules";
+import { checkRules } from "@/lib/studio/automation";
+import { checksFor } from "@/lib/studio/testplan";
 import { problemComplete, type ProblemData, type SpecData } from "@/lib/studio/spec";
 import { stageDef } from "@/lib/studio/stages";
 import { blockedBy, err, isStageKey, loadProject, saveStage } from "@/lib/studio/server";
@@ -68,6 +70,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ ok: true });
   }
 
+  if (stage === "sim" || stage === "build" || stage === "test") {
+    // Device-side progress (what was flashed and sent, test results). Merged
+    // into what's stored, so separate panels can save their own parts.
+    const patch = body.data;
+    if (!patch || typeof patch !== "object" || JSON.stringify(patch).length > 20000) return err("Invalid data.");
+    await saveStage(id, stage, { status: "IN_PROGRESS", data: { ...(cur.data ?? {}), ...patch } });
+    return NextResponse.json({ ok: true });
+  }
+
   return err("This stage has no saved data yet.", 400);
 }
 
@@ -98,6 +109,20 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (stage === "spec" && !(cur.data as Partial<SpecData> | null)?.what) return err("Draft the specification first.");
     if (stage === "arch" && !(state.design && canBuild(state.kit, state.design.ports))) {
       return err("Fix the red checks and save the design first.");
+    }
+    if (stage === "build") {
+      const d = state.design;
+      if (!d?.rules) return err("Save your rules first.");
+      if (checkRules(d.ports, d.rules).some((c) => c.level === "bad")) return err("Fix the red checks on your rules first.");
+      const sent = (cur.data as { sent?: { design?: number } } | null)?.sent;
+      if (sent?.design !== d.version) return err("Send the latest design to the board first.");
+    }
+    if (stage === "test") {
+      const t = cur.data as { design?: number; items?: { key?: string; ok?: boolean }[] } | null;
+      if (t?.design !== state.design?.version) return err("Run the tests against the design that is on the board.");
+      const passed = new Set((t?.items ?? []).filter((i) => i.ok).map((i) => i.key));
+      const required = checksFor(state.design?.ports ?? {});
+      if (!required.length || !required.every((c) => passed.has(c.key))) return err("Every check must pass first.");
     }
 
     delete data.returnedComment;

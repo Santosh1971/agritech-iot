@@ -21,7 +21,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { ports: raw } = await req.json();
   const ports = cleanPorts(state.kit, raw);
   const version = (state.design?.version ?? 0) + 1;
-  await prisma.studioDesign.create({ data: { projectId: id, version, ports, createdById: u.userId } });
+  // Keep any rules already written; the Build stage's checks flag ones that no longer fit.
+  const rules = state.design?.rules ?? undefined;
+  await prisma.studioDesign.create({ data: { projectId: id, version, ports, rules, createdById: u.userId } });
   if (state.stages.arch.status === "NOT_STARTED") await saveStage(id, "arch", { status: "IN_PROGRESS" });
   return NextResponse.json({ version, ports, checks: checks(state.kit, ports) });
 }
