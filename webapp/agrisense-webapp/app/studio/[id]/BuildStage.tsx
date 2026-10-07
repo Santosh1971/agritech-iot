@@ -33,6 +33,7 @@ export default function BuildStage(props: StageProps) {
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState<"" | "flash" | "connect" | "send">("");
   const [error, setError] = useState("");
+  const [rulesDirty, setRulesDirty] = useState(false);
 
   useEffect(() => {
     fetch("/api/studio/firmware").then((r) => r.json()).then((j) => setFw(j.build ?? null)).catch(() => setFw(null));
@@ -107,7 +108,7 @@ export default function BuildStage(props: StageProps) {
       </div>
 
       <div className="eyebrow">2 · Set your rules</div>
-      <RulesEditor {...props} locked={locked} />
+      <RulesEditor {...props} locked={locked} onDirty={setRulesDirty} />
 
       <div className="two">
         <div className="card grid">
@@ -145,10 +146,11 @@ export default function BuildStage(props: StageProps) {
               </tbody></table></div>
               {boardMismatch && <div className="msg bad"><span className="ic">✗</span><span>This is a {dev.hello!.board} board, but the project uses the {KITS[state.kit].name} kit.</span></div>}
               <div className="row">
-                <button className="btn" disabled={!!busy || locked || !rulesOk || !!boardMismatch} onClick={send}>{busy === "send" ? "Sending…" : `Send design version ${design.version}`}</button>
+                <button className="btn" disabled={!!busy || locked || !rulesOk || rulesDirty || !!boardMismatch} onClick={send}>{busy === "send" ? "Sending…" : `Send design version ${design.version}`}</button>
                 <button className="btn ghost small" onClick={() => dev.disconnect()}>Disconnect</button>
               </div>
               {!rulesOk && <p className="small muted">Save rules with no red checks first.</p>}
+              {rulesOk && rulesDirty && <p className="small muted">You changed your rules. Press Save rules first, so the board gets the new version.</p>}
             </>
           )}
           {data.sent && <p className="small">Design version {data.sent.design} was sent to {data.sent.id} on {new Date(data.sent.at).toLocaleString()}.</p>}
@@ -158,8 +160,8 @@ export default function BuildStage(props: StageProps) {
         </div>
       </div>
       {error && <div className="msg bad"><span className="ic">✗</span><span>{error}</span></div>}
-      <GateBar {...props} stage="build" canFinish={rulesOk && data.sent?.design === design.version}
-        finishHint={!rulesOk ? "Save your rules first." : data.sent?.design !== design.version ? `Send design version ${design.version} to the board first.` : undefined} />
+      <GateBar {...props} stage="build" canFinish={rulesOk && !rulesDirty && data.sent?.design === design.version}
+        finishHint={!rulesOk || rulesDirty ? "Save your rules first." : data.sent?.design !== design.version ? `Send design version ${design.version} to the board first.` : undefined} />
     </>
   );
 }

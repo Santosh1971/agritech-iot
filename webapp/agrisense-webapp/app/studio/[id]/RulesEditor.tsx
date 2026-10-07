@@ -1,13 +1,15 @@
 "use client";
 // "When should each output switch?" One rule per output, written in words
 // and checked by lib/studio/automation.ts before anything is saved.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { checkRules, defaultRules, describeRule, guards, outputs, readings, type Rule } from "@/lib/studio/automation";
 import { Eng } from "../EngView";
 import { call } from "./api";
 import type { StageProps } from "./ProjectClient";
 
-export default function RulesEditor({ state, refresh, locked }: StageProps & { locked: boolean }) {
+// onDirty tells the Build stage about unsaved edits, so it can hold back
+// Send and Finish until they become a design version.
+export default function RulesEditor({ state, refresh, locked, onDirty }: StageProps & { locked: boolean; onDirty?: (dirty: boolean) => void }) {
   const design = state.design!;
   const ports = design.ports;
   const saved = design.rules;
@@ -15,6 +17,7 @@ export default function RulesEditor({ state, refresh, locked }: StageProps & { l
   const [dirty, setDirty] = useState(!saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => { onDirty?.(dirty); }, [dirty, onDirty]);
 
   const rs = readings(ports);
   const gs = guards(ports);
@@ -42,6 +45,7 @@ export default function RulesEditor({ state, refresh, locked }: StageProps & { l
         <div className="eyebrow">Your rules</div>
         {saved && !dirty && <span className="pill done">Saved with design version {design.version}</span>}
         {!saved && <span className="pill warn">Suggested rules, not saved yet</span>}
+        {saved && dirty && <span className="pill warn">Changed, not saved yet</span>}
       </div>
       {rules.map((r, i) => {
         const reading = rs.find((x) => x.ref === r.sensor);
