@@ -259,6 +259,7 @@ model StudioProject {
   members StudioProjectMember[]
   stages  StudioStage[]
   designs StudioDesign[]
+  field   StudioFieldRecord[]
 
   @@index([cohortId])
 }
@@ -300,9 +301,25 @@ model StudioDesign {
   version     Int
   ports       Json          // { "S1": "soil", "OUT1": "pump", ... }
   rules       Json?         // automation rules, lib/studio/automation.ts
+  app         Json?         // phone screen layout, lib/studio/appLayout.ts
   createdById String
   createdBy   User          @relation("DesignsSaved", fields: [createdById], references: [id])
   createdAt   DateTime      @default(now())
 
   @@unique([projectId, version])
+}
+
+// One field-log record downloaded from the board (stage 9): the readings and
+// output states at time t. The board logs every few minutes into its own
+// flash; the studio stores each record once, however often it is downloaded.
+model StudioFieldRecord {
+  id        String        @id @default(cuid())
+  projectId String
+  project   StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  t         DateTime
+  design    Int
+  values    Json
+  outputs   Json
+
+  @@unique([projectId, t])
 }

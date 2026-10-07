@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { STAGES, currentStageIndex, stageDef, type StageKey, type StageStatus } from "./stages";
 import type { Ports } from "./rules";
 import type { Rule } from "./automation";
+import type { AppLayout } from "./appLayout";
 
 export function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -41,7 +42,12 @@ export async function loadProject(projectId: string) {
       }),
     ) as Record<StageKey, { status: StageStatus; data: Record<string, unknown> | null; signedOffBy: string | null; signedOffAt: string | null }>,
     design: p.designs[0]
-      ? { version: p.designs[0].version, ports: p.designs[0].ports as Ports, rules: (p.designs[0].rules ?? null) as Rule[] | null }
+      ? {
+          version: p.designs[0].version,
+          ports: p.designs[0].ports as Ports,
+          rules: (p.designs[0].rules ?? null) as Rule[] | null,
+          app: (p.designs[0].app ?? null) as AppLayout | null,
+        }
       : null,
     current: currentStageIndex(status),
   };

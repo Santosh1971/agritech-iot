@@ -4,6 +4,8 @@ import { projectAccess, studioUser } from "@/lib/studio/access";
 import { canBuild } from "@/lib/studio/rules";
 import { checkRules } from "@/lib/studio/automation";
 import { checksFor } from "@/lib/studio/testplan";
+import { checkLayout } from "@/lib/studio/appLayout";
+import { plan } from "@/lib/studio/enclosure";
 import { problemComplete, type ProblemData, type SpecData } from "@/lib/studio/spec";
 import { stageDef } from "@/lib/studio/stages";
 import { blockedBy, err, isStageKey, loadProject, saveStage } from "@/lib/studio/server";
@@ -70,7 +72,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({ ok: true });
   }
 
-  if (stage === "sim" || stage === "build" || stage === "test") {
+  if (stage === "sim" || stage === "build" || stage === "test" || stage === "app" || stage === "encl" || stage === "report") {
     // Device-side progress (what was flashed and sent, test results). Merged
     // into what's stored, so separate panels can save their own parts.
     const patch = body.data;
@@ -116,6 +118,22 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       if (checkRules(d.ports, d.rules).some((c) => c.level === "bad")) return err("Fix the red checks on your rules first.");
       const sent = (cur.data as { sent?: { design?: number } } | null)?.sent;
       if (sent?.design !== d.version) return err("Send the latest design to the board first.");
+    }
+    if (stage === "app") {
+      const d = state.design;
+      if (!d?.app) return err("Save the app layout first.");
+      if (checkLayout(d.ports, d.app).some((c) => c.level === "bad")) return err("Fix the red checks on the layout first.");
+      if ((cur.data as { sent?: { design?: number } } | null)?.sent?.design !== d.version) return err("Send the latest design to the board first.");
+    }
+    if (stage === "encl") {
+      const c = cur.data as { box?: string; window?: boolean } | null;
+      if (!c?.box || !state.design) return err("Choose and save a box first.");
+      if (plan(state.kit, state.design.ports, { box: c.box, window: !!c.window }).checks.some((x) => x.level === "bad")) return err("Fix the red checks first.");
+    }
+    if (stage === "report") {
+      const n = await prisma.studioFieldRecord.count({ where: { projectId: id } });
+      if (!n) return err("Download the field log from the board first.");
+      if (String((cur.data as { worked?: string } | null)?.worked ?? "").trim().length < 20) return err("Write what worked, in a few sentences.");
     }
     if (stage === "test") {
       const t = cur.data as { design?: number; items?: { key?: string; ok?: boolean }[] } | null;

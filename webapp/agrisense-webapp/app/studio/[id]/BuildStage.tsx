@@ -76,7 +76,7 @@ export default function BuildStage(props: StageProps) {
   const send = async () => {
     setBusy("send"); setError("");
     try {
-      const cfg = deviceConfig(state.kit, design.version, state.title, design.ports, design.rules ?? []);
+      const cfg = deviceConfig(state.kit, design.version, state.title, design.ports, design.rules ?? [], design.app);
       await dev.sendConfig(cfg);
       await save({ sent: { design: design.version, at: new Date().toISOString(), id: dev.hello!.id, fw: dev.hello!.fw } });
       props.refresh();
@@ -153,7 +153,7 @@ export default function BuildStage(props: StageProps) {
           )}
           {data.sent && <p className="small">Design version {data.sent.design} was sent to {data.sent.id} on {new Date(data.sent.at).toLocaleString()}.</p>}
           <Eng title="the design file the board receives">
-            <pre className="code">{JSON.stringify(deviceConfig(state.kit, design.version, state.title, design.ports, design.rules ?? []), null, 2)}</pre>
+            <pre className="code">{JSON.stringify(deviceConfig(state.kit, design.version, state.title, design.ports, design.rules ?? [], design.app), null, 2)}</pre>
           </Eng>
         </div>
       </div>

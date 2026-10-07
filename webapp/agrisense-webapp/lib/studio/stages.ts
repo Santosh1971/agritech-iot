@@ -26,11 +26,11 @@ export const STAGES: StageDef[] = [
     summary: "Plug in the modules, set your rules, flash the board and send your design to it over USB." },
   { key: "test", title: "Test", gate: "auto", ready: true,
     summary: "A guided checklist. The board's self-test ticks each item off." },
-  { key: "app", title: "App", gate: "auto", ready: false,
+  { key: "app", title: "App", gate: "auto", ready: true,
     summary: "Design your phone screen. The ASC Studio app builds it from your design." },
-  { key: "encl", title: "Enclosure", gate: "mentor", ready: false,
+  { key: "encl", title: "Enclosure", gate: "mentor", ready: true,
     summary: "Place cable glands on the stock box; get a drilling template or a 3D-print file." },
-  { key: "report", title: "Field trial & report", gate: "mentor", ready: false,
+  { key: "report", title: "Field trial & report", gate: "mentor", ready: true,
     summary: "Run it in the field, then get a project report built from your own data." },
 ];
 

@@ -152,6 +152,28 @@ class Device {
     this.changed();
   }
 
+  // Every field-log record since `since` (unix seconds). Records stream in
+  // as {"type":"logrec"} lines until {"type":"logend"}.
+  downloadLog(since = 0, onCount?: (n: number) => void): Promise<Record<string, unknown>[]> {
+    return new Promise((resolve, reject) => {
+      const recs: Record<string, unknown>[] = [];
+      let timer = setTimeout(fail, 15000);
+      function fail() { off(); reject(new Error("The board stopped sending its log. Try again.")); }
+      const off = this.onMessage((m) => {
+        if (m.type === "logrec") {
+          recs.push(m.rec as Record<string, unknown>);
+          onCount?.(recs.length);
+          clearTimeout(timer); timer = setTimeout(fail, 15000);
+        } else if (m.type === "logend") {
+          clearTimeout(timer); off(); resolve(recs);
+        } else if (m.type === "error") {
+          clearTimeout(timer); off(); reject(new Error(String(m.error ?? "The board refused.")));
+        }
+      });
+      this.send({ cmd: "log", since }).catch((e) => { clearTimeout(timer); off(); reject(e); });
+    });
+  }
+
   setLive(on: boolean) { return this.request({ cmd: "live", on }, "live", 3000); }
   setOutput(port: string, on: boolean) { return this.request({ cmd: "out", port, on }, "out", 3000); }
   auto() { return this.request({ cmd: "auto" }, "auto", 3000); }

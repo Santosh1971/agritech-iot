@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { rules: raw } = await req.json();
   const rules = cleanRules(raw);
   const version = state.design.version + 1;
-  await prisma.studioDesign.create({ data: { projectId: id, version, ports: state.design.ports, rules, createdById: u.userId } });
+  await prisma.studioDesign.create({ data: { projectId: id, version, ports: state.design.ports, rules, app: state.design.app ?? undefined, createdById: u.userId } });
   if (state.stages.build.status === "NOT_STARTED") await saveStage(id, "build", { status: "IN_PROGRESS" });
   return NextResponse.json({ version, rules, checks: checkRules(state.design.ports, rules) });
 }

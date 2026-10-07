@@ -23,7 +23,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const version = (state.design?.version ?? 0) + 1;
   // Keep any rules already written; the Build stage's checks flag ones that no longer fit.
   const rules = state.design?.rules ?? undefined;
-  await prisma.studioDesign.create({ data: { projectId: id, version, ports, rules, createdById: u.userId } });
+  const app = state.design?.app ?? undefined;
+  await prisma.studioDesign.create({ data: { projectId: id, version, ports, rules, app, createdById: u.userId } });
   if (state.stages.arch.status === "NOT_STARTED") await saveStage(id, "arch", { status: "IN_PROGRESS" });
   return NextResponse.json({ version, ports, checks: checks(state.kit, ports) });
 }

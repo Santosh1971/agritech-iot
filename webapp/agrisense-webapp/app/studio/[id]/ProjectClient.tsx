@@ -12,6 +12,9 @@ import ArchStage from "./ArchStage";
 import SimStage from "./SimStage";
 import BuildStage from "./BuildStage";
 import TestStage from "./TestStage";
+import AppStage from "./AppStage";
+import EnclosureStage from "./EnclosureStage";
+import ReportStage from "./ReportStage";
 
 export type StageProps = { state: ProjectState; access: ProjectAccess; refresh: () => void };
 
@@ -76,6 +79,9 @@ export default function ProjectClient({ state, access }: { state: ProjectState; 
           {stage === "sim" && <SimStage {...props} />}
           {stage === "build" && <BuildStage {...props} />}
           {stage === "test" && <TestStage {...props} />}
+          {stage === "app" && <AppStage {...props} />}
+          {stage === "encl" && <EnclosureStage {...props} />}
+          {stage === "report" && <ReportStage {...props} />}
           {!def.ready && (
             <div className="card grid">
               <p>{def.summary}</p>

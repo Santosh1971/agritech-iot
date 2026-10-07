@@ -62,7 +62,17 @@ The studio is where BSc Agriculture students take a farm IoT product from proble
   - Teachers add students and sign off the mentor gates.
   - Students see only their own team's projects.
   - There is still no self-signup. Adding someone to a cohort creates their account, and they log in with the usual email OTP. After login, students and teachers land on `/studio`.
-- **Stages working now:** Problem → Specification (mentor sign-off) → Architecture → Simulate (Wokwi project files, optional) → Build (rules, flashing in the browser, sending the design over USB) → Test (a live checklist driven by the board's readings). App, Enclosure and Report show what is coming.
+- **All nine stages work:**
+  1. Problem.
+  2. Specification (mentor sign-off).
+  3. Architecture.
+  4. Simulate: Wokwi files. Optional.
+  5. Build: rules, flashing, sending the design over USB.
+  6. Test: a live checklist.
+  7. App: the phone-screen designer. Its layout travels inside the design to the board.
+  8. Enclosure: gland placement on a stock box, a 1:1 drilling template (SVG) and an OpenSCAD model. Mentor sign-off.
+  9. Field trial & report: download the board's field log over USB, charts, the team's notes, and a printable report at `/studio/[id]/report`. Mentor sign-off.
+- **Phone app.** The ASC Studio app (`products/ASC-StudentKit/mobile-app`) is published by CI as product `ASC_KIT`. Students download it from the App stage; `/api/studio/app` serves the newest release.
 - **Talking to boards.** Build and Test use Web Serial, so they need Chrome or Edge on a laptop or desktop.
   - `app/studio/[id]/device.ts` speaks the firmware's JSON-lines protocol.
   - `app/studio/[id]/flash.ts` flashes with esptool-js. It loads only when someone presses Flash.
@@ -74,7 +84,7 @@ The studio is where BSc Agriculture students take a farm IoT product from proble
 - **Pin map copy.** `lib/studio/pinmap.json` is a copy of `products/ASC-StudentKit/hardware/pinmap.json`. `python3 products/ASC-StudentKit/hardware/tools/check_pinmap.py` fails if the two differ.
 - **Claude drafts the spec** when `ANTHROPIC_API_KEY` is set in the server's environment. It uses Claude Opus 5.5 with server-side refusal fallback. Without a key, or if a call fails, a fixed template drafts it instead, so the stage always works. Each project gets at most 10 drafts a day.
 
-**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio` and `20261007150000_studio_firmware_and_rules`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
+**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio`, `20261007150000_studio_firmware_and_rules` and `20261007180000_studio_app_and_field_log`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
 
 ### Trying stages 4–6 with a DevKit on a Mac
 
