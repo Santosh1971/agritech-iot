@@ -29,10 +29,10 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 
 There are **two kits**, both built on an ESP32-S3 carrier board:
 
-- **Mini**: classroom-first and low-cost. USB or 12 V power, WiFi, about 3 sensor ports, 1 I²C port, 1 low-voltage relay.
-- **Mega**: field-first. Adds LiFePO4 battery and solar power, RS-485, LoRa and GSM slots, more ports and outputs, and an RTC.
+- **Mini**: classroom-first and low-cost. USB or 12 V power, WiFi, **Bluetooth LE**, **RTC** (for time-based experiments), 3 sensor ports, 1 I²C port, **2 low-voltage relays**.
+- **Mega**: field-first. Everything in Mini, plus **more sensor ports** (8 proposed), **4 relays**, LiFePO4 battery and solar power, RS-485, and LoRa and GSM slots.
 
-The exact split between the kits is still to be decided. The draft spec, `products/ASC-StudentKit/docs/StudentKit_Specification_v0.1.md`, holds the feature table and the HW/SW/ME requirements. Two rules apply whatever the final split:
+The remaining details of the split are still to be decided. The draft spec, `products/ASC-StudentKit/docs/StudentKit_Specification_v0.1.md`, holds the feature table and the HW/SW/ME requirements. Two rules apply whatever the final split:
 
 - **A block that works on Mini works on Mega without any change.** Both boards use the same connector and pin order for each port type.
 - **One firmware runs on both boards.** A board-ID resistor tells the firmware which board it is running on, and the firmware selects that board's port map.
@@ -62,19 +62,33 @@ Starter set, taken from products we already ship:
 | LoRa link to a Master | WPC, AWD1 |
 | GSM/SMS | PC-gsmpump |
 | Battery and solar power | AWD1, XL6009 module |
-| OLED display, RTC (DS1307) | `ds1307_support.patch`, existing variants |
+| OLED display, RTC | `ds1307_support.patch`, existing variants. The kits use a DS3231-class RTC; see the kit spec. |
 
 ### 3.3 Universal firmware: no compiling for most students
 
 Students do not get a firmware build. They get **one prebuilt firmware**, "ASC-Studio firmware", that holds every block driver. Each student's design is a **small JSON configuration**: which block is on which port, the thresholds, the rules ("pump ON if moisture < 30 % between 06:00 and 18:00"), and how it reports (WiFi/MQTT, LoRa or SMS).
 
-- The flasher writes the firmware once. After that, only the configuration is sent, over USB serial or WiFi. Changing a design takes seconds and needs no server build.
+- The flasher writes the firmware once. After that, only the configuration is sent, over USB serial, **Bluetooth from the mobile app** (§3.4), or WiFi. Changing a design takes seconds and needs no server build.
 - The firmware reports to the existing MQTT broker using the topics in `webapp/agrisense-webapp/docs/mqtt-topics.md`, so the student's device shows up in the dashboard like any other product.
 - **Code mode**, the advanced option: the studio generates a readable Arduino sketch from the configuration. The student can view it, edit it, and build it on the server (§6). This is how interested students move on to real coding.
 
+### 3.4 Mobile app: one app that adapts to each design
+
+The system is not complete without a mobile app. Students do not write an app. They **design their app's screen** in the studio, and one shared Flutter app, the **ASC Studio app**, shows it. This works the same way as the firmware (§3.3): there is one app, and each student's design is data.
+
+- **The device describes itself.** The design configuration (§3.3) also holds an **app layout**: which tiles to show (gauge, graph, on/off switch, status lamp, alert), their labels in Hindi or English, units, icons and colours, plus the product name the student chose. The app reads this layout from the device, or from the server, and builds the screen from it. A soil-moisture alarm and a 4-relay greenhouse controller therefore get different apps from the same install.
+- **Three ways to connect.** These are the same kinds of link our product apps use (WPC, FG1), plus Bluetooth:
+  - **Bluetooth LE**: on the bench or in the field, with no WiFi or internet. Used to send the configuration (no USB cable needed), to set up WiFi, and to view and control the device locally.
+  - **Cloud (MQTT)**: from anywhere, through the existing broker. Supports live readings, history graphs, control and push alerts.
+  - **Local WiFi**: the device's own access point, as a fallback. This is the pattern WPC and FG1 already use.
+- **Studio features in the app.** Students can scan a QR code on the board to claim it into their project, follow the stage-6 test checklist on the phone, and see their project's stage and mentor comments. Teachers get a read-only view of every device in their class.
+- **Teach while hiding.** In Engineer's view the app shows the raw MQTT messages and Bluetooth characteristics, and the layout JSON behind each tile.
+- **Build and distribution.** The app has one Play Store listing. It is built in CI in the same way as `wpc-app.yml`. Later (Phase 3), a student can get a **branded APK** with their own app name and icon, built in GitHub Actions, never on the VPS.
+- The Kotlin flasher app stays as it is, for USB flashing. The Studio app takes over everything that happens after the first flash.
+
 ## 4. The student journey
 
-The journey has 8 stages. Each stage ends with a **gate**: a short concept check, plus a mentor sign-off where the gate is marked.
+The journey has 9 stages. Each stage ends with a **gate**: a short concept check, plus a mentor sign-off where the gate is marked.
 
 | # | Stage | What the student does | What the platform does behind the scenes | Engineer's view shows | Gate |
 |---|---|---|---|---|---|
@@ -82,10 +96,11 @@ The journey has 8 stages. Each stage ends with a **gate**: a short concept check
 | 2 | **Specification** | Reads and agrees to a one-page spec written in plain language. | Claude drafts the **system specification**, with **hardware, software and mechanical requirements**, from a fixed template. The rule engine checks it is feasible. | The full spec, with requirement IDs | **Mentor** |
 | 3 | **Architecture** | Drags blocks onto the carrier board's ports. Blocks that cannot work there are greyed out, with the reason. | Rule checks: free ports, power budget and battery life estimate, radio range, cost. Draws the block diagram automatically. | Block diagram, pin map, power budget | Auto |
 | 4 | **Simulate** (optional) | Tries the design in Wokwi before touching hardware. | Builds the Wokwi diagram from the blocks, the same approach as the GPSIOAM labs. | `diagram.json` | — |
-| 5 | **Build** | Plugs the modules into the ports shown on screen. Flashes the board from the browser (Web Serial) or the phone (flasher app). | Writes the universal firmware and then the configuration. | Configuration JSON, generated sketch | Auto |
+| 5 | **Build** | Plugs the modules into the ports shown on screen. Flashes the board from the browser (Web Serial) or the phone (flasher app), then sends the design from the ASC Studio app over Bluetooth. | Writes the universal firmware, then the configuration. | Configuration JSON, generated sketch | Auto |
 | 6 | **Test** | Follows the guided test checklist: "dip the probe in water, the reading should go above 70 %". | The device runs each block's self-test and reports over serial or MQTT. Results are ticked off automatically. | Raw readings, test log | Auto |
-| 7 | **Enclosure** | Chooses the stock box and places glands and windows on a 3D preview. | Generates a parametric OpenSCAD model: a **printable drilling template (PDF)** for the stock box and an **STL** for a 3D-printed lid or box. | STL/STEP, drilling drawing | **Mentor** |
-| 8 | **Field trial & report** | Installs the device and watches the data on the dashboard for N days. | Compiles a **project report** (spec, design, test results, field data and graphs) as a PDF for the college practical assessment. | Report source | **Mentor** |
+| 7 | **App** | Designs the phone screen: picks tiles for each sensor and output, names them, sets alerts ("SMS me if the tank is below 20 %"), and chooses the product name and icon. Sees a live preview, then opens the result on the real phone. | Adds the app layout to the design configuration, checks it against the blocks (every tile must point to a real sensor or output), and pushes it to the device over Bluetooth or MQTT. | Layout JSON, MQTT topics, BLE characteristics | Auto |
+| 8 | **Enclosure** | Chooses the stock box and places glands and windows on a 3D preview. | Generates a parametric OpenSCAD model: a **printable drilling template (PDF)** for the stock box and an **STL** for a 3D-printed lid or box. | STL/STEP, drilling drawing | **Mentor** |
+| 9 | **Field trial & report** | Installs the device and watches the data in the app and on the dashboard for N days. | Compiles a **project report** (spec, design, test results, app screenshots, field data and graphs) as a PDF for the college practical assessment. | Report source | **Mentor** |
 
 How *teach while hiding* works in practice:
 
@@ -131,7 +146,7 @@ How *teach while hiding* works in practice:
 - `Institution` and `Cohort`, for example GPSIOAM → AGR 322, 2026–27.
 - `StudioProject`: owner (student or team), cohort, title, problem text, current stage.
 - `StudioStage`: project, stage number, status, output (JSON: spec, design configuration, test log), gate result, mentor sign-off (who and when).
-- `StudioDesign`: a versioned block-and-port configuration. It is the JSON that is flashed to the device.
+- `StudioDesign`: a versioned block-and-port configuration plus the app layout (§3.4). It is the JSON that is sent to the device and read by the app.
 - `StudioOrder`: path (KIT or SELF), placed by the institution for a cohort (KIT) or by a student (SELF), items aggregated from the cohort's designs, quote, status.
 - `StudioJob`: type, input, status, output path, for the worker.
 - A student's flashed device becomes an ordinary `Device` row, so the existing dashboard, MQTT bridge and readings all work unchanged.
@@ -140,10 +155,10 @@ How *teach while hiding* works in practice:
 
 | Phase | Scope | Done when |
 |---|---|---|
-| **0: Foundations (Project #0)** | Mini and Mega spec decided. Rev A boards fitted to a sample ready-made box, then designed, prototyped and brought up. First 8 blocks. Universal firmware with the configuration format and board-ID detection. Each step follows the studio stages (spec in `products/ASC-StudentKit/docs/`). | One Mini and one Mega, each configured from JSON, read their sensors, drive an output, and run a 1–2 week field trial |
-| **1: MVP studio** | Stages 1–3, 5 and 6. Student and teacher roles. Project tracking. Kit orders (path A). | One GPSIOAM batch goes from problem to tested device without writing any code |
-| **2: Enclosure & report** | Stage 7 (OpenSCAD worker, drilling template, STL, JLC3DP package, estimate). Stage 8 report PDF. Self-order (path B). | A student's device is enclosed and the college receives the report PDF |
-| **3: Grow** | Code mode with server builds. Wokwi simulation (stage 4). Hindi interface. More blocks. Teacher analytics. | Students who want to can move on to real code |
+| **0: Foundations (Project #0)** | Mini and Mega spec decided. Rev A boards fitted to a sample ready-made box, then designed, prototyped and brought up. First 8 blocks. Universal firmware with the configuration format, board-ID detection and BLE. **ASC Studio app v0.1** (BLE + MQTT, screen built from the layout). Each step follows the studio stages (spec in `products/ASC-StudentKit/docs/`). | One Mini and one Mega, each configured from JSON, read their sensors, drive an output, are controlled from the ASC Studio app, and run a 1–2 week field trial |
+| **1: MVP studio** | Stages 1–3, 5, 6 and 7 (App). Student and teacher roles. Project tracking. Kit orders (path A). | One GPSIOAM batch goes from problem to tested device without writing any code |
+| **2: Enclosure & report** | Stage 8 (OpenSCAD worker, drilling template, STL, JLC3DP package, estimate). Stage 9 report PDF. Self-order (path B). | A student's device is enclosed and the college receives the report PDF |
+| **3: Grow** | Code mode with server builds. Wokwi simulation (stage 4). Branded APK per student (built in CI). Hindi interface. More blocks. Teacher analytics. | Students who want to can move on to real code |
 | **Later** | An "advanced board" path: a custom PCB generated to fit a chosen stock enclosure, for final-year projects, using the AWD1 generator flow and kicad-cli. | — |
 
 ## 9. Decisions log
@@ -152,6 +167,8 @@ How *teach while hiding* works in practice:
 - 2026-10-07: Carrier board MCU is **ESP32-S3**.
 - 2026-10-07: Kits are priced and ordered **per college batch**.
 - 2026-10-07: There will be **two kits, Mini and Mega**. Their contents are still to be decided. They are designed through the studio's own stages (Project #0), using a sample ready-made box.
+- 2026-10-07: **Mini** gets an RTC, Bluetooth and 2 relays. **Mega** gets 4 relays and more sensor ports. Both kits have Bluetooth.
+- 2026-10-07: **A mobile app is part of the system** (§3.4): one shared ASC Studio app whose screen is built from each student's design.
 
 ## 10. Open questions
 

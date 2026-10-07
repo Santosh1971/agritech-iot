@@ -5,4 +5,4 @@ These are the student kits (**Mini** and **Mega**) for the Student Product Studi
 The kits are also **Project #0** of the studio: they are designed by following the same stages a student follows.
 
 - `docs/StudentKit_Specification_v0.1.md`: system specification with hardware, software and mechanical requirements. It is a draft, and the open decisions are listed in §8.
-- `hardware/`, `firmware/`: not started. Work begins once the spec decisions are made.
+- `hardware/`, `firmware/`, `mobile-app/`: not started. The mobile app is the shared ASC Studio app (spec §5A). Work begins once the spec decisions are made.
