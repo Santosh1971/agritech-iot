@@ -16,7 +16,7 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 
 | # | Decision | Reason |
 |---|---|---|
-| D1 | **Students do not design PCBs.** We supply a **Student Carrier Board**, designed and tested once by us. Students choose which modules plug into which port. | This removes the hardest and most error-prone step. One tested board means students get repeatable results, it is cheap at volume, and we can support it. |
+| D1 | **Students do not design PCBs.** We supply the carrier board in two kits, **Mini** and **Mega** (§3.1), designed and tested once by us. Students choose which modules plug into which port. | This removes the hardest and most error-prone step. One tested board means students get repeatable results, it is cheap at volume, and we can support it. |
 | D2 | **Everything runs on the existing GigaNodes VPS.** The Next.js app, Postgres and PM2 are already there. Heavy jobs run in a separate PM2 worker process, the same pattern as `bridge/`. | There is no new hosting bill. Section 6 shows how the load stays small. |
 | D3 | **Students can order both ways:** (a) order a kit from Agri Sensors and Controls, or (b) order themselves using a downloaded package for JLC3DP and parts. | This is what was asked for. Path (a) is also a revenue line. |
 | D4 | **Teach while hiding the tools.** Every step has a "Why?" card, an *Engineer's view* toggle, and a short check before the gate. | Students learn the engineering ideas without having to learn the tools. |
@@ -25,19 +25,19 @@ The approach extends the GPSIOAM 2026 workshop (flasher, student-idea prompts, l
 
 ## 3. Core building blocks
 
-### 3.1 Student Carrier Board (our hardware, rev A)
+### 3.1 Student kits: Mini and Mega (our hardware)
 
-This is designed in-house using the same generator flow as `products/AWD1-paddy/hardware/AWD-FieldNode/tools/`. Draft feature list, to be finalised:
+There are **two kits**, both built on an ESP32-S3 carrier board:
 
-- **MCU:** ESP32-S3 module (decided 2026-10-07), the same family as AWD1. Its native USB makes browser flashing over Web Serial simple. The pin map is fixed and published.
-- **Power:** 12 V DC in, USB-C, and an optional LiFePO4 cell with charger (the AWD1 power block). Battery voltage is read on an ADC pin.
-- **Sensor ports:** 4 keyed ports (3-pin JST), each able to work as analog, digital or 1-Wire. The port number is all a student needs to know.
-- **I²C ports:** 2 Grove/Qwiic-style ports, for the display, BME280, light sensor and RTC.
-- **RS-485 port:** for industrial soil NPK and moisture probes.
-- **Outputs:** 2 low-voltage relay or MOSFET outputs, plus a 12 V solenoid or valve driver.
-- **Radio:** WiFi built in. Optional SX1262 LoRa slot with the same module and pins as WPC and AWD1. Optional 4G/GSM slot, the same as PC-gsmpump.
-- **On board:** status LED, buzzer, PAIR/BOOT button, and an RTC footprint.
-- **Fit:** sized for **one stock IP65 ABS enclosure**, with mounting holes matching that box.
+- **Mini**: classroom-first and low-cost. USB or 12 V power, WiFi, about 3 sensor ports, 1 I²C port, 1 low-voltage relay.
+- **Mega**: field-first. Adds LiFePO4 battery and solar power, RS-485, LoRa and GSM slots, more ports and outputs, and an RTC.
+
+The exact split between the kits is still to be decided. The draft spec, `products/ASC-StudentKit/docs/StudentKit_Specification_v0.1.md`, holds the feature table and the HW/SW/ME requirements. Two rules apply whatever the final split:
+
+- **A block that works on Mini works on Mega without any change.** Both boards use the same connector and pin order for each port type.
+- **One firmware runs on both boards.** A board-ID resistor tells the firmware which board it is running on, and the firmware selects that board's port map.
+
+**The kits are Project #0 of the studio.** We design them by following the same stages students will follow, with a sample ready-made box for the enclosure. This tests the studio's templates on real work before any student uses them.
 
 ### 3.2 Block library
 
@@ -140,7 +140,7 @@ How *teach while hiding* works in practice:
 
 | Phase | Scope | Done when |
 |---|---|---|
-| **0: Foundations** | Carrier board rev A (design, prototypes, bring-up). First 8 blocks. Universal firmware with the configuration format. | A board configured by hand from JSON reads 3 sensors and drives an output |
+| **0: Foundations (Project #0)** | Mini and Mega spec decided. Rev A boards fitted to a sample ready-made box, then designed, prototyped and brought up. First 8 blocks. Universal firmware with the configuration format and board-ID detection. Each step follows the studio stages (spec in `products/ASC-StudentKit/docs/`). | One Mini and one Mega, each configured from JSON, read their sensors, drive an output, and run a 1–2 week field trial |
 | **1: MVP studio** | Stages 1–3, 5 and 6. Student and teacher roles. Project tracking. Kit orders (path A). | One GPSIOAM batch goes from problem to tested device without writing any code |
 | **2: Enclosure & report** | Stage 7 (OpenSCAD worker, drilling template, STL, JLC3DP package, estimate). Stage 8 report PDF. Self-order (path B). | A student's device is enclosed and the college receives the report PDF |
 | **3: Grow** | Code mode with server builds. Wokwi simulation (stage 4). Hindi interface. More blocks. Teacher analytics. | Students who want to can move on to real code |
@@ -151,8 +151,9 @@ How *teach while hiding* works in practice:
 - 2026-10-07: Company name is **Agri Sensors and Controls** (https://agrisenseandcontrol.in/).
 - 2026-10-07: Carrier board MCU is **ESP32-S3**.
 - 2026-10-07: Kits are priced and ordered **per college batch**.
+- 2026-10-07: There will be **two kits, Mini and Mega**. Their contents are still to be decided. They are designed through the studio's own stages (Project #0), using a sample ready-made box.
 
 ## 10. Open questions
 
-1. **Stock enclosure:** which IP65 box do we standardise on? This sets the carrier board outline.
+1. **Mini/Mega feature split and sample box.** See §8 of the kit spec.
 2. **VPS specification:** RAM and disk, to confirm the worker fits (§6).
