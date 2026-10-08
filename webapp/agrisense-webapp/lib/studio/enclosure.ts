@@ -34,7 +34,7 @@ function cables(kit: KitKey, ports: Ports): { id: string; kind: GlandKind; label
   for (const [port, id] of Object.entries(ports)) {
     if (!id) continue;
     const b = BLOCK_BY_ID[id];
-    if (!b || id === "oled" || id === "lora" || id === "gsm") continue; // inside the box, or an antenna below
+    if (!b || id === "lora" || id === "gsm") continue; // an antenna, added below
     const kind: GlandKind = b.kind === "OUT" ? "M16" : "M12";
     out.push({ id: port, kind, label: `${port}: ${b.name}` });
   }
@@ -77,7 +77,6 @@ export function plan(kit: KitKey, ports: Ports, choice: EnclosureChoice): Plan {
     checks.push({ level: "ok", text: `${list.length} glands fit on the bottom wall${rows.length > 1 ? " in two rows" : ""}, with room for each nut.` });
   }
   if (!box.fits.includes(kit)) checks.push({ level: "bad", text: `The ${kit === "MEGA" ? "Mega" : "Mini"} board doesn't fit in ${box.name}.` });
-  if (Object.values(ports).includes("oled")) checks.push({ level: "ok", text: "The lid is clear, so the display and the board's LEDs show through it. No window to cut." });
   if (!box.measured) checks.push({ level: "warn", text: "This box's size hasn't been measured yet. Measure your real box before drilling." });
   return { box, holes, window: null, checks };
 }

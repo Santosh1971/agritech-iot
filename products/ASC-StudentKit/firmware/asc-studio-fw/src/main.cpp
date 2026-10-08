@@ -219,7 +219,6 @@ static void tick() {
   }
   for (int i = 0; i < board->relays; i++) if (manual[i] >= 0 && (bool)manual[i] != outOn[i]) setOutput(i, manual[i]);
 
-  blocksShow(design, standIn ? "stand-in board" : board->name);
   if (board->led >= 0) digitalWrite(board->led, (now / 1000) % 2);
 
   logRecord();

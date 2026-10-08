@@ -29,7 +29,6 @@ export function checksFor(ports: Record<string, string | null>): TestCheck[] {
       case "dht": out.push({ ...base, todo: "Breathe on the sensor for a few seconds. Humidity should rise by 5 %.", ref: `${port}:h`, pass: (v, b0) => v - b0 >= 5 }); break;
       case "bme": out.push({ ...base, todo: "Breathe on the sensor for a few seconds. Humidity should rise by 5 %.", ref: `${port}:h`, pass: (v, b0) => v - b0 >= 5 }); break;
       case "light": out.push({ ...base, todo: "Cover the sensor with your hand. Light should drop below 50 lux.", ref: port, pass: (v) => v < 50 }); break;
-      case "oled": out.push({ ...base, todo: "Look at the screen.", confirm: "The screen shows the project name and readings." }); break;
       default:
         if (BLOCK_BY_ID[b]?.kind === "OUT") out.push({ ...base, todo: `Switch ${port} on and off from here.`, output: true, confirm: "I heard the relay click and saw its LED light." });
     }

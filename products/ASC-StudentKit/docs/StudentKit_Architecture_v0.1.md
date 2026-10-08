@@ -64,7 +64,7 @@ The module is the **-N8 variant** (8 MB flash, no PSRAM), the same part as AWD1.
 | 9 | spare | VBAT_ADC | ADC1 channel 8 |
 | 10 | VIN_SENSE (12 V present) | VIN_SENSE (12 V / solar) | ADC1 channel 9 — the last ADC1 channel |
 | 11 | BOARD_ID | BOARD_ID | ADC2. Read once at boot, before the radio starts (HW-12) |
-| 12 / 13 | internal I²C SDA / SCL | internal I²C SDA / SCL | RTC, I/O expander (Mega), OLED header |
+| 12 / 13 | internal I²C SDA / SCL | internal I²C SDA / SCL | RTC, I/O expander (Mega) |
 | 14 / 15 | student I²C SDA / SCL | student I²C SDA / SCL (both ports) | A separate bus, so a student module can never clash with the RTC's address (0x68) |
 | 16 | RTC_INT | RTC_INT | RTC alarm can wake the board from deep sleep |
 | 17 / 18 / 21 | spare | LoRa DIO1 / BUSY / RST | Same as AWD1, checked automatically against its `design.py` |
@@ -109,7 +109,7 @@ The module is the **-N8 variant** (8 MB flash, no PSRAM), the same part as AWD1.
 |---|---|---|---|
 | Sensor ports S1… | 4-pin JST-XH 2.54 mm (polarised, so it cannot be plugged in backwards) | 1 GND · 2 3V3 · 3 5V · 4 SIG | Each block uses the supply it needs. Both supplies have a resettable fuse. The SIG input is protected by a series resistor and clamp diodes, so a 5 V *digital* signal is safe (for example a flow sensor). A 0–5 V *analog* signal needs a divider, which is part of that block's adapter cable. |
 | I²C ports | 4-pin, **Grove-compatible** pinout (GND · 3V3 · SDA · SCL) | | Grove and Qwiic I²C modules (with an adapter cable) plug straight in, which makes the block library cheaper |
-| Relay OUT1… | 3-way 5.08 mm screw terminal (COM, NO, NC) | | Silkscreen: "LOW VOLTAGE ONLY" (HW-05) |
+| Relay OUT1… | 2-way 5.08 mm screw terminal (COM, NO): the relays are normally open (1 Form A; Mini uses the Hongfa HF46F) | | Silkscreen: "LOW VOLTAGE ONLY" (HW-05) |
 | RS-485 (Mega) | 4-way screw terminal (A, B, +12 V switched, GND) | | |
 | Valve (Mega) | 2-way screw terminal | | |
 | Power | 12 V DC barrel jack; Mega adds a 2-way solar terminal | | |
@@ -124,7 +124,7 @@ Proposed: the sensor ports stay 4-pin, not the 3-pin in the spec draft. The extr
 | Rail | Source | Loads | Estimated peak |
 |---|---|---|---|
 | 5 V | USB-C or 12 V→5 V buck (OR-ed) | 3.3 V regulator input, 2 relays (≈75 mA each), 5 V sensors | ≈ 700 mA |
-| 3.3 V | regulator rated ≥1 A | ESP32-S3 (WiFi TX peaks ≈ 350 mA), 3.3 V sensors, RTC, OLED | ≈ 450 mA |
+| 3.3 V | regulator rated ≥1 A | ESP32-S3 (WiFi TX peaks ≈ 350 mA), 3.3 V sensors, RTC | ≈ 450 mA |
 
 **Rule for the studio:** a laptop USB port supplies only about 500 mA. With both relays and WiFi active, the board can brown out. If a design uses relays, the studio's checks (studio D5) ask for the **12 V adapter or a ≥1 A USB charger** and explain why in a "Why?" card.
 

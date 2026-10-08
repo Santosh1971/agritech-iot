@@ -25,7 +25,6 @@ DSMA = "Diode_SMD:D_SMA"
 PTC1206 = "Fuse:Fuse_1206_3216Metric"
 XH4 = "Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical"
 GROVE = "Connector_JST:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical"   # footprint stand-in for HY2.0-4P (Grove); swap at layout
-TERM3 = "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_3-G-5,08_1x03_P5.08mm_Horizontal"
 TERM2 = "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_2-G-5,08_1x02_P5.08mm_Horizontal"
 BTN = "Button_Switch_SMD:SW_SPST_TL3342"
 
@@ -159,8 +158,8 @@ part("R22", "Device:R", "4.7k", R0603, (X, Y + 10.16), {"1": "+3V3", "2": "I2C1_
 part("R23", "Device:R", "4.7k", R0603, (X + 12.7, Y + 10.16), {"1": "+3V3", "2": "I2C1_SCL"})
 
 # ---------------------------------------------------------------- relays OUT1, OUT2
-note("Relays OUT1/OUT2 (GPIO35/36): SRD-05VDC, low-side AO3400A, flyback diode, and a coil LED so OUT1/OUT2 show through the clear lid.", 297.18, 81.28)
-note("Terminals: 1 COM, 2 NO, 3 NC. Silkscreen: LOW VOLTAGE ONLY (switch a contactor coil, not a pump).", 297.18, 85.09)
+note("Relays OUT1/OUT2 (GPIO35/36): Hongfa HF46F-005 (1 Form A, 5 A, 40 mA coil), low-side AO3400A, flyback diode, coil LED (shows through the lid).", 297.18, 81.28)
+note("Terminals: 1 COM, 2 NO. Silkscreen: LOW VOLTAGE ONLY (switch a contactor coil, not a pump).", 297.18, 85.09)
 for i in range(1, 3):
     y = 81.28 + 66.04 * i - 22.86
     o = "OUT%d" % i
@@ -168,13 +167,13 @@ for i in range(1, 3):
     part("R%d" % (r + 1), "Device:R", "100", R0603, (304.8, y), {"1": o, "2": o + "_G"})
     part("R%d" % (r + 2), "Device:R", "100k", R0603, (304.8, y + 15.24), {"1": o, "2": "GND"})
     part("Q%d" % (1 + i), "Transistor_FET:AO3400A", "AO3400A", SOT23, (320.04, y + 7.62), {"G": o + "_G", "S": "GND", "D": o + "_COIL"})
-    part("K%d" % i, "Relay:SANYOU_SRD_Form_C", "SRD-05VDC-SL-C", "Relay_THT:Relay_SPDT_SANYOU_SRD_Series_Form_C", (350.52, y),
-         {"5": "+5V", "2": o + "_COIL", "1": o + "_COM", "3": o + "_NO", "4": o + "_NC"})
+    part("K%d" % i, "ASC:HF46F", "HF46F/005-HS1", "ASC:Relay_SPST_Hongfa_HF46F", (350.52, y),
+         {"1": "+5V", "2": o + "_COIL", "3": o + "_NO", "4": o + "_COM"})
     part("D%d" % (11 + i), "Diode:1N4148W", "1N4148W", SOD123, (332.74, y - 2.54), {"K": "+5V", "A": o + "_COIL"})
     part("R%d" % (r + 3), "Device:R", "1k", R0603, (370.84, y - 12.7), {"1": "+5V", "2": o + "_LED_A"})
     part("D%d" % (13 + i), "Device:LED", o + " red", LED0805, (370.84, y + 2.54), {"A": o + "_LED_A", "K": o + "_COIL"}, silk=o)
-    part("J%d" % (8 + i), "Connector_Generic:Conn_01x03", o, TERM3, (393.7, y),
-         {"1": o + "_COM", "2": o + "_NO", "3": o + "_NC"}, silk=o + "  COM NO NC")
+    part("J%d" % (8 + i), "Connector_Generic:Conn_01x02", o, TERM2, (393.7, y),
+         {"1": o + "_COM", "2": o + "_NO"}, silk=o + "  COM NO")
 
 # ---------------------------------------------------------------- mechanical
 for i, xy in enumerate([(330.2, 254.0), (345.44, 254.0), (360.68, 254.0)], 1):

@@ -5,7 +5,6 @@
 void blocksBegin(Design& d, const BoardMap& board);   // after a new design is loaded
 void blocksRead(Design& d);                           // refresh every slot's values
 void blocksSelfTest(Design& d, JsonArray results);    // one entry per slot
-void blocksShow(const Design& d, const char* status); // OLED, if the design has one
 
 // Reading for a rule's "S1" or "S3:t" reference. NAN if missing or failed.
 float valueFor(Design& d, const char* ref);

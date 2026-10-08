@@ -55,6 +55,36 @@ def flat_symbol(lib, name):
     out[2:2] = list(child_props.values())
     return out
 
+def hf46f():
+    """Hongfa HF46F (1 Form A): Omron's G5Q-1A symbol, renumbered to the HF46F pads
+    (1/2 coil, 3/4 contact; see ASC.pretty/Relay_SPST_Hongfa_HF46F)."""
+    s = flat_symbol("Relay", "G5Q-1A")
+    s[1] = "HF46F"
+    renum = {"5": "1", "1": "2", "3": "3", "2": "4"}
+    for sub in find(s, "symbol"):
+        sub[1] = sub[1].replace("G5Q-1A", "HF46F")
+        for p in find(sub, "pin"):
+            num = first(p, "number")
+            num[1] = renum[num[1]]
+    for pr in find(s, "property"):
+        if pr[1] == "Value":
+            pr[2] = "HF46F"
+        elif pr[1] == "Footprint":
+            pr[2] = "ASC:Relay_SPST_Hongfa_HF46F"
+        elif pr[1] == "Datasheet":
+            pr[2] = "https://www.hongfa.com/Product/Item/HF46F"
+        elif pr[1] == "Description":
+            pr[2] = "Hongfa HF46F subminiature power relay, SPST-NO (1 Form A), 5 A"
+        elif pr[1] == "ki_fp_filters":
+            pr[2] = "Relay*SPST*Hongfa*HF46F*"
+    return s
+
+ASC_SYMBOLS = {"HF46F": hf46f}
+
+def get_symbol(lib_id):
+    lib, name = lib_id.split(":")
+    return ASC_SYMBOLS[name]() if lib == "ASC" else flat_symbol(lib, name)
+
 def sym_pins(sym):
     """[(number, name, x, y, angle, hidden)] for unit 1 / body style 1 (and unit 0)."""
     pins = []
@@ -139,7 +169,7 @@ def text(t, x, y, size=1.27):
 
 netlist = []
 for p in D.P:
-    sym = flat_symbol(*p["lib"].split(":"))
+    sym = get_symbol(p["lib"])
     x, y = p["xy"]
     pins = sym_pins(sym)
     desc = (x - 12.7, y - 35.56) if p["ref"] == "U1" else None
@@ -200,5 +230,8 @@ sch = [Sym("kicad_sch"), [Sym("version"), 20250114], [Sym("generator"), "eeschem
        lib_block] + items + [[Sym("sheet_instances"), [Sym("path"), "/", [Sym("page"), "1"]]],
                              [Sym("embedded_fonts"), Sym("no")]]
 open(os.path.join(PRJ, D.PROJECT + ".kicad_sch"), "w").write(dump(sch) + "\n")
+lib = [Sym("kicad_symbol_lib"), [Sym("version"), 20241209], [Sym("generator"), "kicad_symbol_editor"],
+       [Sym("generator_version"), "9.0"]] + [make() for make in ASC_SYMBOLS.values()]
+open(os.path.join(PRJ, "ASC.kicad_sym"), "w").write(dump(lib) + "\n")
 json.dump(netlist, open(os.path.join(HERE, "netlist.json"), "w"), indent=1)
 print("schematic: %d parts, %d power symbols" % (len(netlist), pwr_n[0]))

@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "ASC")(type "KiCad")(uri "${KIPRJMOD}/ASC.pretty")(options "")(descr "ASC kit parts"))
+)

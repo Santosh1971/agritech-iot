@@ -62,7 +62,7 @@ Starter set, taken from products we already ship:
 | LoRa link to a Master | WPC, AWD1 |
 | GSM/SMS | PC-gsmpump |
 | Battery and solar power | AWD1, XL6009 module |
-| OLED display, RTC | `ds1307_support.patch`, existing variants. The kits use a DS3231-class RTC; see the kit spec. |
+| RTC | `ds1307_support.patch`, existing variants. The kits use a DS3231-class RTC; see the kit spec. (No OLED: the phone app is the screen.) |
 
 ### 3.3 Universal firmware: no compiling for most students
 
@@ -182,6 +182,7 @@ How *teach while hiding* works in practice:
 - 2026-10-07: First end-to-end run on real hardware (the GPSIOAM workshop kit as a Mini stand-in): stages 1–7 done, design sent over USB, live readings in the studio, pump switched from the phone app over Bluetooth.
 - 2026-10-08: **Box chosen:** the 180 × 130 × 100 mm box with a clear lid that WM1 and WPC already use. **Mini** is a half board on the box's upper three bosses, two per 100 × 100 mm panel, like WPC. **Mega** uses the full WM1 board outline and all five bosses. Parts may go on both sides. LEDs show through the lid, labelled on the silkscreen. Details: kit architecture §8.
 - 2026-10-08: **Mini rev A schematic drafted**, generated from `products/ASC-StudentKit/hardware/Mini/tools/design.py` (the AWD1 generator flow). It has a TPS54202 12 V→5 V buck, USB-C, an AP7361C LDO, a DS3231MZ RTC, 4 XH sensor ports with clamps, a Grove I2C-1 port, 2 SRD relays with coil LEDs, a buzzer and a test header. Its pins are checked against `pinmap.json`. KiCad ERC is still to be run.
+- 2026-10-08: Mini relays changed to the slim **Hongfa HF46F** (1 Form A, so the OUT terminals are 2-way COM/NO). **24 V input maximum** is accepted. **No OLED** in the kits: the block is removed from the studio, the simulator and the firmware, since the phone app is the screen.
 
 ## 10. Open questions
 

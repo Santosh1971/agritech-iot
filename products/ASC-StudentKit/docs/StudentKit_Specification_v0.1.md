@@ -42,21 +42,21 @@ Rows marked ✅ were **decided on 2026-10-07**. All other rows are still *propos
 |---|---|---|---|
 | MCU | ESP32-S3 module | ESP32-S3 module | Same module on both. Native USB is used for flashing from the browser. |
 | USB-C (power + flashing) | ✔ | ✔ | |
-| 12 V DC input | ✔ | ✔ (9–24 V) | Reverse-polarity protected |
+| 12 V DC input | ✔ (9–24 V) | ✔ (9–24 V) | Reverse-polarity protected. **24 V maximum** (agreed 2026-10-08). |
 | LiFePO4 cell + charger | — | ✔ | New design. AWD1 runs straight from its cell and has no charger. Mega needs an 18650 or larger cell; see the architecture §4. |
 | Solar input (charge) | — | ✔ | |
 | Battery voltage monitor | — | ✔ | |
 | ✅ Sensor ports **S1…** (analog / digital / 1-Wire) | **4** | **8** | Same connector on both kits (SYS-01). 8 on Mega is the ADC1 limit; see HW-04. The architecture proposes a 4-pin connector (GND, 3V3, 5V, SIG). |
 | I²C ports (4-pin, Grove/Qwiic-style) | 1 | 2 | For the display, BME280, light sensor and similar |
 | ✅ RS-485 port (industrial NPK and moisture probes) | — | 1 | With 12 V probe supply |
-| ✅ Low-voltage relay outputs **OUT1…** | **2** | **4** | Dry contact, low voltage only (SYS-03) |
+| ✅ Low-voltage relay outputs **OUT1…** | **2** | **4** | Dry contact, normally open (1 Form A), low voltage only (SYS-03). Mini uses the slim Hongfa HF46F (agreed 2026-10-08). |
 | ✅ 12 V solenoid/valve driver (MOSFET) | — | 1 | |
 | WiFi | ✔ | ✔ | |
 | ✅ Bluetooth LE | ✔ | ✔ | Built into the ESP32-S3, so it adds no parts cost. The S3 has Bluetooth LE only, not Classic Bluetooth. **BLE only was accepted on 2026-10-07.** |
 | ✅ LoRa SX1262 (866 MHz) | — | ✔ (slot) | Same module and pin map as WPC and AWD1 |
 | ✅ GSM/4G modem | — | ✔ (slot) | Same family as PC-gsmpump |
 | ✅ RTC with backup cell | ✔ | ✔ | Needed on Mini for time-based experiments. Proposed: a **DS3231-class** RTC (3.3 V, about ±2 ppm, roughly a minute a year) on the internal I²C bus, not the DS1307 (5 V, drifts minutes a month). Time is synced from NTP or the phone whenever the device is online. |
-| OLED display | via I²C port | via I²C port, plus an onboard header | |
+| ~~OLED display~~ | — | — | **Dropped on 2026-10-08.** The phone app is the kit's screen, and the board's LEDs show through the clear lid. |
 | Status LED, buzzer, PAIR/BOOT button | ✔ | ✔ | |
 | Board ID (HW-12) | ✔ | ✔ | |
 | **Typical student projects** | Soil-moisture alarm, greenhouse temperature and humidity, tank level indicator, timed irrigation (RTC), pump and fogger *signals* to a contactor box (2 relays) | Battery-powered field node, remote pump over LoRa, SMS alerts, NPK monitoring, AWD paddy water level | |

@@ -1,7 +1,6 @@
 #include "blocks.h"
 
 #include <Adafruit_BME280.h>
-#include <Adafruit_SSD1306.h>
 #include <Arduino.h>
 #include <BH1750.h>
 #include <DHTesp.h>
@@ -22,7 +21,6 @@ struct Driver {
   DHTesp* dht = nullptr;
   Adafruit_BME280* bme = nullptr;
   BH1750* light = nullptr;
-  Adafruit_SSD1306* oled = nullptr;
   bool found = false;
   int8_t irqPin = -1;
   volatile uint32_t pulses = 0;
@@ -36,7 +34,7 @@ void IRAM_ATTR onPulse(void* arg) { (*(volatile uint32_t*)arg)++; }
 
 void freeDriver(Driver& dr) {
   if (dr.irqPin >= 0) detachInterrupt(dr.irqPin);
-  delete dr.dallas; delete dr.ow; delete dr.dht; delete dr.bme; delete dr.light; delete dr.oled;
+  delete dr.dallas; delete dr.ow; delete dr.dht; delete dr.bme; delete dr.light;
   dr = Driver();
 }
 
@@ -105,10 +103,6 @@ void blocksBegin(Design& d, const BoardMap& board) {
       setKeys(s, {""});
       dr.light = new BH1750(0x23);
       dr.found = dr.light->begin(BH1750::CONTINUOUS_HIGH_RES_MODE, 0x23, &extBus);
-    } else if (is(s, "oled")) {
-      s.nValues = 0;
-      dr.oled = new Adafruit_SSD1306(128, 64, &extBus, -1);
-      dr.found = dr.oled->begin(SSD1306_SWITCHCAPVCC, 0x3C);
     } else {
       s.nValues = 0;  // outputs: main.cpp drives the pin
     }
@@ -165,8 +159,6 @@ void blocksRead(Design& d) {
       float lx = dr.light->readLightLevel();
       s.ok = lx >= 0;
       s.values[0] = s.ok ? lx : NAN;
-    } else if (is(s, "oled")) {
-      s.ok = dr.found;
     }
   }
 }
@@ -190,7 +182,7 @@ void blocksSelfTest(Design& d, JsonArray results) {
     } else if (is(s, "dht")) {
       ok = s.ok;
       detail = ok ? "Sensor answers." : "No answer from the DHT22 yet. Wait 2 seconds and test again.";
-    } else if (is(s, "bme") || is(s, "light") || is(s, "oled")) {
+    } else if (is(s, "bme") || is(s, "light")) {
       ok = dr.found;
       detail = ok ? "Found on the I2C bus." : "Not found on " + String(s.port) + ". Check the 4-pin cable.";
     } else if (s.kind == KIND_OUT) {
@@ -200,28 +192,6 @@ void blocksSelfTest(Design& d, JsonArray results) {
     }
     r["ok"] = ok;
     r["detail"] = detail;
-  }
-}
-
-void blocksShow(const Design& d, const char* status) {
-  for (int i = 0; i < d.nSlots; i++) {
-    if (!is(d.slots[i], "oled") || !drivers[i].found) continue;
-    Adafruit_SSD1306& o = *drivers[i].oled;
-    o.clearDisplay();
-    o.setTextSize(1);
-    o.setTextColor(SSD1306_WHITE);
-    o.setCursor(0, 0);
-    o.println(d.name);
-    int lines = 0;
-    for (int k = 0; k < d.nSlots && lines < 5; k++) {
-      const Slot& s = d.slots[k];
-      for (int v = 0; v < s.nValues && lines < 5; v++, lines++) {
-        o.printf("%s%s%s %.1f\n", s.port, s.valueKeys[v][0] ? ":" : "", s.valueKeys[v], s.values[v]);
-      }
-    }
-    o.setCursor(0, 56);
-    o.print(status);
-    o.display();
   }
 }
 
