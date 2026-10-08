@@ -194,7 +194,7 @@ def pin_xy(ref, num):
     raise KeyError(ref + "." + num)
 
 # 12 V input and buck, between J1 and the OUT terminals
-for ref in ("D1", "D2", "C1", "C2", "C3", "U2", "C4", "L1", "R1", "R2", "C5", "C6", "D3"):
+for ref in ("D1", "D2", "C1", "C2", "C3", "U2", "C4", "L1", "R1", "R2", "C5", "C6", "D3", "R5"):
     pack(ref, 30.0, 40.5, BUCK)
 # Sensor port protection: series resistor and clamp next to each port
 for i in range(1, 5):
@@ -222,20 +222,22 @@ for ref in ("U4", "C8", "C9", "C10", "C11"):
 # Module support: decoupling at its 3V3 pin, EN, PAIR, BOARD_ID, VIN sense, LEDs
 for ref in ("C12", "C13"):
     pack(ref, 52.0, 6.0, UPPER_LEFT, rots=(90, 0))
-for ref in ("R8", "C14", "R9", "R10", "R11", "R5", "R6", "C7"):
+for ref in ("R8", "C14", "R9", "R10", "R11", "R6", "C7"):
     pack(ref, 44.0, 22.0, UPPER_LEFT)
 for ref, name in (("D5", "PWR"), ("D6", "STATUS")):
     pack(ref, 22.0 if ref == "D5" else 30.0, 9.6, UPPER_LEFT, rots=(0,))
     b = placed[ref]["box"]
-    label(name, b[0] - 0.4 - 0.31 * len(name), (b[1] + b[3]) / 2, 0.8, reserve=False)
+    label(name, (b[0] + b[2]) / 2, b[3] + 0.75, 0.8, reserve=False)
 for ref in ("R7", "R12"):
     pack(ref, 26.0, 12.0, UPPER_LEFT)
 # RTC
 for ref in ("U5", "C15", "R15", "R16", "R17"):
     pack(ref, 40.0, 18.0, UPPER_LEFT)
 # Buzzer and its driver
-for ref in ("Q1", "R13", "R14", "D7"):
-    pack(ref, 16.0, 13.0, UPPER_LEFT)
+pack("Q1", 16.0, 13.0, UPPER_LEFT)
+gx, gy = pin_xy("Q1", "1")                    # the gate resistor and pull-down sit on Q1's gate
+for ref in ("R13", "R14", "D7"):
+    pack(ref, gx, gy, UPPER_LEFT)
 # Test header for the production tester
 pack("J3", 80.0, 30.0, [UNDER_RELAYS, BELOW_ESP, UPPER_LEFT], rots=(90, 0))
 # OUT LEDs: labels next to them

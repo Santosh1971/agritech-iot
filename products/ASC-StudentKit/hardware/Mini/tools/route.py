@@ -24,7 +24,7 @@ os.makedirs(OUT, exist_ok=True)
 DSN, SES = os.path.join(OUT, D.PROJECT + ".dsn"), os.path.join(OUT, D.PROJECT + ".ses")
 
 # Track widths (mm) per net class; clearance 0.2 mm everywhere (JLC's minimum is 0.127).
-CLEARANCE = 0.2
+CLEARANCE = 0.19                  # the USB-C footprint's own pad gaps are exactly 0.2 mm
 VIA = (0.6, 0.3)
 CLASSES = {
     "power": (0.6, {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
@@ -32,6 +32,9 @@ CLASSES = {
     "contacts": (1.0, {"/OUT1_COM", "/OUT1_NO", "/OUT2_COM", "/OUT2_NO"}),
 }
 DEFAULT_W = 0.25
+# Nets left to the copper pours: not autorouted; each front SMD pad gets a short track to its own
+# via into the back pour, and stitching vias tie the two pours together (see stitch()).
+POUR_NETS = {"GND"}
 
 def uid():
     return str(uuid.uuid4())
@@ -141,11 +144,12 @@ lines = ["(pcb %s" % q(D.PROJECT),
          ")",
          "(network"]
 for n, pins in sorted(pin_nets.items()):
-    if len(pins) > 1:
+    if len(pins) > 1 and n not in POUR_NETS:
         lines.append("(net %s (pins %s))" % (q(n), " ".join(pins)))
 by_class = {}
 for n in pin_nets:
-    by_class.setdefault(klass(n), []).append(n)
+    if n not in POUR_NETS:
+        by_class.setdefault(klass(n), []).append(n)
 for (name, w), members in by_class.items():
     lines.append("(class %s %s (circuit (use_via \"Via_%d_%d\")) (rule (width %d) (clearance %d)))"
                  % (q(name), " ".join(q(m) for m in sorted(members)), um(VIA[0]), um(VIA[1]), um(w), um(CLEARANCE)))
@@ -158,7 +162,7 @@ jar = os.environ.get("FREEROUTING_JAR")
 if jar:
     if os.path.exists(SES):
         os.remove(SES)
-    cmd = [os.environ.get("JAVA", "java"), "-jar", jar, "-de", DSN, "-do", SES, "-mp", os.environ.get("ROUTE_PASSES", "40"), "--gui.enabled=false"]
+    cmd = [os.environ.get("JAVA", "java"), "-jar", jar, "-de", DSN, "-do", SES, "-mp", os.environ.get("ROUTE_PASSES", "30"), "--gui.enabled=false"]
     print(" ".join(cmd))
     subprocess.run(cmd, check=False, cwd=OUT)
 if not os.path.exists(SES):
@@ -191,6 +195,143 @@ for net in find(first(first(ses, "routes"), "network_out"), "net"):
         board.append([Sym("via"), [Sym("at"), round(x, 4), round(y, 4)], [Sym("size"), VIA[0]], [Sym("drill"), VIA[1]],
                       [Sym("layers"), "F.Cu", "B.Cu"], [Sym("net"), nid], [Sym("uuid"), uid()]])
         n_via += 1
+print("imported %d track segments and %d vias" % (n_seg, n_via))
+
+# ---- pour nets: a via for every front SMD pad, then stitching ----------------------------------------
+def rot(x, y, d):
+    a = math.radians(d); return x * math.cos(a) + y * math.sin(a), -x * math.sin(a) + y * math.cos(a)
+
+class Copper:
+    """Every piece of copper on the board, for clearance checks: pads as rotated rectangles,
+    tracks as capsules, vias as circles."""
+    def __init__(self):
+        self.pads, self.tracks, self.vias, self.holes = [], [], [], []
+
+    def add_board(self, items):
+        for f in find(items, "footprint"):
+            at = first(f, "at"); fx, fy, fr = float(at[1]), float(at[2]), float(at[3]) if len(at) > 3 else 0.0
+            for p in find(f, "pad"):
+                pa, sz = first(p, "at"), first(p, "size")
+                dx, dy = rot(float(pa[1]), float(pa[2]), fr)
+                ang = float(pa[3]) if len(pa) > 3 else 0.0
+                lay = set(first(p, "layers")[1:])
+                layers = {"F.Cu", "B.Cu"} if "*.Cu" in lay else {l for l in lay if l.endswith(".Cu")}
+                net = first(p, "net")
+                if p[2] == "np_thru_hole":
+                    d = first(p, "drill"); self.holes.append((fx + dx, fy + dy, float(d[2] if d[1] == "oval" else d[1]) / 2))
+                    continue
+                self.pads.append(dict(x=fx + dx, y=fy + dy, w=float(sz[1]), h=float(sz[2]), a=ang, layers=layers,
+                                      net=net[2] if net else "", smd=p[2] == "smd", ref=[q[2] for q in find(f, "property") if q[1] == "Reference"][0]))
+        for t in find(items, "segment"):
+            st, en = first(t, "start"), first(t, "end")
+            self.tracks.append((float(st[1]), float(st[2]), float(en[1]), float(en[2]), float(first(t, "width")[1]) / 2,
+                                first(t, "layer")[1], nets[int(first(t, "net")[1])]))
+        for v in find(items, "via"):
+            at = first(v, "at"); self.vias.append((float(at[1]), float(at[2]), float(first(v, "size")[1]) / 2, nets[int(first(v, "net")[1])]))
+
+    @staticmethod
+    def d_rect(px, py, pad):
+        # distance from a point to a rotated rectangle (0 inside)
+        x, y = rot(px - pad["x"], py - pad["y"], -pad["a"])
+        dx, dy = max(abs(x) - pad["w"] / 2, 0), max(abs(y) - pad["h"] / 2, 0)
+        return math.hypot(dx, dy)
+
+    @staticmethod
+    def d_seg(px, py, x1, y1, x2, y2):
+        vx, vy = x2 - x1, y2 - y1
+        L = vx * vx + vy * vy
+        t = 0 if L == 0 else max(0, min(1, ((px - x1) * vx + (py - y1) * vy) / L))
+        return math.hypot(px - x1 - t * vx, py - y1 - t * vy)
+
+    def clear_point(self, x, y, r, net, layers, gap):
+        for p in self.pads:
+            if p["layers"] & layers and p["net"] != net and self.d_rect(x, y, p) < r + gap:
+                return False
+        for (x1, y1, x2, y2, hw, lay, n) in self.tracks:
+            if lay in layers and n != net and self.d_seg(x, y, x1, y1, x2, y2) < r + hw + gap:
+                return False
+        for (vx, vy, vr, n) in self.vias:
+            if math.hypot(x - vx, y - vy) < r + vr + (gap if n != net else 0.2):
+                return False
+        for (hx, hy, hr) in self.holes:
+            if math.hypot(x - hx, y - hy) < r + hr + 0.3:
+                return False
+        return True
+
+    def clear_track(self, x1, y1, x2, y2, hw, net, layer, gap):
+        n = max(2, int(math.hypot(x2 - x1, y2 - y1) / 0.1) + 1)
+        return all(self.clear_point(x1 + (x2 - x1) * i / (n - 1), y1 + (y2 - y1) * i / (n - 1), hw, net, {layer}, gap)
+                   for i in range(n))
+
+def on_board(x, y, margin):
+    bx, by = x - OX, y - OY
+    W, H, R = D.BOARD_W, D.BOARD_H, D.CORNER_R
+    d = min(bx, W - bx, H - by, by)
+    for cx in (R, W - R):
+        if by < R and ((cx == R and bx < R) or (cx == W - R and bx > W - R)):
+            d = min(d, R - math.hypot(bx - cx, by - R))
+    if d < margin:
+        return False
+    for hx, hy in D.HOLES:                                   # M3 heads: keep vias off the bosses
+        if math.hypot(bx - hx, by - (D.BOARD_H - hy)) < 3.6:
+            return False
+    return True
+
+ANT = None
+for z in find(board, "zone"):
+    if first(z, "keepout") is not None:
+        pts = [(float(p[1]), float(p[2])) for p in find(first(first(z, "polygon"), "pts"), "xy")]
+        ANT = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+
+def stitch(net):
+    nid = NET_ID[net]
+    cu = Copper(); cu.add_board(board)
+    vr, gap, tw = VIA[0] / 2, CLEARANCE, 0.4
+    added = tracks = 0
+    def ok_via(x, y):
+        if not on_board(x, y, 0.6):
+            return False
+        if ANT and ANT[0] - 0.5 <= x <= ANT[2] + 0.5 and ANT[1] <= y <= ANT[3] + 0.5:
+            return False
+        return cu.clear_point(x, y, vr, net, {"F.Cu", "B.Cu"}, gap)
+    def add_via(x, y):
+        board.append([Sym("via"), [Sym("at"), round(x, 4), round(y, 4)], [Sym("size"), VIA[0]], [Sym("drill"), VIA[1]],
+                      [Sym("layers"), "F.Cu", "B.Cu"], [Sym("net"), nid], [Sym("uuid"), uid()]])
+        cu.vias.append((x, y, vr, net))
+    missing = []
+    for p in [p for p in cu.pads if p["net"] == net and p["smd"] and "F.Cu" in p["layers"]]:
+        best = None
+        for dist in [x / 10 for x in range(6, 31, 2)]:
+            for k in range(16):
+                a = 2 * math.pi * k / 16
+                ex = dist + max(p["w"], p["h"]) / 2
+                vx, vy = p["x"] + ex * math.cos(a), p["y"] + ex * math.sin(a)
+                if ok_via(vx, vy) and cu.clear_track(p["x"], p["y"], vx, vy, tw / 2, net, "F.Cu", gap):
+                    best = (vx, vy); break
+            if best:
+                break
+        if not best:
+            missing.append(p["ref"]); continue
+        board.append([Sym("segment"), [Sym("start"), round(p["x"], 4), round(p["y"], 4)], [Sym("end"), round(best[0], 4), round(best[1], 4)],
+                      [Sym("width"), tw], [Sym("layer"), "F.Cu"], [Sym("net"), nid], [Sym("uuid"), uid()]])
+        cu.tracks.append((p["x"], p["y"], best[0], best[1], tw / 2, "F.Cu", net))
+        add_via(*best); added += 1; tracks += 1
+    # stitching grid, 4 mm, wherever a via fits
+    grid = 0
+    y = OY + 2.0
+    while y < OY + D.BOARD_H - 1.0:
+        x = OX + 2.0
+        while x < OX + D.BOARD_W - 1.0:
+            if ok_via(x, y) and all(math.hypot(x - v[0], y - v[1]) > 2.5 for v in cu.vias if v[3] == net):
+                add_via(x, y); grid += 1
+            x += 4.0
+        y += 4.0
+    print("%s: %d pad vias (with tracks), %d stitching vias%s" % (net, added, grid,
+          "; no room next to " + ", ".join(sorted(set(missing))) if missing else ""))
+
+for net in POUR_NETS:
+    stitch(net)
+
 board.append(tail)
 open(PCB, "w").write(dump(board) + "\n")
-print("imported %d track segments and %d vias into %s" % (n_seg, n_via, PCB))
+print("wrote %s" % PCB)

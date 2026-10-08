@@ -75,7 +75,7 @@ part("R4", "Device:R", "5.1k", R0603, (X + 45.72, Y - 7.62), {"1": "USB_CC2", "2
 part("F1", "Device:Polyfuse_Small", "0.5A hold", PTC1206, (X + 58.42, Y - 7.62), {"1": "VBUS", "2": "VBUS_F"})
 part("D4", "Diode:SS34", "SS34", DSMA, (X + 73.66, Y - 7.62), {"A": "VBUS_F", "K": "+5V"})
 part("U3", "Power_Protection:USBLC6-2SC6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", (X + 101.6, Y + 2.54),
-     {"I/O1": "USB_DN", "I/O2": "USB_DP", "VBUS": "VBUS_F", "GND": "GND"})   # pins 1/6 and 3/4 are flow-through pairs
+     {"I/O1": "USB_DN", "I/O2": "USB_DP", "VBUS": "VBUS", "GND": "GND"})   # pins 1/6 and 3/4 are flow-through pairs
 
 # ---------------------------------------------------------------- 5 V -> 3.3 V
 X, Y = 185.42, 104.14
