@@ -19,8 +19,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PRJ = os.path.dirname(HERE)
 PCB = os.path.join(PRJ, D.PROJECT + ".kicad_pcb")
 OX, OY, W, H, R = 100.0, 60.0, D.BOARD_W, D.BOARD_H, D.CORNER_R
-STEP, CLR, VIA_D, VIA_DRILL = 0.2, 0.2, 0.6, 0.3
-WIDTH = {"+5V": 0.45, "/VIN": 0.45, "/VBUS": 0.45, "+3V3": 0.3}
+STEP, CLR, VIA_D, VIA_DRILL = 0.2, 0.2, 0.55, 0.3   # the via size route.py gives Freerouting
+WIDTH = {"+5V": 0.45, "/VIN": 0.45, "/VBUS": 0.45, "+3V3": 0.3, "GND": 0.3}
 VIA_COST, TURN_COST = 25.0, 0.5
 
 b = sexpr.parse(open(PCB).read())
@@ -65,18 +65,22 @@ for f in find(b, "footprint"):
 for t in find(b, "segment"):
     st, en = first(t, "start"), first(t, "end")
     segs.append(dict(x1=float(st[1]) - OX, y1=float(st[2]) - OY, x2=float(en[1]) - OX, y2=float(en[2]) - OY,
-                     hw=float(first(t, "width")[1]) / 2, layer=first(t, "layer")[1], net=nets[int(first(t, "net")[1])]))
+                     hw=float(first(t, "width")[1]) / 2, layer=first(t, "layer")[1], net=nets[int(first(t, "net")[1])],
+                     uid=first(t, "uuid")[1]))
 for v in find(b, "via"):
     at = first(v, "at")
-    vias.append(dict(x=float(at[1]) - OX, y=float(at[2]) - OY, r=float(first(v, "size")[1]) / 2, net=nets[int(first(v, "net")[1])]))
+    vias.append(dict(x=float(at[1]) - OX, y=float(at[2]) - OY, r=float(first(v, "size")[1]) / 2, net=nets[int(first(v, "net")[1])],
+                     uid=first(v, "uuid")[1]))
 ANT = None
 for z in find(b, "zone"):
     if first(z, "keepout") is not None:
         pts = [(float(p[1]) - OX, float(p[2]) - OY) for p in find(first(first(z, "polygon"), "pts"), "xy")]
         ANT = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
 
-def free_masks(net, hw):
-    """Cells where a track (half-width hw) of `net` keeps clearance, per layer; and where a via fits."""
+def free_masks(net, hw, rip=False):
+    """Cells where a track (half-width hw) of `net` keeps clearance, per layer; and where a via fits.
+    With rip=True, other nets' tracks and vias don't block: instead `who[layer]` gives, per cell,
+    the index (into RIPPABLE) of a track or via that would have to be ripped up to pass."""
     base = np.ones((ny, nx), bool)
     edge = hw + 0.3
     base &= (X >= edge) & (X <= W - edge) & (Y >= edge) & (Y <= H - edge)
@@ -89,9 +93,11 @@ def free_masks(net, hw):
         base &= np.hypot(X - hx, Y - hy) > hr + hw + 0.3
     if ANT:
         base &= ~((X >= ANT[0] - hw) & (X <= ANT[2] + hw) & (Y >= ANT[1] - hw) & (Y <= ANT[3] + hw))
-    out = {}
+    out, who = {}, {}
+    RIPPABLE.clear()
     for l in ("F.Cu", "B.Cu"):
         m = base.copy()
+        w_ = np.full((ny, nx), -1, dtype=np.int32)
         for p in pads:
             if l in p["layers"] and p["net"] != net:
                 g = hw + CLR; r = math.hypot(p["w"], p["h"]) / 2 + g
@@ -101,20 +107,35 @@ def free_masks(net, hw):
             if s["layer"] == l and s["net"] != net:
                 g = s["hw"] + hw + CLR
                 sl = window(min(s["x1"], s["x2"]) - g, min(s["y1"], s["y2"]) - g, max(s["x1"], s["x2"]) + g, max(s["y1"], s["y2"]) + g)
-                m[sl] &= seg_dist(sl, s["x1"], s["y1"], s["x2"], s["y2"]) >= g
+                hit = seg_dist(sl, s["x1"], s["y1"], s["x2"], s["y2"]) < g
+                if rip and s["net"] not in NO_RIP:
+                    RIPPABLE.append(("s", s, g, l)); w_[sl][hit] = len(RIPPABLE) - 1
+                else:
+                    m[sl] &= ~hit
         for v in vias:
             if v["net"] != net:
                 g = v["r"] + hw + CLR
                 sl = window(v["x"] - g, v["y"] - g, v["x"] + g, v["y"] + g)
-                m[sl] &= np.hypot(X[sl] - v["x"], Y[sl] - v["y"]) >= g
+                hit = np.hypot(X[sl] - v["x"], Y[sl] - v["y"]) < g
+                if rip and v["net"] not in NO_RIP:
+                    RIPPABLE.append(("v", v, g, l)); w_[sl][hit] = len(RIPPABLE) - 1
+                else:
+                    m[sl] &= ~hit
         out[l] = m
+        who[l] = w_
     # a via needs its own radius of room on both layers
     vr = VIA_D / 2
     grow = int(math.ceil(max(vr - hw, 0) / STEP))
     vm = out["F.Cu"] & out["B.Cu"]
     for _ in range(grow):
         vm = vm & np.roll(vm, 1, 0) & np.roll(vm, -1, 0) & np.roll(vm, 1, 1) & np.roll(vm, -1, 1)
+    if rip:
+        return out, vm, who
     return out, vm
+
+RIPPABLE = []
+NO_RIP = {"GND"}
+RIP_COST = 40.0
 
 def pieces(net):
     """The net's copper split into connected pieces: list of (pad ids, cells per layer)."""
@@ -151,6 +172,9 @@ def pieces(net):
         for k, p in enumerate(P):
             if in_pad(v["x"], v["y"], p, 0.3):
                 uni(("v", j), ("p", k))
+        for i, s in enumerate(S):                   # a via anywhere along a track joins it
+            if dseg(v["x"], v["y"], s) < s["hw"] + 0.05:
+                uni(("v", j), ("s", i))
     groups = collections.defaultdict(lambda: dict(pads=[], items=[]))
     for k, p in enumerate(P):
         groups[fnd(("p", k))]["pads"].append(p["id"]); groups[fnd(("p", k))]["items"].append(("p", p))
@@ -180,8 +204,9 @@ def pieces(net):
         out.append((g["pads"], cells))
     return sorted(out, key=lambda g: -len(g[0]))
 
-def astar(src, dst, free, viaok):
-    """src/dst: per-layer cell masks. Returns a list of (layer, i, j) or None."""
+def astar(src, dst, free, viaok, who=None):
+    """src/dst: per-layer cell masks. Returns a list of (layer, i, j) or None. With `who`, cells
+    blocked only by rippable copper are allowed at RIP_COST each."""
     L = ("F.Cu", "B.Cu")
     di, dj = np.nonzero(dst["F.Cu"] | dst["B.Cu"])
     if not len(di):
@@ -192,7 +217,7 @@ def astar(src, dst, free, viaok):
         return float(d.min())
     openq, came, cost = [], {}, {}
     for li, l in enumerate(L):
-        for i, j in zip(*np.nonzero(src[l] & free[l])):
+        for i, j in zip(*np.nonzero(src[l] & free[l] & ((who[l] < 0) if who else True))):
             st = (li, int(i), int(j), -1)
             cost[st] = 0.0; heapq.heappush(openq, (h(i, j), 0.0, st))
     seen = set()
@@ -212,9 +237,11 @@ def astar(src, dst, free, viaok):
             ii, jj = i + a, j + c
             if 0 <= ii < ny and 0 <= jj < nx and free[L[li]][ii, jj]:
                 step = 1.4142 if a and c else 1.0
-                moves.append(((li, ii, jj, nd), step + (TURN_COST if d not in (-1, nd) else 0)))
+                pen = RIP_COST if (who is not None and who[L[li]][ii, jj] >= 0) else 0
+                moves.append(((li, ii, jj, nd), step + pen + (TURN_COST if d not in (-1, nd) else 0)))
         if viaok[i, j]:
-            moves.append(((1 - li, i, j, -1), VIA_COST))
+            pen = RIP_COST if (who is not None and (who["F.Cu"][i, j] >= 0 or who["B.Cu"][i, j] >= 0)) else 0
+            moves.append(((1 - li, i, j, -1), VIA_COST + pen))
         for nst, c in moves:
             ng = g + c
             if ng < cost.get(nst, 1e18) and (nst[0], nst[1], nst[2]) not in seen:
@@ -233,19 +260,92 @@ def emit(net, path, width):
     while k < len(pts) - 1:
         a = pts[k]
         if pts[k + 1][2] != a[2]:                       # layer change: a via here
+            u = str(uuid.uuid4())
             b.insert(len(b) - 1, [Sym("via"), [Sym("at"), round(a[0], 4), round(a[1], 4)], [Sym("size"), VIA_D], [Sym("drill"), VIA_DRILL],
-                                  [Sym("layers"), "F.Cu", "B.Cu"], [Sym("net"), nid], [Sym("uuid"), str(uuid.uuid4())]])
-            vias.append(dict(x=a[0] - OX, y=a[1] - OY, r=VIA_D / 2, net=net))
+                                  [Sym("layers"), "F.Cu", "B.Cu"], [Sym("net"), nid], [Sym("uuid"), u]])
+            vias.append(dict(x=a[0] - OX, y=a[1] - OY, r=VIA_D / 2, net=net, uid=u))
             k += 1; continue
         m = k + 1
         while m + 1 < len(pts) and pts[m + 1][2] == a[2] and same_dir(pts[m - 1], pts[m], pts[m + 1]):
             m += 1
         e = pts[m]
+        u = str(uuid.uuid4())
         b.insert(len(b) - 1, [Sym("segment"), [Sym("start"), round(a[0], 4), round(a[1], 4)], [Sym("end"), round(e[0], 4), round(e[1], 4)],
-                              [Sym("width"), width], [Sym("layer"), a[2]], [Sym("net"), nid], [Sym("uuid"), str(uuid.uuid4())]])
-        segs.append(dict(x1=a[0] - OX, y1=a[1] - OY, x2=e[0] - OX, y2=e[1] - OY, hw=width / 2, layer=a[2], net=net))
+                              [Sym("width"), width], [Sym("layer"), a[2]], [Sym("net"), nid], [Sym("uuid"), u]])
+        segs.append(dict(x1=a[0] - OX, y1=a[1] - OY, x2=e[0] - OX, y2=e[1] - OY, hw=width / 2, layer=a[2], net=net, uid=u))
         k = m
     return len(path)
+
+import copy
+
+def remove(item):
+    kind, it = item[0], item[1]
+    for k in range(len(b) - 1, -1, -1):
+        e = b[k]
+        if isinstance(e, list) and e and e[0] in ("segment", "via") and first(e, "uuid") and first(e, "uuid")[1] == it["uid"]:
+            del b[k]
+            break
+    (segs if kind == "s" else vias).remove(it)
+
+def join(net, allow_rip=True, depth=0):
+    """Join all pieces of `net`. Returns True when it is one piece."""
+    width = WIDTH.get(net, 0.25)
+    for _ in range(12):
+        ps = pieces(net)
+        if len(ps) < 2:
+            return True
+        joined = False
+        for w in [width] + [t for t in (0.3, 0.25, 0.2) if t < width]:
+            free, viaok = free_masks(net, w / 2)
+            for pads_, cells in ps[1:]:
+                path = astar(cells, ps[0][1], free, viaok)
+                if path:
+                    emit(net, path, w)
+                    print("%s%s: joined %s (%.2f mm)" % ("  " * depth, net, ", ".join(pads_), w))
+                    joined = True
+                    break
+            if joined:
+                break
+        if joined:
+            continue
+        if not allow_rip:
+            return False
+        # rip-up and reroute: let the path cross other nets' copper, move that copper out of the way
+        w = width
+        free, viaok, who = free_masks(net, w / 2, rip=True)
+        items = list(RIPPABLE)
+        pads_, cells = ps[1]
+        path = astar(cells, ps[0][1], free, viaok, who)
+        if not path:
+            print("%s%s: no path for %s even with rip-up" % ("  " * depth, net, ", ".join(pads_)))
+            return False
+        crossed = set()
+        pts = [(l, j * STEP, i * STEP, nxt is not None and nxt[0] != l) for (l, i, j), nxt in zip(path, path[1:] + [None])]
+        for k, (kind, it, g, lay) in enumerate(items):
+            for (l, x, y, is_via) in pts:
+                if l != lay and not is_via:
+                    continue
+                gg = g + (VIA_D / 2 - w / 2 if is_via else 0)
+                if kind == "s":
+                    vx, vy = it["x2"] - it["x1"], it["y2"] - it["y1"]; L2 = vx * vx + vy * vy
+                    t = 0 if L2 == 0 else max(0, min(1, ((x - it["x1"]) * vx + (y - it["y1"]) * vy) / L2))
+                    d = math.hypot(x - it["x1"] - t * vx, y - it["y1"] - t * vy)
+                else:
+                    d = math.hypot(x - it["x"], y - it["y"])
+                if d < gg + STEP:
+                    crossed.add(k); break
+        snap = (copy.deepcopy(b), copy.deepcopy(segs), copy.deepcopy(vias))
+        victims = sorted({items[k][1]["net"] for k in crossed})
+        for k in crossed:
+            remove(items[k])
+        emit(net, path, w)
+        print("%s%s: joined %s by moving %s" % ("  " * depth, net, ", ".join(pads_), ", ".join(victims)))
+        ok = all(join(v, allow_rip=False, depth=depth + 1) for v in victims)
+        if not ok:
+            print("%s  could not re-route %s; rolled back" % ("  " * depth, ", ".join(victims)))
+            b[:], segs[:], vias[:] = snap
+            return False
+    return len(pieces(net)) < 2
 
 todo = sys.argv[1:]
 if not todo:
@@ -253,32 +353,9 @@ if not todo:
     todo = [ln.split()[1].rstrip(":") for ln in r.stdout.splitlines() if ln.startswith("SPLIT ")]
 ok = True
 for net in todo:
-    width = WIDTH.get(net, 0.25)
-    for attempt in range(10):
-        ps = pieces(net)
-        if len(ps) < 2:
-            print("%s: joined" % net); break
-        free, viaok = free_masks(net, width / 2)
-        main_cells = ps[0][1]
-        joined = False
-        for pads_, cells in ps[1:]:
-            path = astar(cells, main_cells, free, viaok)
-            if path:
-                emit(net, path, width)
-                print("%s: joined %s to the main piece (%d cells, %d vias)" % (net, ", ".join(pads_), len(path),
-                      sum(1 for a, c in zip(path, path[1:]) if a[0] != c[0])))
-                joined = True
-                break
-            if width > 0.3:                     # try a thinner track before giving up on this piece
-                path = astar(cells, main_cells, *free_masks(net, 0.15))
-                if path:
-                    emit(net, path, 0.3)
-                    print("%s: joined %s at 0.3 mm" % (net, ", ".join(pads_)))
-                    joined = True
-                    break
-        if not joined:
-            print("%s: no path for %s" % (net, " | ".join(", ".join(p) for p, _ in ps[1:])))
-            ok = False
-            break
+    if join(net):
+        print("%s: joined" % net)
+    else:
+        print("%s: still split" % net); ok = False
 open(PCB, "w").write(dump(b) + "\n")
 sys.exit(0 if ok else 1)

@@ -84,6 +84,9 @@ for n, plist in pads.items():
         for k, p in enumerate(plist):
             if in_pad(vx, vy, p, 0.3):
                 dsu.union(("v", j), ("p", k))
+        for i, s in enumerate(S):                   # a via anywhere along a track joins it
+            if d_seg(vx, vy, s) < s["hw"] + 0.05:
+                dsu.union(("v", j), ("s", i))
     # pads of one footprint pin that overlap (e.g. a module's centre pads) are one piece
     for k, p in enumerate(plist):
         for m, q in enumerate(plist[k + 1:], k + 1):
