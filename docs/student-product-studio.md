@@ -179,8 +179,10 @@ How *teach while hiding* works in practice:
   - Report: built from every stage, printable as a PDF.
   - Still to come: the cloud (WiFi/MQTT) link and an STL export done on the server.
 - 2026-10-07: **A mobile app is part of the system** (§3.4): one shared ASC Studio app whose screen is built from each student's design.
+- 2026-10-07: First end-to-end run on real hardware (the GPSIOAM workshop kit as a Mini stand-in): stages 1–7 done, design sent over USB, live readings in the studio, pump switched from the phone app over Bluetooth.
+- 2026-10-08: **Box chosen:** the 180 × 130 × 100 mm box with a clear lid that WM1 and WPC already use. **Mini** is a half board on the box's upper three bosses, two per 100 × 100 mm panel, like WPC. **Mega** uses the full WM1 board outline and all five bosses. Parts may go on both sides. LEDs show through the lid, labelled on the silkscreen. Details: kit architecture §8.
 
 ## 10. Open questions
 
-1. **Mini/Mega feature split and sample box.** See §8 of the kit spec.
+1. ~~Mini/Mega feature split and sample box~~: both decided (2026-10-07 and 2026-10-08).
 2. **VPS specification:** RAM and disk, to confirm the worker fits (§6).

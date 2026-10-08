@@ -120,10 +120,10 @@ The app is the shared **ASC Studio app** (Flutter), described in `docs/student-p
 
 | ID | Requirement |
 |---|---|
-| ME-01 | **Trial:** use a **sample ready-made box**. Buy 2–3 candidate IP65 ABS boxes that are easy to get in India, measure them, choose one, and fit the PCB outline to its inside dimensions and screw bosses. |
+| ME-01 | **Decided 2026-10-08:** the **180 × 130 × 100 mm box with a clear lid** that WM1 and WPC already use. The PCB outlines are fitted to its screw bosses (architecture §8). |
 | ME-02 | The board mounts on the box's own bosses (no extra standoffs if possible). Connectors face one wall, so cable glands line up on one side. |
-| ME-03 | The studio's enclosure step (stage 7) produces a printable drilling template for this box: glands, antenna, and an optional display window. |
-| ME-04 | Mini and Mega should fit the **same box** if the Mega layout allows it, so we stock fewer boxes. If not, Mega moves to the next size up in the same box family. |
+| ME-03 | The studio's enclosure step (stage 8) produces a printable drilling template for this box: glands and antenna. The lid is clear, so a display needs no window. |
+| ME-04 | **Decided:** Mini and Mega fit the **same box**. Mini is a half board on the upper three bosses; Mega uses the full board and all five. |
 | ME-05 | Space inside for the LiFePO4 cell (Mega) and the cable loops, with the lid closed. |
 
 ## 7. Trial plan (Project #0 through the studio stages)
@@ -143,7 +143,7 @@ The app is the shared **ASC Studio app** (Flutter), described in `docs/student-p
 1. ~~Feature split~~: decided on 2026-10-07. Mini has 4 sensor ports and 2 relays. Mega has 8 ports and 4 relays and keeps the RS-485, valve, LoRa and GSM slots. Both have the RTC and BLE (BLE only is accepted).
 2. ~~Architecture decisions A1–A6~~: all agreed on 2026-10-07 (latching relays on Mega, 4-pin sensor ports, Grove I²C, 18650 cell, 4G Cat-1, the -N8 module).
 3. RTC part: DS3231-class proposed (HW-15).
-4. Which candidate sample boxes to buy (ME-01).
+4. ~~Which sample box~~: decided on 2026-10-08 (ME-01).
 5. Target prices for the kits (HW-14) and per-batch pricing for colleges.
 
 ## 9. Notes for the studio templates (learned while writing this)

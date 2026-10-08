@@ -187,3 +187,34 @@ boot → read BOARD_ID (ADC2, radio still off) → load board map from pinmap.js
 
 - The pin-map data file plus a checker worked well. The studio's architecture stage should do the same for student designs: assigning blocks to ports produces data, the rules check it, and the student sees plain-language errors ("S5 can't take an analog sensor while WiFi is on").
 - The rule-check messages in `check_pinmap.py` are already written as explanations, not codes. Later they can feed the student-facing "Why?" cards.
+
+## 8. Mechanics: box and board outlines (decided 2026-10-08)
+
+### The box
+
+The kit uses the box WM1 and WPC already use: **180 × 130 × 100 mm** outside (height × width × depth), grey ABS body, **clear lid** with four screws. It hangs upright, with the cable glands in the bottom wall. Inside it has five mounting bosses: four in an 88 × 50 mm rectangle and one on the centre rib above them. A 1:1 print of the WM1 board was checked in a real box: all five holes sit on the bosses.
+
+Still to measure on a real box: wall thickness (3 mm assumed), boss height above the floor, the clearance from the board to the lid, and the size and position of the two pre-cut holes in the bottom wall.
+
+### Board outlines
+
+Both outlines come from `products/WM1-watermaster/hardware/WaterMaster/WM1-WaterMaster.kicad_pcb`. Coordinates are in mm from the board's **bottom-left corner**, with y going up. The bottom edge faces the gland wall.
+
+| | **Mini** (half board) | **Mega** (full board) |
+|---|---|---|
+| Outline | **97.4 × 47.0 mm**, top corners R15, bottom corners square | **97.4 × 99.1 mm** (the WM1 outline), top corners R15 |
+| Mounting holes (M3, 3.2 mm) | **3**, the box's upper three bosses: (4.76, 13.45), (92.77, 13.45), centre (48.77, 31.52) | **5**: (4.76, 15.56), (92.77, 15.56), (4.76, 65.56), (92.77, 65.56), centre (48.77, 83.63) |
+| Fab panel | **Two per 100 × 100 mm panel**, the second turned 180°, 2 mm mouse-bite gap: 97.4 × 96.0 mm. Each board costs about half. Same scheme as `WPC-panel2x`. | One per 100 × 100 mm board |
+| Space below it in the box | The lower half of the box stays free for cable loops and the gland nuts | — |
+
+The WPC board uses the same three upper bosses with a slightly different pattern: 88.4 mm across and the centre hole 19.0 mm above the side pair, against 88.0 mm and 18.1 mm on WM1. Mini follows WM1, the pattern checked with the printed template.
+
+1:1 printable outlines with the mounting holes: `hardware/mini-pcb-outline-1to1.svg` and `hardware/mega-pcb-outline-1to1.svg`.
+
+### Layout rules for both boards
+
+- **Connectors on the bottom edge**, so every cable runs straight down to its gland (ME-02). Sensor ports, relay terminals and power all go there.
+- **Parts on both sides are allowed.** Keep the SMD parts on one side where possible: JLC charges a second assembly setup for the other side. Connectors and relays stay on the top side.
+- **LEDs on the top side**, where they show through the clear lid. **Each LED's name goes on the silkscreen next to it** (PWR, STATUS, OUT1, OUT2…), so a student can read the board's state with the lid closed. A relay-state LED on each OUT is recommended; it can be driven from the relay coil, so it needs no GPIO.
+- Keep 3 mm of copper and parts clear around each mounting hole, for the screw head.
+
