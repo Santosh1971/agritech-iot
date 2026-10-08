@@ -134,6 +134,7 @@ def free_masks(net, hw, rip=False):
     return out, vm
 
 RIPPABLE = []
+INTERNAL_TIES = {"U1"}     # ESP32-S3-MINI-1: every GND pad is one plane inside the module
 NO_RIP = {"GND"}
 RIP_COST = 40.0
 
@@ -175,6 +176,10 @@ def pieces(net):
         for i, s in enumerate(S):                   # a via anywhere along a track joins it
             if dseg(v["x"], v["y"], s) < s["hw"] + 0.05:
                 uni(("v", j), ("s", i))
+    for k, p in enumerate(P):                       # the module ties its GND pads together inside it
+        for m, q in enumerate(P):
+            if m > k and p["id"].split(".")[0] in INTERNAL_TIES and q["id"].split(".")[0] == p["id"].split(".")[0]:
+                uni(("p", k), ("p", m))
     groups = collections.defaultdict(lambda: dict(pads=[], items=[]))
     for k, p in enumerate(P):
         groups[fnd(("p", k))]["pads"].append(p["id"]); groups[fnd(("p", k))]["items"].append(("p", p))
@@ -285,7 +290,8 @@ def remove(item):
         if isinstance(e, list) and e and e[0] in ("segment", "via") and first(e, "uuid") and first(e, "uuid")[1] == it["uid"]:
             del b[k]
             break
-    (segs if kind == "s" else vias).remove(it)
+    lst = segs if kind == "s" else vias              # by uid: snapshots restore copies, not the same objects
+    lst[:] = [x for x in lst if x.get("uid") != it["uid"]]
 
 def join(net, allow_rip=True, depth=0):
     """Join all pieces of `net`. Returns True when it is one piece."""
@@ -310,40 +316,50 @@ def join(net, allow_rip=True, depth=0):
             continue
         if not allow_rip:
             return False
-        # rip-up and reroute: let the path cross other nets' copper, move that copper out of the way
-        w = width
-        free, viaok, who = free_masks(net, w / 2, rip=True)
-        items = list(RIPPABLE)
-        pads_, cells = ps[1]
-        path = astar(cells, ps[0][1], free, viaok, who)
-        if not path:
-            print("%s%s: no path for %s even with rip-up" % ("  " * depth, net, ", ".join(pads_)))
-            return False
-        crossed = set()
-        pts = [(l, j * STEP, i * STEP, nxt is not None and nxt[0] != l) for (l, i, j), nxt in zip(path, path[1:] + [None])]
-        for k, (kind, it, g, lay) in enumerate(items):
-            for (l, x, y, is_via) in pts:
-                if l != lay and not is_via:
+        # rip-up and reroute: let the path cross other nets' copper, move that copper out of the way.
+        # Try each stuck piece, at a few crossing costs (higher cost = fewer, longer detours).
+        global RIP_COST
+        done = False
+        for pads_, cells in ps[1:]:
+            for cost in (40.0, 120.0, 15.0):
+                RIP_COST = cost
+                w = width
+                free, viaok, who = free_masks(net, w / 2, rip=True)
+                items = list(RIPPABLE)
+                path = astar(cells, ps[0][1], free, viaok, who)
+                if not path:
                     continue
-                gg = g + (VIA_D / 2 - w / 2 if is_via else 0)
-                if kind == "s":
-                    vx, vy = it["x2"] - it["x1"], it["y2"] - it["y1"]; L2 = vx * vx + vy * vy
-                    t = 0 if L2 == 0 else max(0, min(1, ((x - it["x1"]) * vx + (y - it["y1"]) * vy) / L2))
-                    d = math.hypot(x - it["x1"] - t * vx, y - it["y1"] - t * vy)
-                else:
-                    d = math.hypot(x - it["x"], y - it["y"])
-                if d < gg + STEP:
-                    crossed.add(k); break
-        snap = (copy.deepcopy(b), copy.deepcopy(segs), copy.deepcopy(vias))
-        victims = sorted({items[k][1]["net"] for k in crossed})
-        for k in crossed:
-            remove(items[k])
-        emit(net, path, w)
-        print("%s%s: joined %s by moving %s" % ("  " * depth, net, ", ".join(pads_), ", ".join(victims)))
-        ok = all(join(v, allow_rip=False, depth=depth + 1) for v in victims)
-        if not ok:
-            print("%s  could not re-route %s; rolled back" % ("  " * depth, ", ".join(victims)))
-            b[:], segs[:], vias[:] = snap
+                crossed = set()
+                pts = [(l, j * STEP, i * STEP, nxt is not None and nxt[0] != l) for (l, i, j), nxt in zip(path, path[1:] + [None])]
+                for k, (kind, it, g, lay) in enumerate(items):
+                    for (l, x, y, is_via) in pts:
+                        if l != lay and not is_via:
+                            continue
+                        gg = g + (VIA_D / 2 - w / 2 if is_via else 0)
+                        if kind == "s":
+                            vx, vy = it["x2"] - it["x1"], it["y2"] - it["y1"]; L2 = vx * vx + vy * vy
+                            t = 0 if L2 == 0 else max(0, min(1, ((x - it["x1"]) * vx + (y - it["y1"]) * vy) / L2))
+                            d = math.hypot(x - it["x1"] - t * vx, y - it["y1"] - t * vy)
+                        else:
+                            d = math.hypot(x - it["x"], y - it["y"])
+                        if d < gg + STEP:
+                            crossed.add(k); break
+                snap = (copy.deepcopy(b), copy.deepcopy(segs), copy.deepcopy(vias))
+                victims = sorted({items[k][1]["net"] for k in crossed})
+                for k in crossed:
+                    remove(items[k])
+                emit(net, path, w)
+                ok = all(join(v, allow_rip=depth == 0, depth=depth + 1) for v in victims)   # one level of nested rip-up
+                if ok:
+                    print("%s%s: joined %s by moving %s (cost %g)" % ("  " * depth, net, ", ".join(pads_), ", ".join(victims), cost))
+                    done = True
+                    break
+                b[:], segs[:], vias[:] = snap
+            if done:
+                break
+        RIP_COST = 40.0
+        if not done:
+            print("%s%s: rip-up found no way for %s" % ("  " * depth, net, " | ".join(", ".join(p) for p, _ in ps[1:])))
             return False
     return len(pieces(net)) < 2
 

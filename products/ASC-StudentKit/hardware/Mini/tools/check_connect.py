@@ -16,6 +16,7 @@ b = sexpr.parse(open(os.path.join(PRJ, D.PROJECT + ".kicad_pcb")).read())
 nets = {int(n[1]): n[2] for n in find(b, "net")}
 SKIP = set() if "--include-gnd" in sys.argv else {"GND"}
 EPS = 0.01
+INTERNAL_TIES = {"U1"}     # ESP32-S3-MINI-1: every GND pad is one plane inside the module
 
 def rot(x, y, d):
     a = math.radians(d); return x * math.cos(a) + y * math.sin(a), -x * math.sin(a) + y * math.cos(a)
@@ -91,6 +92,11 @@ for n, plist in pads.items():
     for k, p in enumerate(plist):
         for m, q in enumerate(plist[k + 1:], k + 1):
             if p["layers"] & q["layers"] and in_pad(q["x"], q["y"], p, max(q["w"], q["h"]) / 2):
+                dsu.union(("p", k), ("p", m))
+    # parts that tie their own pads of one net together inside them (the module's GND pads)
+    for k, p in enumerate(plist):
+        for m, q in enumerate(plist[k + 1:], k + 1):
+            if p["id"].split(".")[0] in INTERNAL_TIES and p["id"].split(".")[0] == q["id"].split(".")[0]:
                 dsu.union(("p", k), ("p", m))
     groups = collections.defaultdict(list)
     for k, p in enumerate(plist):
