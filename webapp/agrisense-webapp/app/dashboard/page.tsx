@@ -18,6 +18,7 @@ export default async function DashboardPage() {
           <Link href="/dashboard/apps">My apps →</Link>
           {session.role === "ADMIN" && (
             <>
+              <Link href="/dashboard/testing">Product testing →</Link>
               <Link href="/studio">Product Studio →</Link>
               <Link href="/dashboard/library">Documents & videos →</Link>
               <Link href="/dashboard/workshop">Workshop library →</Link>
