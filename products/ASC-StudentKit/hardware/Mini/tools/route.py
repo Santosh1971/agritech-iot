@@ -4,6 +4,11 @@
   2. run Freerouting headless (FREEROUTING_JAR, e.g. freerouting-2.5.0-executable.jar from Maven Central)
   3. import route/ASC-Mini.ses back into the board as tracks and vias
 
+Two stages:
+  ROUTE_STAGE=signals (default)  every net except GND; GND pads then get stitching vias
+  ROUTE_STAGE=gnd                GND alone, around the signal tracks (passed in as protected
+                                 wiring), so GND is joined by copper whatever the pours do
+
     FREEROUTING_JAR=/path/freerouting-2.5.0-executable.jar python3 tools/route.py
 
 Freerouting 2.x needs Java 25 or later; set JAVA to its java binary if the default is older.
@@ -28,8 +33,8 @@ DSN, SES = os.path.join(OUT, D.PROJECT + TAG + ".dsn"), os.path.join(OUT, D.PROJ
 CLEARANCE = 0.19                  # the USB-C footprint's own pad gaps are exactly 0.2 mm
 VIA = (0.6, 0.3)
 CLASSES = {
-    "power": (float(os.environ.get("POWER_W", "0.6")), {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
-    "supply": (float(os.environ.get("SUPPLY_W", "0.4")), {"+3V3", "GND", "/+5V_PORT", "/+3V3_PORT"}),
+    "power": (float(os.environ.get("POWER_W", "0.45")), {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
+    "supply": (float(os.environ.get("SUPPLY_W", "0.3")), {"+3V3", "GND", "/+5V_PORT", "/+3V3_PORT"}),
     "contacts": (1.0, {"/OUT1_COM", "/OUT1_NO", "/OUT2_COM", "/OUT2_NO"}),
 }
 DEFAULT_W = 0.25
@@ -42,6 +47,10 @@ def uid():
 
 board = sexpr.parse(open(PCB).read())
 nets = {int(n[1]): n[2] for n in find(board, "net")}
+STAGE = os.environ.get("ROUTE_STAGE", "signals")
+if STAGE == "gnd":                 # start GND from scratch: drop earlier GND tracks and vias
+    board = [e for e in board if not (isinstance(e, list) and e[0] in ("segment", "via")
+                                      and nets[int(first(e, "net")[1])] in POUR_NETS)]
 OX, OY = 100.0, 60.0
 
 def um(v):
@@ -145,16 +154,28 @@ lines = ["(pcb %s" % q(D.PROJECT),
          ")",
          "(network"]
 for n, pins in sorted(pin_nets.items()):
-    if len(pins) > 1 and n not in POUR_NETS:
+    if len(pins) > 1 and (n not in POUR_NETS or STAGE == "gnd"):
         lines.append("(net %s (pins %s))" % (q(n), " ".join(pins)))
 by_class = {}
 for n in pin_nets:
-    if n not in POUR_NETS:
+    if n not in POUR_NETS or STAGE == "gnd":
         by_class.setdefault(klass(n), []).append(n)
 for (name, w), members in by_class.items():
     lines.append("(class %s %s (circuit (use_via \"Via_%d_%d\")) (rule (width %d) (clearance %d)))"
                  % (q(name), " ".join(q(m) for m in sorted(members)), um(VIA[0]), um(VIA[1]), um(w), um(CLEARANCE)))
-lines += [")", "(wiring)", ")"]
+lines.append(")")
+wiring = []
+if STAGE == "gnd":                  # the signal tracks, protected so the GND pass routes around them
+    for t in find(board, "segment"):
+        st, en = first(t, "start"), first(t, "end")
+        wiring.append("(wire (path %s %d %s %s) (net %s) (type protect))" % (
+            first(t, "layer")[1], um(float(first(t, "width")[1])),
+            xy(float(st[1]) - OX, float(st[2]) - OY), xy(float(en[1]) - OX, float(en[2]) - OY), q(nets[int(first(t, "net")[1])])))
+    for v in find(board, "via"):
+        at = first(v, "at")
+        wiring.append("(via \"Via_%d_%d\" %s (net %s) (type protect))" % (um(VIA[0]), um(VIA[1]), xy(float(at[1]) - OX, float(at[2]) - OY),
+                                                                         q(nets[int(first(v, "net")[1])])))
+lines += ["(wiring", *wiring, ")", ")"]
 open(DSN, "w").write("\n".join(l for l in lines if l) + "\n")
 print("DSN: %d components, %d nets -> %s" % (len(places), len([p for p in pin_nets.values() if len(p) > 1]), DSN))
 
@@ -177,13 +198,14 @@ ses = sexpr.parse(open(SES).read())
 res = first(first(ses, "routes"), "resolution")
 scale = 1000.0 * float(res[2]) if res[1] == "um" else 1.0   # SES units per mm
 NET_ID = {v: k for k, v in nets.items()}
-board = [e for e in board if not (isinstance(e, list) and e[0] in ("segment", "via"))]
+if STAGE != "gnd":
+    board = [e for e in board if not (isinstance(e, list) and e[0] in ("segment", "via"))]
 tail = board.pop()                                   # (embedded_fonts no)
 n_seg = n_via = 0
 for net in find(first(first(ses, "routes"), "network_out"), "net"):
     name = net[1]
     nid = NET_ID.get(name)
-    if nid is None:
+    if nid is None or (STAGE == "gnd" and name not in POUR_NETS):
         continue
     for w in find(net, "wire"):
         path = first(w, "path")
@@ -287,7 +309,7 @@ for z in find(board, "zone"):
         pts = [(float(p[1]), float(p[2])) for p in find(first(first(z, "polygon"), "pts"), "xy")]
         ANT = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
 
-def stitch(net):
+def stitch(net, pad_vias=True):
     nid = NET_ID[net]
     cu = Copper(); cu.add_board(board)
     vr, gap, tw = VIA[0] / 2, CLEARANCE, 0.4
@@ -303,7 +325,7 @@ def stitch(net):
                       [Sym("layers"), "F.Cu", "B.Cu"], [Sym("net"), nid], [Sym("uuid"), uid()]])
         cu.vias.append((x, y, vr, net))
     missing = []
-    for p in [p for p in cu.pads if p["net"] == net and p["smd"] and "F.Cu" in p["layers"]]:
+    for p in [p for p in cu.pads if pad_vias and p["net"] == net and p["smd"] and "F.Cu" in p["layers"]]:
         best = None
         for dist in [x / 10 for x in range(6, 31, 2)]:
             for k in range(16):
@@ -334,7 +356,7 @@ def stitch(net):
           "; no room next to " + ", ".join(sorted(set(missing))) if missing else ""))
 
 for net in POUR_NETS:
-    stitch(net)
+    stitch(net, pad_vias=STAGE != "gnd")
 
 board.append(tail)
 open(PCB, "w").write(dump(board) + "\n")
