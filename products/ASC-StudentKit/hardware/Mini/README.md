@@ -8,8 +8,8 @@ The Mini carrier board for the ASC Student Kit. It is a half board, **97.4 × 47
 |---|---|
 | Schematic | **First draft, generated.** 92 parts, 55 nets. `tools/check_design.py` and `tools/check_sheet.py` pass. **KiCad's ERC has not been run yet** (no KiCad 9 in the build container). Run it on the Mac first. |
 | Pin map | Matches `../pinmap.json` (board `mini`), checked by `tools/check_design.py` |
-| Footprints | 25 come from the KiCad 9.0.9 library. The HF46F relay footprint is our own (`ASC.pretty`), drawn from the Hongfa datasheet's PCB layout; check it against a real relay before ordering. The Grove socket uses a JST-PH 4-pin footprint as a stand-in; swap it for the HY2.0-4P part at layout. |
-| PCB | Not started. Outline and holes are in `tools/design.py` (`BOARD_W`, `BOARD_H`, `HOLES`) and `../mini-pcb-outline-1to1.svg`. |
+| Footprints | 0402 resistors and small capacitors. J3 (the tester's pins) is a row of SMD pads on the back under the module, not fitted (DNP). The RTC cell holder is the flat Keystone 3034 on the back. 25 come from the KiCad 9.0.9 library. The HF46F relay footprint is our own (`ASC.pretty`), drawn from the Hongfa datasheet's PCB layout; check it against a real relay before ordering. The Grove socket uses a JST-PH 4-pin footprint as a stand-in; swap it for the HY2.0-4P part at layout. |
+| PCB | **Routed, 2 layers, 1.6 mm.** 97.4 × 47.0 mm, 3 × M3. 1581 tracks (narrowest 0.15 mm), 287 vias (0.55 / 0.3 mm), clearance 0.15 mm. GND is joined by tracks as well as the pours on both layers. All checks below pass. **KiCad's zone fill and DRC have not been run yet** (no KiCad in the build container); run them on the Mac before ordering. |
 
 ## What is on it
 
@@ -42,6 +42,14 @@ The Mini carrier board for the ASC Student Kit. It is a half board, **97.4 × 47
 1. **Connector row.** The bottom edge has room for about 78 mm of connectors between the screw bosses. The three terminals (OUT1, OUT2, 12 V IN) need about 31 mm. The four XH ports and the Grove socket need about 58 mm more. Proposal: terminals along the bottom edge, and the XH and Grove sockets (vertical) in a second row just above them, with cables running down past the edge. USB-C goes on a side edge.
 2. **HF46F footprint.** Print the footprint at 1:1 and push a real relay's pins through the paper before the first order.
 
+## On the Mac, before ordering
+
+1. Open `ASC-Mini.kicad_pro` in KiCad 9.
+2. In the PCB editor press **B** to fill the zones (GND on both layers).
+3. Run **Inspect → Design Rules Checker**. Expect nothing but silkscreen cosmetics. The USB-C footprint's own pads sit exactly 0.2 mm apart, which is fine under the 0.15 mm rule.
+4. Check the HF46F relay footprint against a real relay (print 1:1).
+5. Plot gerbers and drill files, or use the JLC plugin. Order 2 boards per 100 × 100 mm panel (architecture §8).
+
 ## Regenerate
 
 ```bash
@@ -49,6 +57,29 @@ cd products/ASC-StudentKit/hardware/Mini
 python3 tools/gen_sch.py          # ASC-Mini.kicad_sch and tools/netlist.json
 python3 tools/check_design.py     # pins vs pinmap.json, nets, power, strapping pins
 python3 tools/check_sheet.py      # no accidental connections or overlaps on the sheet
+python3 tools/gen_pcb.py          # ASC-Mini.kicad_pcb: outline, holes, placement, zones, labels (unrouted)
+```
+
+The board is routed by these steps. Freerouting 2.5.0 comes from Maven Central and needs Java 25:
+
+```bash
+export FREEROUTING_JAR=…/freerouting-2.5.0-executable.jar JAVA=…/java-25/bin/java
+ROUTE_STAGE=signals POWER_W=0.45 SUPPLY_W=0.3 CLEARANCE=0.19 VIA_D=0.55 python3 tools/route.py   # every net but GND
+python3 tools/patch_route.py                              # A* grid router with rip-up: whatever Freerouting left open
+ROUTE_STAGE=gnd python3 tools/route.py                    # GND as tracks around the signals
+PATCH_FINE=1 PATCH_CLR=0.16 python3 tools/patch_route.py GND
+python3 tools/nudge_vias.py                               # move any via the grid left too close
+```
+
+Freerouting's result changes a lot with small inputs. The `ROUTE_TAG` and `ROUTE_ONLY` options run several variants side by side, so the best one can be imported. After a part moves, `tools/carry_routing.py OLD.kicad_pcb` keeps the existing routing except near the moved part, and `patch_route.py` reconnects the rest.
+
+Checks, all passing on the committed board:
+
+```bash
+python3 tools/check_connect.py --include-gnd   # every net joined by copper (the module's GND pads are tied inside it)
+python3 tools/check_clearance.py               # tracks, vias and pads of different nets ≥ 0.15 mm; edge; holes
+python3 tools/check_board.py                   # pads clear of the edge and the screw heads
+python3 tools/check_pour.py                    # GND is one piece; no dead pour patches or vias
 ```
 
 `gen_sch.py` reads KiCad's symbol libraries from `KICAD_SYMBOL_DIR`. The default is KiCad 9 on macOS (`/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols`).
