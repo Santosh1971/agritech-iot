@@ -21,14 +21,15 @@ PRJ = os.path.dirname(HERE)
 PCB = os.path.join(PRJ, D.PROJECT + ".kicad_pcb")
 OUT = os.path.join(PRJ, "route")
 os.makedirs(OUT, exist_ok=True)
-DSN, SES = os.path.join(OUT, D.PROJECT + ".dsn"), os.path.join(OUT, D.PROJECT + ".ses")
+TAG = os.environ.get("ROUTE_TAG", "")             # run several variants side by side
+DSN, SES = os.path.join(OUT, D.PROJECT + TAG + ".dsn"), os.path.join(OUT, D.PROJECT + TAG + ".ses")
 
 # Track widths (mm) per net class; clearance 0.2 mm everywhere (JLC's minimum is 0.127).
 CLEARANCE = 0.19                  # the USB-C footprint's own pad gaps are exactly 0.2 mm
 VIA = (0.6, 0.3)
 CLASSES = {
-    "power": (0.6, {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
-    "supply": (0.4, {"+3V3", "GND", "/+5V_PORT", "/+3V3_PORT"}),
+    "power": (float(os.environ.get("POWER_W", "0.6")), {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
+    "supply": (float(os.environ.get("SUPPLY_W", "0.4")), {"+3V3", "GND", "/+5V_PORT", "/+3V3_PORT"}),
     "contacts": (1.0, {"/OUT1_COM", "/OUT1_NO", "/OUT2_COM", "/OUT2_NO"}),
 }
 DEFAULT_W = 0.25
@@ -167,6 +168,9 @@ if jar:
     subprocess.run(cmd, check=False, cwd=OUT)
 if not os.path.exists(SES):
     sys.exit("No session file yet: route %s in Freerouting and save %s, then run this again." % (DSN, SES))
+
+if os.environ.get("ROUTE_ONLY"):
+    sys.exit(0)
 
 # ---- import the session ---------------------------------------------------------------------------
 ses = sexpr.parse(open(SES).read())
