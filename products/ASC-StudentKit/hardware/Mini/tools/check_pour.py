@@ -79,6 +79,12 @@ class DSU:
         return a
     def union(self, a, b): self.p[self.find(a)] = self.find(b)
 
+# When check_connect.py finds GND joined by copper (pads, tracks, vias), every GND pad is one piece,
+# and this check's job is only to find pour patches and stitching vias that reach nothing (dead copper).
+import subprocess
+COPPER_JOINED = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "check_connect.py"),
+                                "--include-gnd"], capture_output=True).returncode == 0
+
 def analyze(b):
     """Returns per-layer free masks and region labels, the DSU of GND pieces, the main piece,
     the GND pads and vias, and the pieces' membership."""
@@ -188,10 +194,12 @@ def analyze(b):
                         dsu.union(key, ("pt", round(x2, 2), round(y2, 2)) if (tx, ty) == (x1, y1) else ("pt", round(x1, 2), round(y1, 2)))
         if kind == "thru_hole":
             dsu.union(key, ("pt", round(x, 2), round(y, 2)))
+        if COPPER_JOINED:                             # check_connect.py traced GND copper: the pads are one piece
+            dsu.union(key, ("copper", NET))
         groups[dsu.find(key)] += 1
     main = groups.most_common(1)[0][0]
 
-    return dict(layers=layers, labs=labs, dsu=dsu, main=main, gnd_pads=gnd_pads, gnd_vias=gnd_vias, groups=groups)
+    return dict(layers=layers, labs=labs, dsu=dsu, main=main, gnd_pads=gnd_pads, gnd_vias=gnd_vias, groups=groups, gnd_tracks=gnd_tracks)
 
 def report(a):
     errors = []
@@ -200,6 +208,9 @@ def report(a):
         if dsu.find(("pad", ref, num, round(x, 2), round(y, 2))) != main:
             errors.append("%s pad %s is not joined to the main GND" % (ref, num))
     for x, y in a["gnd_vias"]:
+        if COPPER_JOINED and any(math.hypot(x - tx, y - ty) < 0.3 for l in a["gnd_tracks"].values()
+                                 for (x1, y1, x2, y2) in l for tx, ty in ((x1, y1), (x2, y2))):
+            continue                                  # on a GND track: joined by copper
         if dsu.find(("pt", round(x, 2), round(y, 2))) != main:
             errors.append("GND via at (%.1f, %.1f) is isolated" % (x, y))
     return errors
