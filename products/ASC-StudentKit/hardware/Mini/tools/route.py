@@ -6,6 +6,7 @@
 
 Two stages:
   ROUTE_STAGE=signals (default)  every net except GND; GND pads then get stitching vias
+  ROUTE_STAGE=all                every net in one pass, GND included
   ROUTE_STAGE=gnd                GND alone, around the signal tracks (passed in as protected
                                  wiring), so GND is joined by copper whatever the pours do
 
@@ -48,6 +49,7 @@ def uid():
 board = sexpr.parse(open(PCB).read())
 nets = {int(n[1]): n[2] for n in find(board, "net")}
 STAGE = os.environ.get("ROUTE_STAGE", "signals")
+ALL = STAGE == "all"               # every net, GND included, in one pass
 if STAGE == "gnd":                 # start GND from scratch: drop earlier GND tracks and vias
     board = [e for e in board if not (isinstance(e, list) and e[0] in ("segment", "via")
                                       and nets[int(first(e, "net")[1])] in POUR_NETS)]
@@ -154,11 +156,11 @@ lines = ["(pcb %s" % q(D.PROJECT),
          ")",
          "(network"]
 for n, pins in sorted(pin_nets.items()):
-    if len(pins) > 1 and (n not in POUR_NETS or STAGE == "gnd"):
+    if len(pins) > 1 and (n not in POUR_NETS or STAGE in ("gnd", "all")):
         lines.append("(net %s (pins %s))" % (q(n), " ".join(pins)))
 by_class = {}
 for n in pin_nets:
-    if n not in POUR_NETS or STAGE == "gnd":
+    if n not in POUR_NETS or STAGE in ("gnd", "all"):
         by_class.setdefault(klass(n), []).append(n)
 for (name, w), members in by_class.items():
     lines.append("(class %s %s (circuit (use_via \"Via_%d_%d\")) (rule (width %d) (clearance %d)))"
@@ -356,7 +358,7 @@ def stitch(net, pad_vias=True):
           "; no room next to " + ", ".join(sorted(set(missing))) if missing else ""))
 
 for net in POUR_NETS:
-    stitch(net, pad_vias=STAGE != "gnd")
+    stitch(net, pad_vias=STAGE == "signals")
 
 board.append(tail)
 open(PCB, "w").write(dump(board) + "\n")

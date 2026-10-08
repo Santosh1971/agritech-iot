@@ -120,11 +120,11 @@ def prop(name, val, x, y, hide=False, justify=None, ang=0):
         eff.append([Sym("hide"), Sym("yes")])
     return [Sym("property"), name, val, [Sym("at"), x, y, ang], eff]
 
-def place_symbol(lib_id, sym, ref, value, fp, x, y, rot=0, in_bom=True, desc_xy=None, extra=None):
+def place_symbol(lib_id, sym, ref, value, fp, x, y, rot=0, in_bom=True, desc_xy=None, extra=None, dnp=False):
     lib_syms.setdefault(lib_id, sym)
     s = [Sym("symbol"), [Sym("lib_id"), lib_id], [Sym("at"), x, y, rot], [Sym("unit"), 1],
          [Sym("exclude_from_sim"), Sym("no")], [Sym("in_bom"), Sym("yes" if in_bom else "no")],
-         [Sym("on_board"), Sym("yes")], [Sym("dnp"), Sym("no")], [Sym("uuid"), uid()]]
+         [Sym("on_board"), Sym("yes")], [Sym("dnp"), Sym("yes" if dnp else "no")], [Sym("uuid"), uid()]]
     power = ref.startswith("#")
     rx, ry = desc_xy or (x + 3.81, y - 1.27)
     s.append(prop("Reference", ref, rx, ry, hide=power, justify="left"))
@@ -173,13 +173,13 @@ for p in D.P:
     x, y = p["xy"]
     pins = sym_pins(sym)
     desc = (x - 12.7, y - 35.56) if p["ref"] == "U1" else None
-    in_bom = not p["ref"].startswith("H")
+    in_bom = not p["ref"].startswith("H") and not p.get("dnp")
     extra = {}
     if p.get("silk"):
         extra["Silk"] = p["silk"]
     if p.get("side"):
         extra["Side"] = p["side"]
-    suuid = place_symbol(p["lib"], sym, p["ref"], p["value"], p["fp"], x, y, desc_xy=desc, in_bom=in_bom, extra=extra)
+    suuid = place_symbol(p["lib"], sym, p["ref"], p["value"], p["fp"], x, y, desc_xy=desc, in_bom=in_bom, extra=extra, dnp=p.get("dnp", False))
     padnets, done_pts = {}, set()
     for key, net in p["pins"].items():
         for pin in resolve(pins, key):
@@ -200,7 +200,7 @@ for p in D.P:
             done_pts.add(pt)
             nc[pin[0]] = "unconnected-(%s-%s-Pad%s)" % (p["ref"], pin[1].replace("/", "{slash}"), pin[0])
     netlist.append(dict(ref=p["ref"], fp=p["fp"], value=p["value"], uuid=suuid, pads=padnets, nc=nc,
-                        in_bom=in_bom, silk=p.get("silk", ""), side=p.get("side", "front")))
+                        in_bom=in_bom, dnp=p.get("dnp", False), silk=p.get("silk", ""), side=p.get("side", "front")))
 
 for net, (x, y) in D.PWR_FLAGS:
     pwr_n[0] += 1

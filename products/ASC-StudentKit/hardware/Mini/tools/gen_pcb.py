@@ -239,7 +239,7 @@ gx, gy = pin_xy("Q1", "1")                    # the gate resistor and pull-down 
 for ref in ("R13", "R14", "D7"):
     pack(ref, gx, gy, UPPER_LEFT)
 # Test header for the production tester
-pack("J3", 80.0, 30.0, [UNDER_RELAYS, BELOW_ESP, UPPER_LEFT], rots=(90, 0))
+pack("J3", ESP_X - 4.0, ESP_Y + 4.0, (ESP_X - 8.5, ESP_Y - 3.5, ESP_X + 8.5, ESP_Y + 11.0), rots=(90, 0), back=True)
 # OUT LEDs: labels next to them
 for ref, name in (("D14", "OUT1"), ("D15", "OUT2")):
     b = placed[ref]["box"]

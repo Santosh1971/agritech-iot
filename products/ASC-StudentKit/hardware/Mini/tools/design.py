@@ -14,8 +14,9 @@ PROJECT = "ASC-Mini"
 POWER_NETS = {"GND", "+3V3", "+5V"}
 
 # ---- footprints -------------------------------------------------------------------
-R0603 = "Resistor_SMD:R_0603_1608Metric"
-C0603 = "Capacitor_SMD:C_0603_1608Metric"
+# 0402 for the small passives: the half board is dense and has only two layers
+R0603 = "Resistor_SMD:R_0402_1005Metric"
+C0603 = "Capacitor_SMD:C_0402_1005Metric"
 C0805 = "Capacitor_SMD:C_0805_2012Metric"
 C1206 = "Capacitor_SMD:C_1206_3216Metric"
 LED0805 = "LED_SMD:LED_0805_2012Metric"
@@ -119,9 +120,10 @@ part("Q1", "Transistor_FET:AO3400A", "AO3400A", SOT23, (X + 88.9, Y + 22.86), {"
 part("BZ1", "Device:Buzzer", "5V active 12mm", "Buzzer_Beeper:Buzzer_12x9.5RM7.6", (X + 99.06, Y + 7.62), {"+": "+5V", "-": "BUZ_N"})
 part("D7", "Diode:1N4148W", "1N4148W", SOD123, (X + 119.38, Y + 7.62), {"K": "+5V", "A": "BUZ_N"})
 # Production / debug header: the tester's pogo pins (same set as AWD1's J2)
-part("J3", "Connector_Generic:Conn_01x08", "PROG", "Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical",
+# Pogo pads on the back under the module, not fitted: the tester's pins touch the pads directly
+part("J3", "Connector_Generic:Conn_01x08", "PROG (pogo pads)", "Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical_SMD_Pin1Left",
      (X + 48.26, Y + 38.1), {"1": "+3V3", "2": "GND", "3": "EN", "4": "PAIR", "5": "USB_DN", "6": "USB_DP",
-                              "7": "TXD0", "8": "RXD0"})
+                              "7": "TXD0", "8": "RXD0"}, side="back", dnp=True)
 
 # ---------------------------------------------------------------- RTC + internal I2C
 X, Y = 236.22, 170.18
