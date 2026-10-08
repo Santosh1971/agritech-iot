@@ -16,7 +16,7 @@ PRJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 b = sexpr.parse(open(os.path.join(PRJ, D.PROJECT + ".kicad_pcb")).read())
 nets = {int(n[1]): n[2] for n in find(b, "net")}
 OX, OY, W, H, R = 100.0, 60.0, D.BOARD_W, D.BOARD_H, D.CORNER_R
-CLR = float(os.environ.get("CLEARANCE", "0.18"))
+CLR = float(os.environ.get("CLEARANCE", "0.15"))     # the board's rule (JLC: 0.127 mm)
 
 def rot(x, y, d):
     a = math.radians(d); return x * math.cos(a) + y * math.sin(a), -x * math.sin(a) + y * math.cos(a)
@@ -94,47 +94,53 @@ def bbox(it):
     r = math.hypot(it["w"], it["h"]) / 2
     return (it["x"] - r, it["y"] - r, it["x"] + r, it["y"] + r)
 
-grid = collections.defaultdict(list)
-G = 2.0
-for k, it in enumerate(items):
-    x0, y0, x1, y1 = bbox(it)
-    for gi in range(int((x0 - CLR) // G), int((x1 + CLR) // G) + 1):
-        for gj in range(int((y0 - CLR) // G), int((y1 + CLR) // G) + 1):
-            grid[(gi, gj)].append(k)
-errors, seen = [], set()
-for cell in grid.values():
-    for i in range(len(cell)):
-        for j in range(i + 1, len(cell)):
-            a, c = items[cell[i]], items[cell[j]]
-            key = (min(cell[i], cell[j]), max(cell[i], cell[j]))
-            if key in seen:
-                continue
-            seen.add(key)
-            if not (a["layers"] & c["layers"]) or (a["net"] and a["net"] == c["net"]):
-                continue
-            if a["owner"] == c["owner"] and a["owner"] not in ("track", "via"):
-                continue
-            d = dist(a, c)
-            if d < CLR - 1e-3:
-                errors.append((round(d, 3), a["name"], a["net"], c["name"], c["net"], sorted(a["layers"] & c["layers"])))
-# edge and holes for tracks and vias
-def edge_dist(x, y):
-    d = min(x, W - x, H - y, y)
-    for cx in (R, W - R):
-        if y < R and ((cx == R and x < R) or (cx == W - R and x > W - R)):
-            d = min(d, R - math.hypot(x - cx, y - R))
-    return d
-for it in items:
-    if it["owner"] in ("track", "via"):
-        for x, y in ((it["x1"], it["y1"]), (it["x2"], it["y2"]), ((it["x1"] + it["x2"]) / 2, (it["y1"] + it["y2"]) / 2)):
-            if edge_dist(x, y) < it["r"] + 0.3:
-                errors.append((round(edge_dist(x, y) - it["r"], 3), it["name"], it["net"], "board edge", "", []))
-            for hx, hy in D.HOLES:
-                if math.hypot(x - hx, y - (H - hy)) < 1.6 + it["r"] + 0.3:
-                    errors.append((0, it["name"], it["net"], "mounting hole", "", []))
-print("%d copper items checked at %.2f mm" % (len(items), CLR))
-for e in sorted(errors)[:40]:
-    print("FAIL %.3f mm: %s (%s) <-> %s (%s) %s" % e)
-if errors:
-    print("%d clearance problems" % len(errors)); sys.exit(1)
-print("OK: no clearance problems")
+def main():
+    global errors
+    grid = collections.defaultdict(list)
+    G = 2.0
+    for k, it in enumerate(items):
+        x0, y0, x1, y1 = bbox(it)
+        for gi in range(int((x0 - CLR) // G), int((x1 + CLR) // G) + 1):
+            for gj in range(int((y0 - CLR) // G), int((y1 + CLR) // G) + 1):
+                grid[(gi, gj)].append(k)
+    errors, seen = [], set()
+    for cell in grid.values():
+        for i in range(len(cell)):
+            for j in range(i + 1, len(cell)):
+                a, c = items[cell[i]], items[cell[j]]
+                key = (min(cell[i], cell[j]), max(cell[i], cell[j]))
+                if key in seen:
+                    continue
+                seen.add(key)
+                if not (a["layers"] & c["layers"]) or (a["net"] and a["net"] == c["net"]):
+                    continue
+                if a["owner"] == c["owner"] and a["owner"] not in ("track", "via"):
+                    continue
+                d = dist(a, c)
+                if d < CLR - 1e-3:
+                    errors.append((round(d, 3), a["name"], a["net"], c["name"], c["net"], sorted(a["layers"] & c["layers"])))
+    # edge and holes for tracks and vias
+    def edge_dist(x, y):
+        d = min(x, W - x, H - y, y)
+        for cx in (R, W - R):
+            if y < R and ((cx == R and x < R) or (cx == W - R and x > W - R)):
+                d = min(d, R - math.hypot(x - cx, y - R))
+        return d
+    for it in items:
+        if it["owner"] in ("track", "via"):
+            for x, y in ((it["x1"], it["y1"]), (it["x2"], it["y2"]), ((it["x1"] + it["x2"]) / 2, (it["y1"] + it["y2"]) / 2)):
+                if edge_dist(x, y) < it["r"] + 0.3:
+                    errors.append((round(edge_dist(x, y) - it["r"], 3), it["name"], it["net"], "board edge", "", []))
+                for hx, hy in D.HOLES:
+                    if math.hypot(x - hx, y - (H - hy)) < 1.6 + it["r"] + 0.3:
+                        errors.append((0, it["name"], it["net"], "mounting hole", "", []))
+    print("%d copper items checked at %.2f mm" % (len(items), CLR))
+    for e in sorted(errors)[:40]:
+        print("FAIL %.3f mm: %s (%s) <-> %s (%s) %s" % e)
+    if errors:
+        print("%d clearance problems" % len(errors)); sys.exit(1)
+    print("OK: no clearance problems")
+
+
+if __name__ == "__main__":
+    main()

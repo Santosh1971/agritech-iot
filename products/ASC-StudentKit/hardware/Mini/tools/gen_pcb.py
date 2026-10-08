@@ -252,6 +252,14 @@ for num, mark in (("1", "+"), ("2", "-")):
     x, y = pin_xy("J1", num)
     label(mark, x, placed["J1"]["box"][1] - 0.9, 1.2, reserve=False)
 
+# Late moves, after everything else is packed (so no other part shifts): the BOARD_ID divider goes
+# to the back, under the module next to GPIO11, where the front left of the module is too crowded
+# for its GND pad to reach the ground.
+for ref in ("R10", "R11"):
+    del placed[ref]
+for ref in ("R10", "R11"):
+    pack(ref, ESP_X - 6.0, ESP_Y + 6.0, (ESP_X - 8.6, ESP_Y - 3.5, ESP_X + 8.6, ESP_Y + 11.5), rots=(90, 0), back=True)
+
 missing = set(parts) - set(placed)
 if missing:
     sys.exit("not placed: " + ", ".join(sorted(missing)))

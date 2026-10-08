@@ -19,7 +19,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PRJ = os.path.dirname(HERE)
 PCB = os.path.join(PRJ, D.PROJECT + ".kicad_pcb")
 OX, OY, W, H, R = 100.0, 60.0, D.BOARD_W, D.BOARD_H, D.CORNER_R
-STEP, CLR, VIA_D, VIA_DRILL = 0.2, 0.2, 0.55, 0.3   # the via size route.py gives Freerouting
+STEP, VIA_D, VIA_DRILL = 0.2, 0.55, 0.3   # the via size route.py gives Freerouting
+# PATCH_FINE=1: 0.15 mm tracks at 0.15 mm clearance for the nets named on the command line, to get
+# through the channel between the module's pins and the centre boss (JLC's minimum is 0.127 mm).
+FINE = bool(os.environ.get("PATCH_FINE"))
+CLR = float(os.environ.get("PATCH_CLR", 0.17 if FINE else 0.2))   # above the rule, for the grid's rounding
 WIDTH = {"+5V": 0.45, "/VIN": 0.45, "/VBUS": 0.45, "+3V3": 0.3, "GND": 0.3}
 VIA_COST, TURN_COST = 25.0, 0.5
 
@@ -125,7 +129,7 @@ def free_masks(net, hw, rip=False):
         who[l] = w_
     # a via needs its own radius of room on both layers
     vr = VIA_D / 2
-    grow = int(math.ceil(max(vr - hw, 0) / STEP))
+    grow = int(math.ceil(max(vr - hw, 0) / STEP))        # (tools/nudge_vias.py fixes the grid's rounding)
     vm = out["F.Cu"] & out["B.Cu"]
     for _ in range(grow):
         vm = vm & np.roll(vm, 1, 0) & np.roll(vm, -1, 0) & np.roll(vm, 1, 1) & np.roll(vm, -1, 1)
@@ -222,9 +226,10 @@ def astar(src, dst, free, viaok, who=None):
         return float(d.min())
     openq, came, cost = [], {}, {}
     for li, l in enumerate(L):
-        for i, j in zip(*np.nonzero(src[l] & free[l] & ((who[l] < 0) if who else True))):
+        for i, j in zip(*np.nonzero(src[l] & free[l])):
             st = (li, int(i), int(j), -1)
-            cost[st] = 0.0; heapq.heappush(openq, (h(i, j), 0.0, st))
+            c0 = RIP_COST if (who is not None and who[l][i, j] >= 0) else 0.0   # starting on rippable copper costs too
+            cost[st] = c0; heapq.heappush(openq, (c0 + h(i, j), c0, st))
     seen = set()
     while openq:
         f, g, st = heapq.heappop(openq)
@@ -301,7 +306,7 @@ def join(net, allow_rip=True, depth=0):
         if len(ps) < 2:
             return True
         joined = False
-        for w in [width] + [t for t in (0.3, 0.25, 0.2) if t < width]:
+        for w in [width] + [t for t in (0.3, 0.25, 0.2) + ((0.15,) if FINE else ()) if t < width]:
             free, viaok = free_masks(net, w / 2)
             for pads_, cells in ps[1:]:
                 path = astar(cells, ps[0][1], free, viaok)
@@ -328,6 +333,9 @@ def join(net, allow_rip=True, depth=0):
                 items = list(RIPPABLE)
                 path = astar(cells, ps[0][1], free, viaok, who)
                 if not path:
+                    if os.environ.get("PATCH_DEBUG"):
+                        print("%s  [%s] no path at rip cost %g (start cells %d)" % ("  " * depth, ", ".join(pads_), cost,
+                              int(sum((cells[l] & free[l]).sum() for l in cells))))
                     continue
                 crossed = set()
                 pts = [(l, j * STEP, i * STEP, nxt is not None and nxt[0] != l) for (l, i, j), nxt in zip(path, path[1:] + [None])]
@@ -354,6 +362,8 @@ def join(net, allow_rip=True, depth=0):
                     print("%s%s: joined %s by moving %s (cost %g)" % ("  " * depth, net, ", ".join(pads_), ", ".join(victims), cost))
                     done = True
                     break
+                if os.environ.get("PATCH_DEBUG"):
+                    print("%s  [%s] path found, but could not re-route %s" % ("  " * depth, ", ".join(pads_), ", ".join(victims)))
                 b[:], segs[:], vias[:] = snap
             if done:
                 break
