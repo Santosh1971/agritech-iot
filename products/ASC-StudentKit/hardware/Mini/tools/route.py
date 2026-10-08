@@ -107,14 +107,12 @@ for f in find(board, "footprint"):
     pins, keepouts, seen = [], [], {}
     for p in find(f, "pad"):
         pa = first(p, "at")
-        lx, ly = float(pa[1]), float(pa[2])
-        if back:
-            ly = -ly                     # the image is the front view; Specctra flips it for the back
+        lx, ly = float(pa[1]), float(pa[2])   # back parts: already flipped in the file, placed as-is
         if p[2] == "np_thru_hole" or p[1] == "":
             d = float(first(p, "drill")[1]) if first(p, "drill")[1] != "oval" else float(first(p, "drill")[2])
             keepouts.append("(keepout \"\" (circle signal %d %d %d))" % (um(d + 0.5), um(lx), -um(ly)))
             continue
-        ps = padstack(p, "F.Cu")
+        ps = padstack(p, "B.Cu" if back else "F.Cu")
         num = p[1]
         n = seen.get(num, 0); seen[num] = n + 1
         pid = num if n == 0 else "%s@%d" % (num, n)
@@ -125,7 +123,9 @@ for f in find(board, "footprint"):
         if net and not net[2].startswith("unconnected-"):
             pin_nets.setdefault(net[2], []).append("%s-%s" % (ref, pid))
     images[img] = "(image %s %s %s)" % (q(img), " ".join(pins), " ".join(keepouts))
-    places.append("(component %s (place %s %s %s %g))" % (q(img), q(ref), xy(fx, fy), "back" if back else "front", frot % 360))
+    # Back parts go in as "front" with their pads on B.Cu: the image is the part exactly as the board
+    # file has it, so Specctra's own mirroring never comes into play.
+    places.append("(component %s (place %s %s front %g))" % (q(img), q(ref), xy(fx, fy), frot % 360))
 
 def klass(n):
     for name, (w, members) in CLASSES.items():
