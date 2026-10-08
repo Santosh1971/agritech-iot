@@ -218,3 +218,4 @@ The WPC board uses the same three upper bosses with a slightly different pattern
 - **LEDs on the top side**, where they show through the clear lid. **Each LED's name goes on the silkscreen next to it** (PWR, STATUS, OUT1, OUT2…), so a student can read the board's state with the lid closed. A relay-state LED on each OUT is recommended; it can be driven from the relay coil, so it needs no GPIO.
 - Keep 3 mm of copper and parts clear around each mounting hole, for the screw head.
 
+**Mini rev A schematic:** `../hardware/Mini/` (generated; see its README for the parts and the open review points).
