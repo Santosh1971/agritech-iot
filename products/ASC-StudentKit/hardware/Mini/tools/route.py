@@ -31,8 +31,8 @@ TAG = os.environ.get("ROUTE_TAG", "")             # run several variants side by
 DSN, SES = os.path.join(OUT, D.PROJECT + TAG + ".dsn"), os.path.join(OUT, D.PROJECT + TAG + ".ses")
 
 # Track widths (mm) per net class; clearance 0.2 mm everywhere (JLC's minimum is 0.127).
-CLEARANCE = 0.19                  # the USB-C footprint's own pad gaps are exactly 0.2 mm
-VIA = (0.6, 0.3)
+CLEARANCE = float(os.environ.get("CLEARANCE", "0.19"))   # the USB-C footprint's own pad gaps are exactly 0.2 mm
+VIA = (float(os.environ.get("VIA_D", "0.6")), 0.3)
 CLASSES = {
     "power": (float(os.environ.get("POWER_W", "0.45")), {"VIN_RAW", "VIN", "/VIN_RAW", "/VIN", "/+5V_BUCK", "/BUCK_SW", "+5V", "/VBUS", "/VBUS_F"}),
     "supply": (float(os.environ.get("SUPPLY_W", "0.3")), {"+3V3", "GND", "/+5V_PORT", "/+3V3_PORT"}),
