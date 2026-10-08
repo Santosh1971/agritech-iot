@@ -129,7 +129,7 @@ note("Internal I2C (GPIO12/13): DS3231MZ RTC at 0x68 + CR2032 (back side). INT/S
 part("U5", "Timer_RTC:DS3231MZ", "DS3231MZ+", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm", (X + 25.4, Y),
      {"VCC": "+3V3", "GND": "GND", "SDA": "I2C_INT_SDA", "SCL": "I2C_INT_SCL", "VBAT": "VBAT_RTC", "~{INT}/SQW": "RTC_INT"})
 part("C15", "Device:C", "100n", C0603, (X, Y - 5.08), {"1": "+3V3", "2": "GND"})
-part("BT1", "Device:Battery_Cell", "CR2032", "Battery:BatteryHolder_MYOUNG_BS-07-A1BJ001_CR2032", (X + 55.88, Y + 7.62),
+part("BT1", "Device:Battery_Cell", "CR2032", "Battery:BatteryHolder_Keystone_3034_1x20mm", (X + 55.88, Y + 7.62),
      {"+": "VBAT_RTC", "-": "GND"}, side="back")
 part("R15", "Device:R", "4.7k", R0603, (X - 2.54, Y + 20.32), {"1": "+3V3", "2": "I2C_INT_SDA"})
 part("R16", "Device:R", "4.7k", R0603, (X + 10.16, Y + 20.32), {"1": "+3V3", "2": "I2C_INT_SCL"})
