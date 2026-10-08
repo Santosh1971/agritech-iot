@@ -7,3 +7,5 @@ route/*-?.dsn
 route/*-?.ses
 route/*-s?.dsn
 route/*-s?.ses
+route/*-g?.dsn
+route/*-g?.ses
