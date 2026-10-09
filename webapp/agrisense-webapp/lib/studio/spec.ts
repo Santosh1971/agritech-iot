@@ -32,6 +32,18 @@ export function templateSpec(p: ProblemData, kit: KitKey, note?: string, design?
   want("pump", "pump", "irrigat");
   want("fogger", "fog", "mist", "fan", "cool");
   want("valve", "valve", "drip");
+  want("level", "tank level", "water level", "how full", "sump");
+  want("probet", "cold storage", "cold room", "cold store", "water temperature", "grain");
+  want("door", "door");
+  want("pir", "animal", "intrusion", "wild boar", "nilgai", "cattle", "theft");
+  want("siren", "animal", "intrusion", "wild boar", "nilgai", "alarm", "siren");
+  want("raing", "rainfall", "how much rain");
+  want("tds", "tds", "salt", "salinity", "fertigation", "hydroponic");
+  want("doser", "fertigation", "dosing", "hydroponic");
+  want("co2", "co2", "co₂", "carbon dioxide");
+  want("irtemp", "leaf temperature", "canopy", "water stress");
+  want("heater", "heater", "frost");
+  want("growlite", "grow light", "artificial light");
   if (kit === "MEGA") { want("npk", "npk", "fertil", "nutrient"); if (p.network === "none") pick.push("lora"); if (p.network === "mobile") pick.push("gsm"); }
   if (!pick.length) pick.push("soil", "dht");
 

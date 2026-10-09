@@ -64,6 +64,24 @@ Starter set, taken from products we already ship:
 | Battery and solar power | AWD1, XL6009 module |
 | RTC | `ds1307_support.patch`, existing variants. The kits use a DS3231-class RTC; see the kit spec. (No OLED: the phone app is the screen.) |
 
+Added 2026-10-09 from the field guide *Agri Sensors and Actuators: Field Guide for India* (in the document library). Each has a firmware driver and its own reading, rule, test, simulation and phone tile:
+
+| Block | Port | Used for |
+|---|---|---|
+| Temperature probe (DS18B20) | S | Water tanks, cold rooms, grain bins |
+| Rain gauge (tipping bucket, 0.2794 mm a tip) | S, pulse | Rain in the last 24 h |
+| Motion sensor (PIR) | S | Animals in the field at night |
+| Door switch (magnetic) | S | Cold-room door left open |
+| Water TDS | S, analog | Borewell salts, fertigation strength |
+| Tank level (ultrasonic A02YYUW, one per board) | S, UART receive only | Distance down to the water |
+| Air temperature + humidity (SHT31, 0x44) | I²C | Greenhouses, cold rooms |
+| CO₂ (SCD41, 0x62) | I²C | Greenhouses, produce storage |
+| Leaf temperature (MLX90614, 0x5A) | I²C | Crop water stress |
+| Irrigation valve (24 V AC), siren, dosing pump | OUT | Zones, alarms, fertigation |
+| Exhaust fan, grow lights, heater (via contactor box) | OUT | Greenhouse and cold-room climate |
+
+RS-485 field probes, 4–20 mA sensors and UART modules like the PZEM-004T and MH-Z19 need the Mega (field guide, "What this means for the ASC kits").
+
 ### 3.3 Universal firmware: no compiling for most students
 
 Students do not get a firmware build. They get **one prebuilt firmware**, "ASC-Studio firmware", that holds every block driver. Each student's design is a **small JSON configuration**: which block is on which port, the thresholds, the rules ("pump ON if moisture < 30 % between 06:00 and 18:00"), and how it reports (WiFi/MQTT, LoRa or SMS).
@@ -184,6 +202,7 @@ How *teach while hiding* works in practice:
 - 2026-10-08: **Mini rev A schematic drafted**, generated from `products/ASC-StudentKit/hardware/Mini/tools/design.py` (the AWD1 generator flow). It has a TPS54202 12 V→5 V buck, USB-C, an AP7361C LDO, a DS3231MZ RTC, 4 XH sensor ports with clamps, a Grove I2C-1 port, 2 SRD relays with coil LEDs, a buzzer and a test header. Its pins are checked against `pinmap.json`. KiCad ERC is still to be run.
 - 2026-10-08: Mini relays changed to the slim **Hongfa HF46F** (1 Form A, so the OUT terminals are 2-way COM/NO). **24 V input maximum** is accepted. **No OLED** in the kits: the block is removed from the studio, the simulator and the firmware, since the phone app is the screen.
 - 2026-10-08: **Mini PCB stays on 2 layers** (Santosh's choice over 4). It is routed with 0402 passives, the test pads under the module, and a 0.15 mm clearance rule (JLC standard). Freerouting runs headless from Maven Central, followed by our own grid router with rip-up for the last connections. Every net, GND included, is joined by copper. The checks for connectivity, clearance, board edge and pours all pass. KiCad's DRC is still to run on the Mac.
+- 2026-10-09: **15 more blocks** from the field guide: 9 sensors that work on the Mini's own ports and 6 relay outputs (§3.2). The parts list on the Architecture stage now shows only the parts for the selected port type.
 
 ## 10. Open questions
 

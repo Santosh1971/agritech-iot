@@ -29,6 +29,15 @@ export function checksFor(ports: Record<string, string | null>): TestCheck[] {
       case "dht": out.push({ ...base, todo: "Breathe on the sensor for a few seconds. Humidity should rise by 5 %.", ref: `${port}:h`, pass: (v, b0) => v - b0 >= 5 }); break;
       case "bme": out.push({ ...base, todo: "Breathe on the sensor for a few seconds. Humidity should rise by 5 %.", ref: `${port}:h`, pass: (v, b0) => v - b0 >= 5 }); break;
       case "light": out.push({ ...base, todo: "Cover the sensor with your hand. Light should drop below 50 lux.", ref: port, pass: (v) => v < 50 }); break;
+      case "probet": out.push({ ...base, todo: "Hold the probe tightly in your hand. It should warm up by 2 °C.", ref: port, pass: (v, b0) => v - b0 >= 2 }); break;
+      case "raing": out.push({ ...base, todo: "Tip the bucket by hand three times. Rain should go above 0 mm.", ref: port, pass: (v) => v > 0 }); break;
+      case "pir": out.push({ ...base, todo: "Stay still for 10 seconds, then wave your hand in front of the sensor. It should see motion.", ref: port, pass: (_v, _b, seen) => seen.has(0) && seen.has(1) }); break;
+      case "door": out.push({ ...base, todo: "Move the magnet away from the switch, then back. The door should read open, then closed.", ref: port, pass: (_v, _b, seen) => seen.has(0) && seen.has(1) }); break;
+      case "tds": out.push({ ...base, todo: "Dip the probe in a glass of tap water. TDS should go above 30 ppm.", ref: port, pass: (v) => v > 30 }); break;
+      case "level": out.push({ ...base, todo: "Point the sensor at the floor, then move it 20 cm closer. The distance should change by 10 cm or more.", ref: port, pass: (v, b0) => Math.abs(v - b0) >= 10 }); break;
+      case "sht": out.push({ ...base, todo: "Breathe on the sensor for a few seconds. Humidity should rise by 5 %.", ref: `${port}:h`, pass: (v, b0) => v - b0 >= 5 }); break;
+      case "co2": out.push({ ...base, todo: "Breathe on the sensor for 10 seconds. CO₂ should go above 1,000 ppm (it updates every 5 s).", ref: `${port}:c`, pass: (v) => v > 1000 }); break;
+      case "irtemp": out.push({ ...base, todo: "Point the sensor at your palm from 5 cm away. It should read between 28 and 38 °C.", ref: port, pass: (v) => v >= 28 && v <= 38 }); break;
       default:
         if (BLOCK_BY_ID[b]?.kind === "OUT") out.push({ ...base, todo: `Switch ${port} on and off from here.`, output: true, confirm: "I heard the relay click and saw its LED light." });
     }

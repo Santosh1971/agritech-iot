@@ -38,13 +38,15 @@ export function tileSources(ports: Ports): { ref: string; label: string; labelHi
 export function defaultLayout(ports: Ports, title: string): AppLayout {
   const tiles: Tile[] = tileSources(ports).map((s, i) => ({
     ref: s.ref,
-    kind: s.output ? "switch" : ports[s.ref] === "float" || ports[s.ref] === "rain" ? "lamp" : i === 0 ? "graph" : "value",
+    kind: s.output ? "switch" : ["float", "rain", "pir", "door"].includes(ports[s.ref] ?? "") ? "lamp" : i === 0 ? "graph" : "value",
     label: s.label,
     labelHi: s.labelHi,
   }));
   const alerts: Alert[] = [];
   for (const [port, id] of Object.entries(ports)) {
     if (id === "float") alerts.push({ ref: port, when: "below", value: 0.5, say: "Tank is empty" });
+    if (id === "door") alerts.push({ ref: port, when: "above", value: 0.5, say: "Door is open" });
+    if (id === "pir") alerts.push({ ref: port, when: "above", value: 0.5, say: "Movement in the field" });
   }
   return { name: shortName(title), lang: "en", tiles, alerts };
 }

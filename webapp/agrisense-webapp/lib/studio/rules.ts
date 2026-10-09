@@ -80,6 +80,12 @@ export function checks(kit: KitKey, ports: Ports): Check[] {
   if (has("pump") && has("float")) out.push({ level: "ok", text: "The pump rule can check the tank float switch first, so the pump never runs dry." });
   if (has("pump") && !has("float") && !has("flow")) out.push({ level: "warn", text: "Nothing tells the board whether water is actually there. Add a tank float switch or a flow sensor so the pump can't run dry." });
   if (has("flow")) out.push({ level: "ok", text: "The flow sensor takes 5 V from its port. Its 5 V pulses are safe on the protected signal pin." });
+  const levels = used.filter(([, b]) => b === "level").length;
+  if (levels > 1) out.push({ level: "bad", text: `${levels} tank level sensors: only one fits, because it uses the board's one spare serial port.` });
+  if (has("co2")) out.push({ level: "ok", text: "The CO₂ sensor draws up to 175 mA for a moment every 5 seconds. The board's 3.3 V supply has room for it." });
+  const mains = used.filter(([, b]) => ["pump", "fan", "growlite", "heater"].includes(b)).length;
+  if (mains) out.push({ level: "ok", text: "Pumps, exhaust fans, grow lights and heaters run on 230 V. The relay only signals the certified contactor box, so mains never reaches the board." });
+  if (has("siren") && !has("pir") && !has("door") && !has("float")) out.push({ level: "warn", text: "Nothing in this design tells the siren when to sound. Add a motion sensor, a door switch or a tank float." });
 
   const free = KITS[kit].ports.filter((p) => !ports[p.id] && (p.kind === "S" || p.kind === "I2C" || p.kind === "OUT")).map((p) => p.id);
   if (free.length) out.push({ level: "ok", text: `Free for later: ${free.join(", ")}.` });

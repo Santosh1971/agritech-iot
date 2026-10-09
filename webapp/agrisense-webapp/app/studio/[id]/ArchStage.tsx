@@ -48,8 +48,10 @@ export default function ArchStage(props: StageProps) {
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   };
 
-  // Only show blocks of kinds this kit has, plus Mega-only ones greyed out with the reason.
-  const palette = BLOCKS.map((b) => ({ b, why: whyNot(kit, b.id, port.id) }))
+  // Only the parts that go on this kind of port, plus Mega-only ones greyed
+  // out with the reason (parts for another port type would only be noise).
+  const palette = BLOCKS.filter((b) => b.kind === port.kind || !KITS[kit].ports.some((q) => q.kind === b.kind))
+    .map((b) => ({ b, why: whyNot(kit, b.id, port.id) }))
     .sort((x, y) => Number(!!x.why) - Number(!!y.why));
 
   return (

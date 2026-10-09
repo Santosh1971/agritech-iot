@@ -12,8 +12,10 @@ struct BlockDef {
 // this version of the firmware yet.
 const BlockDef BLOCKS[] = {
   {"soil", KIND_S}, {"soilt", KIND_S}, {"float", KIND_S}, {"flow", KIND_S}, {"dht", KIND_S}, {"rain", KIND_S},
-  {"bme", KIND_I2C}, {"light", KIND_I2C},
-  {"pump", KIND_OUT}, {"fogger", KIND_OUT}, {"valve", KIND_OUT},
+  {"probet", KIND_S}, {"raing", KIND_S}, {"pir", KIND_S}, {"door", KIND_S}, {"tds", KIND_S}, {"level", KIND_S},
+  {"bme", KIND_I2C}, {"light", KIND_I2C}, {"sht", KIND_I2C}, {"co2", KIND_I2C}, {"irtemp", KIND_I2C},
+  {"pump", KIND_OUT}, {"fogger", KIND_OUT}, {"valve", KIND_OUT}, {"valve24", KIND_OUT}, {"siren", KIND_OUT},
+  {"doser", KIND_OUT}, {"fan", KIND_OUT}, {"growlite", KIND_OUT}, {"heater", KIND_OUT},
 };
 
 const BlockDef* blockDef(const char* id) {
@@ -68,6 +70,7 @@ bool parseDesign(JsonVariantConst json, const BoardMap& board, Design& out, Stri
   }
 
   JsonObjectConst ports = json["ports"];
+  int levels = 0;
   for (JsonPairConst kv : ports) {
     const char* port = kv.key().c_str();
     const char* block = kv.value() | "";
@@ -77,6 +80,10 @@ bool parseDesign(JsonVariantConst json, const BoardMap& board, Design& out, Stri
     const BlockDef* b = blockDef(block);
     if (!b) { error = String("This firmware can't drive '") + block + "' yet."; return false; }
     if (b->kind != kind) { error = String("'") + block + "' can't go on " + port + "."; return false; }
+    if (strcmp(block, "level") == 0 && ++levels > 1) {
+      error = "Only one tank level sensor fits: it uses the board's one spare serial port.";
+      return false;
+    }
     if (d.nSlots >= MAX_SLOTS) { error = "Too many blocks."; return false; }
     Slot& s = d.slots[d.nSlots++];
     copy(s.port, sizeof(s.port), port);
