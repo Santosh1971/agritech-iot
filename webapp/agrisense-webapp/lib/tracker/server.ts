@@ -44,11 +44,13 @@ export async function requireMember(role?: TrackRole): Promise<{ user: TrackUser
 
 const STORAGE_ROOT = () => process.env.TRACKER_STORAGE_DIR || join(homedir(), "agrisense-data", "tracker");
 
+// next.config.ts caps every request body at 40 MB (middlewareClientMaxBodySize),
+// so no single file can be larger than that whatever its kind.
 export const MAX_BYTES: Record<TrackFileKind, number> = {
   ATTACHMENT: 25 * 1024 * 1024,
   FIRMWARE: 16 * 1024 * 1024,
-  APK: 150 * 1024 * 1024,
-  GERBER: 50 * 1024 * 1024,
+  APK: 40 * 1024 * 1024,
+  GERBER: 40 * 1024 * 1024,
 };
 
 export function trackFilePath(storagePath: string) {

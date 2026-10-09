@@ -3,6 +3,8 @@ node_modules/
 .pio/
 .pioenvs/
 build/
+# Next.js route folders named build/ are source, not build output.
+!webapp/agrisense-webapp/app/**/build/
 *.env
 .env
 *.hex
