@@ -12,7 +12,7 @@ struct BlockDef {
 // this version of the firmware yet.
 const BlockDef BLOCKS[] = {
   {"soil", KIND_S}, {"soilt", KIND_S}, {"float", KIND_S}, {"flow", KIND_S}, {"dht", KIND_S}, {"rain", KIND_S},
-  {"bme", KIND_I2C}, {"light", KIND_I2C}, {"oled", KIND_I2C},
+  {"bme", KIND_I2C}, {"light", KIND_I2C},
   {"pump", KIND_OUT}, {"fogger", KIND_OUT}, {"valve", KIND_OUT},
 };
 

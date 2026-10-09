@@ -60,4 +60,14 @@ void main() {
     expect(live.valueOf('S3:t'), isNull);
     expect(live.valueOf('OUT1'), 1);
   });
+
+  test('tiles carry their unit from the design', () {
+    final l = AppLayout.fromDesign({
+      'name': 'Kit',
+      'ports': {'S1': 'dht'},
+      'app': {'name': 'Kit', 'tiles': [{'ref': 'S1:t', 'kind': 'value', 'label': 'Air temperature', 'unit': '°C'}, {'ref': 'OUT1', 'kind': 'switch', 'label': 'Pump'}]},
+    });
+    expect(l.tiles[0].unit, '°C');
+    expect(l.tiles[1].unit, '');
+  });
 }

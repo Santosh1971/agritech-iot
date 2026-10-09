@@ -49,7 +49,8 @@ class Tile {
   final TileKind kind;
   final String label;
   final String labelHi;
-  const Tile(this.ref, this.kind, this.label, this.labelHi);
+  final String unit; // "°C", "%", "L/min"; empty for switches and lamps
+  const Tile(this.ref, this.kind, this.label, this.labelHi, {this.unit = ''});
 
   bool get isOutput => ref.startsWith('OUT');
   String labelFor(bool hindi) => hindi && labelHi.isNotEmpty ? labelHi : label;
@@ -83,7 +84,7 @@ class AppLayout {
         app['lang'] == 'hi',
         [
           for (final t in (app['tiles'] as List? ?? const []))
-            if (t is Map) Tile('${t['ref']}', _kind(t['kind'] as String?), '${t['label'] ?? t['ref']}', '${t['labelHi'] ?? ''}'),
+            if (t is Map) Tile('${t['ref']}', _kind(t['kind'] as String?), '${t['label'] ?? t['ref']}', '${t['labelHi'] ?? ''}', unit: '${t['unit'] ?? ''}'),
         ],
         [
           for (final a in (app['alerts'] as List? ?? const []))

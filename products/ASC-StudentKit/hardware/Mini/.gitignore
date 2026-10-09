@@ -1,0 +1,11 @@
+fp-info-cache
+*-backups/
+*.kicad_prl
+tools/__pycache__/
+route/*.log
+route/*-?.dsn
+route/*-?.ses
+route/*-s?.dsn
+route/*-s?.ses
+route/*-g?.dsn
+route/*-g?.ses

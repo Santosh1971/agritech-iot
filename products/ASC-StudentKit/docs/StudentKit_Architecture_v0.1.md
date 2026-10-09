@@ -64,7 +64,7 @@ The module is the **-N8 variant** (8 MB flash, no PSRAM), the same part as AWD1.
 | 9 | spare | VBAT_ADC | ADC1 channel 8 |
 | 10 | VIN_SENSE (12 V present) | VIN_SENSE (12 V / solar) | ADC1 channel 9 — the last ADC1 channel |
 | 11 | BOARD_ID | BOARD_ID | ADC2. Read once at boot, before the radio starts (HW-12) |
-| 12 / 13 | internal I²C SDA / SCL | internal I²C SDA / SCL | RTC, I/O expander (Mega), OLED header |
+| 12 / 13 | internal I²C SDA / SCL | internal I²C SDA / SCL | RTC, I/O expander (Mega) |
 | 14 / 15 | student I²C SDA / SCL | student I²C SDA / SCL (both ports) | A separate bus, so a student module can never clash with the RTC's address (0x68) |
 | 16 | RTC_INT | RTC_INT | RTC alarm can wake the board from deep sleep |
 | 17 / 18 / 21 | spare | LoRa DIO1 / BUSY / RST | Same as AWD1, checked automatically against its `design.py` |
@@ -109,7 +109,7 @@ The module is the **-N8 variant** (8 MB flash, no PSRAM), the same part as AWD1.
 |---|---|---|---|
 | Sensor ports S1… | 4-pin JST-XH 2.54 mm (polarised, so it cannot be plugged in backwards) | 1 GND · 2 3V3 · 3 5V · 4 SIG | Each block uses the supply it needs. Both supplies have a resettable fuse. The SIG input is protected by a series resistor and clamp diodes, so a 5 V *digital* signal is safe (for example a flow sensor). A 0–5 V *analog* signal needs a divider, which is part of that block's adapter cable. |
 | I²C ports | 4-pin, **Grove-compatible** pinout (GND · 3V3 · SDA · SCL) | | Grove and Qwiic I²C modules (with an adapter cable) plug straight in, which makes the block library cheaper |
-| Relay OUT1… | 3-way 5.08 mm screw terminal (COM, NO, NC) | | Silkscreen: "LOW VOLTAGE ONLY" (HW-05) |
+| Relay OUT1… | 2-way 5.08 mm screw terminal (COM, NO): the relays are normally open (1 Form A; Mini uses the Hongfa HF46F) | | Silkscreen: "LOW VOLTAGE ONLY" (HW-05) |
 | RS-485 (Mega) | 4-way screw terminal (A, B, +12 V switched, GND) | | |
 | Valve (Mega) | 2-way screw terminal | | |
 | Power | 12 V DC barrel jack; Mega adds a 2-way solar terminal | | |
@@ -124,7 +124,7 @@ Proposed: the sensor ports stay 4-pin, not the 3-pin in the spec draft. The extr
 | Rail | Source | Loads | Estimated peak |
 |---|---|---|---|
 | 5 V | USB-C or 12 V→5 V buck (OR-ed) | 3.3 V regulator input, 2 relays (≈75 mA each), 5 V sensors | ≈ 700 mA |
-| 3.3 V | regulator rated ≥1 A | ESP32-S3 (WiFi TX peaks ≈ 350 mA), 3.3 V sensors, RTC, OLED | ≈ 450 mA |
+| 3.3 V | regulator rated ≥1 A | ESP32-S3 (WiFi TX peaks ≈ 350 mA), 3.3 V sensors, RTC | ≈ 450 mA |
 
 **Rule for the studio:** a laptop USB port supplies only about 500 mA. With both relays and WiFi active, the board can brown out. If a design uses relays, the studio's checks (studio D5) ask for the **12 V adapter or a ≥1 A USB charger** and explain why in a "Why?" card.
 
@@ -187,3 +187,35 @@ boot → read BOARD_ID (ADC2, radio still off) → load board map from pinmap.js
 
 - The pin-map data file plus a checker worked well. The studio's architecture stage should do the same for student designs: assigning blocks to ports produces data, the rules check it, and the student sees plain-language errors ("S5 can't take an analog sensor while WiFi is on").
 - The rule-check messages in `check_pinmap.py` are already written as explanations, not codes. Later they can feed the student-facing "Why?" cards.
+
+## 8. Mechanics: box and board outlines (decided 2026-10-08)
+
+### The box
+
+The kit uses the box WM1 and WPC already use: **180 × 130 × 100 mm** outside (height × width × depth), grey ABS body, **clear lid** with four screws. It hangs upright, with the cable glands in the bottom wall. Inside it has five mounting bosses: four in an 88 × 50 mm rectangle and one on the centre rib above them. A 1:1 print of the WM1 board was checked in a real box: all five holes sit on the bosses.
+
+Still to measure on a real box: wall thickness (3 mm assumed), boss height above the floor, the clearance from the board to the lid, and the size and position of the two pre-cut holes in the bottom wall.
+
+### Board outlines
+
+Both outlines come from `products/WM1-watermaster/hardware/WaterMaster/WM1-WaterMaster.kicad_pcb`. Coordinates are in mm from the board's **bottom-left corner**, with y going up. The bottom edge faces the gland wall.
+
+| | **Mini** (half board) | **Mega** (full board) |
+|---|---|---|
+| Outline | **97.4 × 47.0 mm**, top corners R15, bottom corners square | **97.4 × 99.1 mm** (the WM1 outline), top corners R15 |
+| Mounting holes (M3, 3.2 mm) | **3**, the box's upper three bosses: (4.76, 13.45), (92.77, 13.45), centre (48.77, 31.52) | **5**: (4.76, 15.56), (92.77, 15.56), (4.76, 65.56), (92.77, 65.56), centre (48.77, 83.63) |
+| Fab panel | **Two per 100 × 100 mm panel**, the second turned 180°, 2 mm mouse-bite gap: 97.4 × 96.0 mm. Each board costs about half. Same scheme as `WPC-panel2x`. | One per 100 × 100 mm board |
+| Space below it in the box | The lower half of the box stays free for cable loops and the gland nuts | — |
+
+The WPC board uses the same three upper bosses with a slightly different pattern: 88.4 mm across and the centre hole 19.0 mm above the side pair, against 88.0 mm and 18.1 mm on WM1. Mini follows WM1, the pattern checked with the printed template.
+
+1:1 printable outlines with the mounting holes: `hardware/mini-pcb-outline-1to1.svg` and `hardware/mega-pcb-outline-1to1.svg`.
+
+### Layout rules for both boards
+
+- **Connectors on the bottom edge**, so every cable runs straight down to its gland (ME-02). Sensor ports, relay terminals and power all go there.
+- **Parts on both sides are allowed.** Keep the SMD parts on one side where possible: JLC charges a second assembly setup for the other side. Connectors and relays stay on the top side.
+- **LEDs on the top side**, where they show through the clear lid. **Each LED's name goes on the silkscreen next to it** (PWR, STATUS, OUT1, OUT2…), so a student can read the board's state with the lid closed. A relay-state LED on each OUT is recommended; it can be driven from the relay coil, so it needs no GPIO.
+- Keep 3 mm of copper and parts clear around each mounting hole, for the screw head.
+
+**Mini rev A schematic:** `../hardware/Mini/` (generated; see its README for the parts and the open review points).

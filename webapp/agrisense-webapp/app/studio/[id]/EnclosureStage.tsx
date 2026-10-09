@@ -20,8 +20,8 @@ export default function EnclosureStage(props: StageProps) {
   const st = state.stages.encl;
   const stored = (st.data ?? {}) as Partial<EnclosureChoice>;
   const editable = st.status === "NOT_STARTED" || st.status === "IN_PROGRESS";
-  const firstFit = BOXES.find((b) => b.fits.includes(state.kit))?.id ?? "A";
-  const [choice, setChoice] = useState<EnclosureChoice>({ box: stored.box ?? firstFit, window: stored.window ?? false });
+  const firstFit = BOXES.find((b) => b.fits.includes(state.kit))?.id ?? BOXES[0].id;
+  const [choice, setChoice] = useState<EnclosureChoice>({ box: BOXES.some((b) => b.id === stored.box) ? stored.box! : firstFit, window: false });
   const [savedChoice, setSavedChoice] = useState(stored.box ? JSON.stringify({ box: stored.box, window: !!stored.window }) : "");
   const [error, setError] = useState("");
   const p = useMemo(() => (design ? plan(state.kit, design.ports, choice) : null), [design, state.kit, choice]);
@@ -52,12 +52,6 @@ export default function EnclosureStage(props: StageProps) {
               </label>
             ))}
           </div>
-          {Object.values(design.ports).includes("oled") && (
-            <label className="row small" style={{ gap: 6 }}>
-              <input type="checkbox" id="encl-window" checked={choice.window} disabled={!editable} onChange={(e) => setChoice({ ...choice, window: e.target.checked })} />
-              Cut a window in the lid for the display (30 × 16 mm)
-            </label>
-          )}
           <div className="eyebrow">Bottom wall · {p.holes.length} holes</div>
           <div className="drill" dangerouslySetInnerHTML={{ __html: svg.replace(/width="[\d.]+mm" height="[\d.]+mm"/, 'width="100%"') }} />
           <div className="tbl-wrap"><table><tbody>

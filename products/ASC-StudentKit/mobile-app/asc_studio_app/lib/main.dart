@@ -270,18 +270,25 @@ class _BoardScreenState extends State<BoardScreen> {
         ]);
       case TileKind.gauge:
         body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(v == null ? '—' : v.toStringAsFixed(1), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          _reading(v, t.unit, 24),
           LinearProgressIndicator(value: v == null ? null : (v.clamp(0, 100) / 100), color: green),
         ]);
       case TileKind.graph:
         body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(v == null ? '—' : v.toStringAsFixed(1), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          _reading(v, t.unit, 24),
           Expanded(child: CustomPaint(painter: _Spark(_history[t.ref] ?? const []), size: Size.infinite)),
         ]);
       case TileKind.value:
-        body = Text(v == null ? '—' : v.toStringAsFixed(1), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold));
+        body = _reading(v, t.unit, 26);
     }
     return Card(child: Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [label, const SizedBox(height: 6), Expanded(child: body)])));
+  }
+
+  Widget _reading(double? v, String unit, double size) {
+    return Text.rich(TextSpan(children: [
+      TextSpan(text: v == null ? '—' : v.toStringAsFixed(1), style: TextStyle(fontSize: size, fontWeight: FontWeight.bold)),
+      if (v != null && unit.isNotEmpty) TextSpan(text: ' $unit', style: const TextStyle(fontSize: 14)),
+    ]));
   }
 
   Widget _engineerView() {
@@ -307,8 +314,10 @@ class _Spark extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
-    final lo = points.reduce((a, b) => a < b ? a : b), hi = points.reduce((a, b) => a > b ? a : b);
-    final span = (hi - lo).abs() < 0.01 ? 1 : hi - lo;
+    var lo = points.reduce((a, b) => a < b ? a : b), hi = points.reduce((a, b) => a > b ? a : b);
+    // At least 2 units of height, so a 0.1 step in a steady reading stays a small wiggle.
+    if (hi - lo < 2) { final mid = (hi + lo) / 2; lo = mid - 1; hi = mid + 1; }
+    final span = hi - lo;
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final x = size.width * i / (points.length - 1);

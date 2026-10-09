@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="127.4mm" height="107.0mm" viewBox="0 0 127.4 107.0">
+<rect width="100%" height="100%" fill="#fff"/>
+<path d="M15,30.0 A15.0,15.0 0 0 1 30.0,15.0 L97.37,15.0 A15.0,15.0 0 0 1 112.37,30.0 L112.37,62.0 L15,62.0 Z" fill="none" stroke="#000" stroke-width="0.4"/>
+<circle cx="19.76" cy="48.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/><line x1="15.76" y1="48.55" x2="23.76" y2="48.55" stroke="#000" stroke-width="0.15"/><line x1="19.76" y1="44.55" x2="19.76" y2="52.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="107.77" cy="48.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/><line x1="103.77" y1="48.55" x2="111.77" y2="48.55" stroke="#000" stroke-width="0.15"/><line x1="107.77" y1="44.55" x2="107.77" y2="52.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="63.77" cy="30.48" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/><line x1="59.77" y1="30.48" x2="67.77" y2="30.48" stroke="#000" stroke-width="0.15"/><line x1="63.77" y1="26.48" x2="63.77" y2="34.48" stroke="#000" stroke-width="0.15"/>
+<text x="15" y="7.0" font-size="3.4" font-family="sans-serif" font-weight="bold">ASC Mini PCB, 97.4 x 47.0 mm, top corners R15, 3 x M3 (upper bosses)</text>
+<text x="15" y="11.5" font-size="2.8" font-family="sans-serif">Print at 100 %. The bottom edge (connectors) faces the gland wall.</text>
+<text x="63.685" y="59.0" font-size="3" text-anchor="middle" font-family="sans-serif">connectors along this edge</text>
+<line x1="15" y1="76.0" x2="65" y2="76.0" stroke="#000" stroke-width="0.6"/><line x1="15" y1="74.0" x2="15" y2="78.0" stroke="#000" stroke-width="0.4"/><line x1="65" y1="74.0" x2="65" y2="78.0" stroke="#000" stroke-width="0.4"/><text x="69" y="77.0" font-size="3" font-family="sans-serif">This line must measure exactly 50 mm.</text>
+</svg>

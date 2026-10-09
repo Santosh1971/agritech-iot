@@ -36,6 +36,12 @@ export default function ArchStage(props: StageProps) {
     setPorts({ ...ports, [sel]: blockId });
     setDirty(true);
   };
+  // The same as the Reopen button at the bottom of the page, where it is easy to miss.
+  const reopen = async () => {
+    setBusy(true); setError("");
+    try { await call(`/api/studio/projects/${state.id}/stages/arch`, { action: "reopen" }, "POST"); props.refresh(); }
+    catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
   const save = async () => {
     setBusy(true); setError("");
     try { await call(`/api/studio/projects/${state.id}/design`, { ports }, "PUT"); setDirty(false); props.refresh(); }
@@ -93,6 +99,12 @@ export default function ArchStage(props: StageProps) {
               <div className="eyebrow">Parts for {port.id}</div>
               {!locked && ports[sel] && <button className="btn ghost small" onClick={() => assign(null)}>Remove from {port.id}</button>}
             </div>
+            {st.status === "DONE" && (
+              <div className="msg warn"><span className="ic">!</span><span>
+                This stage is finished, so its parts are locked.{" "}
+                <button className="btn ghost small" disabled={busy} onClick={reopen}>Reopen to change parts</button>
+              </span></div>
+            )}
             <div className="palette">
               {palette.map(({ b, why }) => (
                 <button key={b.id} className="blk" disabled={!!why || locked} onClick={() => assign(b.id)}>

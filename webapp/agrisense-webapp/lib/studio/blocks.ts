@@ -35,8 +35,6 @@ export const BLOCKS: Block[] = [
     why: "One I²C chip measures three things accurately. It sits on the student I²C bus, never on the RTC's bus." },
   { id: "light", name: "Light (BH1750)", hindi: "रोशनी", kind: "I2C", signal: "I²C", i2cAddr: "0x23", supply: "3V3", mA3: 1, mA5: 0, output: false,
     why: "Reports light in lux, the unit used for shade-net and greenhouse decisions." },
-  { id: "oled", name: "OLED display 0.96\"", hindi: "डिस्प्ले", kind: "I2C", signal: "I²C", i2cAddr: "0x3C", supply: "3V3", mA3: 20, mA5: 0, output: true,
-    why: "Shows readings at the device itself, with no phone needed." },
   { id: "pump", name: "Pump signal (via contactor box)", hindi: "पंप", kind: "OUT", signal: "relay", supply: "5V", mA3: 0, mA5: 75, output: true,
     why: "The relay only signals our certified contactor box. 230 V never reaches the student board." },
   { id: "fogger", name: "Fogger or fan (12 V)", hindi: "फॉगर / पंखा", kind: "OUT", signal: "relay", supply: "5V", mA3: 0, mA5: 75, output: true,

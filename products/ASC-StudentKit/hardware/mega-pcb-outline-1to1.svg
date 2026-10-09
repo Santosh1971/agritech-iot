@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="127.4mm" height="159.1mm" viewBox="0 0 127.4 159.1">
+<rect width="100%" height="100%" fill="#fff"/>
+<path d="M15.0,30.0 A15.0,15.0 0 0 1 30.0,15.0 L97.37,15.0 A15.0,15.0 0 0 1 112.37,30.0 L112.37,114.11000000000001 L15.0,114.11000000000001 Z" fill="none" stroke="#000" stroke-width="0.4"/>
+<circle cx="19.76" cy="48.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/>
+<line x1="15.76" y1="48.55" x2="23.76" y2="48.55" stroke="#000" stroke-width="0.15"/><line x1="19.76" y1="44.55" x2="19.76" y2="52.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="107.77" cy="48.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/>
+<line x1="103.77" y1="48.55" x2="111.77" y2="48.55" stroke="#000" stroke-width="0.15"/><line x1="107.77" y1="44.55" x2="107.77" y2="52.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="19.76" cy="98.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/>
+<line x1="15.76" y1="98.55" x2="23.76" y2="98.55" stroke="#000" stroke-width="0.15"/><line x1="19.76" y1="94.55" x2="19.76" y2="102.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="107.75" cy="98.55" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/>
+<line x1="103.75" y1="98.55" x2="111.75" y2="98.55" stroke="#000" stroke-width="0.15"/><line x1="107.75" y1="94.55" x2="107.75" y2="102.55" stroke="#000" stroke-width="0.15"/>
+<circle cx="63.76" cy="30.48" r="1.6" fill="none" stroke="#000" stroke-width="0.3"/>
+<line x1="59.76" y1="30.48" x2="67.76" y2="30.48" stroke="#000" stroke-width="0.15"/><line x1="63.76" y1="26.48" x2="63.76" y2="34.48" stroke="#000" stroke-width="0.15"/>
+<text x="63.8" y="95.6" font-size="3" text-anchor="middle" font-family="sans-serif">88.0 mm</text>
+<text x="22.8" y="73.6" font-size="3" font-family="sans-serif">50.0 mm</text>
+<text x="67.8" y="31.5" font-size="3" font-family="sans-serif">centre hole, 18.1 mm above the top pair</text>
+<text x="15.0" y="7.0" font-size="3.4" font-family="sans-serif" font-weight="bold">ASC Mega PCB (WM1 outline), 97.4 x 99.1 mm, top corners R15, 5 x M3 holes</text>
+<text x="15.0" y="11.5" font-size="2.8" font-family="sans-serif">Print at 100 % / actual size. Lay it in the box: each cross should sit on a mounting boss.</text>
+<line x1="15.0" y1="128.11" x2="65.0" y2="128.11" stroke="#000" stroke-width="0.6"/><line x1="15.0" y1="126.11000000000001" x2="15.0" y2="130.11" stroke="#000" stroke-width="0.4"/><line x1="65.0" y1="126.11000000000001" x2="65.0" y2="130.11" stroke="#000" stroke-width="0.4"/>
+<text x="69.0" y="129.11" font-size="3" font-family="sans-serif">This line must measure exactly 50 mm.</text>
+</svg>

@@ -1,18 +1,19 @@
 // Stage 8: the box. The kit ships with a stock IP65 box; the student places
 // a cable gland for every cable the design uses (plus power and, on Mega, the
 // antenna), and gets a 1:1 printable drilling template and an OpenSCAD model
-// for a 3D-printed version. Box sizes are placeholders until the sample boxes
-// are measured (kit spec ME-01): `measured: false` says so on every output.
+// for a 3D-printed version. The box is the one WM1 and WPC already use
+// (kit architecture §8): 180 × 130 × 100 mm outside, with a clear lid.
 import { BLOCK_BY_ID } from "./blocks";
 import type { KitKey } from "./kits";
 import type { Check, Ports } from "./rules";
 
 export type Box = { id: string; name: string; w: number; h: number; d: number; wall: number; measured: boolean; fits: KitKey[] };
 
+// w × h × d are inside sizes: w along the bottom wall, h from the bottom wall
+// to the top, d from the back to the lid. Outside 130 × 180 × 100 less 3 mm
+// walls; the wall thickness is an estimate until a box is cut open.
 export const BOXES: Box[] = [
-  { id: "A", name: "Sample box A (small)", w: 150, h: 110, d: 70, wall: 3, measured: false, fits: ["MINI"] },
-  { id: "B", name: "Sample box B (medium)", w: 200, h: 120, d: 75, wall: 3, measured: false, fits: ["MINI", "MEGA"] },
-  { id: "C", name: "Sample box C (large)", w: 250, h: 150, d: 90, wall: 3.5, measured: false, fits: ["MINI", "MEGA"] },
+  { id: "ASC-180", name: "ASC kit box (clear lid)", w: 124, h: 174, d: 94, wall: 3, measured: true, fits: ["MINI", "MEGA"] },
 ];
 
 // Gland hole sizes (mm) and the space each needs around it for the nut.
@@ -24,6 +25,7 @@ const GLAND = {
 export type GlandKind = keyof typeof GLAND;
 
 export type Hole = { id: string; kind: GlandKind; label: string; x: number; y: number; dia: number };
+// `window` is kept for saved choices from before the clear lid; it is ignored.
 export type EnclosureChoice = { box: string; window: boolean };
 export type Plan = { box: Box; holes: Hole[]; window: { w: number; h: number } | null; checks: Check[] };
 
@@ -32,7 +34,7 @@ function cables(kit: KitKey, ports: Ports): { id: string; kind: GlandKind; label
   for (const [port, id] of Object.entries(ports)) {
     if (!id) continue;
     const b = BLOCK_BY_ID[id];
-    if (!b || id === "oled" || id === "lora" || id === "gsm") continue; // inside the box, or an antenna below
+    if (!b || id === "lora" || id === "gsm") continue; // an antenna, added below
     const kind: GlandKind = b.kind === "OUT" ? "M16" : "M12";
     out.push({ id: port, kind, label: `${port}: ${b.name}` });
   }
@@ -75,10 +77,8 @@ export function plan(kit: KitKey, ports: Ports, choice: EnclosureChoice): Plan {
     checks.push({ level: "ok", text: `${list.length} glands fit on the bottom wall${rows.length > 1 ? " in two rows" : ""}, with room for each nut.` });
   }
   if (!box.fits.includes(kit)) checks.push({ level: "bad", text: `The ${kit === "MEGA" ? "Mega" : "Mini"} board doesn't fit in ${box.name}.` });
-  const hasOled = Object.values(ports).includes("oled");
-  if (choice.window && !hasOled) checks.push({ level: "warn", text: "There's no display in your design, so the window isn't needed." });
   if (!box.measured) checks.push({ level: "warn", text: "This box's size hasn't been measured yet. Measure your real box before drilling." });
-  return { box, holes, window: choice.window && hasOled ? { w: 30, h: 16 } : null, checks };
+  return { box, holes, window: null, checks };
 }
 
 // The bottom wall at 1:1, as an SVG sized in millimetres. Printed at 100 %
