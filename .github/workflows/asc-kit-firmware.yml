@@ -47,15 +47,13 @@ jobs:
       - name: Rule engine unit tests
         run: pio test -e native
 
-      - name: Build
+      # Both boards in one `pio run`: the first build writes src/board_map.h, and a
+      # second `pio run` would see a new source file, take the project as changed
+      # and wipe all of .pio/build, asc_s3's firmware with it.
+      - name: Build (kit firmware and the GPSIOAM workshop-kit stand-in)
         env:
           FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
-        run: pio run -e asc_s3
-
-      - name: Build the GPSIOAM workshop-kit stand-in
-        env:
-          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
-        run: pio run -e asc_gpsioam
+        run: pio run -e asc_s3 -e asc_gpsioam
 
       - name: Keep the firmware with this run (download it from the run's page)
         uses: actions/upload-artifact@v4
@@ -67,6 +65,7 @@ jobs:
             products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/partitions.bin
             products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_gpsioam/firmware.bin
           retention-days: 30
+          if-no-files-found: error
 
       - name: Upload to the studio
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/asc-v')
