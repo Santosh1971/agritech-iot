@@ -64,7 +64,7 @@ Starter set, taken from products we already ship:
 | Battery and solar power | AWD1, XL6009 module |
 | RTC | `ds1307_support.patch`, existing variants. The kits use a DS3231-class RTC; see the kit spec. (No OLED: the phone app is the screen.) |
 
-Added 2026-10-09 from the field guide *Agri Sensors and Actuators: Field Guide for India* (in the document library). Each has a firmware driver and its own reading, rule, test, simulation and phone tile:
+Added 2026-10-09 from the field guide *Agri Sensors and Actuators: Field Guide for India* (in the document library). Each has a firmware driver and its own reading, rule, test, simulation and phone tile. **None has been tried on real hardware yet**: they are marked `untested` in `blocks.ts`, and the studio says so when a student picks one. Remove the flag from a block once it has passed the Test stage on a real kit.
 
 | Block | Port | Used for |
 |---|---|---|
@@ -202,7 +202,7 @@ How *teach while hiding* works in practice:
 - 2026-10-08: **Mini rev A schematic drafted**, generated from `products/ASC-StudentKit/hardware/Mini/tools/design.py` (the AWD1 generator flow). It has a TPS54202 12 V→5 V buck, USB-C, an AP7361C LDO, a DS3231MZ RTC, 4 XH sensor ports with clamps, a Grove I2C-1 port, 2 SRD relays with coil LEDs, a buzzer and a test header. Its pins are checked against `pinmap.json`. KiCad ERC is still to be run.
 - 2026-10-08: Mini relays changed to the slim **Hongfa HF46F** (1 Form A, so the OUT terminals are 2-way COM/NO). **24 V input maximum** is accepted. **No OLED** in the kits: the block is removed from the studio, the simulator and the firmware, since the phone app is the screen.
 - 2026-10-08: **Mini PCB stays on 2 layers** (Santosh's choice over 4). It is routed with 0402 passives, the test pads under the module, and a 0.15 mm clearance rule (JLC standard). Freerouting runs headless from Maven Central, followed by our own grid router with rip-up for the last connections. Every net, GND included, is joined by copper. The checks for connectivity, clearance, board edge and pours all pass. KiCad's DRC is still to run on the Mac.
-- 2026-10-09: **15 more blocks** from the field guide: 9 sensors that work on the Mini's own ports and 6 relay outputs (§3.2). The parts list on the Architecture stage now shows only the parts for the selected port type.
+- 2026-10-09: **15 more blocks** from the field guide: 9 sensors that work on the Mini's own ports and 6 relay outputs (§3.2), not yet tested on hardware. The parts list on the Architecture stage now shows only the parts for the selected port type.
 
 ## 10. Open questions
 

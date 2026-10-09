@@ -113,6 +113,7 @@ export default function ArchStage(props: StageProps) {
                   <b>{b.name}</b>
                   <span className={`pill ${ports[sel] === b.id ? "done" : "wait"}`}>{ports[sel] === b.id ? `On ${port.id}` : b.signal}</span>
                   <small>{why || b.why}</small>
+                  {b.untested && <small className="muted">Not tested on a real kit yet: try it before a class depends on it.</small>}
                 </button>
               ))}
             </div>
