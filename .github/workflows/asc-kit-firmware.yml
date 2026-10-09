@@ -1,0 +1,84 @@
+name: ASC Student Kit firmware — build and upload
+
+# One firmware for every ASC Student Kit (products/ASC-StudentKit/firmware).
+# Every push that touches it is built, on any branch, so a broken build shows
+# up before it reaches main. Only main and asc-v* tags upload: main uploads a
+# dev-<shortsha> build (admins only in the studio), a tag "asc-v1.2.3" uploads
+# release "1.2.3", which is what students flash from the studio's Build stage.
+# bootloader.bin and partitions.bin go up too, so a blank chip can be flashed.
+on:
+  push:
+    branches: ["**"]
+    tags: ["asc-v*"]
+    paths:
+      - "products/ASC-StudentKit/firmware/**"
+      - "products/ASC-StudentKit/hardware/pinmap.json"
+      - ".github/workflows/asc-kit-firmware.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/ASC-StudentKit/firmware/asc-studio-fw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == asc-v* ]]; then
+            echo "value=${GITHUB_REF_NAME#asc-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check the pin map
+        run: python3 ../../hardware/tools/check_pinmap.py
+
+      - name: Rule engine unit tests
+        run: pio test -e native
+
+      - name: Build
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
+        run: pio run -e asc_s3
+
+      - name: Build the GPSIOAM workshop-kit stand-in
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
+        run: pio run -e asc_gpsioam
+
+      - name: Keep the firmware with this run (download it from the run's page)
+        uses: actions/upload-artifact@v4
+        with:
+          name: asc-studio-fw-${{ steps.version.outputs.value }}
+          path: |
+            products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/firmware.bin
+            products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/bootloader.bin
+            products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_s3/partitions.bin
+            products/ASC-StudentKit/firmware/asc-studio-fw/.pio/build/asc_gpsioam/firmware.bin
+          retention-days: 30
+
+      - name: Upload to the studio
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/asc-v')
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=ASC_KIT" \
+            -F "version=${{ steps.version.outputs.value }}" \
+            -F "variant=asc_s3" \
+            -F "notes=Built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "file=@.pio/build/asc_s3/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@.pio/build/asc_s3/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@.pio/build/asc_s3/partitions.bin;type=application/octet-stream"

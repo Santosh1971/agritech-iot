@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET as string);
 export type SessionPayload = {
   userId: string;
   email: string;
-  role: "ADMIN" | "DEALER" | "CUSTOMER";
+  role: "ADMIN" | "DEALER" | "CUSTOMER" | "TEACHER" | "STUDENT";
 };
 
 export async function signSession(payload: SessionPayload): Promise<string> {

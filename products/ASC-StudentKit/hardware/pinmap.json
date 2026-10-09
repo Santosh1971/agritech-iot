@@ -1,0 +1,90 @@
+{
+  "_doc": "ASC Student Kit pin map, rev A (architecture stage). Source of truth for the firmware board maps, the studio rule engine and the schematic generators. Check with: python3 tools/check_pinmap.py. Explained in ../docs/StudentKit_Architecture_v0.1.md.",
+  "module": "ESP32-S3-MINI-1-N8",
+  "module_gpios": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,26,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48],
+  "adc1": [1,2,3,4,5,6,7,8,9,10],
+  "adc2": [11,12,13,14,15,16,17,18,19,20],
+  "usb": {"19": "USB_D-", "20": "USB_D+"},
+  "strapping": {
+    "0": "Boot mode. 10k pull-up plus the PAIR/BOOT button to GND.",
+    "3": "JTAG signal source. Ignored unless the STRAP_JTAG_SEL eFuse is burned (we never burn it).",
+    "45": "VDD_SPI voltage. Must read 0 at reset for the module's 3.3 V flash, so its load needs a pull-down.",
+    "46": "ROM log and download mode. Must read 0 at reset, so its load needs a pull-down."
+  },
+  "board_id": {
+    "_doc": "BOARD_ID is a divider from +3V3. It is read once at boot, before WiFi or BLE start (it is an ADC2 pin). The firmware picks the nearest ratio.",
+    "mini": 0.25,
+    "mega": 0.50,
+    "reserved_future": 0.75
+  },
+  "boards": {
+    "mini": {
+      "sensor_ports": 4,
+      "i2c_ports": 1,
+      "relays": 2,
+      "pins": {
+        "0": "PAIR_BTN",
+        "1": "S1", "2": "S2", "3": "S3", "4": "S4",
+        "10": "VIN_SENSE",
+        "11": "BOARD_ID",
+        "12": "I2C_INT_SDA", "13": "I2C_INT_SCL",
+        "14": "I2C_EXT_SDA", "15": "I2C_EXT_SCL",
+        "16": "RTC_INT",
+        "19": "USB_D-", "20": "USB_D+",
+        "35": "OUT1", "36": "OUT2",
+        "43": "DEBUG_TX", "44": "DEBUG_RX",
+        "46": "BUZZER",
+        "48": "LED"
+      },
+      "pulldown_at_boot": ["46"],
+      "expander": null
+    },
+    "mega": {
+      "sensor_ports": 8,
+      "i2c_ports": 2,
+      "relays": 4,
+      "pins": {
+        "0": "PAIR_BTN",
+        "1": "S1", "2": "S2", "3": "S3", "4": "S4",
+        "5": "S5", "6": "S6", "7": "S7", "8": "S8",
+        "9": "VBAT_ADC",
+        "10": "VIN_SENSE",
+        "11": "BOARD_ID",
+        "12": "I2C_INT_SDA", "13": "I2C_INT_SCL",
+        "14": "I2C_EXT_SDA", "15": "I2C_EXT_SCL",
+        "16": "RTC_INT",
+        "17": "LORA_DIO1", "18": "LORA_BUSY", "21": "LORA_RST",
+        "19": "USB_D-", "20": "USB_D+",
+        "26": "PROBE_PWR_EN",
+        "33": "RS485_TX", "34": "RS485_RX",
+        "35": "OUT1", "36": "OUT2", "37": "OUT3", "38": "OUT4",
+        "39": "LORA_NSS", "40": "LORA_SCK", "41": "LORA_MOSI", "42": "LORA_MISO",
+        "43": "GSM_TX", "44": "GSM_RX",
+        "45": "VBAT_EN",
+        "46": "BUZZER",
+        "47": "VALVE",
+        "48": "LED"
+      },
+      "pulldown_at_boot": ["45", "46"],
+      "expander": {
+        "chip": "TCA9554",
+        "bus": "I2C_INT",
+        "address": "0x20",
+        "pins": {
+          "P0": "GSM_PWRKEY",
+          "P1": "GSM_STATUS",
+          "P2": "SENSOR_5V_EN",
+          "P3": "LORA_PRESENT",
+          "P4": "GSM_PRESENT",
+          "P5": "SPARE", "P6": "SPARE", "P7": "SPARE"
+        }
+      }
+    }
+  },
+  "rules": {
+    "adc1_required": ["S1","S2","S3","S4","S5","S6","S7","S8","VBAT_ADC","VIN_SENSE"],
+    "adc_required": ["BOARD_ID"],
+    "same_gpio_on_every_board": ["PAIR_BTN","S1","S2","S3","S4","BOARD_ID","VIN_SENSE","I2C_INT_SDA","I2C_INT_SCL","I2C_EXT_SDA","I2C_EXT_SCL","RTC_INT","OUT1","OUT2","BUZZER","LED"],
+    "lora_matches": "../../AWD1-paddy/hardware/AWD-FieldNode/tools/design.py"
+  }
+}

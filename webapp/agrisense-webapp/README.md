@@ -53,6 +53,45 @@ One app, role-based — no separate admin app needed (same call WM1-Mini's spec 
   matching `User` row gets a clear "not registered, contact your dealer" message rather than an
   account being silently created.
 
+## Student Product Studio (`/studio`)
+
+The studio is where BSc Agriculture students take a farm IoT product from problem to field trial. The plan is in `docs/student-product-studio.md` and the student kits are in `products/ASC-StudentKit/`.
+
+- **Roles.** `TEACHER` and `STUDENT` were added to `Role`.
+  - Admins create cohorts (one class at one college, or our internal Project #0) and act as the ASC designers.
+  - Teachers add students and sign off the mentor gates.
+  - Students see only their own team's projects.
+  - There is still no self-signup. Adding someone to a cohort creates their account, and they log in with the usual email OTP. After login, students and teachers land on `/studio`.
+- **All nine stages work:**
+  1. Problem.
+  2. Specification (mentor sign-off).
+  3. Architecture.
+  4. Simulate: Wokwi files. Optional.
+  5. Build: rules, flashing, sending the design over USB.
+  6. Test: a live checklist.
+  7. App: the phone-screen designer. Its layout travels inside the design to the board.
+  8. Enclosure: gland placement on a stock box, a 1:1 drilling template (SVG) and an OpenSCAD model. Mentor sign-off.
+  9. Field trial & report: download the board's field log over USB, charts, the team's notes, and a printable report at `/studio/[id]/report`. Mentor sign-off.
+- **Phone app.** The ASC Studio app (`products/ASC-StudentKit/mobile-app`) is published by CI as product `ASC_KIT`. Students download it from the App stage; `/api/studio/app` serves the newest release.
+- **Talking to boards.** Build and Test use Web Serial, so they need Chrome or Edge on a laptop or desktop.
+  - `app/studio/[id]/device.ts` speaks the firmware's JSON-lines protocol.
+  - `app/studio/[id]/flash.ts` flashes with esptool-js. It loads only when someone presses Flash.
+  - The firmware is `products/ASC-StudentKit/firmware/asc-studio-fw`. CI uploads it as product `ASC_KIT`: `main` uploads dev builds (admins only), and an `asc-v*` tag uploads a release (everyone).
+- **Code layout:**
+  - `lib/studio/`: stages, kits, block library and rule checks. These run in the browser and on the server.
+  - `app/studio/`: the pages.
+  - `app/api/studio/`: the API routes.
+- **Pin map copy.** `lib/studio/pinmap.json` is a copy of `products/ASC-StudentKit/hardware/pinmap.json`. `python3 products/ASC-StudentKit/hardware/tools/check_pinmap.py` fails if the two differ.
+- **Claude drafts the spec** when `ANTHROPIC_API_KEY` is set in the server's environment. It uses Claude Opus 5.5 with server-side refusal fallback. Without a key, or if a call fails, a fixed template drafts it instead, so the stage always works. Each project gets at most 10 drafts a day.
+
+**Deploying this change:** run `npm ci`, `npx prisma migrate deploy` (this applies `20261007120000_add_student_product_studio`, `20261007150000_studio_firmware_and_rules` and `20261007180000_studio_app_and_field_log`), and `npm run build`. Then restart with PM2. Optionally, add `ANTHROPIC_API_KEY=...` to the app's `.env` first.
+
+### Trying stages 4–6 with a DevKit on a Mac
+
+1. **Firmware.** Flash a ESP32-S3-DevKitC-1-**N8** over its **USB** connector with `cd products/ASC-StudentKit/firmware/asc-studio-fw && pio run -t upload`. Or upload `firmware.bin`, `bootloader.bin` and `partitions.bin` from `.pio/build/asc_s3/` on the Flasher admin page as product **ASC_KIT**, and let the studio flash it.
+2. **Wiring.** Wire the parts your design uses to the GPIOs in the Build stage's Engineer's view. For Mini: S1–S4 on GPIO1–4, I²C on SDA 14 / SCL 15, OUT1 on GPIO35, OUT2 on GPIO36.
+3. **Studio.** Open the project in Chrome, finish Architecture, save rules, and in Build press **Connect to the board** then **Send design**. Then run the Test checklist.
+
 ## Running locally (before the VPS is reachable)
 
 ```bash

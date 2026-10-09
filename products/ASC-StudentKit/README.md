@@ -1,0 +1,11 @@
+# ASC-StudentKit
+
+These are the student kits (**Mini** and **Mega**) for the Student Product Studio (`docs/student-product-studio.md`). Each kit is a carrier board built on an ESP32-S3, plus starter modules and a ready-made enclosure. Agri Sensors and Controls supplies the kits to colleges, priced per batch.
+
+The kits are also **Project #0** of the studio: they are designed by following the same stages a student follows.
+
+- `docs/StudentKit_Specification_v0.1.md`: system specification with hardware, software and mechanical requirements. It is a draft, and the open decisions are listed in §8.
+- `docs/StudentKit_Architecture_v0.1.md`: architecture (stage 3), covering block diagrams, pin map, connectors, power budget and battery life.
+- `hardware/pinmap.json`: the pin map for both boards, checked by `python3 hardware/tools/check_pinmap.py`.
+- `firmware/`: the ASC Studio firmware, one image for both kits and the DevKit stand-in. See `firmware/README.md` for the build and the serial protocol.
+- `mobile-app/asc_studio_app/`: the shared ASC Studio phone app (Flutter, Android, spec §5A). It builds each student's screen from the layout in their design.

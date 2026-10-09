@@ -10,6 +10,8 @@ enum Role {
   ADMIN
   DEALER
   CUSTOMER
+  TEACHER // Student Product Studio: mentors a cohort, signs off gates
+  STUDENT // Student Product Studio: works on their team's projects only
 }
 
 enum Product {
@@ -19,6 +21,7 @@ enum Product {
   WM1_PRO
   WPC
   TH
+  ASC_KIT // ASC Student Kit firmware (Mini and Mega share one image)
 }
 
 enum CommandStatus {
@@ -42,6 +45,21 @@ model User {
   buildsUploaded  FirmwareBuild[]  @relation("BuildsUploaded")
   appBuildsUploaded MobileAppBuild[] @relation("AppBuildsUploaded")
   grantsIssued    FlasherGrant[]  @relation("GrantsIssued")
+
+  cohortsCreated  StudioCohort[]        @relation("CohortsCreated")
+  cohortMembers   StudioCohortMember[]
+  studioProjects  StudioProjectMember[]
+  projectsCreated StudioProject[]       @relation("ProjectsCreated")
+  stageSignOffs   StudioStage[]         @relation("StageSignOffs")
+  designsSaved    StudioDesign[]        @relation("DesignsSaved")
+
+  trackMember            TrackMember?
+  trackIssuesReported    TrackIssue[]   @relation("TrackIssueReporter")
+  trackBuildsCreated     TrackBuild[]   @relation("TrackBuildCreator")
+  trackReleasesSignedOff TrackRelease[] @relation("TrackReleaseSignOff")
+  trackReleasesPublished TrackRelease[] @relation("TrackReleasePublish")
+  trackEvents            TrackEvent[]
+  trackFiles             TrackFile[]
 }
 
 model OtpCode {
@@ -124,6 +142,7 @@ model FirmwareBuild {
   createdAt       DateTime @default(now())
 
   flashEvents  FlashEvent[]
+  trackBuilds  TrackBuild[]
 
   @@index([product, version])
 }
@@ -151,6 +170,8 @@ model MobileAppBuild {
   uploadedById String
   uploadedBy   User     @relation("AppBuildsUploaded", fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
+
+  trackBuilds  TrackBuild[]
 
   @@index([createdAt])
   @@index([product, createdAt])
@@ -190,4 +211,356 @@ model FlashEvent {
   occurredAt DateTime      @default(now())
 
   @@index([grantId, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Student Product Studio (docs/student-product-studio.md). A cohort is one
+// class at one college (e.g. GPSIOAM AGR 322, 2026-27) or our own internal
+// "Project #0" group. Teachers and students see only cohorts they belong to;
+// admins see everything and act as the ASC designers.
+// ---------------------------------------------------------------------------
+
+enum StudioKit {
+  MINI
+  MEGA
+}
+
+enum StudioStageStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED // waiting for a mentor's sign-off (mentor-gated stages only)
+  DONE
+}
+
+model StudioCohort {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "AGR 322 Farm IoT practical"
+  institution String   // e.g. "GPSIOAM" or "Agri Sensors and Controls"
+  session     String?  // e.g. "2026-27"
+  createdById String
+  createdBy   User     @relation("CohortsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  members  StudioCohortMember[]
+  projects StudioProject[]
+}
+
+model StudioCohortMember {
+  cohortId String
+  cohort   StudioCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt  DateTime     @default(now())
+
+  @@id([cohortId, userId])
+  @@index([userId])
+}
+
+model StudioProject {
+  id          String       @id @default(cuid())
+  title       String
+  kit         StudioKit    @default(MINI)
+  cohortId    String
+  cohort      StudioCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User         @relation("ProjectsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  members StudioProjectMember[]
+  stages  StudioStage[]
+  designs StudioDesign[]
+  field   StudioFieldRecord[]
+
+  @@index([cohortId])
+}
+
+model StudioProjectMember {
+  projectId String
+  project   StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+// One row per project per stage, created the first time the stage is saved.
+// `data` is the stage's own output (problem facts, spec draft, test log...);
+// the port assignment lives in StudioDesign so every version is kept.
+model StudioStage {
+  id            String            @id @default(cuid())
+  projectId     String
+  project       StudioProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage         String            // key from lib/studio/stages.ts, e.g. "problem", "spec"
+  status        StudioStageStatus @default(NOT_STARTED)
+  data          Json?
+  signedOffById String?
+  signedOffBy   User?             @relation("StageSignOffs", fields: [signedOffById], references: [id])
+  signedOffAt   DateTime?
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([projectId, stage])
+}
+
+// A saved block-to-port assignment (plus, later, rules and the app layout).
+// Each save is a new version; the newest is what gets sent to the board.
+model StudioDesign {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version     Int
+  ports       Json          // { "S1": "soil", "OUT1": "pump", ... }
+  rules       Json?         // automation rules, lib/studio/automation.ts
+  app         Json?         // phone screen layout, lib/studio/appLayout.ts
+  createdById String
+  createdBy   User          @relation("DesignsSaved", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@unique([projectId, version])
+}
+
+// One field-log record downloaded from the board (stage 9): the readings and
+// output states at time t. The board logs every few minutes into its own
+// flash; the studio stores each record once, however often it is downloaded.
+model StudioFieldRecord {
+  id        String        @id @default(cuid())
+  projectId String
+  project   StudioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  t         DateTime
+  design    Int
+  values    Json
+  outputs   Json
+
+  @@unique([projectId, t])
+}
+
+// ---------------------------------------------------------------------------
+// Product testing tracker (/dashboard/testing). The tester (Avinash) reports
+// issues, the developer (Santosh) fixes them and posts test builds, the tester
+// passes or fails each fix, and a release is published only once its gate is
+// clear and the tester has signed off. Spec: Claude Doc "Product Testing
+// Tracker — Spec & Process" (8 Oct 2026). Rules live in lib/tracker/.
+// ---------------------------------------------------------------------------
+
+enum TrackRole {
+  TESTER
+  DEVELOPER
+}
+
+enum TrackArea {
+  FIRMWARE
+  APP
+  HARDWARE
+  DOCS
+}
+
+enum TrackSeverity {
+  BLOCKER
+  MAJOR
+  MINOR
+  SUGGESTION
+}
+
+enum TrackStatus {
+  NEW
+  NEED_INFO
+  ACCEPTED
+  IN_PROGRESS
+  FIX_READY
+  REOPENED
+  VERIFIED
+  DEFERRED
+  WONT_FIX
+}
+
+enum TrackReleaseStatus {
+  OPEN
+  SIGNED_OFF
+  RELEASED
+}
+
+enum TrackFileKind {
+  ATTACHMENT
+  FIRMWARE
+  APK
+  GERBER
+}
+
+// Its own list, not the Product enum: the tracker needs WPC-PN, WM2 and the
+// WM1-Mini / WM1-Pro split, and products are added here without a migration.
+model TrackProduct {
+  id          String   @id @default(cuid())
+  code        String   @unique // FG1, WPC-M, WPC-PN, WM1-MINI, WM1-PRO, WM2
+  name        String
+  modules     String[] // e.g. WM1-Pro: ["Controller", "LoRa valve node"]
+  hasFirmware Boolean  @default(true)
+  hasApp      Boolean  @default(true)
+  hasHardware Boolean  @default(true)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  nextIssueNo Int      @default(1)
+  nextBuildNo Int      @default(1)
+
+  issues   TrackIssue[]
+  builds   TrackBuild[]
+  releases TrackRelease[]
+}
+
+model TrackMember {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  role      TrackRole
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
+
+model TrackRelease {
+  id              String             @id @default(cuid())
+  productId       String
+  product         TrackProduct       @relation(fields: [productId], references: [id])
+  name            String             // e.g. "FG1 fw 1.5.0 + app 2.4.0"
+  fwVersion       String?
+  appVersion      String?
+  hwRev           String?
+  notes           String?
+  status          TrackReleaseStatus @default(OPEN)
+  candidateBuildId String?           @unique
+  candidateBuild  TrackBuild?        @relation("ReleaseCandidate", fields: [candidateBuildId], references: [id])
+  signedOffById   String?
+  signedOffBy     User?              @relation("TrackReleaseSignOff", fields: [signedOffById], references: [id])
+  signedOffAt     DateTime?
+  releasedById    String?
+  releasedBy      User?              @relation("TrackReleasePublish", fields: [releasedById], references: [id])
+  releasedAt      DateTime?
+  createdAt       DateTime           @default(now())
+
+  issues TrackIssue[]
+  builds TrackBuild[]   @relation("ReleaseBuilds")
+  events TrackEvent[]
+  files  TrackFile[]
+
+  @@index([productId, status])
+}
+
+model TrackIssue {
+  id           String         @id @default(cuid())
+  productId    String
+  product      TrackProduct   @relation(fields: [productId], references: [id])
+  number       Int            // per product: FG1-007
+  releaseId    String?
+  release      TrackRelease?  @relation(fields: [releaseId], references: [id])
+  title        String
+  area         TrackArea
+  module       String?
+  severity     TrackSeverity
+  status       TrackStatus    @default(NEW)
+  // Deferred and Won't fix need the tester's agreement: the developer
+  // proposes, the tester agrees (status changes) or declines (cleared).
+  proposal     TrackStatus?
+  proposalNote String?
+  foundFw      String?
+  foundApp     String?
+  foundHw      String?
+  deviceId     String?
+  steps        String
+  expected     String?
+  actual       String
+  reporterId   String
+  reporter     User           @relation("TrackIssueReporter", fields: [reporterId], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  builds TrackBuildIssue[]
+  events TrackEvent[]
+  files  TrackFile[]
+
+  @@unique([productId, number])
+  @@index([productId, status])
+}
+
+model TrackBuild {
+  id              String          @id @default(cuid())
+  productId       String
+  product         TrackProduct    @relation(fields: [productId], references: [id])
+  number          Int             // per product: build 4
+  releaseId       String?
+  release         TrackRelease?   @relation("ReleaseBuilds", fields: [releaseId], references: [id])
+  fwVersion       String?
+  appVersion      String?
+  hwRev           String?
+  notes           String?
+  checklist       Json            @default("[]") // [{ text, result: "pass"|"fail"|null, note? }]
+  firmwareBuildId String?         // optional link to a build CI already uploaded
+  firmwareBuild   FirmwareBuild?  @relation(fields: [firmwareBuildId], references: [id])
+  appBuildId      String?
+  appBuild        MobileAppBuild? @relation(fields: [appBuildId], references: [id])
+  createdById     String
+  createdBy       User            @relation("TrackBuildCreator", fields: [createdById], references: [id])
+  createdAt       DateTime        @default(now())
+
+  issues      TrackBuildIssue[]
+  events      TrackEvent[]
+  files       TrackFile[]
+  candidateOf TrackRelease?     @relation("ReleaseCandidate")
+
+  @@unique([productId, number])
+}
+
+// One issue claimed fixed in one build, and the tester's verdict on it.
+model TrackBuildIssue {
+  buildId   String
+  build     TrackBuild @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  issueId   String
+  issue     TrackIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  verdict   String?    // "pass" | "fail"
+  note      String?
+  verdictAt DateTime?
+
+  @@id([buildId, issueId])
+}
+
+// The one timeline: comments, status changes, verdicts, uploads. Append-only.
+model TrackEvent {
+  id         String        @id @default(cuid())
+  issueId    String?
+  issue      TrackIssue?   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  buildId    String?
+  build      TrackBuild?   @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  releaseId  String?
+  release    TrackRelease? @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  actorId    String
+  actor      User          @relation(fields: [actorId], references: [id])
+  kind       String        // created | comment | status | edit | verdict | build | signoff | release
+  fromStatus TrackStatus?
+  toStatus   TrackStatus?
+  text       String?
+  createdAt  DateTime      @default(now())
+
+  files TrackFile[]
+
+  @@index([issueId, createdAt])
+  @@index([buildId, createdAt])
+}
+
+model TrackFile {
+  id           String        @id @default(cuid())
+  kind         TrackFileKind
+  issueId      String?
+  issue        TrackIssue?   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  buildId      String?
+  build        TrackBuild?   @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  releaseId    String?
+  release      TrackRelease? @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  eventId      String?
+  event        TrackEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  originalName String
+  storagePath  String        // relative to TRACKER_STORAGE_DIR
+  mime         String
+  sizeBytes    Int
+  sha256       String
+  uploadedById String
+  uploadedBy   User          @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime      @default(now())
 }
