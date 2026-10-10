@@ -1,0 +1,565 @@
+[
+ {
+  "ref": "U1",
+  "fp": "ASC:ESP32-C3_SuperMini_Socket",
+  "value": "ESP32-C3 Super Mini",
+  "uuid": "86f21d5c-128b-49b9-924c-99411aeb65cf",
+  "pads": {
+   "9": "+5V",
+   "10": "GND",
+   "11": "+3V3",
+   "16": "/AUX_A0",
+   "15": "/AUX_A1",
+   "13": "/PUMP",
+   "12": "/AUX_D",
+   "1": "/FLOW",
+   "2": "/SDA",
+   "3": "/SCL",
+   "6": "/LED_STATUS",
+   "7": "/RELAY"
+  },
+  "nc": {
+   "4": "unconnected-(U1-IO8-Pad4)",
+   "5": "unconnected-(U1-IO9-Pad5)",
+   "8": "unconnected-(U1-IO21-Pad8)",
+   "14": "unconnected-(U1-IO2-Pad14)"
+  },
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "U2",
+  "fp": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+  "value": "DS1307Z+",
+  "uuid": "a9dd45a6-277c-4553-8138-36ef082f05ea",
+  "pads": {
+   "8": "+5V",
+   "4": "GND",
+   "1": "/XT1",
+   "2": "/XT2",
+   "3": "/VBAT",
+   "5": "/SDA",
+   "6": "/SCL"
+  },
+  "nc": {
+   "7": "unconnected-(U2-SQW{slash}OUT-Pad7)"
+  },
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "C2",
+  "fp": "Capacitor_SMD:C_0805_2012Metric",
+  "value": "100n",
+  "uuid": "6882489d-7b26-495b-80be-9ccfef5b4414",
+  "pads": {
+   "1": "+5V",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "Y1",
+  "fp": "Crystal:Crystal_C26-LF_D2.1mm_L6.5mm_Horizontal",
+  "value": "32.768k 12.5pF",
+  "uuid": "3850e9ca-452a-490e-84f7-ac183b59d4f1",
+  "pads": {
+   "1": "/XT1",
+   "2": "/XT2"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "BT1",
+  "fp": "ASC:Battery_CR2032_Vertical_3pin",
+  "value": "CR2032 tabbed",
+  "uuid": "da51d7cf-8474-4ba9-9592-e08d2eb6d85a",
+  "pads": {
+   "1": "/VBAT",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R8",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "4.7k",
+  "uuid": "feed1307-81ab-42b8-8f4d-eb521b1ba7b3",
+  "pads": {
+   "1": "+3V3",
+   "2": "/SDA"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R9",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "4.7k",
+  "uuid": "f67fa7f3-a9eb-4b31-8539-82b86d063bab",
+  "pads": {
+   "1": "+3V3",
+   "2": "/SCL"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J5",
+  "fp": "TerminalBlock_MetzConnect:TerminalBlock_MetzConnect_Type086_RT03404HBLC_1x04_P3.81mm_Horizontal",
+  "value": "I2C",
+  "uuid": "ff1866ea-a9fb-401a-b892-6c0e7901f73d",
+  "pads": {
+   "1": "+3V3",
+   "2": "GND",
+   "3": "/SCL",
+   "4": "/SDA"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J3",
+  "fp": "TerminalBlock_MetzConnect:TerminalBlock_MetzConnect_Type086_RT03405HBLC_1x05_P3.81mm_Horizontal",
+  "value": "AUX",
+  "uuid": "8540f233-42a7-47e5-8fac-efa33a16d673",
+  "pads": {
+   "1": "+3V3",
+   "2": "/AUX_D",
+   "3": "/AUX_A0",
+   "4": "/AUX_A1",
+   "5": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R7",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "10k",
+  "uuid": "f37ae7c3-b4b7-4341-80b3-46d7a1d30111",
+  "pads": {
+   "1": "+3V3",
+   "2": "/AUX_D"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J4",
+  "fp": "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical",
+  "value": "FLOW",
+  "uuid": "6b96b85e-23b7-42e2-97e6-47460caaaaac",
+  "pads": {
+   "1": "GND",
+   "2": "+5V",
+   "3": "/FLOW_EXT"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D2",
+  "fp": "Diode_SMD:D_SOD-123",
+  "value": "B5819W",
+  "uuid": "f7a6a236-0a8f-459a-a691-1f26b531f528",
+  "pads": {
+   "1": "/FLOW_EXT",
+   "2": "/FLOW"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R6",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "10k",
+  "uuid": "8d1e80bf-d7da-446d-856d-f3fa07a0a1e8",
+  "pads": {
+   "1": "+3V3",
+   "2": "/FLOW"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R5",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "470",
+  "uuid": "f3f673be-d627-427a-bd27-f236c58bc61a",
+  "pads": {
+   "1": "+3V3",
+   "2": "/LED_FLOW_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D4",
+  "fp": "LED_SMD:LED_0805_2012Metric",
+  "value": "FLOW yellow",
+  "uuid": "ca554e2f-8637-483c-b205-73818d5f392a",
+  "pads": {
+   "1": "/FLOW_EXT",
+   "2": "/LED_FLOW_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R1",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "100",
+  "uuid": "05406d2c-0dc2-4b7a-bc56-eca6a26f1d6e",
+  "pads": {
+   "1": "/PUMP",
+   "2": "/PUMP_G"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R2",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "100k",
+  "uuid": "718a410e-8949-4e1b-9a06-bf971f875e2c",
+  "pads": {
+   "1": "/PUMP",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "Q1",
+  "fp": "Package_TO_SOT_SMD:SOT-23",
+  "value": "AO3400A",
+  "uuid": "392e1ad8-09fc-4038-b6c2-9de7c5e9663a",
+  "pads": {
+   "1": "/PUMP_G",
+   "2": "GND",
+   "3": "/PUMP_N"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D1",
+  "fp": "Diode_SMD:D_SOD-123",
+  "value": "B5819W",
+  "uuid": "721571d7-6458-4434-be4d-d9efdb97e33f",
+  "pads": {
+   "1": "+5V",
+   "2": "/PUMP_N"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J1",
+  "fp": "TerminalBlock_MetzConnect:TerminalBlock_MetzConnect_Type086_RT03402HBLC_1x02_P3.81mm_Horizontal",
+  "value": "PUMP",
+  "uuid": "a9e20dac-1bbe-4922-8dbf-820422158a18",
+  "pads": {
+   "1": "+5V",
+   "2": "/PUMP_N"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "C1",
+  "fp": "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm",
+  "value": "220u 10V",
+  "uuid": "c76126de-2fa8-45a1-87d4-93ed55f33026",
+  "pads": {
+   "1": "+5V",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R3",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "1k",
+  "uuid": "eecff52d-ff07-4585-934a-3a60c8af060b",
+  "pads": {
+   "1": "+5V",
+   "2": "/LED_PUMP_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D3",
+  "fp": "LED_SMD:LED_0805_2012Metric",
+  "value": "PUMP red",
+  "uuid": "f9fd44ab-1a49-41d8-9604-7c2ae19608cd",
+  "pads": {
+   "1": "/PUMP_N",
+   "2": "/LED_PUMP_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R10",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "100",
+  "uuid": "c6f813e2-598a-4e6e-bee2-3d26275a2e95",
+  "pads": {
+   "1": "/RELAY",
+   "2": "/RELAY_G"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R11",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "100k",
+  "uuid": "74285a90-538a-4249-a003-9bd8508ae2ae",
+  "pads": {
+   "1": "/RELAY",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "Q2",
+  "fp": "Package_TO_SOT_SMD:SOT-23",
+  "value": "AO3400A",
+  "uuid": "af68fb8b-3591-4ff2-9da1-75c90a2eb2a2",
+  "pads": {
+   "1": "/RELAY_G",
+   "2": "GND",
+   "3": "/RELAY_COIL"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D6",
+  "fp": "Diode_SMD:D_SOD-123",
+  "value": "B5819W",
+  "uuid": "c82689fa-99a3-4609-972f-8026690f3cee",
+  "pads": {
+   "1": "+5V",
+   "2": "/RELAY_COIL"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "K1",
+  "fp": "ASC:Relay_SPST_Hongfa_HF46F",
+  "value": "HF46F/005-HS1",
+  "uuid": "4216654f-c2eb-4fa8-b227-1dcd230460df",
+  "pads": {
+   "1": "+5V",
+   "2": "/RELAY_COIL",
+   "3": "/RELAY_NO",
+   "4": "/RELAY_COM"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J6",
+  "fp": "TerminalBlock_MetzConnect:TerminalBlock_MetzConnect_Type101_RT01602HBWC_1x02_P5.08mm_Horizontal",
+  "value": "RELAY 230V",
+  "uuid": "0340ea96-680e-4d62-8f25-f1074d4e1bd9",
+  "pads": {
+   "1": "/RELAY_COM",
+   "2": "/RELAY_NO"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R12",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "1k",
+  "uuid": "d27da9b2-190b-485b-95df-c9843e0ae2f9",
+  "pads": {
+   "1": "+5V",
+   "2": "/LED_RLY_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D7",
+  "fp": "LED_SMD:LED_0805_2012Metric",
+  "value": "RELAY blue",
+  "uuid": "5192ca19-c762-44f5-bf02-ed203eb89745",
+  "pads": {
+   "1": "/RELAY_COIL",
+   "2": "/LED_RLY_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "R4",
+  "fp": "Resistor_SMD:R_0805_2012Metric",
+  "value": "1k",
+  "uuid": "f34acb21-1deb-4e3b-b4b4-638c1b41e6b2",
+  "pads": {
+   "1": "/LED_STATUS",
+   "2": "/LED_STATUS_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "D5",
+  "fp": "LED_SMD:LED_0805_2012Metric",
+  "value": "STATUS green",
+  "uuid": "9462c94e-e0b2-4d40-be57-e70df2cd823d",
+  "pads": {
+   "1": "GND",
+   "2": "/LED_STATUS_A"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "H1",
+  "fp": "ASC:Snap_Standoff_4.2mm",
+  "value": "SNAP 4.2",
+  "uuid": "085feb2a-40d4-4c0e-a26f-01693d198927",
+  "pads": {},
+  "nc": {},
+  "in_bom": false,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "H2",
+  "fp": "ASC:Snap_Standoff_4.2mm",
+  "value": "SNAP 4.2",
+  "uuid": "b947f549-9b42-40fd-9591-0d863d5bd651",
+  "pads": {},
+  "nc": {},
+  "in_bom": false,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "H3",
+  "fp": "ASC:Snap_Standoff_4.2mm",
+  "value": "SNAP 4.2",
+  "uuid": "bdd979d8-b7f6-4063-9df1-620216014f78",
+  "pads": {},
+  "nc": {},
+  "in_bom": false,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ }
+]

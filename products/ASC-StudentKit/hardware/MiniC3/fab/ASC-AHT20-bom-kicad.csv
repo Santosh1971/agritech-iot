@@ -1,0 +1,4 @@
+"Reference","Value","Footprint","QUANTITY"
+"C1","10u","Capacitor_SMD:C_0805_2012Metric","1"
+"J1","CABLE","Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical","1"
+"U1","AHT20","ASC:Aosong_AHT20_DFN-6_3x3mm","1"

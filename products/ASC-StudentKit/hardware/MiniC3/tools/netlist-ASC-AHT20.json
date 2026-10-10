@@ -1,0 +1,54 @@
+[
+ {
+  "ref": "U1",
+  "fp": "ASC:Aosong_AHT20_DFN-6_3x3mm",
+  "value": "AHT20",
+  "uuid": "42cbf352-0f1f-4554-9f0a-8da83d64ae57",
+  "pads": {
+   "2": "+3V3",
+   "5": "GND",
+   "3": "/SCL",
+   "4": "/SDA"
+  },
+  "nc": {
+   "1": "unconnected-(U1-NC-Pad1)",
+   "6": "unconnected-(U1-NC-Pad6)"
+  },
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "C1",
+  "fp": "Capacitor_SMD:C_0805_2012Metric",
+  "value": "10u",
+  "uuid": "6a49c6e3-2021-4d14-b7fc-cb7f7d79bfde",
+  "pads": {
+   "1": "+3V3",
+   "2": "GND"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ },
+ {
+  "ref": "J1",
+  "fp": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+  "value": "CABLE",
+  "uuid": "abece12d-af6f-42ac-a814-24031fe96e1c",
+  "pads": {
+   "1": "+3V3",
+   "2": "GND",
+   "3": "/SCL",
+   "4": "/SDA"
+  },
+  "nc": {},
+  "in_bom": true,
+  "dnp": false,
+  "silk": "",
+  "side": "front"
+ }
+]

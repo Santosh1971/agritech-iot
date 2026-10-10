@@ -1,0 +1,155 @@
+(session "ASC-AHT20"
+  (base_design "ASC-AHT20")
+  (placement
+    (resolution um 10)
+    (component Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+      (place J1 1025900 -630000 front 90)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C1 1406000 -630000 front 0)
+    )
+    (component "ASC:Aosong_AHT20_DFN-6_3x3mm"
+      (place U1 1450000 -630000 front 0)
+    )
+  )
+  (was_is
+  )
+  (routes 
+    (resolution um 10)
+    (parser
+      (host_cad "KiCad's Pcbnew")
+      (host_version 9.0.7)
+    )
+    (library_out 
+      (padstack "Via[0-1]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+    )
+    (network_out 
+      (net +3V3
+        (wire
+          (path F.Cu 4000
+            1396500 -630000
+            1383983 -617483
+            1045457 -617483
+            1038417 -624523
+            1038417 -630000
+          )
+        )
+        (wire
+          (path F.Cu 4000
+            1439500 -630000
+            1435385 -630000
+            1424039 -618654
+            1407846 -618654
+            1396500 -630000
+          )
+        )
+        (wire
+          (path F.Cu 4000
+            1025900 -630000
+            1038417 -630000
+          )
+        )
+      )
+      (net GND
+        (wire
+          (path B.Cu 4000
+            1426332 -633212
+            1468804 -633212
+            1470614 -631402
+          )
+        )
+        (wire
+          (path B.Cu 4000
+            1051300 -630000
+            1063820 -642520
+            1417024 -642520
+            1426332 -633212
+          )
+        )
+        (wire
+          (path F.Cu 4000
+            1415500 -630000
+            1418712 -633212
+            1426332 -633212
+          )
+        )
+        (via "Via[0-1]_700:350_um" 1426332 -633212
+        )
+        (wire
+          (path F.Cu 4000
+            1460500 -630000
+            1461902 -631402
+            1470614 -631402
+          )
+        )
+        (via "Via[0-1]_700:350_um" 1470614 -631402
+        )
+      )
+      (net /SCL
+        (wire
+          (path F.Cu 3000
+            1439500 -640000
+            1438723 -640777
+            1138438 -640777
+            1132861 -635200
+          )
+        )
+        (wire
+          (path B.Cu 3000
+            1076700 -630000
+            1088755 -617945
+            1115606 -617945
+            1132861 -635200
+          )
+        )
+        (via "Via[0-1]_600:300_um" 1132861 -635200
+        )
+      )
+      (net /SDA
+        (wire
+          (path F.Cu 3000
+            1460500 -640000
+            1454414 -646086
+            1118186 -646086
+            1102100 -630000
+          )
+        )
+      )
+    )
+  )
+)

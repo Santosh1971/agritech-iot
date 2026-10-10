@@ -1,0 +1,167 @@
+(pcb "/Users/santoshkrjha/Projects/agritech-iot/products/ASC-StudentKit/hardware/MiniC3/route/ASC-AHT20.dsn"
+  (parser
+    (string_quote ")
+    (space_in_quoted_tokens on)
+    (host_cad "KiCad's Pcbnew")
+    (host_version "9.0.7")
+  )
+  (resolution um 10)
+  (unit um)
+  (structure
+    (layer F.Cu
+      (type signal)
+      (property
+        (index 0)
+      )
+    )
+    (layer B.Cu
+      (type signal)
+      (property
+        (index 1)
+      )
+    )
+    (boundary
+      (path pcb 0  148000 -66000  100000 -66000  100000 -60000  148000 -60000
+            148000 -66000)
+    )
+    (via "Via[0-1]_600:300_um" "Via[0-1]_700:350_um")
+    (rule
+      (width 300)
+      (clearance 200)
+      (clearance 50 (type smd_smd))
+    )
+  )
+  (placement
+    (component Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+      (place J1 102590.000000 -63000.000000 front 90.000000 (PN CABLE))
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C1 140600.000000 -63000.000000 front 0.000000 (PN 10u))
+    )
+    (component "ASC:Aosong_AHT20_DFN-6_3x3mm"
+      (place U1 145000.000000 -63000.000000 front 0.000000 (PN AHT20))
+    )
+  )
+  (library
+    (image Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
+      (outline (path signal 120  -1380 1380  0 1380))
+      (outline (path signal 120  -1380 0  -1380 1380))
+      (outline (path signal 120  1380 -1270  1380 -9000))
+      (outline (path signal 120  -1380 -1270  1380 -1270))
+      (outline (path signal 120  -1380 -1270  -1380 -9000))
+      (outline (path signal 120  -1380 -9000  1380 -9000))
+      (outline (path signal 50  -1770 1770  -1770 -9390  1770 -9390  1770 1770  -1770 1770))
+      (outline (path signal 100  1270 1270  1270 -8890))
+      (outline (path signal 100  -635 1270  1270 1270))
+      (outline (path signal 100  -1270 635  -635 1270))
+      (outline (path signal 100  1270 -8890  -1270 -8890))
+      (outline (path signal 100  -1270 -8890  -1270 635))
+      (pin Rect[A]Pad_1700.000000x1700.000000_um 1 0 0)
+      (pin Round[A]Pad_1700.000000_um 2 0 -2540)
+      (pin Round[A]Pad_1700.000000_um 3 0 -5080)
+      (pin Round[A]Pad_1700.000000_um 4 0 -7620)
+    )
+    (image Capacitor_SMD:C_0805_2012Metric
+      (outline (path signal 120  -261.252 735  261.252 735))
+      (outline (path signal 120  -261.252 -735  261.252 -735))
+      (outline (path signal 50  -1700 980  1700 980  1700 -980  -1700 -980  -1700 980))
+      (outline (path signal 100  -1000 625  1000 625  1000 -625  -1000 -625  -1000 625))
+      (pin RoundRect[T]Pad_1000.000000x1450.000000_250.951000_um_0.000000_0 1 -950 0)
+      (pin RoundRect[T]Pad_1000.000000x1450.000000_250.951000_um_0.000000_0 2 950 0)
+    )
+    (image "ASC:Aosong_AHT20_DFN-6_3x3mm"
+      (outline (path signal 120  -500 1620  500 1620))
+      (outline (path signal 120  -500 -1620  500 -1620))
+      (outline (path signal 150  -1600 1700  -1617.18 1630.29  -1664.79 1576.55  -1731.92 1551.09
+            -1803.19 1559.75  -1862.28 1600.53  -1895.64 1664.1  -1895.64 1735.9
+            -1862.28 1799.47  -1803.19 1840.25  -1731.92 1848.91  -1664.79 1823.45
+            -1617.18 1769.71  -1600 1700))
+      (outline (path signal 50  -1900 1850  1900 1850  1900 -1850  -1900 -1850  -1900 1850))
+      (outline (path signal 100  -1500 1500  1500 1500  1500 -1500  -1500 -1500  -1500 1500))
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 1 -1050 1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 2 -1050 0)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 3 -1050 -1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 4 1050 -1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 5 1050 0)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 6 1050 1000)
+    )
+    (padstack Round[A]Pad_1700.000000_um
+      (shape (circle F.Cu 1700))
+      (shape (circle B.Cu 1700))
+      (attach off)
+    )
+    (padstack RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0
+      (shape (polygon F.Cu 0  -450.285 175  -444.554 203.81  -428.235 228.235  -403.81 244.554
+            -374.999 250.284  375 250.285  403.81 244.554  428.235 228.235
+            444.554 203.81  450.284 174.999  450.285 -175  444.554 -203.81
+            428.235 -228.235  403.81 -244.554  374.999 -250.284  -375 -250.285
+            -403.81 -244.554  -428.235 -228.235  -444.554 -203.81  -450.284 -174.999
+            -450.285 175))
+      (attach off)
+    )
+    (padstack RoundRect[T]Pad_1000.000000x1450.000000_250.951000_um_0.000000_0
+      (shape (polygon F.Cu 0  -500.951 475  -481.848 571.035  -427.449 652.449  -346.035 706.848
+            -249.999 725.95  250 725.951  346.035 706.848  427.449 652.449
+            481.848 571.035  500.95 474.999  500.951 -475  481.848 -571.035
+            427.449 -652.449  346.035 -706.848  249.999 -725.95  -250 -725.951
+            -346.035 -706.848  -427.449 -652.449  -481.848 -571.035  -500.95 -474.999
+            -500.951 475))
+      (attach off)
+    )
+    (padstack Rect[A]Pad_1700.000000x1700.000000_um
+      (shape (rect F.Cu -850 -850 850 850))
+      (shape (rect B.Cu -850 -850 850 850))
+      (attach off)
+    )
+    (padstack "Via[0-1]_600:300_um"
+      (shape (circle F.Cu 600))
+      (shape (circle B.Cu 600))
+      (attach off)
+    )
+    (padstack "Via[0-1]_700:350_um"
+      (shape (circle F.Cu 700))
+      (shape (circle B.Cu 700))
+      (attach off)
+    )
+  )
+  (network
+    (net +3V3
+      (pins J1-1 C1-1 U1-2)
+    )
+    (net GND
+      (pins J1-2 C1-2 U1-5)
+    )
+    (net /SCL
+      (pins J1-3 U1-3)
+    )
+    (net /SDA
+      (pins J1-4 U1-4)
+    )
+    (net "unconnected-(U1-NC-Pad1)"
+      (pins U1-1)
+    )
+    (net "unconnected-(U1-NC-Pad6)"
+      (pins U1-6)
+    )
+    (class kicad_default /SCL /SDA "unconnected-(U1-NC-Pad1)" "unconnected-(U1-NC-Pad6)"
+      (circuit
+        (use_via "Via[0-1]_600:300_um")
+      )
+      (rule
+        (width 300)
+        (clearance 200)
+      )
+    )
+    (class Power +3V3 GND
+      (circuit
+        (use_via "Via[0-1]_700:350_um")
+      )
+      (rule
+        (width 400)
+        (clearance 200)
+      )
+    )
+  )
+  (wiring
+  )
+)

@@ -1,0 +1,5 @@
+(version 1)
+# 230 V relay contacts (net class Mains) keep 5 mm from all other copper (creepage, 250 V, reinforced-ish)
+(rule "Mains to low voltage"
+	(condition "A.NetClass == 'Mains' && B.NetClass != 'Mains'")
+	(constraint clearance (min 5mm)))
