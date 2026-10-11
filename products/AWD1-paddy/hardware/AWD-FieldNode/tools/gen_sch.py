@@ -80,10 +80,23 @@ SENSEPAD = sexpr.parse('''(symbol "SensePad" (pin_numbers (hide yes)) (pin_names
   (pin passive line (at 0 5.08 270) (length 2.54) (name "E" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27))))))
  (embedded_fonts no))''')
 
+TH2_SYM = os.path.join(PRJ, "../../../TH-monitor/hardware/TH2-FieldNode/TH2.kicad_sym")
+
+def cn3058e():
+    """CN3058E LiFePO4 charger symbol, shared with TH2 (pins per datasheet DSE-CN3058E)."""
+    for s in find(sexpr.parse(open(TH2_SYM).read()), "symbol"):
+        if s[1] == "CN3058E":
+            return copy.deepcopy(s)
+    raise KeyError("CN3058E not found in TH2.kicad_sym")
+
 def get_symbol(p):
     lib, name = p["lib"].split(":")
     if lib == "AWD":
-        return isc_sx1262() if name == "ISC-SX1262-B" else copy.deepcopy(SENSEPAD)
+        if name == "ISC-SX1262-B":
+            return isc_sx1262()
+        if name == "CN3058E":
+            return cn3058e()
+        return copy.deepcopy(SENSEPAD)
     return flat_symbol(lib, name)
 
 def sym_pins(sym):
@@ -109,7 +122,19 @@ def resolve(pins, key):
     return hits
 
 # ---- schematic items ------------------------------------------------------------
-ROOT = uid()
+# Keep the root and symbol UUIDs of the existing schematic: the routed PCB links each footprint
+# to its symbol by UUID, so regenerating must not invent new ones for parts that already exist.
+KEEP = {}
+_old = os.path.join(PRJ, D.PROJECT + ".kicad_sch")
+if os.path.exists(_old):
+    _t = sexpr.parse(open(_old).read())
+    ROOT = first(_t, "uuid")[1]
+    for _s in find(_t, "symbol"):
+        _ref = [p[2] for p in find(_s, "property") if p[1] == "Reference"]
+        if _ref and not _ref[0].startswith("#"):
+            KEEP[_ref[0]] = first(_s, "uuid")[1]
+else:
+    ROOT = uid()
 items, lib_syms, pwr_n = [], {}, [0]
 font = [Sym("effects"), [Sym("font"), [Sym("size"), 1.27, 1.27]]]
 
@@ -125,7 +150,7 @@ def place_symbol(lib_id, sym, ref, value, fp, x, y, rot=0, in_bom=True, desc_xy=
     lib_syms.setdefault(lib_id, sym)
     s = [Sym("symbol"), [Sym("lib_id"), lib_id], [Sym("at"), x, y, rot], [Sym("unit"), 1],
          [Sym("exclude_from_sim"), Sym("no")], [Sym("in_bom"), Sym("yes" if in_bom else "no")],
-         [Sym("on_board"), Sym("yes")], [Sym("dnp"), Sym("no")], [Sym("uuid"), uid()]]
+         [Sym("on_board"), Sym("yes")], [Sym("dnp"), Sym("no")], [Sym("uuid"), KEEP.get(ref) or uid()]]
     power = ref.startswith("#")
     rx, ry = desc_xy or (x + 3.81, y - 1.27)
     s.append(prop("Reference", ref, rx, ry, hide=power, justify="left"))
@@ -167,7 +192,8 @@ for p in D.P:
     lib_id = p["lib"]
     x, y = p["xy"]
     pins = sym_pins(sym)
-    desc = (x - 12.7, y - 52.07) if p["ref"] == "U1" else ((x - 7.62, y - 22.86) if p["ref"] == "U2" else None)
+    DESC = {"U1": (-12.7, -52.07), "U2": (-7.62, -22.86), "U3": (-7.62, -15.24), "U4": (-7.62, -10.16), "U5": (-7.62, -13.97), "D2": (-2.54, 3.81), "D3": (-2.54, 3.81)}
+    desc = (x + DESC[p["ref"]][0], y + DESC[p["ref"]][1]) if p["ref"] in DESC else None
     suuid = place_symbol(lib_id, sym, p["ref"], p["value"], p["fp"], x, y, desc_xy=desc,
                          in_bom=not lib_id.startswith("AWD:Sense") and p["ref"] != "TP1")
     padnets, done_pts = {}, set()
@@ -207,9 +233,11 @@ def text(t, x, y, size=1.27):
                   [Sym("effects"), [Sym("font"), [Sym("size"), size, size]], [Sym("justify"), Sym("left"), Sym("bottom")]],
                   [Sym("uuid"), uid()]])
 
-text("Power: LiFePO4 14500 straight onto the 3V3 rail (3.0-3.4 V plateau, no regulator, ~0 uA quiescent). Q1 = reverse-polarity protection.", 25.4, 33.02)
+text("Power: LiFePO4 14500 -> Q1 reverse protection -> VBAT -> U4 RT9080 LDO (2 uA Iq) -> +3V3. VBAT reaches 3.6 V while charging.", 25.4, 33.02)
 text("LoRa: ISC-SX1262-B in Ra-01 footprint - same module and pin map as WPC (BUSY = pad 10). SMA -> pigtail -> antenna on a 1.5 m pole above the canopy.", 210.82, 33.02)
-text("Battery sense: Q2 enables the 1M/1M divider only while sampling VBAT_ADC (ADC2, WiFi off).", 160.02, 111.76)
+text("Battery sense: Q2 enables the 1M/1M divider (from VBAT) only while sampling VBAT_ADC (ADC2, WiFi off).", 160.02, 111.76)
+text("v0.2 field charging: J4 magnetic socket -> F1 -> U3 CN3058E (0.31 A, 3.6 V).", 325.12, 40.64)
+text("U5 = USB ESD. RED = charging, GREEN = full. VBUS_DET on IO14 wakes the S3.", 325.12, 44.45)
 text("Sensing strip: E1..E12 = 8x18 mm pads on 20 mm pitch (P1 = +7..+5 cm ... P12 = -15..-17 cm), E13 = dry reference, E14 = GND water-return pad.", 25.4, 203.2)
 text("Pads sit on F.Cu with NO mask opening; traces run on In2.Cu between In1 (hatched GND) and B.Cu (solid GND). Coat the whole strip.", 25.4, 207.01)
 text("RS1..RS13 = 510R touch series resistors, placed at the strip neck in the head.", 25.4, 228.6)
@@ -231,7 +259,7 @@ sch = [Sym("kicad_sch"), [Sym("version"), 20250114], [Sym("generator"), "eeschem
 open(os.path.join(PRJ, D.PROJECT + ".kicad_sch"), "w").write(dump(sch) + "\n")
 
 lib = [Sym("kicad_symbol_lib"), [Sym("version"), 20241209], [Sym("generator"), "kicad_symbol_editor"],
-       [Sym("generator_version"), "9.0"], SENSEPAD, isc_sx1262()]
+       [Sym("generator_version"), "9.0"], SENSEPAD, isc_sx1262(), cn3058e()]
 open(os.path.join(PRJ, "AWD.kicad_sym"), "w").write(dump(lib) + "\n")
 open(os.path.join(PRJ, "sym-lib-table"), "w").write(
     '(sym_lib_table\n\t(version 7)\n\t(lib (name "AWD")(type "KiCad")(uri "${KIPRJMOD}/AWD.kicad_sym")(options "")(descr "AWD field node parts"))\n)\n')

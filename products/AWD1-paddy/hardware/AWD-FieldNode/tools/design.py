@@ -44,12 +44,14 @@ C0805 = "Capacitor_SMD:C_0805_2012Metric"
 C1206 = "Capacitor_SMD:C_1206_3216Metric"
 SOT23 = "Package_TO_SOT_SMD:SOT-23"
 
-# Power: LiFePO4 14500 straight onto the 3V3 rail (3.0-3.4 V plateau), P-FET reverse protection
+# Power: LiFePO4 14500 (wired AA holder on the back-shell cradle) -> P-FET reverse protection -> VBAT
+#        -> RT9080 LDO -> +3V3. The LDO is needed since v0.2: the on-board charger holds VBAT at 3.6 V,
+#        the ESP32-S3 absolute maximum (same power block as TH2).
 part("J3", "Connector_Generic:Conn_01x02", "LiFePO4 14500", "Connector_JST:JST_PH_S2B-PH-SM4-TB_1x02-1MP_P2.00mm_Horizontal",
      (30.48, 50.8), {"1": "VBAT_RAW", "2": "GND"})
-part("Q1", "Transistor_FET:AO3401A", "AO3401A", SOT23, (55.88, 50.8), {"G": "Q1_G", "S": "+3V3", "D": "VBAT_RAW"})
+part("Q1", "Transistor_FET:AO3401A", "AO3401A", SOT23, (55.88, 50.8), {"G": "Q1_G", "S": "VBAT", "D": "VBAT_RAW"})
 part("R1", "Device:R", "100k", R0603, (71.12, 50.8), {"1": "Q1_G", "2": "GND"})
-part("C1", "Device:C", "47u", C1206, (88.9, 50.8), {"1": "+3V3", "2": "GND"})
+part("C1", "Device:C", "47u", C1206, (88.9, 50.8), {"1": "VBAT", "2": "GND"})
 part("C2", "Device:C", "10u", C0805, (101.6, 50.8), {"1": "+3V3", "2": "GND"})
 part("C3", "Device:C", "100n", C0603, (114.3, 50.8), {"1": "+3V3", "2": "GND"})
 part("C4", "Device:C", "100n", C0603, (127.0, 50.8), {"1": "+3V3", "2": "GND"})
@@ -57,7 +59,7 @@ part("C5", "Device:C", "10u", C0805, (139.7, 50.8), {"1": "+3V3", "2": "GND"})
 
 # MCU
 esp = {"3V3": "+3V3", "GND": "GND", "EN": "EN", "IO0": "BOOT",
-       "IO14": "T14_SPARE", "IO15": "VBAT_ADC", "IO16": "VBAT_EN", "IO17": "LORA_DIO1", "IO18": "LORA_BUSY",
+       "IO14": "VBUS_DET", "IO15": "VBAT_ADC", "IO16": "VBAT_EN", "IO17": "LORA_DIO1", "IO18": "LORA_BUSY",
        "USB_D-": "USB_DN", "USB_D+": "USB_DP", "IO21": "LORA_RST", "IO38": "LED",
        "IO39": "LORA_NSS", "IO40": "LORA_SCK", "IO41": "LORA_MOSI", "IO42": "LORA_MISO",
        "TXD0": "TXD0", "RXD0": "RXD0"}
@@ -70,8 +72,8 @@ part("C6", "Device:C", "1u", C0603, (40.64, 119.38), {"1": "EN", "2": "GND"})
 part("R3", "Device:R", "10k", R0603, (58.42, 101.6), {"1": "+3V3", "2": "BOOT"})
 part("SW1", "Switch:SW_Push", "PAIR/BOOT", "Button_Switch_SMD:SW_SPST_TL3342", (58.42, 121.92), {"1": "BOOT", "2": "GND"})
 
-# Battery sense: 1M/1M divider, low side switched so it draws nothing in sleep
-part("R4", "Device:R", "1M", R0603, (182.88, 124.46), {"1": "+3V3", "2": "VBAT_ADC"})
+# Battery sense: 1M/1M divider from VBAT (before the LDO), low side switched so it draws nothing in sleep
+part("R4", "Device:R", "1M", R0603, (182.88, 124.46), {"1": "VBAT", "2": "VBAT_ADC"})
 part("R5", "Device:R", "1M", R0603, (182.88, 144.78), {"1": "VBAT_ADC", "2": "DIV_LO"})
 part("C7", "Device:C", "100n", C0603, (167.64, 134.62), {"1": "VBAT_ADC", "2": "GND"})
 part("Q2", "Transistor_FET:2N7002", "2N7002", SOT23, (200.66, 160.02), {"D": "DIV_LO", "S": "GND", "G": "VBAT_EN"})
@@ -92,7 +94,7 @@ part("J1", "Connector:Conn_Coaxial", "SMA 866MHz", "Connector_Coaxial:SMA_Amphen
 part("J2", "Connector_Generic:Conn_01x08", "PROG", "Connector_PinHeader_1.27mm:PinHeader_1x08_P1.27mm_Vertical",
      (276.86, 132.08), {"1": "+3V3", "2": "GND", "3": "EN", "4": "BOOT", "5": "USB_DN", "6": "USB_DP",
                         "7": "TXD0", "8": "RXD0"})
-part("TP1", "Connector:TestPoint", "T14", "TestPoint:TestPoint_Pad_D1.5mm", (304.8, 132.08), {"1": "T14_SPARE"})
+part("TP1", "Connector:TestPoint", "VBUS_DET", "TestPoint:TestPoint_Pad_D1.5mm", (304.8, 132.08), {"1": "VBUS_DET"})
 
 # Touch series resistors (Espressif recommends ~510R close to the chip) + sensing pads
 for i in range(1, 14):
@@ -103,7 +105,33 @@ for i in range(1, 13):
 part("E13", "AWD:SensePad", "REF", "AWD:SensePad_8x12mm", (35.56 + 12.7 * 12, 248.92), {"1": "REF"})
 part("E14", "AWD:SensePad", "GND return", "AWD:ReturnPad_8x20mm", (35.56 + 12.7 * 13, 248.92), {"1": "GND"})
 
-PWR_FLAGS = [("+3V3", (165.1, 50.8)), ("GND", (177.8, 50.8)), ("VBAT_RAW", (190.5, 50.8))]
+# ---- v0.2: field charging through a magnetic socket (same block as TH2) --------------------
+# J4 -> 4-pin magnetic pogo socket in the box wall (VBUS, D-, D+, GND): charge + USB flash with the box shut
+part("J4", "Connector_Generic:Conn_01x04", "MAG-POGO", "Connector_JST:JST_PH_S4B-PH-SM4-TB_1x04-1MP_P2.00mm_Horizontal",
+     (335.28, 66.04), {"1": "VBUS_IN", "2": "USB_DN", "3": "USB_DP", "4": "GND"})
+part("F1", "Device:Polyfuse", "0.5A", "Fuse:Fuse_1206_3216Metric", (360.68, 55.88), {"1": "VBUS_IN", "2": "VBUS"})
+part("C8", "Device:C", "10u", C0805, (378.46, 55.88), {"1": "VBUS", "2": "GND"})
+part("U5", "Power_Protection:USBLC6-2SC6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", (340.36, 91.44),
+     {"1": "USB_DN", "6": "USB_DN", "3": "USB_DP", "4": "USB_DP", "VBUS": "VBUS", "GND": "GND"})
+# CN3058E LiFePO4 charger, 3.6 V CV, ICH = 1218 V / R9 = 0.31 A (0.5C for a 600 mAh 14500)
+part("U3", "AWD:CN3058E", "CN3058E", "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm_ThermalVias",
+     (383.54, 96.52), {"VIN": "VBUS", "CE": "VBUS", "TEMP": "CHG_TEMP", "ISET": "CHG_ISET", "GND": "GND", "EP": "GND",
+                       "BAT": "VBAT", "~{CHRG}": "CHRG_N", "~{DONE}": "DONE_N"})
+part("R8", "Device:R", "0R", R0603, (340.36, 127.0), {"1": "CHG_TEMP", "2": "GND"})
+part("R9", "Device:R", "3.9k", R0603, (350.52, 127.0), {"1": "CHG_ISET", "2": "GND"})
+part("R10", "Device:R", "1k", R0603, (363.22, 127.0), {"1": "VBUS", "2": "CHG_A"})
+part("D2", "Device:LED", "RED", "LED_SMD:LED_0603_1608Metric", (363.22, 149.86), {"A": "CHG_A", "K": "CHRG_N"})
+part("R11", "Device:R", "1k", R0603, (391.16, 127.0), {"1": "VBUS", "2": "DONE_A"})
+part("D3", "Device:LED", "GREEN", "LED_SMD:LED_0603_1608Metric", (391.16, 149.86), {"A": "DONE_A", "K": "DONE_N"})
+# RT9080-33 LDO (2 uA Iq), AP2112K-3.3 symbol / SOT-23-5 pinout
+part("U4", "Regulator_Linear:AP2112K-3.3", "RT9080-33GJ5", "Package_TO_SOT_SMD:SOT-23-5", (345.44, 172.72),
+     {"VIN": "VBAT", "EN": "VBAT", "GND": "GND", "VOUT": "+3V3"})
+part("C9", "Device:C", "1u", C0603, (370.84, 172.72), {"1": "VBAT", "2": "GND"})
+# charger-present detect on IO14 (RTC GPIO: wakes the S3 when the cable is clipped on)
+part("R12", "Device:R", "100k", R0603, (391.16, 167.64), {"1": "VBUS", "2": "VBUS_DET"})
+part("R13", "Device:R", "100k", R0603, (391.16, 198.12), {"1": "VBUS_DET", "2": "GND"})
+
+PWR_FLAGS = [("GND", (177.8, 50.8)), ("VBAT_RAW", (190.5, 50.8)), ("VBAT", (203.2, 50.8)), ("VBUS", (215.9, 50.8))]
 
 def netname(n):
     return n if n in POWER_NETS else "/" + n
