@@ -29,10 +29,9 @@ Two boards share one 100 × 100 order:
 
 ## 3D models
 
-KiCad's library has no 3D models for the MetzConnect terminals, and our own parts have none either. `tools/gen_3d.py` writes simple coloured STEP models for them into `ASC.3dshapes/` (boxes and cylinders sized from the datasheets):
+Our own parts have no 3D models in KiCad's library (the Phoenix terminals, the MSTBVA header and the JST-XH do). `tools/gen_3d.py` writes simple coloured STEP models for them into `ASC.3dshapes/` (boxes and cylinders sized from the datasheets):
 - the Super Mini on its sockets;
 - the tabbed CR2032 and the HF46F relay;
-- the 3.81 mm and 5.08 mm terminals;
 - the AHT20 and the snap standoffs (the standoffs show below the board).
 
 `tools/apply_3d.py` attaches them to the routed boards without re-routing; `gen_pcb.py` and `panel.py` attach them automatically. `fab/ASC-MiniC3.step` and `fab/ASC-AHT20.step` are full board assemblies, for checking the fit in the enclosure.
@@ -42,23 +41,35 @@ KiCad's library has no 3D models for the MetzConnect terminals, and our own part
 | GPIO | Function | Notes |
 |---|---|---|
 | IO0, IO1 | AUX A0, A1 | ADC1 inputs |
-| IO3 | PUMP | AO3400A low side. R2 100 k holds it off through reset. |
+| IO3 | PUMP | ULN2003A channels 1 + 2 in parallel (about 0.9 V drop, so ~4 V at the pump). Off through reset. |
 | IO4 | AUX D | 10 k pull-up. For DHT11/22 or a DS18B20 probe. |
 | IO5 | FLOW | YF-S401 (5880 pulses per litre) or YF-S201 (450 per litre). Level-shifted by D2 + R6. |
 | IO6, IO7 | SDA, SCL | DS1307 (0x68) and AHT20 (0x38). 4.7 k pull-ups to 3V3. |
 | IO10 | STATUS LED | FG1 uses it as the WiFi/status LED |
-| IO20 | RELAY | AO3400A low side, R11 holds it off. This pin is UART0 RX, an input at boot, so the relay stays off while the board boots. |
+| IO20 | RELAY | ULN2003A channel 3. This pin is UART0 RX, an input at boot, so the relay stays off while the board boots. ULN2003A inputs 4–7 are grounded, outputs 4–7 free. |
 | IO2, IO8, IO9, IO21 | free | IO2/8/9 are strapping pins (IO8 = module LED, IO9 = BOOT). IO21 is UART0 TX. |
 
 ## Connectors
 
 | Ref | Connector | Pins |
 |---|---|---|
-| J5 | I2C, 4-pole 3.81 mm (top edge) | 3V3, GND, SCL, SDA. This is the AHT20 stick's order and the usual VIN GND SCL SDA module order. |
-| J4 | FLOW, JST-XH 3-pin (top right). Takes the YF-S401's plug directly. | GND, 5V, SIG |
-| J3 | AUX, 5-pole 3.81 mm (bottom edge) | 3V3, D, A0, A1, GND |
-| J1 | PUMP, 2-pole 3.81 mm (bottom edge) | P+ (5 V), P− (low side) |
-| J6 | RELAY 230 V, 2-pole 5.08 mm (bottom right) | COM, NO. HF46F, 5 A 250 VAC, for a pump contactor coil. |
+| J5 | I2C, 4-pole 3.5 mm screw terminal (top edge) | 3V3, GND, SCL, SDA. This is the AHT20 stick's order and the usual VIN GND SCL SDA module order. |
+| J4 | FLOW (top right): one footprint, fit **either** a JST-XH 3-pin header (student bench: takes the YF-S401 plug) **or** a 3-pole 3.5 mm screw terminal (FG1 / field: long cable). | GND, 5V, SIG (silkscreen reads S 5V G, left to right) |
+| J3 | AUX, 5-pole 3.5 mm screw terminal (bottom edge) | 3V3, D, A0, A1, GND |
+| J1 | PUMP, 2-pole 3.5 mm screw terminal (bottom edge) | P+ (5 V), P− (low side) |
+| J6 | RELAY 230 V, pluggable 5.08 mm 2-pole MSTBVA header + plug (bottom right), the same family as FG1's relay connector | NO, COM. HF46F, 5 A 250 VAC, for a pump contactor coil. |
+
+## Assembly markings (for hand soldering)
+
+House style, as on the WPC and FG1 boards:
+- **Labels:** every part has its reference and value on the top silkscreen: `R3 1K`, `R5 470E`, `U3 ULN2003`, `C1 220U`, `D3 RED` and so on. R8 and R9 share one label, `R8 R9 4K7`.
+- **Big parts:** the relay and coin-cell labels sit inside their outlines, where the part goes.
+- **Pin 1:** a **1** marks pin 1 of each IC (U2 DS1307, U3 ULN2003, the AHT20).
+- **Anodes:** a **+** marks the anode of every LED and of D2. The electrolytic and the coin cell carry their own + marks.
+- **LED size:** the LEDs are **1206** (bigger pads, as on WPC).
+- **Back:** "ASC Mini-C3 rev B / Agri Sensors and Controls Oct 2026".
+
+`gen_pcb.py` places the labels automatically, clear of pads, part bodies and each other (`ASSEMBLY_VALUE`, `LABEL_INSIDE` and `MARKS` in the design file). The LED block is laid out by hand in `silk()`.
 
 ## LEDs (seen through the clear lid)
 
@@ -81,6 +92,10 @@ KiCad's library has no 3D models for the MetzConnect terminals, and our own part
 
 1. **Super Mini footprint.** Print `fab/ASC-MiniC3-print-1to1.pdf` at 100 % and lay a real Super Mini on it. The rows should be 15.24 mm apart. The silkscreen marks IO5 and 5V at the USB end and IO21 and IO0 at the far end, so a mirrored module is easy to see.
 2. **Tabbed CR2032.** The two + legs are 15.2 mm apart. The − leg offset of 4.0 mm is a guess, so measure one cell.
+   - **Alternative:** a replaceable cell in a CR2032 holder ([Rajiv Electronics](https://rajivelectronics.com/product/cr2032-3v-pcb-mount-vertical-battery-holder), ₹11.80).
+   - The Rajiv holder (photo, SKU RBH-2) is a vertical holder with **3 pins**. A different holder's datasheet shows 2 pins 20.0 mm apart, so the layout varies by maker.
+   - Its pin positions may or may not match the tabbed cell's pads. **Measure a sample before ordering.**
+   - If they differ, its pads can be added next to the tabbed cell's, the same way the flow connector takes either part.
 3. **YF-S401 plug order.** The board expects GND, 5V, SIG, with the red wire in the middle.
 4. **HF46F footprint.** It is the same footprint as rev A (Hongfa datasheet). Push a real relay through a 1:1 print.
 5. **AHT20 footprint.** It follows the ASAIR datasheet V1.0.03, figure 8: 0.8 × 0.5 mm pads at 1.0 mm pitch, rows 2.0 mm apart. Pins: 2 VDD, 3 SCL, 4 SDA, 5 GND.

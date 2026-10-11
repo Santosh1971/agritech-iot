@@ -55,8 +55,12 @@ def silk(T):
         x, y = T.pad_xy("J1", num)
         T.text(name, x, 5.0, 0.8)
     T.text("ASC T/RH", 21.0, 1.6, 0.8, bold=True)
+    T.text("U1 AHT20", 42.6, 0.8, 0.7)
     T.text("BREATHE HERE >", 32.0, 4.4, 0.8, bold=True)
     T.text("AHT20 0x38 rev A", 24.0, 3.0, 0.8, layer="B", bold=True)
+
+ASSEMBLY_VALUE = {"C1": "10U"}             # U1 is labelled by hand in silk()
+MARKS = [("U1", "1", "1")]
 
 def netname(n):
     return n if n in POWER_NETS else "/" + n

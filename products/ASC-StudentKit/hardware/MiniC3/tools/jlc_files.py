@@ -7,10 +7,10 @@ parts are hand-soldered. LCSC numbers marked "verify" were not checked against t
 import csv, os, re
 
 FAB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "fab")
-LCSC = {"100n": "C49678", "B5819W": "C8598", "PUMP red": "C84256", "FLOW yellow": "C2296", "STATUS green": "C2297",
-        "RELAY blue": "C84259 (verify)", "AO3400A": "C20917", "100": "C17408", "100k": "C149504", "1k": "C17513",
-        "470": "C17710", "10k": "C17414", "4.7k": "C17673", "DS1307Z+": "C2685 (verify)", "10u": "C15850",
-        "AHT20": "AHT20 (search LCSC; verify)"}
+LCSC = {"100n": "C49678", "B5819W": "C8598", "PUMP red": "C37635751", "FLOW yellow": "C30584802", "STATUS green": "C37635752",
+        "RELAY blue": "C28310438", "AO3400A": "C20917", "100": "C17408", "100k": "C149504", "1k": "C17513",
+        "470": "C17710", "10k": "C17414", "4.7k": "C17673", "DS1307Z+": "C49375271 (MSKSEMI DS1307Z+MSK)", "10u": "C15850",
+        "AHT20": "C2757850", "ULN2003A": "C7512"}
 
 def write(name, bom_src, pos_src):
     pos = list(csv.DictReader(open(os.path.join(FAB, pos_src))))

@@ -182,10 +182,6 @@ MODELS = {
     "Relay_SPST_Hongfa_HF46F": hf46f(),
     "Aosong_AHT20_DFN-6_3x3mm": aht20(),
     "Snap_Standoff_4.2mm": standoff(),
-    "TerminalBlock_MetzConnect_Type086_RT03402HBLC_1x02_P3.81mm_Horizontal": terminal(2, 3.81, GREEN, 8.6, -3.8, 3.7, 1.3),
-    "TerminalBlock_MetzConnect_Type086_RT03404HBLC_1x04_P3.81mm_Horizontal": terminal(4, 3.81, GREEN, 8.6, -3.8, 3.7, 1.3),
-    "TerminalBlock_MetzConnect_Type086_RT03405HBLC_1x05_P3.81mm_Horizontal": terminal(5, 3.81, GREEN, 8.6, -3.8, 3.7, 1.3),
-    "TerminalBlock_MetzConnect_Type101_RT01602HBWC_1x02_P5.08mm_Horizontal": terminal(2, 5.08, BLUE, 10.0, -4.0, 4.0, 1.6),
 }
 
 def write_wrl(name, solids):

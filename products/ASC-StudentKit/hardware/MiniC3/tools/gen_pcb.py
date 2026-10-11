@@ -36,6 +36,7 @@ ds.m_MinClearance = mm(0.2)
 ds.m_ViasMinSize = mm(0.6)
 ds.m_MinThroughDrill = mm(0.3)
 ds.m_CopperEdgeClearance = mm(0.4)        # V-cut panel: copper keeps 0.4 mm from the edge
+ds.m_MinSilkTextHeight = mm(0.7)           # assembly labels are 0.7 mm, as on the WPC board
 nc = ds.m_NetSettings.GetDefaultNetclass()
 nc.SetClearance(mm(0.2)); nc.SetTrackWidth(mm(0.3)); nc.SetViaDiameter(mm(0.6)); nc.SetViaDrill(mm(0.3))
 
@@ -153,6 +154,114 @@ class Silk:
         return (pcbnew.ToMM(b.GetX()) - OX, pcbnew.ToMM(b.GetY()) - OY,
                 pcbnew.ToMM(b.GetRight()) - OX, pcbnew.ToMM(b.GetBottom()) - OY)
 D.silk(Silk)
+
+# ---- assembly labels for hand soldering (house style, as on WPC / FG1): "R3 1K", "U3 ULN2003",
+# a "1" at IC pin 1 and a "+" at LED / diode anodes. Each label goes to the first free spot around its
+# part: clear of pads, part bodies (fab outline), other labels, holes and the board edge.
+LBL = 0.7
+def bbox_mm(item):
+    b = item.GetBoundingBox()
+    return (pcbnew.ToMM(b.GetX()) - OX, pcbnew.ToMM(b.GetY()) - OY, pcbnew.ToMM(b.GetRight()) - OX, pcbnew.ToMM(b.GetBottom()) - OY)
+def grow(b, d):
+    return (b[0] - d, b[1] - d, b[2] + d, b[3] + d)
+def hit(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+obst = []                                   # (box, owner ref)
+for ref, f in placed.items():
+    for p in f.Pads():
+        obst.append((grow(bbox_mm(p), 0.15), ref))
+    if f.GetFPID().GetLibItemName() == "ESP32-C3_SuperMini_Socket":
+        continue                            # under the module stays usable (it plugs in after soldering)
+    fab = [g for g in f.GraphicalItems() if g.GetLayer() == pcbnew.F_Fab and g.GetClass() != "PCB_TEXT"]
+    if fab:
+        xs = [bbox_mm(g) for g in fab]
+        obst.append(((min(b[0] for b in xs), min(b[1] for b in xs), max(b[2] for b in xs), max(b[3] for b in xs)), ref))
+    else:
+        obst.append((Silk.box_mm(ref), ref))
+for t in board.GetDrawings():
+    if t.GetClass() == "PCB_TEXT" and t.GetLayer() == pcbnew.F_SilkS:
+        obst.append((grow(bbox_mm(t), 0.1), "text"))
+
+def place_text(txt, cands, owner, size=LBL):
+    """cands: list of (x, y, angle). Returns True when placed."""
+    for x, y, ang in cands:
+        t = pcbnew.PCB_TEXT(board)
+        t.SetText(txt); t.SetLayer(pcbnew.F_SilkS)
+        t.SetTextSize(pcbnew.VECTOR2I(mm(size), mm(size))); t.SetTextThickness(mm(0.12))
+        t.SetTextAngleDegrees(ang); t.SetPosition(pt(x, y))
+        b = bbox_mm(t)
+        if b[0] < 0.3 or b[1] < 0.3 or b[2] > W - 0.3 or b[3] > H - 0.3:
+            continue
+        if any(hit(b, o) for o, who in obst):
+            continue
+        board.Add(t)
+        obst.append((grow(b, 0.1), "text"))
+        return True
+    return False
+
+def around(ref, w_hint):
+    """Candidate centres around a part: above, below, left, right (horizontal), then vertical left/right."""
+    x0, y0, x1, y1 = Silk.box_mm(ref)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    h = LBL / 2 + 0.25
+    c = []
+    for dx in (0, -1.5, 1.5, -3, 3):
+        c += [(cx + dx, y0 - h, 0), (cx + dx, y1 + h, 0)]
+    for dy in (0, -1.5, 1.5):
+        c += [(x0 - w_hint / 2 - 0.2, cy + dy, 0), (x1 + w_hint / 2 + 0.2, cy + dy, 0)]
+    c += [(x0 - h, cy, 90), (x1 + h, cy, 90), (x0 - h, cy, 270), (x1 + h, cy, 270)]
+    for k in (1, 2):                                       # a second ring, a little further out
+        c += [(cx, y0 - h - 0.9 * k, 0), (cx, y1 + h + 0.9 * k, 0)]
+    return c
+
+failed = []
+values = getattr(D, "ASSEMBLY_VALUE", {})
+order = sorted((r for r in placed if not r.startswith("H") and r in values), key=lambda r: (r[0] != "U", r))
+inside = getattr(D, "LABEL_INSIDE", set())
+for ref in order:
+    txt = ("%s %s" % (ref, values[ref])).strip()
+    if ref in inside:                                      # on the part's own body: drop its body from the obstacles
+        body = [o for o in obst if o[1] == ref and o[0] == max((q for q in obst if q[1] == ref), key=lambda q: (q[0][2]-q[0][0])*(q[0][3]-q[0][1]))[0]]
+        for o in body:
+            obst.remove(o)
+        x0, y0, x1, y1 = body[0][0] if body else Silk.box_mm(ref)
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        ok = place_text(txt, [(cx, cy, 0), (cx, cy - 1.2, 0), (cx, cy + 1.2, 0), (cx - 3, cy, 0), (cx + 3, cy, 0)], ref)
+        obst.extend(body)
+        if not ok:
+            failed.append(ref)
+        continue
+    if not place_text(txt, around(ref, 0.62 * LBL * len(txt)), ref):
+        failed.append(ref)
+
+def mark(ref, pad_num, txt):
+    """A small mark ('1' or '+') just beyond a pad, on the side away from the part's centre."""
+    f = placed[ref]
+    pad = [p for p in f.Pads() if p.GetNumber() == pad_num][0]
+    px, py = pcbnew.ToMM(pad.GetPosition().x) - OX, pcbnew.ToMM(pad.GetPosition().y) - OY
+    cx, cy = [(a + b) / 2 for a, b in zip(Silk.box_mm(ref)[:2], Silk.box_mm(ref)[2:])]
+    pb = bbox_mm(pad)
+    hw, hh = (pb[2] - pb[0]) / 2, (pb[3] - pb[1]) / 2
+    vx, vy = px - cx, py - cy
+    cands = []
+    if abs(vx) >= abs(vy):                                 # pad on the left / right of the part
+        sx = 1 if vx > 0 else -1
+        cands += [(px + sx * (hw + o), py, 0) for o in (0.5, 0.6, 0.75, 0.9, 1.1, 1.3)]
+        cands += [(px, py - hh - o, 0) for o in (0.5, 0.6)] + [(px, py + hh + o, 0) for o in (0.5, 0.6)]
+    else:
+        sy = 1 if vy > 0 else -1
+        cands += [(px, py + sy * (hh + o), 0) for o in (0.5, 0.6, 0.75, 0.9, 1.1, 1.3)]
+        cands += [(px - hw - o, py, 0) for o in (0.5, 0.6)] + [(px + hw + o, py, 0) for o in (0.5, 0.6)]
+    cands += [(px + dx, py + dy, 0) for dx, dy in ((-1.1, -1.1), (1.1, -1.1), (-1.1, 1.1), (1.1, 1.1), (-1.5, 0), (1.5, 0), (0, -1.5), (0, 1.5))]
+    if not place_text(txt, cands, ref):
+        failed.append("%s.%s(%s)" % (ref, pad_num, txt))
+
+for ref, pad_num, txt in getattr(D, "MARKS", []):
+    if ref in placed:
+        mark(ref, pad_num, txt)
+if failed:
+    print("LABELS NOT PLACED:", ", ".join(failed))
 
 # ---- zones: GND on both layers, and the no-pour areas
 def chain(x0, y0, x1, y1):

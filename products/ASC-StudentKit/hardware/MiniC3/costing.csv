@@ -2,14 +2,12 @@ Group,Item,Ref,Qty,Unit INR,Line INR,Source / basis,Status
 Board,PCB panel share: 1 Mini-C3 + 1 AHT20 stick,-,0.25,150.0,37.5,WhyPCB (JLCPCB partner) https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzUzMA==,quoted
 Board,"RTC DS1307 (MSKSEMI, pin compatible)",U2,1,17.7,17.7,LCSC https://www.lcsc.com/product-detail/C49375271.html,quoted
 Board,T/RH sensor AHT20 (on the stick),U1 (stick),1,30.0,30.0,LCSC https://www.lcsc.com/product-detail/C2757850.html,quoted
-Board,MOSFET AO3400A,"Q1, Q2",2,6.4,12.8,LCSC https://www.lcsc.com/product-detail/C20917.html,quoted
-Board,Schottky B5819W,"D1, D2, D6",3,1.9,5.7,LCSC https://www.lcsc.com/product-detail/C8598.html,quoted
-Board,LED 0805 red (PUMP),D3,1,1.2,1.2,LCSC https://www.lcsc.com/product-detail/C84256.html,quoted
-Board,LED 0805 yellow (FLOW),D4,1,1.1,1.1,LCSC https://www.lcsc.com/product-detail/C2296.html,quoted
-Board,LED 0805 green (STATUS),D5,1,1.5,1.5,LCSC https://www.lcsc.com/product-detail/C2297.html,quoted
-Board,LED 0805 blue (RELAY),D7,1,2.4,2.4,LCSC https://www.lcsc.com/product-detail/C84259.html,quoted
-Board,Resistor 0805 100R,"R1, R10",2,0.38,0.76,LCSC https://www.lcsc.com/product-detail/C17408.html,quoted
-Board,Resistor 0805 100k,"R2, R11",2,0.53,1.06,LCSC https://www.lcsc.com/product-detail/C149504.html,quoted
+Board,Schottky B5819W (flow level shift),D2,1,1.9,1.9,LCSC https://www.lcsc.com/product-detail/C8598.html,quoted
+Board,"Driver ULN2003A (pump on ch 1+2, relay on ch 3)",U3,1,10.4,10.4,LCSC https://www.lcsc.com/product-detail/C7512.html,quoted
+Board,LED 1206 red (PUMP),D3,1,1.8,1.8,LCSC https://www.lcsc.com/product-detail/C37635751.html,quoted
+Board,LED 1206 yellow (FLOW),D4,1,1.4,1.4,LCSC https://www.lcsc.com/product-detail/C30584802.html,quoted
+Board,LED 1206 green (STATUS),D5,1,2.1,2.1,LCSC https://www.lcsc.com/product-detail/C37635752.html,quoted
+Board,LED 1206 blue (RELAY),D7,1,1.4,1.4,LCSC https://www.lcsc.com/product-detail/C28310438.html,quoted
 Board,Resistor 0805 1k,"R3, R4, R12",3,0.31,0.93,LCSC https://www.lcsc.com/product-detail/C17513.html,quoted
 Board,Resistor 0805 470R,R5,1,0.43,0.43,LCSC https://www.lcsc.com/product-detail/C17710.html,quoted
 Board,Resistor 0805 10k,"R6, R7",2,0.3,0.6,LCSC https://www.lcsc.com/product-detail/C17414.html,quoted
@@ -21,13 +19,15 @@ Board,ESP32-C3 Super Mini USB-C,U1,1,238.36,238.36,Robosap https://robosap.in/pr
 Board,Female header 1x8 2.54 mm,U1,2,10.72,21.44,Sharvi Electronics https://sharvielectronics.com/product/8x1-8pin-female-berg-strip-break-away-header-straight-2-54mm-pitch/,quoted
 Board,"Relay Hongfa HF46F 5 V, 5 A 250 VAC",K1,1,42.0,42.0,techiesms https://techiesms.com/product/hf46f-5v-pcb-sealed-relaypack-of-5/,quoted
 Board,"CR2032 with 3 solder tabs, vertical",BT1,1,29.5,29.5,Rajiv Electronics https://rajivelectronics.com/product/cr2032-3v-lithium-battery-vertical-3-pin-pc-mount-battery,quoted
+Board,"ALTERNATIVE: CR2032 holder (vertical, 3 pins, Rajiv RBH-2) + loose CR2032 cell",BT1 (alt),0,11.8,0.0,Rajiv Electronics https://rajivelectronics.com/product/cr2032-3v-pcb-mount-vertical-battery-holder,quoted
 Board,"Crystal 32.768 kHz 2x6 mm, 12.5 pF",Y1,1,14.0,14.0,Magno Teknik https://store.magnoteknik.com/product/mtcr2632r768k/,quoted
 Board,"Electrolytic 220 uF 10 V, 5 mm dia, 2.0 mm pitch",C1,1,2.0,2.0,Local market ,estimate
-Board,Screw terminal 3.81 mm 2P (PUMP),J1,1,5.0,5.0,Local market (Lamington Rd / SP Road) https://abra-electronics.com/interconnects/terminals-blocks-barrier/terminal-blocks/screw-terminal-blocks-stackable/tb-3-81mm-02-kf128-3-81mm-2-position-stackable-screw-terminal-block.html,estimate
-Board,Screw terminal 3.81 mm 4P (I2C),J5,1,10.0,10.0,Local market ,estimate
-Board,Screw terminal 3.81 mm 5P (AUX),J3,1,12.5,12.5,Local market ,estimate
-Board,Screw terminal 5.08 mm 2P (RELAY 230 V),J6,1,22.4,22.4,ElectronicsComp https://www.electronicscomp.com/kf301-2-pin-5.08mm-pitch-plug-in-screw-terminal-block-connector,quoted
-Board,"JST-XH 3-pin male header, straight 2.5 mm",J4,1,4.56,4.56,DNA Technology https://www.dnatechindia.com/3-pin-2-50mm-jst-xh-straight-male-connector-buy-in-india.html,quoted
+Board,Screw terminal 3.5 mm 2P (PUMP),J1,1,4.0,4.0,Local market (Lamington Rd / SP Road) ,estimate
+Board,Screw terminal 3.5 mm 4P (I2C),J5,1,8.0,8.0,Local market ,estimate
+Board,Screw terminal 3.5 mm 5P (AUX),J3,1,10.0,10.0,Local market ,estimate
+Board,"Screw terminal 3.5 mm 3P (FLOW, field builds)",J4 (alt),0,6.0,0.0,Local market ,estimate
+Board,"Pluggable header 5.08 mm 2P, vertical, + plug (RELAY 230 V)",J6,1,15.0,15.0,Local market https://www.electronicscomp.com/kf301-2-pin-5.08mm-pitch-plug-in-screw-terminal-block-connector,estimate
+Board,"JST-XH 3-pin male header, straight 2.5 mm (FLOW, student builds)",J4,1,4.56,4.56,DNA Technology https://www.dnatechindia.com/3-pin-2-50mm-jst-xh-straight-male-connector-buy-in-india.html,quoted
 Board,"Pin header 1x4 2.54 mm (AHT20 stick cable end, optional)",J1 (stick),0,1.0,0.0,Local market ,estimate
 Kit,Flow sensor YF-S401 0.3-6 L/min,-,1,230.0,230.0,AM Electronics https://amelectronics.in/product/water-flow-sensor-yf-s401-flowmeter-0-3-6l-min-3-5mm-white/,quoted
 Kit,Mini submersible pump 3-9 V DC,-,1,33.0,33.0,QuartzComponents https://quartzcomponents.com/products/3v-to-12v-mini-dc-submersible-pump,quoted

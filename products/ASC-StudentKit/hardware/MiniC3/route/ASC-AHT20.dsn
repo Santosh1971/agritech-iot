@@ -32,17 +32,33 @@
     )
   )
   (placement
+    (component "ASC:Aosong_AHT20_DFN-6_3x3mm"
+      (place U1 145000.000000 -63000.000000 front 0.000000 (PN AHT20))
+    )
     (component Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
       (place J1 102590.000000 -63000.000000 front 90.000000 (PN CABLE))
     )
     (component Capacitor_SMD:C_0805_2012Metric
       (place C1 140600.000000 -63000.000000 front 0.000000 (PN 10u))
     )
-    (component "ASC:Aosong_AHT20_DFN-6_3x3mm"
-      (place U1 145000.000000 -63000.000000 front 0.000000 (PN AHT20))
-    )
   )
   (library
+    (image "ASC:Aosong_AHT20_DFN-6_3x3mm"
+      (outline (path signal 120  -500 1620  500 1620))
+      (outline (path signal 120  -500 -1620  500 -1620))
+      (outline (path signal 150  -1600 1700  -1617.18 1630.29  -1664.79 1576.55  -1731.92 1551.09
+            -1803.19 1559.75  -1862.28 1600.53  -1895.64 1664.1  -1895.64 1735.9
+            -1862.28 1799.47  -1803.19 1840.25  -1731.92 1848.91  -1664.79 1823.45
+            -1617.18 1769.71  -1600 1700))
+      (outline (path signal 50  -1900 1850  1900 1850  1900 -1850  -1900 -1850  -1900 1850))
+      (outline (path signal 100  -1500 1500  1500 1500  1500 -1500  -1500 -1500  -1500 1500))
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 1 -1050 1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 2 -1050 0)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 3 -1050 -1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 4 1050 -1000)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 5 1050 0)
+      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 6 1050 1000)
+    )
     (image Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical
       (outline (path signal 120  -1380 1380  0 1380))
       (outline (path signal 120  -1380 0  -1380 1380))
@@ -68,22 +84,6 @@
       (outline (path signal 100  -1000 625  1000 625  1000 -625  -1000 -625  -1000 625))
       (pin RoundRect[T]Pad_1000.000000x1450.000000_250.951000_um_0.000000_0 1 -950 0)
       (pin RoundRect[T]Pad_1000.000000x1450.000000_250.951000_um_0.000000_0 2 950 0)
-    )
-    (image "ASC:Aosong_AHT20_DFN-6_3x3mm"
-      (outline (path signal 120  -500 1620  500 1620))
-      (outline (path signal 120  -500 -1620  500 -1620))
-      (outline (path signal 150  -1600 1700  -1617.18 1630.29  -1664.79 1576.55  -1731.92 1551.09
-            -1803.19 1559.75  -1862.28 1600.53  -1895.64 1664.1  -1895.64 1735.9
-            -1862.28 1799.47  -1803.19 1840.25  -1731.92 1848.91  -1664.79 1823.45
-            -1617.18 1769.71  -1600 1700))
-      (outline (path signal 50  -1900 1850  1900 1850  1900 -1850  -1900 -1850  -1900 1850))
-      (outline (path signal 100  -1500 1500  1500 1500  1500 -1500  -1500 -1500  -1500 1500))
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 1 -1050 1000)
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 2 -1050 0)
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 3 -1050 -1000)
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 4 1050 -1000)
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 5 1050 0)
-      (pin RoundRect[T]Pad_900.000000x500.000000_75.285000_um_0.000000_0 6 1050 1000)
     )
     (padstack Round[A]Pad_1700.000000_um
       (shape (circle F.Cu 1700))
@@ -126,16 +126,16 @@
   )
   (network
     (net +3V3
-      (pins J1-1 C1-1 U1-2)
+      (pins U1-2 J1-1 C1-1)
     )
     (net GND
-      (pins J1-2 C1-2 U1-5)
+      (pins U1-5 J1-2 C1-2)
     )
     (net /SCL
-      (pins J1-3 U1-3)
+      (pins U1-3 J1-3)
     )
     (net /SDA
-      (pins J1-4 U1-4)
+      (pins U1-4 J1-4)
     )
     (net "unconnected-(U1-NC-Pad1)"
       (pins U1-1)
