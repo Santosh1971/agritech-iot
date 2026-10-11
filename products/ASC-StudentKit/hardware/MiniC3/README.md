@@ -62,10 +62,11 @@ Our own parts have no 3D models in KiCad's library (the Phoenix terminals, the M
 ## Assembly markings (for hand soldering)
 
 House style, as on the WPC and FG1 boards:
-- **Labels:** every part has its reference and value on the top silkscreen: `R3 1K`, `R5 470E`, `U3 ULN2003`, `C1 220U`, `D3 RED` and so on. R8 and R9 share one label, `R8 R9 4K7`.
+- **Labels:** every part has its reference and value on the top silkscreen: `R3 1K`, `R5 470E`, `U3 ULN2003`, `C1 220U`, `D3 YEL` and so on. R8 and R9 share one label, `R8 R9 4K7`.
 - **Big parts:** the relay and coin-cell labels sit inside their outlines, where the part goes.
 - **Pin 1:** a **1** marks pin 1 of each IC (U2 DS1307, U3 ULN2003, the AHT20).
-- **Anodes:** a **+** marks the anode of every LED and of D2. The electrolytic and the coin cell carry their own + marks.
+- **Anodes:** a **+** marks the anode of every LED and of D2.
+- **LED colours:** PUMP and RLY yellow, STATUS red, FLOW yellow-green. FLOW runs from 3.3 V, too low for an emerald green LED. The Super Mini's own blue LED (GPIO8) is the WiFi-status LED in firmware. The electrolytic and the coin cell carry their own + marks.
 - **LED size:** the LEDs are **1206** (bigger pads, as on WPC).
 - **Back:** "ASC Mini-C3 rev B / Agri Sensors and Controls Oct 2026".
 

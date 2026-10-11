@@ -4,10 +4,9 @@ Board,"RTC DS1307 (MSKSEMI, pin compatible)",U2,1,17.7,17.7,LCSC https://www.lcs
 Board,T/RH sensor AHT20 (on the stick),U1 (stick),1,30.0,30.0,LCSC https://www.lcsc.com/product-detail/C2757850.html,quoted
 Board,Schottky B5819W (flow level shift),D2,1,1.9,1.9,LCSC https://www.lcsc.com/product-detail/C8598.html,quoted
 Board,"Driver ULN2003A (pump on ch 1+2, relay on ch 3)",U3,1,10.4,10.4,LCSC https://www.lcsc.com/product-detail/C7512.html,quoted
-Board,LED 1206 red (PUMP),D3,1,1.8,1.8,LCSC https://www.lcsc.com/product-detail/C37635751.html,quoted
-Board,LED 1206 yellow (FLOW),D4,1,1.4,1.4,LCSC https://www.lcsc.com/product-detail/C30584802.html,quoted
-Board,LED 1206 green (STATUS),D5,1,2.1,2.1,LCSC https://www.lcsc.com/product-detail/C37635752.html,quoted
-Board,LED 1206 blue (RELAY),D7,1,1.4,1.4,LCSC https://www.lcsc.com/product-detail/C28310438.html,quoted
+Board,"LED 1206 yellow (PUMP, RELAY)","D3, D7",2,1.4,2.8,LCSC https://www.lcsc.com/product-detail/C30584802.html,quoted
+Board,LED 1206 red (STATUS),D5,1,1.8,1.8,LCSC https://www.lcsc.com/product-detail/C37635751.html,quoted
+Board,LED 1206 yellow-green (FLOW),D4,1,1.4,1.4,LCSC https://www.lcsc.com/product-detail/C28310441.html,quoted
 Board,Resistor 0805 1k,"R3, R4, R12",3,0.31,0.93,LCSC https://www.lcsc.com/product-detail/C17513.html,quoted
 Board,Resistor 0805 470R,R5,1,0.43,0.43,LCSC https://www.lcsc.com/product-detail/C17710.html,quoted
 Board,Resistor 0805 10k,"R6, R7",2,0.3,0.6,LCSC https://www.lcsc.com/product-detail/C17414.html,quoted

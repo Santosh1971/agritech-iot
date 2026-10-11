@@ -3,7 +3,7 @@
   "ref": "U1",
   "fp": "ASC:ESP32-C3_SuperMini_Socket",
   "value": "ESP32-C3 Super Mini",
-  "uuid": "5070dd86-8bb6-405c-ba48-73af7dabc026",
+  "uuid": "a8a03a28-8ee2-4cff-aa6c-92c82ce5a9cb",
   "pads": {
    "9": "+5V",
    "10": "GND",
@@ -33,7 +33,7 @@
   "ref": "U2",
   "fp": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
   "value": "DS1307Z+",
-  "uuid": "f2c7f4bd-92ad-49fc-b751-34545514b616",
+  "uuid": "81250031-c4f9-458e-a018-0a2473ca85fd",
   "pads": {
    "8": "+5V",
    "4": "GND",
@@ -55,7 +55,7 @@
   "ref": "C2",
   "fp": "Capacitor_SMD:C_0805_2012Metric",
   "value": "100n",
-  "uuid": "5cb76a2c-d21d-4d36-8149-cdadb0d86c6b",
+  "uuid": "19337cd2-b5a6-4104-a70d-486966894334",
   "pads": {
    "1": "+5V",
    "2": "GND"
@@ -70,7 +70,7 @@
   "ref": "Y1",
   "fp": "Crystal:Crystal_C26-LF_D2.1mm_L6.5mm_Horizontal",
   "value": "32.768k 12.5pF",
-  "uuid": "46b9932c-e122-4d06-915c-3785729c1d22",
+  "uuid": "c3ce0e95-ee55-4422-94a2-53d912837ad1",
   "pads": {
    "1": "/XT1",
    "2": "/XT2"
@@ -85,7 +85,7 @@
   "ref": "BT1",
   "fp": "ASC:Battery_CR2032_Vertical_3pin",
   "value": "CR2032 tabbed",
-  "uuid": "252f13a5-c264-430a-9f24-4200cf79e11d",
+  "uuid": "6dcd7447-dc0f-4347-aaf6-3ed7c4c78bb0",
   "pads": {
    "1": "/VBAT",
    "2": "GND"
@@ -100,7 +100,7 @@
   "ref": "R8",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "4.7k",
-  "uuid": "4ddad0f7-0d6a-46cc-a87a-d7d174dcf16b",
+  "uuid": "07ace91f-c256-434a-9aa8-4ad45057371f",
   "pads": {
    "1": "+3V3",
    "2": "/SDA"
@@ -115,7 +115,7 @@
   "ref": "R9",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "4.7k",
-  "uuid": "1e901012-a87a-4ead-94d1-c667846806d7",
+  "uuid": "78b885dc-cbb0-4bb1-a61f-7f96b5a3175c",
   "pads": {
    "1": "+3V3",
    "2": "/SCL"
@@ -130,7 +130,7 @@
   "ref": "J5",
   "fp": "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-4-3.5-H_1x04_P3.50mm_Horizontal",
   "value": "I2C",
-  "uuid": "5855c84d-bb89-4750-bc0a-8ecd4bd48f4d",
+  "uuid": "7a154d8c-6eec-412f-8f3b-01e6bdeb064d",
   "pads": {
    "1": "+3V3",
    "2": "GND",
@@ -147,7 +147,7 @@
   "ref": "J3",
   "fp": "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-5-3.5-H_1x05_P3.50mm_Horizontal",
   "value": "AUX",
-  "uuid": "1aee8604-b664-4cae-8118-b469bfc5dba4",
+  "uuid": "40af0f10-7c71-47c4-9cec-2102cf6e167b",
   "pads": {
    "1": "+3V3",
    "2": "/AUX_D",
@@ -165,7 +165,7 @@
   "ref": "R7",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "10k",
-  "uuid": "b253cd12-be63-4d2f-b7fa-203c678c50ed",
+  "uuid": "c48b8188-ee20-4a7d-925e-e094a14145e2",
   "pads": {
    "1": "+3V3",
    "2": "/AUX_D"
@@ -180,7 +180,7 @@
   "ref": "J4",
   "fp": "ASC:Flow_XH3_or_PT-1,5-3-3.5mm",
   "value": "FLOW (XH or 3.5 mm)",
-  "uuid": "37c166a0-7b2c-41d3-8afa-2aa2deaff985",
+  "uuid": "6dc1dc13-c4b3-4fcb-8009-1e364fa0ea39",
   "pads": {
    "1": "GND",
    "2": "+5V",
@@ -196,7 +196,7 @@
   "ref": "D2",
   "fp": "Diode_SMD:D_SOD-123",
   "value": "B5819W",
-  "uuid": "5f86e4a4-5273-4250-9a85-c8f04f44d4f8",
+  "uuid": "fdb473b7-878c-4655-98ca-ab30d5f7609e",
   "pads": {
    "1": "/FLOW_EXT",
    "2": "/FLOW"
@@ -211,7 +211,7 @@
   "ref": "R6",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "10k",
-  "uuid": "24778f8b-0c36-442b-8039-026520bfb55b",
+  "uuid": "1fb01abb-bce4-49a4-b654-623d8dc0d29e",
   "pads": {
    "1": "+3V3",
    "2": "/FLOW"
@@ -226,7 +226,7 @@
   "ref": "R5",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "470",
-  "uuid": "4ceeb0c5-07af-413d-94c9-5559f029ebf4",
+  "uuid": "da544f50-2085-4170-bc2a-e021253035ad",
   "pads": {
    "1": "+3V3",
    "2": "/LED_FLOW_A"
@@ -240,8 +240,8 @@
  {
   "ref": "D4",
   "fp": "LED_SMD:LED_1206_3216Metric",
-  "value": "FLOW yellow",
-  "uuid": "68915121-ea46-4bd2-8852-b29967040746",
+  "value": "FLOW yellow-green",
+  "uuid": "7c947702-1810-4872-9cca-b02afceb0846",
   "pads": {
    "1": "/FLOW_EXT",
    "2": "/LED_FLOW_A"
@@ -256,7 +256,7 @@
   "ref": "U3",
   "fp": "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm",
   "value": "ULN2003A",
-  "uuid": "4659c428-b87d-48ea-9253-710946dc9953",
+  "uuid": "897d75b7-7b98-4c89-9e7f-6f0748fce8da",
   "pads": {
    "1": "/PUMP",
    "2": "/PUMP",
@@ -286,7 +286,7 @@
   "ref": "J1",
   "fp": "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-2-3.5-H_1x02_P3.50mm_Horizontal",
   "value": "PUMP",
-  "uuid": "d48ac4b8-91a1-4365-a020-53b40241751c",
+  "uuid": "18a50f84-932b-41a4-aba6-702f1d5d1517",
   "pads": {
    "1": "+5V",
    "2": "/PUMP_N"
@@ -301,7 +301,7 @@
   "ref": "C1",
   "fp": "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm",
   "value": "220u 10V",
-  "uuid": "5327ee65-257d-42d2-a175-cf7fa8d75d8c",
+  "uuid": "f4ea7614-22b4-458f-8053-31de29d790af",
   "pads": {
    "1": "+5V",
    "2": "GND"
@@ -316,7 +316,7 @@
   "ref": "R3",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "1k",
-  "uuid": "40bf49e7-f173-4a9b-8b3f-d598fa04c66b",
+  "uuid": "036a4ce4-8d6c-4d17-bc87-cc2920804378",
   "pads": {
    "1": "+5V",
    "2": "/LED_PUMP_A"
@@ -330,8 +330,8 @@
  {
   "ref": "D3",
   "fp": "LED_SMD:LED_1206_3216Metric",
-  "value": "PUMP red",
-  "uuid": "04b12aaa-f71a-49d1-bcb8-7a240fd3d55f",
+  "value": "PUMP yellow",
+  "uuid": "0e73e0b2-c0d5-4d6a-8af3-98f99e06930d",
   "pads": {
    "1": "/PUMP_N",
    "2": "/LED_PUMP_A"
@@ -346,7 +346,7 @@
   "ref": "K1",
   "fp": "ASC:Relay_SPST_Hongfa_HF46F",
   "value": "HF46F/005-HS1",
-  "uuid": "14c65dd0-2a22-4aec-9a07-ec60c293cc90",
+  "uuid": "2c8e7611-c6f2-4026-bf2f-e366f66ce6ce",
   "pads": {
    "1": "+5V",
    "2": "/RELAY_COIL",
@@ -363,10 +363,10 @@
   "ref": "J6",
   "fp": "Connector_Phoenix_MSTB:PhoenixContact_MSTBVA_2,5_2-G-5,08_1x02_P5.08mm_Vertical",
   "value": "RELAY 230V (MSTBVA)",
-  "uuid": "ce822993-8bbf-4eee-9d82-ae83a3c92a96",
+  "uuid": "ce8259a0-2af4-4349-88e1-6bf34a5d3698",
   "pads": {
-   "1": "/RELAY_NO",
-   "2": "/RELAY_COM"
+   "1": "/RELAY_COM",
+   "2": "/RELAY_NO"
   },
   "nc": {},
   "in_bom": true,
@@ -378,7 +378,7 @@
   "ref": "R12",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "1k",
-  "uuid": "72999b94-ee6d-49bb-82ab-eb0d723b716a",
+  "uuid": "ef10dc5f-7a5d-4f38-a1aa-358085512861",
   "pads": {
    "1": "+5V",
    "2": "/LED_RLY_A"
@@ -392,8 +392,8 @@
  {
   "ref": "D7",
   "fp": "LED_SMD:LED_1206_3216Metric",
-  "value": "RELAY blue",
-  "uuid": "5e8fd5ac-ad21-42b7-b4a5-14f149b2de22",
+  "value": "RELAY yellow",
+  "uuid": "6773b497-fbbf-4006-9a24-ab776a28a60a",
   "pads": {
    "1": "/RELAY_COIL",
    "2": "/LED_RLY_A"
@@ -408,7 +408,7 @@
   "ref": "R4",
   "fp": "Resistor_SMD:R_0805_2012Metric",
   "value": "1k",
-  "uuid": "227c5602-1920-4265-a2e1-abf863bc084e",
+  "uuid": "fb0a69ee-72d2-4091-9405-fbc969d5f49e",
   "pads": {
    "1": "/LED_STATUS",
    "2": "/LED_STATUS_A"
@@ -422,8 +422,8 @@
  {
   "ref": "D5",
   "fp": "LED_SMD:LED_1206_3216Metric",
-  "value": "STATUS green",
-  "uuid": "160b5722-a4ac-4ab1-b7af-58561126d5ec",
+  "value": "STATUS red",
+  "uuid": "1b8eb587-bcc1-4ef6-b883-eceae2994a37",
   "pads": {
    "1": "GND",
    "2": "/LED_STATUS_A"
@@ -438,7 +438,7 @@
   "ref": "H1",
   "fp": "ASC:Snap_Standoff_4.2mm",
   "value": "SNAP 4.2",
-  "uuid": "dfd436bd-3ceb-459f-a654-d514124e7e74",
+  "uuid": "4dd3d037-84b4-46f4-9653-bb8ae1533a30",
   "pads": {},
   "nc": {},
   "in_bom": false,
@@ -450,7 +450,7 @@
   "ref": "H2",
   "fp": "ASC:Snap_Standoff_4.2mm",
   "value": "SNAP 4.2",
-  "uuid": "97a76620-c913-4562-afda-75069e62d0a2",
+  "uuid": "1f63b60d-a44e-4ecb-a4de-8f69788a23e7",
   "pads": {},
   "nc": {},
   "in_bom": false,
@@ -462,7 +462,7 @@
   "ref": "H3",
   "fp": "ASC:Snap_Standoff_4.2mm",
   "value": "SNAP 4.2",
-  "uuid": "6253105c-66be-4cae-9fe7-80586c2c322a",
+  "uuid": "b591ae06-fe45-4dac-af76-3766e374819d",
   "pads": {},
   "nc": {},
   "in_bom": false,

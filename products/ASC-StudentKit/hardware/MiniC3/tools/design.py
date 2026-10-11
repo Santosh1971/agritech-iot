@@ -94,7 +94,7 @@ part("J4", "Connector_Generic:Conn_01x03", "FLOW (XH or 3.5 mm)", FLOW_FP, (X, Y
 part("D2", "Device:D_Schottky", "B5819W", SOD123, (X + 25.4, Y + 2.54), {"1": "FLOW_EXT", "2": "FLOW"})
 part("R6", "Device:R", "10k", R0805, (X + 45.72, Y - 2.54), {"1": "+3V3", "2": "FLOW"})
 part("R5", "Device:R", "470", R0805, (X + 12.7, Y + 30.48), {"1": "+3V3", "2": "LED_FLOW_A"})
-part("D4", "Device:LED", "FLOW yellow", LED0805, (X + 35.56, Y + 38.1), {"1": "FLOW_EXT", "2": "LED_FLOW_A"})
+part("D4", "Device:LED", "FLOW yellow-green", LED0805, (X + 35.56, Y + 38.1), {"1": "FLOW_EXT", "2": "LED_FLOW_A"})
 
 # ---------------------------------------------------------------- pump driver
 X, Y = 274.32, 190.5
@@ -109,7 +109,7 @@ part("J1", "Connector:Screw_Terminal_01x02", "PUMP", TB % (2, 2), (X + 33.02, Y)
 part("C1", "Device:C_Polarized", "220u 10V", "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm", (X - 45.72, Y - 7.62),
      {"1": "+5V", "2": "GND"})
 part("R3", "Device:R", "1k", R0805, (X + 15.24, Y + 30.48), {"1": "+5V", "2": "LED_PUMP_A"})
-part("D3", "Device:LED", "PUMP red", LED0805, (X + 35.56, Y + 38.1), {"1": "PUMP_N", "2": "LED_PUMP_A"})
+part("D3", "Device:LED", "PUMP yellow", LED0805, (X + 35.56, Y + 38.1), {"1": "PUMP_N", "2": "LED_PUMP_A"})
 
 # ---------------------------------------------------------------- relay (FG1 pump contactor)
 X, Y = 330.2, 182.88
@@ -120,15 +120,15 @@ note("MSTBVA header; 230 V copper keeps >= 5 mm from everything else (.kicad_dru
 part("K1", "ASC:HF46F", "HF46F/005-HS1", "ASC:Relay_SPST_Hongfa_HF46F", (X + 43.18, Y + 7.62),
      {"1": "+5V", "2": "RELAY_COIL", "3": "RELAY_NO", "4": "RELAY_COM"})
 part("J6", "Connector_Generic:Conn_01x02", "RELAY 230V (MSTBVA)", TB_MAINS, (X + 66.04, Y + 7.62),
-     {"1": "RELAY_NO", "2": "RELAY_COM"})
+     {"1": "RELAY_COM", "2": "RELAY_NO"})          # turned 180 (curved side inward, as on FG1): pin 1 is on the right
 part("R12", "Device:R", "1k", R0805, (X + 33.02, Y + 30.48), {"1": "+5V", "2": "LED_RLY_A"})
-part("D7", "Device:LED", "RELAY blue", LED0805, (X + 50.8, Y + 38.1), {"1": "RELAY_COIL", "2": "LED_RLY_A"})
+part("D7", "Device:LED", "RELAY yellow", LED0805, (X + 50.8, Y + 38.1), {"1": "RELAY_COIL", "2": "LED_RLY_A"})
 
 # ---------------------------------------------------------------- status LED
 X, Y = 132.08, 254.0
 note("STATUS LED on GPIO10 (active high), for the firmware.", 116.84, 241.3)
 part("R4", "Device:R", "1k", R0805, (X + 12.7, Y + 2.54), {"1": "LED_STATUS", "2": "LED_STATUS_A"})
-part("D5", "Device:LED", "STATUS green", LED0805, (X + 35.56, Y + 10.16), {"1": "GND", "2": "LED_STATUS_A"})
+part("D5", "Device:LED", "STATUS red", LED0805, (X + 35.56, Y + 10.16), {"1": "GND", "2": "LED_STATUS_A"})
 
 # ---------------------------------------------------------------- mechanical
 note("Mounting: 3 x 4.2 mm holes for 5 mm nylon reverse-mount snap standoffs, bases taped to the box floor (any box).", 228.6, 241.3)
@@ -165,7 +165,7 @@ PLACE = {
     "R12": (38.35, 19.4, 0), "D7": (38.35, 22.6, 0),
     # 230 V corner: relay contacts and the pluggable 5.08 mm header, bottom right
     "K1": (37.15, 29.85, 0),
-    "J6": (41.33, 39.13, 0),
+    "J6": (41.33, 39.13, 180),
     # driver, bulk capacitor and the flow / AUX parts, left of the relay
     "U3": (12.8, 29.5, 90),
     "C1": (22.6, 29.6, 0),
@@ -183,8 +183,8 @@ NO_POUR = [(1.0, 16.5, 19.0, 23.0),
 
 # Tracks drawn by gen_pcb.py and locked before autorouting: net, (ref, pad), (ref, pad), width mm.
 # The 230 V contacts run straight down to their terminal on the top layer.
-PREROUTE = [("/RELAY_NO", ("K1", "3"), ("J6", "1"), 1.5),
-            ("/RELAY_COM", ("K1", "4"), ("J6", "2"), 1.5)]
+PREROUTE = [("/RELAY_NO", ("K1", "3"), ("J6", "2"), 1.5),
+            ("/RELAY_COM", ("K1", "4"), ("J6", "1"), 1.5)]
 NO_TRACK = []                               # (x0, y0, x1, y1) areas where no track or via may go
 
 # Net classes for routing: name -> (track width mm, clearance mm, nets). The mains clearance
@@ -209,8 +209,8 @@ def silk(T):
     b = T.box_mm("J4")
     T.text("FLOW  S 5V G", (b[0] + b[2]) / 2 - 2.6, b[3] + 0.6, 0.8, bold=True)
     # LED block, one column per LED: "R3 1K" / resistor / "+" / LED / function / "D3 RED"
-    for r, rv, d, dv, name in (("R3", "1K", "D3", "RED", "PUMP"), ("R5", "470E", "D4", "YEL", "FLOW"),
-                               ("R4", "1K", "D5", "GRN", "STAT"), ("R12", "1K", "D7", "BLU", "RLY")):
+    for r, rv, d, dv, name in (("R3", "1K", "D3", "YEL", "PUMP"), ("R5", "470E", "D4", "GRN", "FLOW"),
+                               ("R4", "1K", "D5", "RED", "STAT"), ("R12", "1K", "D7", "YEL", "RLY")):
         x0, y0, x1, y1 = T.box_mm(d)
         cx = (x0 + x1) / 2
         T.text("%s %s" % (r, rv), cx, 17.9, 0.7)
@@ -218,14 +218,15 @@ def silk(T):
         T.text("+", ax, 20.95, 0.7)
         T.text(name, cx, 24.3, 0.75, bold=True)
         T.text("%s %s" % (d, dv), cx, 25.25, 0.7)
-    for num, name in {"1": "NO", "2": "COM"}.items():
+    for num, name in {"1": "COM", "2": "NO"}.items():
         x, y = T.pad_xy("J6", num)
         T.text(name, x, 30.2, 0.8)
     T.text("230V~ 5A", 33.5, 27.6, 0.9, bold=True)
     ax, ay = T.pad_xy("D2", "2")                        # D2 anode "+", above its pad (the ULN2003 is to the right)
     T.text("+", ax, ay - 1.45, 0.7)
     T.text("ASC Mini-C3 rev B", 32.5, 18.4, 1.2, layer="B", bold=True)
-    T.text("Agri Sensors and Controls  Oct 2026", 32.5, 20.5, 0.9, layer="B")
+    T.text("Agri Sensors and Controls", 32.5, 20.5, 0.9, layer="B")
+    T.text("Oct 2026", 32.5, 22.0, 0.9, layer="B")
 
 # Assembly labels (house style): reference + value next to each part, for hand soldering
 # (the LED block's R3/R5/R4/R12 and D3/D4/D5/D7 are labelled by hand in silk() above)
