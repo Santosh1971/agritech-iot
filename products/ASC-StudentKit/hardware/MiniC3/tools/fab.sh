@@ -4,6 +4,7 @@
 set -e
 K=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
 KP=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+python3 tools/gen_3d.py >/dev/null
 rm -rf fab && mkdir -p fab/renders
 LAYERS=F.Cu,B.Cu,F.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts
 
@@ -24,8 +25,10 @@ for p in ASC-MiniC3 ASC-AHT20; do
   $K sch export bom --fields 'Reference,Value,Footprint,${QUANTITY}' --group-by 'Value,Footprint' -o fab/$p-bom-kicad.csv $p.kicad_sch >/dev/null
   $K pcb export pdf --layers F.Cu,F.SilkS,Edge.Cuts,F.Fab --mode-single -o fab/$p-print-1to1.pdf $p.kicad_pcb >/dev/null
   $K pcb export pos --side front --format csv --units mm --smd-only -o fab/$p-pos.csv $p.kicad_pcb >/dev/null
+  $K pcb export step --force --subst-models -o fab/$p.step $p.kicad_pcb >/dev/null 2>&1   # board + 3D models, for enclosure fit
   $K pcb render --side top --width 1200 --height 1200 --quality high -o fab/renders/$p-top.png $p.kicad_pcb >/dev/null
   $K pcb render --side bottom --width 1200 --height 1200 --quality high -o fab/renders/$p-bottom.png $p.kicad_pcb >/dev/null
+  $K pcb render --width 1600 --height 1200 --rotate ' -50,0,-30' --zoom 0.6 --quality high --background opaque -o fab/renders/$p-3d.png $p.kicad_pcb >/dev/null
 done
 $K pcb export pos --side front --format csv --units mm --smd-only -o fab/ASC-MiniC3-panel-pos.csv panel/ASC-MiniC3-panel.kicad_pcb >/dev/null
 $K pcb render --side top --width 1200 --height 1250 --quality high -o fab/renders/ASC-MiniC3-panel-top.png panel/ASC-MiniC3-panel.kicad_pcb >/dev/null

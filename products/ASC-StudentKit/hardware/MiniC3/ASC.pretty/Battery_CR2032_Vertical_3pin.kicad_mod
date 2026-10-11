@@ -23,4 +23,9 @@
 	(fp_text user "+" (at 9.7 0 0) (unlocked yes) (layer "F.SilkS") (uuid "1a52a964-c2dc-465c-85eb-2ab9f34acfef") (effects (font (size 1.0 1.0) (thickness 0.150))))
 	(fp_text user "-" (at -2.2 5.0 0) (unlocked yes) (layer "F.SilkS") (uuid "9ab0f61f-6720-4ebf-93c9-a6e123367536") (effects (font (size 1.0 1.0) (thickness 0.150))))
 	(fp_rect (start -10.6 -1.5) (end 10.6 5.5) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd") (uuid "f565bc1f-6237-4411-9961-944d74c4ecc4"))
+	(model "${KIPRJMOD}/ASC.3dshapes/Battery_CR2032_Vertical_3pin.wrl"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
 )

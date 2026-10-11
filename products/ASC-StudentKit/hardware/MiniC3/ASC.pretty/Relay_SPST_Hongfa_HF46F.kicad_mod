@@ -30,4 +30,9 @@
 	(pad "2" thru_hole circle (at 0 -4.7) (size 1.9 1.9) (drill 1.1) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid "52b2a5a3-30ca-48a6-a00e-9cd60acfc040"))
 	(pad "3" thru_hole circle (at 11.5 0) (size 1.9 1.9) (drill 1.1) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid "d2aadd19-9972-4022-8b6c-111456b26ad0"))
 	(pad "4" thru_hole circle (at 18.5 0) (size 1.9 1.9) (drill 1.1) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid "704b790c-ac99-47f3-9ed7-05f5e6792a9d"))
+	(model "${KIPRJMOD}/ASC.3dshapes/Relay_SPST_Hongfa_HF46F.wrl"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
 )

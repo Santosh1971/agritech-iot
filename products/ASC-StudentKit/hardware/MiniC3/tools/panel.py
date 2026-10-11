@@ -115,5 +115,7 @@ text("ASC Mini-C3 panel 96 x 100: 4 x Mini-C3 + 4 x AHT20 stick. V-cut on all Cm
 
 # zones keep the fills of the routed source boards (copied with them), so no refill here
 path = os.path.join(OUT, "ASC-MiniC3-panel.kicad_pcb")
+import apply_3d
+apply_3d.set_models(panel, "${KIPRJMOD}/../ASC.3dshapes/")
 pcbnew.SaveBoard(path, panel)
 print("panel: %d footprints, %d tracks, %d zones -> %s" % (len(panel.GetFootprints()), len(panel.GetTracks()), len(panel.Zones()), path))

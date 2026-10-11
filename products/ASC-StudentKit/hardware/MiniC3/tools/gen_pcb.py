@@ -198,6 +198,8 @@ for netn, (ra, pa), (rb, pb), w in getattr(D, "PREROUTE", []):
     t.SetWidth(mm(w)); t.SetLayer(pcbnew.F_Cu); t.SetNet(nets[netn]); t.SetLocked(True)
     board.Add(t)
 
+import apply_3d
+apply_3d.set_models(board)                # STEP models for parts the KiCad library has none for
 board.Save(os.path.join(PRJ, D.PROJECT + ".kicad_pcb"))
 print("%s: %d footprints, %d nets" % (D.PROJECT, len(placed), len(nets)))
 for x in bad:

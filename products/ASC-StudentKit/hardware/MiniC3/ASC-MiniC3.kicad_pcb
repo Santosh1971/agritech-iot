@@ -219,6 +219,17 @@
 			(uuid "7086a486-79f5-4e1e-b29d-1e0b476703f1")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Snap_Standoff_4.2mm.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "Diode_SMD:D_SOD-123"
 		(layer "F.Cu")
@@ -1152,7 +1163,7 @@
 			(uuid "57769d8b-97e7-4163-97f8-b49bc403ecb9")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/TerminalBlock_MetzConnect.3dshapes/TerminalBlock_MetzConnect_Type101_RT01602HBWC_1x02_P5.08mm_Horizontal.step"
+		(model "${KIPRJMOD}/ASC.3dshapes/TerminalBlock_MetzConnect_Type101_RT01602HBWC_1x02_P5.08mm_Horizontal.wrl"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -1494,6 +1505,17 @@
 			(uuid "79869fba-944a-4fee-b9a8-216915058871")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Battery_CR2032_Vertical_3pin.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "Resistor_SMD:R_0805_2012Metric"
 		(layer "F.Cu")
@@ -2816,7 +2838,7 @@
 			(uuid "3aa7390b-771c-48ff-bd02-276e825cc677")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/TerminalBlock_MetzConnect.3dshapes/TerminalBlock_MetzConnect_Type086_RT03405HBLC_1x05_P3.81mm_Horizontal.step"
+		(model "${KIPRJMOD}/ASC.3dshapes/TerminalBlock_MetzConnect_Type086_RT03405HBLC_1x05_P3.81mm_Horizontal.wrl"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -3110,6 +3132,17 @@
 			(uuid "314754bd-69a0-4ad1-8bb4-033afe5eeefa")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Relay_SPST_Hongfa_HF46F.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "Resistor_SMD:R_0805_2012Metric"
 		(layer "F.Cu")
@@ -4620,6 +4653,17 @@
 			(uuid "28285859-c4d1-484c-afd3-d943c339e4bd")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/ESP32-C3_SuperMini_Socket.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "TerminalBlock_MetzConnect:TerminalBlock_MetzConnect_Type086_RT03404HBLC_1x04_P3.81mm_Horizontal"
 		(layer "F.Cu")
@@ -5235,7 +5279,7 @@
 			(uuid "234a3c5c-7242-4d99-a98c-722123af0c23")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/TerminalBlock_MetzConnect.3dshapes/TerminalBlock_MetzConnect_Type086_RT03404HBLC_1x04_P3.81mm_Horizontal.step"
+		(model "${KIPRJMOD}/ASC.3dshapes/TerminalBlock_MetzConnect_Type086_RT03404HBLC_1x04_P3.81mm_Horizontal.wrl"
 			(offset
 				(xyz 0 0 0)
 			)
@@ -5629,6 +5673,17 @@
 			(uuid "99ef6c69-a8ef-4816-9080-666a374a5737")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Snap_Standoff_4.2mm.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm"
 		(layer "F.Cu")
@@ -7080,6 +7135,17 @@
 			(uuid "aabcc09e-3246-45f1-a049-2e2aabae3764")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Snap_Standoff_4.2mm.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(footprint "Diode_SMD:D_SOD-123"
 		(layer "F.Cu")
@@ -9059,7 +9125,7 @@
 			(uuid "bfb7768f-5c8c-45d0-8e10-13f8c0109213")
 		)
 		(embedded_fonts no)
-		(model "${KICAD9_3DMODEL_DIR}/TerminalBlock_MetzConnect.3dshapes/TerminalBlock_MetzConnect_Type086_RT03402HBLC_1x02_P3.81mm_Horizontal.step"
+		(model "${KIPRJMOD}/ASC.3dshapes/TerminalBlock_MetzConnect_Type086_RT03402HBLC_1x02_P3.81mm_Horizontal.wrl"
 			(offset
 				(xyz 0 0 0)
 			)

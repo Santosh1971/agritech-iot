@@ -615,6 +615,17 @@
 			(uuid "23859485-12c4-4ca6-a1e2-222acb9e2cea")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/ASC.3dshapes/Aosong_AHT20_DFN-6_3x3mm.wrl"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
 	)
 	(gr_line
 		(start 100 60)

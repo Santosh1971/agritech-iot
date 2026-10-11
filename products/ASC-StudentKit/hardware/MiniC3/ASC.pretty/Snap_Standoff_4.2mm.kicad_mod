@@ -15,4 +15,9 @@
 	(fp_circle (center 0 0) (end 3.6 0) (stroke (width 0.05) (type solid)) (fill no) (layer "B.CrtYd") (uuid "ba9e1321-3c07-4857-bc57-9bd2460c28b3"))
 	(fp_circle (center 0 0) (end 3.3 0) (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS") (uuid "02c69d91-9fd8-45f5-919b-c4141872c916"))
 	(fp_circle (center 0 0) (end 3.0 0) (stroke (width 0.1) (type solid)) (fill no) (layer "F.Fab") (uuid "2c1e0edd-0a84-40c2-8159-7753bbb83e89"))
+	(model "${KIPRJMOD}/ASC.3dshapes/Snap_Standoff_4.2mm.wrl"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
 )

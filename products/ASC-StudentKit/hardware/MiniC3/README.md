@@ -27,6 +27,16 @@ Two boards share one 100 × 100 order:
 | Costing | `costing.csv`: board plus stick about ₹267, full kit about ₹1,026 (IP-65-26, YF-S401 at ₹230, HF46F at ₹42, 3 standoffs) |
 | Mounting | 3 × 4.2 mm holes, arranged in a triangle, for 5 mm nylon reverse-mount snap standoffs (Probots PRO5803, ₹9.40 at 50+). Each standoff's flat base sticks to the box floor with double-sided foam tape; the snap head goes through the PCB hole. This works in any box with a flat floor; the box's own bosses are not used. Enclosure: REI IP-65-26 (90 × 58 × 44). |
 
+## 3D models
+
+KiCad's library has no 3D models for the MetzConnect terminals, and our own parts have none either. `tools/gen_3d.py` writes simple coloured STEP models for them into `ASC.3dshapes/` (boxes and cylinders sized from the datasheets):
+- the Super Mini on its sockets;
+- the tabbed CR2032 and the HF46F relay;
+- the 3.81 mm and 5.08 mm terminals;
+- the AHT20 and the snap standoffs (the standoffs show below the board).
+
+`tools/apply_3d.py` attaches them to the routed boards without re-routing; `gen_pcb.py` and `panel.py` attach them automatically. `fab/ASC-MiniC3.step` and `fab/ASC-AHT20.step` are full board assemblies, for checking the fit in the enclosure.
+
 ## Pin map (ESP32-C3 Super Mini)
 
 | GPIO | Function | Notes |
