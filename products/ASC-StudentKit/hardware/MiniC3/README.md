@@ -9,12 +9,14 @@ Two boards share one 100 × 100 order:
 | **ASC-MiniC3** | 48 × 44 mm | Carrier for a plug-in ESP32-C3 Super Mini. It has a flow input, a 5 V pump driver, a 230 V relay, a DS1307 RTC, I2C and AUX terminals and four LEDs. |
 | **ASC-AHT20** | 48 × 6 mm | A T/RH "sensor stick" on a 4-core cable, so the sensor sits outside the box and students can breathe on it |
 
-**The panel (`fab/ASC-MiniC3-panel-gerbers.zip`, 96 × 100 mm, order this one):**
-- It holds 4 Minis (2 × 2) and 4 sticks (2 × 2 underneath).
-- V-cuts sit at x = 48 and at y = 44, 88 and 94. Every cut runs edge to edge.
-- The cut lines are on the **Cmts.User** layer, so tell the fab: "V-cut as per the Cmts layer".
+**The panel (`fab/ASC-MiniC3-panel-gerbers.zip`, 98 × 98 mm, order this one):**
+- It holds 4 Minis (2 × 2) and **2 sticks** underneath. FG1 builds don't need a stick.
+- **No V-cut.** JLC charges extra for V-cut, so WhyPCB asked for routed slots instead.
+- The boards are separated by **2 mm routed slots**, drawn as closed cut-outs in the board outline.
+- The slots stop short at the panel edges and around the slot crossings. That leaves small tabs, and every tab has **0.5 mm mouse-bite holes** at 0.8 mm pitch along both board edges (78 holes, in the unplated-hole drill file). The boards snap off by hand.
+- The zip also carries `ASC-MiniC3-panel-drawing.pdf` and `PANEL-README.txt` for the fab.
 - Copper keeps ≥ 0.4 mm from every edge.
-- At WhyPCB's quote (20 panels for ₹3,000), one Mini plus one stick costs **₹37.50** in PCB.
+- **Price** (WhyPCB): ₹1,500 for 5 panels or ₹2,000 for 10, which is ₹50 per Mini at 10 panels. 98 × 98 stays inside their 100 × 100 price; they also accept up to 102 × 100.
 
 ## Status
 
@@ -54,7 +56,7 @@ Our own parts have no 3D models in KiCad's library (the Phoenix terminals, the M
 | Ref | Connector | Pins |
 |---|---|---|
 | J5 | I2C, 4-pole 3.5 mm screw terminal (top edge) | 3V3, GND, SCL, SDA. This is the AHT20 stick's order and the usual VIN GND SCL SDA module order. |
-| J4 | FLOW (top right): one footprint, fit **either** a JST-XH 3-pin header (student bench: takes the YF-S401 plug) **or** a 3-pole 3.5 mm screw terminal (FG1 / field: long cable). | GND, 5V, SIG (silkscreen reads S 5V G, left to right) |
+| J4 | FLOW (top right): one footprint, fit **either** a JST-XH 3-pin header (student bench: takes the YF-S401 plug) **or** a 3-pole 3.5 mm screw terminal (FG1 / field: long cable). | 5V (red), GND (black), SIG (yellow); silkscreen reads S G 5V, left to right |
 | J3 | AUX, 5-pole 3.5 mm screw terminal (bottom edge) | 3V3, D, A0, A1, GND |
 | J1 | PUMP, 2-pole 3.5 mm screw terminal (bottom edge) | P+ (5 V), P− (low side) |
 | J6 | RELAY 230 V, pluggable 5.08 mm 2-pole MSTBVA header + plug (bottom right), the same family as FG1's relay connector | NO, COM. HF46F, 5 A 250 VAC, for a pump contactor coil. |
@@ -97,7 +99,7 @@ House style, as on the WPC and FG1 boards:
    - The Rajiv holder (photo, SKU RBH-2) is a vertical holder with **3 pins**. A different holder's datasheet shows 2 pins 20.0 mm apart, so the layout varies by maker.
    - Its pin positions may or may not match the tabbed cell's pads. **Measure a sample before ordering.**
    - If they differ, its pads can be added next to the tabbed cell's, the same way the flow connector takes either part.
-3. **YF-S401 plug order.** The board expects GND, 5V, SIG, with the red wire in the middle.
+3. **YF-S401 plug order.** The board expects 5V (red) on pin 1, GND (black) in the middle and SIG (yellow) on pin 3. This follows AM Electronics' listing and photo. Check one plug: red must land on the pin next to the 5V label.
 4. **HF46F footprint.** It is the same footprint as rev A (Hongfa datasheet). Push a real relay through a 1:1 print.
 5. **AHT20 footprint.** It follows the ASAIR datasheet V1.0.03, figure 8: 0.8 × 0.5 mm pads at 1.0 mm pitch, rows 2.0 mm apart. Pins: 2 VDD, 3 SCL, 4 SDA, 5 GND.
 6. **Assembly on the panel.** JLC assembly normally wants 5 mm rails, which would make the panel 96 × 110 mm. Either assemble by hand (every passive is 0805; the AHT20 needs hot air or a stencil) or ask WhyPCB whether they can place parts on a panel with no rails.
