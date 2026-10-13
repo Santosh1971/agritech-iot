@@ -1,5 +1,5 @@
 Group,Item,Ref,Qty,Unit INR,Line INR,Source / basis,Status
-Board,PCB panel share: 1 Mini-C3 + 1 AHT20 stick,-,0.25,150.0,37.5,WhyPCB (JLCPCB partner) https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzUzMA==,quoted
+Board,PCB panel share: 1 Mini-C3 (+ half an AHT20 stick),-,0.25,200.0,50.0,WhyPCB (JLCPCB partner) https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzU2OA==,quoted
 Board,"RTC DS1307 (MSKSEMI, pin compatible)",U2,1,17.7,17.7,LCSC https://www.lcsc.com/product-detail/C49375271.html,quoted
 Board,T/RH sensor AHT20 (on the stick),U1 (stick),1,30.0,30.0,LCSC https://www.lcsc.com/product-detail/C2757850.html,quoted
 Board,Schottky B5819W (flow level shift),D2,1,1.9,1.9,LCSC https://www.lcsc.com/product-detail/C8598.html,quoted

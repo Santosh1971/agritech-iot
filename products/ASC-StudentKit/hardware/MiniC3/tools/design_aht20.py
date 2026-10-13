@@ -1,7 +1,7 @@
 """ASC-AHT20: the T/RH sensor stick that hangs outside the Mini's box on a 4-core cable.
 
-48 x 6 mm, so four of them fill the 96 x 12 strip under the four Minis on the 100 x 100 panel
-(two rows of two; every V-cut runs edge to edge). The cable is soldered into J1 at one end
+48 x 6 mm; two of them sit under the four Minis on the 98 x 98 panel (2 mm slots, mouse-bite
+tabs). FG1 builds use the Mini without a stick. The cable is soldered into J1 at one end
 (3V3 GND SCL SDA, the same order as the Mini's I2C terminal); the AHT20 sits at the other end,
 ~35 mm away, with no copper pour around it, so heat from the hand-held cable end reaches the
 sensor slowly. Students breathe on the tip to see T and RH move. I2C address 0x38; the Mini's
@@ -14,7 +14,7 @@ sensor slowly. Students breathe on the tip to see T and RH move. I2C address 0x3
 PROJECT = "ASC-AHT20"
 TITLE = "ASC Student Kit - AHT20 T/RH sensor stick rev A"
 DATE, REV, PAPER = "2026-10-10", "A", "A4"
-COMMENT = "48 x 6 mm stick; four per 100 x 100 panel, under the four Mini-C3 boards"
+COMMENT = "48 x 6 mm stick; two per 98 x 98 panel, under the four Mini-C3 boards"
 POWER_NETS = {"GND", "+3V3"}
 
 P = []

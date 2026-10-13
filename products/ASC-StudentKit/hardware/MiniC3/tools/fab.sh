@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Fab outputs for the Mini-C3, the AHT20 stick and the 96 x 100 panel -> fab/
+# Fab outputs for the Mini-C3, the AHT20 stick and the 98 x 98 panel -> fab/
 # Run from hardware/MiniC3 after gen_pcb.py / route.py (both boards) and panel.py.
 set -e
 K=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
@@ -16,7 +16,12 @@ gerbers() {   # $1 board file, $2 output name, $3 extra layers
   (cd $d && zip -q ../$2-gerbers.zip *)
   rm -rf $d
 }
-gerbers panel/ASC-MiniC3-panel.kicad_pcb ASC-MiniC3-panel ,Cmts.User      # ORDER THIS ONE
+gerbers panel/ASC-MiniC3-panel.kicad_pcb ASC-MiniC3-panel ""     # ORDER THIS ONE
+# add a drawing and a note so the fab sees the slots, tabs and mouse bites at once
+d=fab/tmp-panel; mkdir -p $d && (cd $d && unzip -q ../ASC-MiniC3-panel-gerbers.zip)
+$K pcb export pdf --layers Edge.Cuts,F.SilkS,User.Comments --mode-single --drill-shape-opt 2 -o $d/ASC-MiniC3-panel-drawing.pdf panel/ASC-MiniC3-panel.kicad_pcb >/dev/null
+cp tools/PANEL-README.txt $d/
+rm fab/ASC-MiniC3-panel-gerbers.zip && (cd $d && zip -q ../ASC-MiniC3-panel-gerbers.zip *) && rm -rf $d
 gerbers ASC-MiniC3.kicad_pcb ASC-MiniC3 ""
 gerbers ASC-AHT20.kicad_pcb ASC-AHT20 ""
 

@@ -19,9 +19,10 @@ def lcsc(code):
 
 # group, item, part / spec, refs, qty per kit, supplier, link, unit INR, basis, notes
 ROWS = [
-    ("PCB", "PCB panel share: 1 Mini-C3 + 1 AHT20 stick", "96 x 100 panel, 2 layers, 1.6 mm, HASL, V-cut (Cmts layer)", "-", 0.25,
-     "WhyPCB (JLCPCB partner)", "https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzUzMA==", 150.0, "quoted",
-     "Rs 3,000 for 20 panels = Rs 150 per panel; 4 kits per panel. Order fab/ASC-MiniC3-panel-gerbers.zip"),
+    ("PCB", "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)", "98 x 98 panel = 4 Minis + 2 sticks, 2 layers, 1.6 mm, HASL; 2 mm routed slots + mouse bites (no V-cut)", "-", 0.25,
+     "WhyPCB (JLCPCB partner)", "https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzU2OA==", 200.0, "quoted",
+     "WhyPCB rates: Rs 2,000 for 10 panels (Rs 200 each), Rs 1,500 for 5. A panel has 2 sticks for 4 Minis (FG1 builds need none); "
+     "student-only batches need an extra stick panel or sticks from a second order. Order fab/ASC-MiniC3-panel-gerbers.zip"),
 
     ("SMD (JLC assembly or LCSC)", "RTC DS1307 (MSKSEMI, pin compatible)", "DS1307Z+MSK SOIC-8, LCSC C49375271", "U2", 1,
      "LCSC", lcsc("C49375271"), round(0.2007 * USD, 1), "quoted", "Genuine Maxim DS1307Z+ (C1520446) is about Rs 240; the clone is enough here"),
@@ -95,7 +96,7 @@ SAMPLE_KITS = 2
 U = USD
 # item -> (order qty, unit Rs at that qty, why this qty)
 SAMPLE = {
-    "PCB panel share: 1 Mini-C3 + 1 AHT20 stick": (0, 0.0, "Already ordered: 5 panels = 20 Minis + 20 sticks"),
+    "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)": (5, 300.0, "5 panels = 20 Minis + 10 sticks; WhyPCB Rs 1,500 total (slots + mouse bites, no V-cut)"),
     "RTC DS1307 (MSKSEMI, pin compatible)": (5, round(0.2544 * U, 1), "LCSC minimum 5"),
     "T/RH sensor AHT20 (on the stick)": (4, round(0.7638 * U, 1), "2 + 2 spare (3 x 3 mm part, hot-air soldering)"),
         "Schottky B5819W (flow level shift)": (20, round(0.0283 * U, 1), "LCSC minimum 20"),
