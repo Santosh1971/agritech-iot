@@ -17,7 +17,7 @@ Net names follow KiCad's convention for local labels on the root sheet ("/NAME")
 PROJECT = "ASC-MiniC3"
 TITLE = "ASC Student Kit - Mini-C3 rev B (low cost, FG1 common)"
 DATE, REV, PAPER = "2026-10-10", "B", "A3"
-COMMENT = "48 x 44 mm; 4 Minis + 2 AHT20 sticks per 98 x 98 panel (slots + mouse bites); 3 snap-standoff holes"
+COMMENT = "48 x 44 mm; 4 Minis + 2 AHT20 sticks per 98 x 98 panel (slots + tabs); 3 snap-standoff holes"
 POWER_NETS = {"GND", "+3V3", "+5V"}
 
 # ---- footprints -------------------------------------------------------------------
@@ -138,7 +138,7 @@ for i, xy in enumerate([(233.68, 254.0), (248.92, 254.0), (264.16, 254.0)], 1):
 PWR_FLAGS = [("GND", (322.58, 254.0)), ("VBAT", (342.9, 254.0))]
 
 # ---- board geometry, for gen_pcb.py ------------------------------------------------------------
-BOARD_W, BOARD_H, CORNER_R = 48.0, 44.0, 0.0   # square corners (panel: 2 mm slots, tabs, mouse bites)
+BOARD_W, BOARD_H, CORNER_R = 48.0, 44.0, 0.0   # square corners (panel: 2 mm slots, plain tabs)
 HOLES = [(44.35, 14.6), (3.7, 26.2), (30.85, 40.0)]   # snap standoffs, a triangle around the centre of mass
 SLOTS = []                                  # internal cut-outs (x0, y0, x1, y1)
 
