@@ -13,7 +13,14 @@ static const uint32_t RECONNECT_MAX_MS = 60000;
 
 static const uint32_t MQTT_TASK_STACK = 8192;
 static const UBaseType_t MQTT_TASK_PRIO = 1;
-static const BaseType_t  MQTT_TASK_CORE = 0;   // Arduino loop() runs on core 1
+// Core 1, same priority as Arduino's loopTask — NOT core 0. PubSubClient
+// busy-waits (yield() only, which never lets the priority-0 idle task in)
+// for up to its 15s socket timeout while waiting for CONNACK. On core 0
+// that starves IDLE0, and the task watchdog (5s, panic=y, watches only
+// IDLE0) reboots the board — bench-seen 2026-10-16 on a slow broker
+// reply. On core 1 IDLE1 isn't watched, and equal-priority time slicing
+// keeps loop() running alongside a busy-wait.
+static const BaseType_t  MQTT_TASK_CORE = 1;
 
 // Runs in the MQTT task (inside _mqtt.loop()). Only copies the payload —
 // parsing and dispatch happen on the Arduino loop task, see loop().
