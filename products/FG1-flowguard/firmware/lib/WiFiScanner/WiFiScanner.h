@@ -25,5 +25,6 @@ public:
 private:
     int _lastFound = WIFI_SCAN_RUNNING;
     int _retries = 0;
+    uint32_t _startMs = 0;
     static const int MAX_RETRIES = 5;
 };
