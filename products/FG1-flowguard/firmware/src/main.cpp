@@ -470,8 +470,8 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         // SoftAP mode was paying this cost even though no one's
         // listening on MQTT at all in that state).
         if (mqtt.isConnected() && !mqtt.publishHistory(out))
-            Serial.printf("[MQTT] publishHistory gave up after 3 attempts (%d bytes, "
-                           "%d entries, final state=%d)\n", out.length(), count, mqtt.state());
+            Serial.printf("[MQTT] publishHistory not queued (%d bytes, "
+                           "%d entries, state=%d)\n", out.length(), count, mqtt.state());
         localServer.publishHistory(out);
         return out;
     }
@@ -495,8 +495,8 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         Serial.printf("[HISTORY] get_history -> %d entries\n", count);
         Serial.println(out);
         if (mqtt.isConnected() && !mqtt.publishHistory(out))
-            Serial.printf("[MQTT] publishHistory gave up after 3 attempts (%d bytes, "
-                           "%d entries, final state=%d)\n", out.length(), count, mqtt.state());
+            Serial.printf("[MQTT] publishHistory not queued (%d bytes, "
+                           "%d entries, state=%d)\n", out.length(), count, mqtt.state());
         localServer.publishHistory(out);
         return out;
     }
