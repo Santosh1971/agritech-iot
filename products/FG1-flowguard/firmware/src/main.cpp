@@ -147,47 +147,97 @@ void updateWiFiLED() {
 static uint32_t s_lastSyncMillis = 0;
 static bool     s_haveLastSync   = false;
 
-// Sync RTC from NTP (IST = UTC+5:30 = 19800 seconds)
+// NTP sync runs as a small state machine polled from loop() instead of a
+// blocking wait. The old version sat in getLocalTime(&t, 8000) up to 3x
+// with delay(2000) between tries -- ~28s with no leds.loop(), so the WiFi
+// and flow LEDs froze (and, on the fallback-recovery path, relay/scheduler
+// /MQTT stalled too) whenever NTP was unreachable. Bench-seen 2026-10-16.
+// Same attempt count and timeouts as before, just without blocking.
+enum NtpState { NTP_IDLE, NTP_WAITING, NTP_BACKOFF };
+static NtpState s_ntpState      = NTP_IDLE;
+static uint8_t  s_ntpAttempt    = 0;
+static uint32_t s_ntpPhaseStart = 0;
+static uint32_t s_ntpLastPoll   = 0;
+
+static const uint8_t  NTP_MAX_ATTEMPTS   = 3;
+static const uint32_t NTP_ATTEMPT_MS     = 8000;
+static const uint32_t NTP_BACKOFF_MS     = 2000;
+static const uint32_t NTP_POLL_EVERY_MS  = 200;   // getLocalTime(.., 0) still costs a 10ms delay on a miss
+
+void applyNTPTime(struct tm& timeinfo);
+
+// Kick off an RTC sync from NTP (IST = UTC+5:30 = 19800 seconds). Returns
+// immediately; pollNTPSync() finishes the job from loop().
 void syncNTP() {
     configTime(19800, 0, "in.pool.ntp.org", "asia.pool.ntp.org", "pool.ntp.org");
     Serial.println("[NTP] Syncing time...");
-    struct tm timeinfo;
-    bool ntpOk = false;
-    for (int attempt = 0; attempt < 3 && !ntpOk; attempt++) {
-        if (attempt > 0) { delay(2000); Serial.println("[NTP] Retrying..."); }
-        ntpOk = getLocalTime(&timeinfo, 8000);
-    }
-    if (ntpOk) {
-        // --- Drift measurement (logged BEFORE overwriting the RTC) ---
-        // Compare the RTC's own reported time against the fresh NTP time,
-        // using the same DateTime::unixtime() conversion RTCManager uses
-        // internally for both sides, so the comparison is apples-to-apples
-        // regardless of whether that convention is true UTC.
-        if (rtc.isTimeSet()) {
-            DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-            int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
-            if (s_haveLastSync) {
-                uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
-                if (elapsedSec > 0) {
-                    double ppm = (driftSec * 1e6) / (double)elapsedSec;
-                    Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
-                        (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
-                }
-            } else {
-                Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
-            }
-        }
-        s_lastSyncMillis = millis();
-        s_haveLastSync   = true;
+    s_ntpState      = NTP_WAITING;
+    s_ntpAttempt    = 0;
+    s_ntpPhaseStart = millis();
+    s_ntpLastPoll   = 0;
+}
 
-        rtc.syncFromTm(timeinfo);
-        Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
-            timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,
-            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-    } else {
-        Serial.println("[NTP] Sync failed — using existing RTC time (fine if this device rarely sees internet)");
+void pollNTPSync() {
+    if (s_ntpState == NTP_IDLE) return;
+    uint32_t now = millis();
+
+    if (s_ntpState == NTP_BACKOFF) {
+        if (now - s_ntpPhaseStart >= NTP_BACKOFF_MS) {
+            Serial.println("[NTP] Retrying...");
+            s_ntpState      = NTP_WAITING;
+            s_ntpPhaseStart = now;
+        }
+        return;
     }
+
+    if (now - s_ntpLastPoll < NTP_POLL_EVERY_MS) return;
+    s_ntpLastPoll = now;
+
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 0)) {
+        s_ntpState = NTP_IDLE;
+        applyNTPTime(timeinfo);
+        return;
+    }
+    if (millis() - s_ntpPhaseStart >= NTP_ATTEMPT_MS) {
+        if (++s_ntpAttempt >= NTP_MAX_ATTEMPTS) {
+            s_ntpState = NTP_IDLE;
+            Serial.println("[NTP] Sync failed — using existing RTC time (fine if this device rarely sees internet)");
+        } else {
+            s_ntpState      = NTP_BACKOFF;
+            s_ntpPhaseStart = millis();
+        }
+    }
+}
+
+void applyNTPTime(struct tm& timeinfo) {
+    // --- Drift measurement (logged BEFORE overwriting the RTC) ---
+    // Compare the RTC's own reported time against the fresh NTP time,
+    // using the same DateTime::unixtime() conversion RTCManager uses
+    // internally for both sides, so the comparison is apples-to-apples
+    // regardless of whether that convention is true UTC.
+    if (rtc.isTimeSet()) {
+        DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                       timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
+        if (s_haveLastSync) {
+            uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
+            if (elapsedSec > 0) {
+                double ppm = (driftSec * 1e6) / (double)elapsedSec;
+                Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
+                    (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
+            }
+        } else {
+            Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
+        }
+    }
+    s_lastSyncMillis = millis();
+    s_haveLastSync   = true;
+
+    rtc.syncFromTm(timeinfo);
+    Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
+        timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 }
 
 // Shared success handler — called both on initial boot connect and on
@@ -664,6 +714,7 @@ void setup() {
 
 void loop() {
     leds.loop();
+    pollNTPSync();
     relay.loop();
     localServer.loop();
     mqtt.loop();
