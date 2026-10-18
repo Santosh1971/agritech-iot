@@ -1,24 +1,51 @@
 name: FG1 firmware — build and upload
 
-# Auto-build on push, replacing the manual "pio run, then curl/UI upload"
-# step — see the NB Agri Flasher dev-workflow discussion (2026-09-14).
 # Only one env (esp32dev_ds1307 — DS1307 is the only RTC chip actually in
-# use, see platformio.ini) is built and uploaded to the flasher server,
-# tagged with the commit it came from so a build here always traces back
-# to exact source.
+# use, see platformio.ini) is built and uploaded to the flasher server.
+#
+# A push to main uploads a dev-<shortsha> build (admins only — never shown
+# to a non-admin flasher grantee, see /api/flasher/builds). A release that
+# dealers/field accounts can see is cut by pushing a tag matching fg1-v*:
+# the uploaded version is the tag minus its prefix ("fg1-v1.3.0" -> "1.3.0"),
+# and FIRMWARE_VERSION_OVERRIDE is set to the same string so the boot log
+# matches the flasher. Same pattern as wpc-firmware.yml.
+#
+# To (re)release a tag that already exists, run this workflow manually with
+# release_tag set (e.g. "fg1-v1.3.0"); it builds that tag's source.
 on:
   push:
     branches: [main]
+    tags: ["fg1-v*"]
     paths:
       - "products/FG1-flowguard/firmware/**"
       - ".github/workflows/fg1-firmware.yml"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing fg1-v* tag to build and release (blank = dev build of this ref)"
+        required: false
+        default: ""
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve ref
+        id: ref
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [[ -z "$TAG" && "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          fi
+          if [[ -n "$TAG" && "$TAG" != fg1-v* ]]; then
+            echo "::error::release tag must start with fg1-v (got '$TAG')"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.tag || github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -27,24 +54,34 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
+      - name: Determine version
+        id: version
+        run: |
+          TAG="${{ steps.ref.outputs.tag }}"
+          if [[ -n "$TAG" ]]; then
+            echo "value=${TAG#fg1-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Build
         working-directory: products/FG1-flowguard/firmware
-        run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          FIRMWARE_VERSION_OVERRIDE="dev-${SHORT_SHA}" pio run -e esp32dev_ds1307
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.version.outputs.value }}
+        run: pio run -e esp32dev_ds1307
 
       - name: Upload to NB Agri Flasher
         working-directory: products/FG1-flowguard/firmware
         env:
           CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
           curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
             -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
             -F "product=FG1" \
-            -F "version=dev-${SHORT_SHA}" \
+            -F "version=${{ steps.version.outputs.value }}" \
             -F "variant=esp32dev_ds1307" \
-            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
+            -F "notes=Built by GitHub Actions from commit ${{ steps.version.outputs.sha }} (run ${{ github.run_number }})" \
             -F "file=@.pio/build/esp32dev_ds1307/firmware.bin;type=application/octet-stream" \
             -F "bootloader=@.pio/build/esp32dev_ds1307/bootloader.bin;type=application/octet-stream" \
             -F "partitions=@.pio/build/esp32dev_ds1307/partitions.bin;type=application/octet-stream"
