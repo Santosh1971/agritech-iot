@@ -296,6 +296,16 @@ void startLocalFallback() {
     WiFi.softAP(apSsid.c_str(), SOFTAP_PASSWORD);
     connMode = CONN_LOCAL_FALLBACK;
     lastWiFiRetry = millis();
+    // Stop any STA connect attempt still running. An unreachable saved
+    // SSID leaves the Arduino core's auto-reconnect re-issuing
+    // WiFi.begin() every ~3s (NO_AP_FOUND each time), and AP+STA share one
+    // radio channel: every attempt scans channels and pulls the radio off
+    // the AP's, so phones fail to join the SoftAP or keep dropping.
+    // Bench-seen 2026-10-23 (FG1-003 follow-up): ~21 NO_AP_FOUND in the
+    // first minute after fallback, and the phone took 1-2 minutes to join
+    // `SWC_001_xxxx`. From here the 60s background retry (beginBackground
+    // Retry) is the only thing that touches the STA.
+    if (WiFi.status() != WL_CONNECTED) WiFi.disconnect(false, false);
     Serial.printf("[WiFi] Local fallback active — SSID: %s  IP: %s\n",
         apSsid.c_str(), WiFi.softAPIP().toString().c_str());
 }
