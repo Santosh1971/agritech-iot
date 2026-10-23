@@ -29,12 +29,46 @@ static void kickOffScan() {
     ScanTimeoutAccess::set(SCAN_TIMEOUT_MS);
 }
 
+// While the STA is NOT associated but still trying to be -- a saved SSID
+// that isn't in range (NO_AP_FOUND) -- the Arduino core's auto-reconnect
+// re-issues WiFi.begin() every ~3s forever (WiFiGeneric.cpp: DoReconnect
+// on any reconnectable reason). esp_wifi_scan_start() is refused outright
+// while the STA is mid-connect, so scanNetworks() fails instantly with
+// WIFI_SCAN_FAILED (-2) every time, no matter how often it's retried.
+// Reported by Avinash 2026-10-19 on fw 1.3.0 (FG1-003): logs showed
+// "Scan found -2 networks (0 listed) in 312 ms" next to a NO_AP_FOUND
+// every 3s -- the 1.3.0 timeout fix only covered scans that start and run
+// long, not scans that can't start at all.
+//
+// So: if we're not associated, stop the connect attempts (and switch
+// auto-reconnect off) for the duration of the scan. A voluntary
+// disconnect() raises ASSOC_LEAVE, which the core never reconnects on.
+// An associated STA is left alone -- scanning while connected to the
+// cloud WiFi must not drop that link.
+void WiFiScanner::freeRadioForScan() {
+    if (WiFi.status() == WL_CONNECTED) return;
+    if (!_autoReconnectOverridden) {
+        _autoReconnectSaved = WiFi.getAutoReconnect();
+        _autoReconnectOverridden = true;
+        WiFi.setAutoReconnect(false);
+    }
+    WiFi.disconnect(false, false);   // keep STA enabled, saved config untouched
+}
+
+void WiFiScanner::restoreRadioAfterScan() {
+    if (!_autoReconnectOverridden) return;
+    WiFi.setAutoReconnect(_autoReconnectSaved);
+    _autoReconnectOverridden = false;
+}
+
 void WiFiScanner::startScan() {
     Serial.println("[WiFi] Scanning networks (async)...");
     _lastFound = WIFI_SCAN_RUNNING;
     _retries = 0;
     _startMs = millis();
+    freeRadioForScan();
     kickOffScan();
+    _lastKickMs = millis();
 }
 
 bool WiFiScanner::checkComplete() {
@@ -46,9 +80,12 @@ bool WiFiScanner::checkComplete() {
     }
 
     if (result == WIFI_SCAN_FAILED && _retries < MAX_RETRIES) {
+        if (millis() - _lastKickMs < RETRY_BACKOFF_MS) return false;   // pace the retries
         _retries++;
         Serial.printf("[WiFi] Scan failed — retrying (%d/%d)...\n", _retries, MAX_RETRIES);
+        freeRadioForScan();   // the STA may have started reconnecting again
         kickOffScan();
+        _lastKickMs = millis();
         _lastFound = WIFI_SCAN_RUNNING;
         return false;
     }
@@ -90,8 +127,16 @@ String WiFiScanner::resultAsJson() {
         listed++;
     }
     WiFi.scanDelete();
-    Serial.printf("[WiFi] Scan found %d networks (%d listed) in %lu ms\n",
-                  found, listed, (unsigned long)(millis() - _startMs));
+    restoreRadioAfterScan();
+    if (found < 0) {
+        // WIFI_SCAN_FAILED is -2 -- NOT "two networks". The old wording
+        // ("found -2 networks") was misread as a successful 2-network scan.
+        Serial.printf("[WiFi] Scan FAILED (code %d) after %d retries, %lu ms -- 0 networks returned\n",
+                      found, _retries, (unsigned long)(millis() - _startMs));
+    } else {
+        Serial.printf("[WiFi] Scan found %d networks (%d listed) in %lu ms\n",
+                      found, listed, (unsigned long)(millis() - _startMs));
+    }
     String out; serializeJson(doc, out);
     return out;
 }

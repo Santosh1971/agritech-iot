@@ -23,8 +23,18 @@ public:
     bool   checkComplete();
     String resultAsJson();
 private:
+    void freeRadioForScan();
+    void restoreRadioAfterScan();
+
     int _lastFound = WIFI_SCAN_RUNNING;
     int _retries = 0;
     uint32_t _startMs = 0;
+    uint32_t _lastKickMs = 0;
+    bool _autoReconnectSaved = false;
+    bool _autoReconnectOverridden = false;
     static const int MAX_RETRIES = 5;
+    // A failed scan_start is instant (not a timeout), so unpaced retries
+    // all burn in a single loop() pass. Space them out so the STA
+    // disconnect issued in freeRadioForScan() has time to take effect.
+    static const uint32_t RETRY_BACKOFF_MS = 500;
 };

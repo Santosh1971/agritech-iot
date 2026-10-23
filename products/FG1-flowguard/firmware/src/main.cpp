@@ -324,6 +324,13 @@ void pollBackgroundRetry() {
     } else if (millis() - retryStartMs >= RETRY_CONNECT_TIMEOUT_MS) {
         Serial.println("[WiFi] Retry timed out — staying in local fallback");
         retryState = RETRY_IDLE;
+        // Actually stop trying. Without this the Arduino core's
+        // auto-reconnect keeps re-issuing WiFi.begin() every ~3s (a
+        // NO_AP_FOUND per attempt in the log) until the next 60s retry,
+        // keeping the STA permanently "connecting" -- which also makes
+        // every wifi_scan fail instantly (FG1-003). A voluntary
+        // disconnect() raises ASSOC_LEAVE, which the core won't reconnect on.
+        WiFi.disconnect(false, false);
     }
 }
 
@@ -555,8 +562,16 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         // pushes the result out as a "wifi_scan_result" broadcast once
         // ready (see wifiScanPending below) — the same non-blocking
         // push pattern already used for status/cycles/history.
+        // A scan the user just asked for wins over the background
+        // reconnect: abort that attempt rather than refusing the scan.
+        // Refusing was FG1-003's second symptom -- the app took the
+        // {"scanning":false,"error":...} reply for the "scan started" ack
+        // and sat on "Scanning..." forever. The retry timer resumes on its
+        // own once the scan finishes (it already skips while a scan is in
+        // flight).
         if (retryState == RETRY_CONNECTING) {
-            return "{\"scanning\":false,\"error\":\"wifi busy, try again shortly\"}";
+            WiFi.disconnect(false, false);
+            retryState = RETRY_IDLE;
         }
         wifiScanInProgress = true;
         wifiScanPending = true;
