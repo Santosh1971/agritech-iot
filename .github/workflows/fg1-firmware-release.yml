@@ -1,0 +1,85 @@
+name: FG1 firmware — release upload
+
+# Publishes a deliberately-cut FG1 release to the NB Agri Flasher server
+# under its real version number (e.g. "1.3.2"), with bootloader+partitions
+# attached so it can also flash a blank chip.
+#
+# Why this exists separately from fg1-firmware.yml: that workflow runs on
+# every push to main and uploads "dev-<sha>" builds, which the server hides
+# from every non-admin (dealer/field/tester) account -- they only ever see
+# the latest non-"dev-" build per variant. Before this, a real release had
+# to be uploaded by hand, so a tagged release never showed up for testers
+# (found 2026-10-24: Avinash could not see 1.3.2).
+#
+# Triggers:
+#   - push of a tag "fg1-vX.Y.Z"  -> publishes X.Y.Z from that tag
+#   - manual run with release_version -> publishes that version from the
+#     branch/ref the run is started on (use this to publish a release whose
+#     tag was cut before this workflow existed)
+#
+# Guard: the version being published must equal Config.h's FIRMWARE_VERSION
+# default on the commit being built. The hand-bumped default and the
+# published label can't drift apart -- a mismatch fails the run before
+# anything is uploaded.
+on:
+  push:
+    tags:
+      - "fg1-v*"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to publish, e.g. 1.3.2 (must match Config.h on the ref you run this on)"
+        required: true
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the version
+        id: ver
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [ "$EVENT" = "push" ]; then V="${TAG#fg1-v}"; else V="$INPUT_VERSION"; fi
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$V' is not a plain X.Y.Z version"; exit 1
+          fi
+          CFG=$(sed -n 's/^#define FIRMWARE_VERSION[[:space:]]*"\(.*\)"/\1/p' products/FG1-flowguard/firmware/include/Config.h)
+          if [ "$CFG" != "$V" ]; then
+            echo "::error::Publishing $V but Config.h's FIRMWARE_VERSION is '$CFG' on this commit -- bump Config.h first"; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publishing FG1 $V from $GITHUB_REF_NAME ($GITHUB_SHA)"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build
+        working-directory: products/FG1-flowguard/firmware
+        env:
+          FIRMWARE_VERSION_OVERRIDE: ${{ steps.ver.outputs.version }}
+        run: pio run -e esp32dev_ds1307
+
+      - name: Upload to NB Agri Flasher
+        working-directory: products/FG1-flowguard/firmware
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=FG1" \
+            -F "version=${VERSION}" \
+            -F "variant=esp32dev_ds1307" \
+            -F "notes=Release ${VERSION}, built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA}), run ${GITHUB_RUN_NUMBER}" \
+            -F "file=@.pio/build/esp32dev_ds1307/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@.pio/build/esp32dev_ds1307/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@.pio/build/esp32dev_ds1307/partitions.bin;type=application/octet-stream"
