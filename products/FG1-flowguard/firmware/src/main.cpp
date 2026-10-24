@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <nvs_flash.h>
+#include <esp_mac.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "Config.h"
@@ -278,8 +279,11 @@ bool tryConnectSTA(uint32_t timeoutMs) {
 // unit, which — beyond just being unhelpful in the app UI — meant any two
 // devices both in Cloud mode would collide on the exact same MQTT topics.
 String computeDeviceId() {
+    // Read the factory MAC straight from eFuse rather than via
+    // WiFi.macAddress(): that goes through the Wi-Fi driver and can hand
+    // back zeros if the driver isn't up yet, giving "SWC_001_0000".
     uint8_t mac[6];
-    WiFi.macAddress(mac);
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
     char suffix[5];
     snprintf(suffix, sizeof(suffix), "%02X%02X", mac[4], mac[5]);
     return String(DEVICE_ID) + "_" + suffix;
