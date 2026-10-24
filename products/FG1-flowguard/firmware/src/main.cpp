@@ -137,7 +137,11 @@ String buildCyclesJSON() {
 }
 
 void updateWiFiLED() {
-    if (WiFi.status() != WL_CONNECTED)    leds.setWiFiState(WIFI_LED_SEARCHING);
+    // On the device's own SoftAP (no field WiFi), blink like the WPC
+    // Master: slow when idle, fast while a phone is joined.
+    if (connMode == CONN_LOCAL_FALLBACK && WiFi.status() != WL_CONNECTED)
+        leds.setWiFiState(WiFi.softAPgetStationNum() > 0 ? WIFI_LED_AP_CLIENT : WIFI_LED_AP_IDLE);
+    else if (WiFi.status() != WL_CONNECTED)    leds.setWiFiState(WIFI_LED_SEARCHING);
     else if (!mqtt.isConnected())          leds.setWiFiState(WIFI_LED_WIFI_ONLY);
     else                                   leds.setWiFiState(WIFI_LED_FULL_OK);
 }
@@ -769,7 +773,7 @@ void loop() {
         ESP.restart();
     }
 
-    if (millis() - lastWiFiCheck >= 2000) {
+    if (millis() - lastWiFiCheck >= 500) {
         lastWiFiCheck = millis();
         updateWiFiLED();
     }
