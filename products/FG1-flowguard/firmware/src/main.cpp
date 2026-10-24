@@ -284,6 +284,11 @@ String computeDeviceId() {
     // back zeros if the driver isn't up yet, giving "SWC_001_0000".
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    uint8_t drv[6];
+    WiFi.macAddress(drv);
+    Serial.printf("[BOOT] MAC eFuse %02X:%02X:%02X:%02X:%02X:%02X  (Wi-Fi driver %02X:%02X:%02X:%02X:%02X:%02X)\n",
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+        drv[0], drv[1], drv[2], drv[3], drv[4], drv[5]);
     char suffix[5];
     snprintf(suffix, sizeof(suffix), "%02X%02X", mac[4], mac[5]);
     return String(DEVICE_ID) + "_" + suffix;
