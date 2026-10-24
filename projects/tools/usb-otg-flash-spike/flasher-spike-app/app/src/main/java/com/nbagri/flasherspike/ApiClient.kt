@@ -18,6 +18,13 @@ import java.net.URL
  * of exposing a field for it.
  */
 class ApiClient(context: Context) {
+    /** The saved login is no longer accepted by the server (expired, or the server's signing
+     *  key changed). The server answers such requests with a redirect to its HTML /login page,
+     *  which used to be swallowed as an empty JSON object and surface as the baffling
+     *  "No value for products". */
+    class SessionExpiredException :
+        IllegalStateException("Session expired — please log in again.")
+
     private val prefs = context.getSharedPreferences("nbagri_flasher", Context.MODE_PRIVATE)
 
     var baseUrl: String
@@ -55,7 +62,7 @@ class ApiClient(context: Context) {
 
     fun fetchGrant(): Grant {
         val conn = authedConnection("/api/flasher/grant", "GET")
-        val json = readJson(conn)
+        val json = readAuthedJson(conn)
         val productsArr = json.getJSONArray("products")
         val products = (0 until productsArr.length()).map { productsArr.getString(it) }
         return Grant(json.getString("label"), products, json.optString("role") == "ADMIN")
@@ -76,7 +83,7 @@ class ApiClient(context: Context) {
 
     fun fetchBuilds(product: String): List<Build> {
         val conn = authedConnection("/api/flasher/builds?product=$product", "GET")
-        val json = readJson(conn)
+        val json = readAuthedJson(conn)
         val arr = json.getJSONArray("builds")
         return (0 until arr.length()).map { i ->
             val b = arr.getJSONObject(i)
@@ -106,6 +113,7 @@ class ApiClient(context: Context) {
         val path = "/api/flasher/download/$buildId" + (mac?.let { "?mac=$it" } ?: "")
         val conn = authedConnection(path, "GET")
         val code = conn.responseCode
+        ensureSession(conn, code)
         if (code !in 200..299) {
             throw IllegalStateException(errorMessage(conn, code))
         }
@@ -136,6 +144,7 @@ class ApiClient(context: Context) {
     fun downloadBuildPart(buildId: String, part: String, mac: String): ByteArray {
         val conn = authedConnection("/api/flasher/download/$buildId?part=$part&mac=$mac", "GET")
         val code = conn.responseCode
+        ensureSession(conn, code)
         if (code !in 200..299) {
             throw IllegalStateException(errorMessage(conn, code))
         }
@@ -183,6 +192,30 @@ class ApiClient(context: Context) {
         val obj = JSONObject()
         data.forEach { (k, v) -> if (v != null) obj.put(k, v) }
         conn.outputStream.use { it.write(obj.toString().toByteArray()) }
+    }
+
+    /** Throws [SessionExpiredException] (and forgets the dead login) when the server rejected the
+     *  saved session — a 401, or a redirect to /login (followed automatically for GETs, left as a
+     *  3xx for POSTs). Only for requests made with the session cookie; the login calls themselves
+     *  legitimately return 401 for a wrong code. */
+    private fun ensureSession(conn: HttpURLConnection, code: Int) {
+        val toLogin = conn.url.path.startsWith("/login") ||
+            (code in 300..399 && conn.getHeaderField("Location")?.contains("/login") == true)
+        if (code == 401 || toLogin) {
+            logout()
+            throw SessionExpiredException()
+        }
+    }
+
+    /** [readJson] for session-authenticated calls: detects a dead session first, and refuses a
+     *  non-JSON body instead of treating it as an empty object. */
+    private fun readAuthedJson(conn: HttpURLConnection): JSONObject {
+        val code = conn.responseCode
+        ensureSession(conn, code)
+        if (code !in 200..299) throw IllegalStateException(errorMessage(conn, code))
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        return runCatching { JSONObject(body) }
+            .getOrElse { throw IllegalStateException("Unexpected response from the server — try again.") }
     }
 
     /** Reads the response as JSON, throwing with the server's own error message on failure. */
