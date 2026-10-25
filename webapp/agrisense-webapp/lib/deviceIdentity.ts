@@ -17,6 +17,7 @@ const PRODUCT_ID_SCHEME: Record<string, { prefix: string; suffixBytes: number }>
   FG1: { prefix: "SWC_001", suffixBytes: 2 },
   WM1_MINI: { prefix: "WM1", suffixBytes: 4 },
   WPC: { prefix: "WPC", suffixBytes: 4 },
+  WM2: { prefix: "WM2", suffixBytes: 4 },
 };
 
 export function deriveDeviceId(product: string, macHex: string): string | null {

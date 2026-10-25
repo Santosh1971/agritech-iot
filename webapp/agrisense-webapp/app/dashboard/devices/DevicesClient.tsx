@@ -13,7 +13,7 @@ type Device = {
   dealer: { name: string; email: string } | null;
 };
 
-const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WPC", "TH"];
+const PRODUCTS = ["FG1", "FM1", "WM1_MINI", "WM1_PRO", "WM2", "WPC", "TH"];
 
 function isOnline(lastSeenAt: string | null): boolean {
   if (!lastSeenAt) return false;

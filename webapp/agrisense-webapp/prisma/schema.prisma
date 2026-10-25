@@ -22,6 +22,7 @@ enum Product {
   WPC
   TH
   ASC_KIT // ASC Student Kit firmware (Mini and Mega share one image)
+  WM2 // WM2 WaterMaster (Girish Farm), topics agrisense/WM2/<WM2_xxxxxxxx>/
 }
 
 enum CommandStatus {
