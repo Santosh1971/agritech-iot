@@ -12,6 +12,18 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["projects/tools/production-tester-cli/web_ui.py"],
       "port": 8420
+    },
+    {
+      "name": "wm2-node-sim",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["products/WM2-watermaster/firmware/tools/node_sim.py", "--port", "8091"],
+      "port": 8091
+    },
+    {
+      "name": "wm2-app-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8092", "--directory", "products/WM2-watermaster/mobile-app/wm2_app/build/web"],
+      "port": 8092
     }
   ]
 }
