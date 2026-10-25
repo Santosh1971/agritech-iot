@@ -14,7 +14,14 @@ class NodeListScreen extends StatelessWidget {
       listenable: store,
       builder: (context, _) => Scaffold(
         appBar: AppBar(
-          title: const Text('WM2 nodes'),
+          title: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset('assets/images/logo-mark.png', height: 36, width: 36),
+            ),
+            const SizedBox(width: 10),
+            const Text('ASAC-WM2'),
+          ]),
           actions: [
             IconButton(
               tooltip: 'MQTT brokers',
@@ -24,15 +31,21 @@ class NodeListScreen extends StatelessWidget {
           ],
         ),
         body: store.nodes.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
+            ? ListView(padding: const EdgeInsets.all(24), children: [
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset('assets/images/logo-full.png', width: 220),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
                     'No nodes yet. Tap + to add one.\n\n'
                     'On the farm WiFi, use the node\'s IP address (from the router or the node\'s serial log).\n'
                     'Connected to the node\'s own WiFi (WM2-z1-n1)? Use 192.168.4.1.\n'
                     'Away from the farm, the app goes through the node\'s MQTT broker (AgriSense or Girish). '
                     'Set the broker logins with the cloud icon.'),
-              )
+              ])
             : ListView(
                 children: [
                   for (final n in store.nodes)

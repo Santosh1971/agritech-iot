@@ -16,9 +16,9 @@ class Wm2App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Color(0xFF2F7D4F);
+    const seed = Color(0xFF2E9C7E); // ASAC teal (logo background #57B99C, darker for contrast)
     return MaterialApp(
-      title: 'WM2 WaterMaster',
+      title: 'ASAC-WM2',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: seed, useMaterial3: true),
       darkTheme: ThemeData(colorSchemeSeed: seed, brightness: Brightness.dark, useMaterial3: true),
