@@ -89,6 +89,62 @@ static uint32_t lastActiveMs = 0;
 static bool stateDirty = true;
 static uint32_t rebootAt = 0;
 
+// Last run per valve: for "when was it irrigated and how much".
+struct RunLog {
+  uint32_t start = 0, end = 0;  // UTC
+  uint32_t waterSec = 0;        // seconds it actually had water (or bypass)
+  float litres = 0;
+};
+static RunLog lastRun[2];
+static RunLog curRun[2];
+static bool runOpen[2] = {false, false};
+
+static void runLogLoad() {
+  prefs.begin("runlog", true);
+  for (int v = 0; v < 2; v++) {
+    char k[4] = {'s', (char)('0' + v), 0};
+    lastRun[v].start = prefs.getULong(k, 0);
+    k[0] = 'e'; lastRun[v].end = prefs.getULong(k, 0);
+    k[0] = 'w'; lastRun[v].waterSec = prefs.getULong(k, 0);
+    k[0] = 'l'; lastRun[v].litres = prefs.getFloat(k, 0);
+  }
+  prefs.end();
+}
+
+static void runLogSave(int v) {
+  prefs.begin("runlog", false);
+  char k[4] = {'s', (char)('0' + v), 0};
+  prefs.putULong(k, lastRun[v].start);
+  k[0] = 'e'; prefs.putULong(k, lastRun[v].end);
+  k[0] = 'w'; prefs.putULong(k, lastRun[v].waterSec);
+  k[0] = 'l'; prefs.putFloat(k, lastRun[v].litres);
+  prefs.end();
+}
+
+static void runLogTick(const float dl[4], float dt, bool flowing) {
+  for (int v = 0; v < 2; v++) {
+    bool open = hw::valveState(v);
+    if (open && !runOpen[v]) {
+      curRun[v] = RunLog();
+      curRun[v].start = nowUtc();
+    }
+    if (open) {
+      for (int i = 0; i < 4; i++)
+        if (cfg.core.flowValve[i] == v) curRun[v].litres += dl[i];
+      if (flowing) curRun[v].waterSec += (uint32_t)(dt + 0.5f);
+    }
+    if (!open && runOpen[v]) {
+      curRun[v].end = nowUtc();
+      // Ignore open/close pulses that delivered nothing (e.g. a valve test).
+      if (curRun[v].waterSec >= 30 || curRun[v].litres >= 1) {
+        lastRun[v] = curRun[v];
+        runLogSave(v);
+      }
+    }
+    runOpen[v] = open;
+  }
+}
+
 static bool isActive() {
   return core.water() || hw::valveState(0) || hw::valveState(1) ||
          millis() - lastActiveMs < (uint32_t)cfg.idleDelayS * 1000;
@@ -152,6 +208,23 @@ void buildState(JsonObject o) {
       j["manual_left_l"] = s.manualLeftL;
     }
     j["never_close"] = c.neverClose;
+    if (runOpen[v]) {
+      JsonObject r = j["run"].to<JsonObject>();
+      r["since"] = curRun[v].start;
+      r["min"] = curRun[v].waterSec / 60;
+      r["l"] = roundf(curRun[v].litres * 10) / 10;
+    }
+    if (lastRun[v].end) {
+      JsonObject l = j["last"].to<JsonObject>();
+      l["start"] = lastRun[v].start;
+      l["end"] = lastRun[v].end;
+      l["min"] = lastRun[v].waterSec / 60;
+      l["l"] = roundf(lastRun[v].litres * 10) / 10;
+    }
+    uint32_t due;
+    if (clockOk && core.nextDue(v, localEpoch(), due)) j["next_due"] = due - cfg.tzMin * 60;  // UTC
+    JsonObject pg = j["prog"].to<JsonObject>();
+    programToJson(c.prog, pg);
   }
   JsonObject bt = o["batt"].to<JsonObject>();
   bt["v"] = roundf(hw::battVolts() * 100) / 100;
@@ -453,6 +526,7 @@ void setup() {
 
   applyCoreConfig();
   restoreProgress();
+  runLogLoad();
   ps = hw::psState();
 
   prefs.begin("net", true);
@@ -466,8 +540,8 @@ void setup() {
   web::begin();
   hw::valveResync();  // latching valves can't report position: repeat the last pulse
 
-  Serial.printf("[cfg] node %s, topics %s..., SoftAP WM2-%s-%s / %s\n", cfg.hostname().c_str(), cfg.base().c_str(),
-                cfg.zone.c_str(), cfg.node.c_str(), cfg.apPassword().c_str());
+  Serial.printf("[cfg] device %s, topics %s..., SoftAP %s / %s\n", cfg.deviceId().c_str(), cfg.base().c_str(),
+                cfg.apSsid().c_str(), cfg.apPassword().c_str());
   Serial.println("Type 'h' + Enter for console help.");
   lastRecMs = millis();
 }
@@ -525,6 +599,7 @@ void loop() {
       if (lpm[i] > cfg.core.flowSeenLpm) anyFlow = true;
     }
     if (core.water() || anyFlow || hw::valveState(0) || hw::valveState(1)) lastActiveMs = now;
+    runLogTick(dl, dtMs / 1000.0f, core.water() || bypass);
 
     // Valves follow the logic, except at critical battery (safe state).
     bool critical = !strcmp(hw::battLevel(), "critical");

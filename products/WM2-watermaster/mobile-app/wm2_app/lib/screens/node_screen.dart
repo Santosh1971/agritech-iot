@@ -7,27 +7,29 @@ import 'settings_tab.dart';
 import 'status_tab.dart';
 
 class NodeScreen extends StatefulWidget {
-  const NodeScreen({super.key, required this.entry, required this.store});
+  const NodeScreen({super.key, required this.entry, required this.store, this.shared});
   final NodeEntry entry;
   final NodeStore store;
+  /// Controller owned by the farm dashboard; reused instead of opening a second link.
+  final NodeController? shared;
 
   @override
   State<NodeScreen> createState() => _NodeScreenState();
 }
 
 class _NodeScreenState extends State<NodeScreen> {
-  late final NodeController ctl = NodeController(widget.entry, widget.store);
+  late final NodeController ctl = widget.shared ?? NodeController(widget.entry, widget.store);
   int tab = 0;
 
   @override
   void initState() {
     super.initState();
-    ctl.connect();
+    if (!ctl.connected) ctl.connect();
   }
 
   @override
   void dispose() {
-    ctl.dispose();
+    if (widget.shared == null) ctl.dispose();
     super.dispose();
   }
 

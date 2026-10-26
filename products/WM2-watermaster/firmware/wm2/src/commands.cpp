@@ -10,6 +10,7 @@
 #include "net.h"
 #include "settings.h"
 #include "timeutil.h"
+#include "wm2_pins.h"
 
 using namespace wm2core;
 
@@ -71,7 +72,7 @@ String dispatchCommand(const String& json, const char* via) {
     data["mqtt"] = net::mqttUp();
     data["ip"] = net::ip();
     data["ap"] = net::apOn();
-    data["ap_ssid"] = "WM2-" + cfg.zone + "-" + cfg.node;
+    data["ap_ssid"] = cfg.apSsid();
   } else if (cmd == "get_config") {
     cfg.toJson(data, false);
   } else if (cmd == "set_config") {
@@ -224,6 +225,40 @@ String dispatchCommand(const String& json, const char* via) {
       hw::valvePulseRaw(v, false);
       hw::valveRequest(v, false);
     }
+  } else if (cmd == "diag_inputs") {
+    // Raw look at the flow and pressure pins: sample for `ms` (default 1000)
+    // and count falling edges and time spent LOW, independent of the PCNT.
+    uint32_t ms = constrain((int)(in["ms"] | 1000), 100, 5000);
+    const uint8_t pins[5] = {wm2::PIN_FLOW[0], wm2::PIN_FLOW[1], wm2::PIN_FLOW[2], wm2::PIN_FLOW[3], wm2::PIN_PS};
+    uint32_t falls[5] = {0}, lows[5] = {0}, samples = 0;
+    uint32_t pc0[4];
+    for (int i = 0; i < 4; i++) pc0[i] = hw::flowPulses(i);
+    bool last[5];
+    for (int i = 0; i < 5; i++) last[i] = digitalRead(pins[i]);
+    uint32_t t0 = micros();
+    while (micros() - t0 < ms * 1000) {
+      for (int i = 0; i < 5; i++) {
+        bool v = digitalRead(pins[i]);
+        if (!v) lows[i]++;
+        if (last[i] && !v) falls[i]++;
+        last[i] = v;
+      }
+      samples++;
+      delayMicroseconds(40);
+    }
+    JsonArray a = data["inputs"].to<JsonArray>();
+    const char* names[5] = {"flow1", "flow2", "flow3", "flow4", "ps"};
+    for (int i = 0; i < 5; i++) {
+      JsonObject o = a.add<JsonObject>();
+      o["name"] = names[i];
+      o["gpio"] = pins[i];
+      o["level_now"] = digitalRead(pins[i]);
+      o["pin_falls"] = falls[i];
+      o["low_pct"] = samples ? roundf(lows[i] * 1000.0f / samples) / 10 : 0;
+      if (i < 4) o["pcnt_counts"] = hw::flowPulses(i) - pc0[i];
+    }
+    data["ms"] = ms;
+    data["samples"] = samples;
   } else if (cmd == "clear_history") {
     history::wipe();
   } else if (cmd == "reboot") {

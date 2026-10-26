@@ -51,6 +51,32 @@ bool Core::programmedOn(int v, uint32_t day) const {
   return (p.daysMask >> weekday(day)) & 1;
 }
 
+bool Core::nextDue(int v, uint32_t localEpoch, uint32_t& dueLocal) const {
+  if (v < 0 || v >= NUM_VALVES) return false;
+  const ValveCfg& c = cfg.v[v];
+  const Program& p = c.prog;
+  if (c.mode != MODE_PROGRAM || !p.enabled) return false;
+  uint32_t today = localDay(localEpoch, cfg.dayStartHour);
+  uint32_t nowMin = (localEpoch % 86400u) / 60u;
+  bool wraps = p.winFrom > p.winTo;
+  bool fullDay = p.winFrom == p.winTo || (p.winFrom == 0 && p.winTo >= 1440);
+  // Today, if still to do and the window has not closed yet.
+  const ValveState& s = _vs[v];
+  bool todayDue = (programmedOn(v, today) || s.carrySec > 0 || s.carryL > 0) && !s.done;
+  if (todayDue) {
+    if (fullDay || _inWindow(p, localEpoch)) { dueLocal = localEpoch; return true; }
+    if (!wraps && nowMin < p.winFrom) { dueLocal = today * 86400u + p.winFrom * 60u; return true; }
+    if (wraps && nowMin < p.winFrom) { dueLocal = today * 86400u + p.winFrom * 60u; return true; }
+  }
+  for (uint32_t d = today + 1; d <= today + 62; d++) {
+    if (programmedOn(v, d)) {
+      dueLocal = d * 86400u + (fullDay ? 0u : (uint32_t)p.winFrom * 60u);
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Core::_inWindow(const Program& p, uint32_t localEpoch) const {
   uint16_t m = (uint16_t)((localEpoch % 86400u) / 60u);
   if (p.winFrom == p.winTo) return true;

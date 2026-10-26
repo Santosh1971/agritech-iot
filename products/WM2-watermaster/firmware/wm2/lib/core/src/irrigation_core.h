@@ -159,6 +159,9 @@ class Core {
   }
   static uint8_t weekday(uint32_t day) { return (uint8_t)((day + 3) % 7); }  // 0 = Mon (1970-01-01 was Thu)
   bool programmedOn(int v, uint32_t day) const;
+  // Earliest local time the valve's program can next run (now, if it is due
+  // and inside its window). False if the valve has no active program.
+  bool nextDue(int v, uint32_t localEpoch, uint32_t& dueLocal) const;
 
  private:
   void _push(const Event& e);

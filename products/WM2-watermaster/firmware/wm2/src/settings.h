@@ -19,7 +19,7 @@ struct Settings {
   uint16_t agPort = 1883;
   String agUser, agPass;
   String agId;                // empty = "WM2_" + last 4 MAC bytes (8 hex)
-  String mqttHost;            // Girish profile
+  String mqttHost = "mqtt.grty.co.in";  // Girish profile
   uint16_t mqttPort = 1883;
   String mqttUser, mqttPass;
   String apPass;              // empty = "wm2-" + last 4 hex of MAC
@@ -52,7 +52,8 @@ struct Settings {
   bool load();
   bool save() const;
   String apPassword() const;
-  String hostname() const;  // wm2-z1-n1
+  String hostname() const;  // wm2-a98803e8
+  String apSsid() const;    // WM2-A98803E8 (MAC based, so it can be typed as the device ID)
   String base() const;      // agrisense/WM2/WM2_A98803E8/  or  girish/wm2/z1/n1/
   String deviceId() const;  // WM2_A98803E8
   // Active broker profile

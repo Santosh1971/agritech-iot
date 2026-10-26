@@ -226,6 +226,25 @@ void test_low_flow_after_learning() {
   TEST_ASSERT_TRUE(s.c.alarm(A_LOW_FLOW));
 }
 
+void test_next_due() {
+  Sim s(MON + 10 * 3600);                      // Monday 10:00
+  Program p = timerProg(0x01 | 0x04, 30);      // Mon + Wed
+  p.winFrom = 6 * 60;
+  p.winTo = 9 * 60;                            // 06:00-09:00, already over today
+  s.c.setProgram(0, p);
+  s.run(1, false);
+  uint32_t due = 0;
+  TEST_ASSERT_TRUE(s.c.nextDue(0, s.t, due));
+  TEST_ASSERT_EQUAL_UINT32(MON + 2 * 86400 + 6 * 3600, due);  // Wednesday 06:00
+  Program q = timerProg(0x01, 30);             // Monday, full day: due now
+  s.c.setProgram(1, q);
+  s.run(1, false);
+  TEST_ASSERT_TRUE(s.c.nextDue(1, s.t, due));
+  TEST_ASSERT_EQUAL_UINT32(s.t, due);
+  s.c.cfg.v[1].mode = MODE_OFF;
+  TEST_ASSERT_FALSE(s.c.nextDue(1, s.t, due));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -241,5 +260,6 @@ int main(int, char**) {
   RUN_TEST(test_off_refuses_manual);
   RUN_TEST(test_leak_alarm);
   RUN_TEST(test_low_flow_after_learning);
+  RUN_TEST(test_next_due);
   return UNITY_END();
 }

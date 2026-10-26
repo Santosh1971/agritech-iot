@@ -34,7 +34,7 @@ int rssi() { return wifiUp() ? WiFi.RSSI() : 0; }
 int apClients() { return apActive ? WiFi.softAPgetStationNum() : 0; }
 
 void startAp(uint32_t minutes) {
-  String ssid = "WM2-" + cfg.zone + "-" + cfg.node;
+  String ssid = cfg.apSsid();
   if (!apActive) {
     WiFi.mode(cfg.ssid.length() ? WIFI_AP_STA : WIFI_AP);
     WiFi.softAP(ssid.c_str(), cfg.apPassword().c_str());

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/node_list_screen.dart';
+import 'screens/home_screen.dart';
 import 'services/node_store.dart';
 
 void main() async {
@@ -22,7 +22,7 @@ class Wm2App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: seed, useMaterial3: true),
       darkTheme: ThemeData(colorSchemeSeed: seed, brightness: Brightness.dark, useMaterial3: true),
-      home: NodeListScreen(store: store),
+      home: HomeScreen(store: store),
     );
   }
 }

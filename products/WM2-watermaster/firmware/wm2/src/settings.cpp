@@ -109,7 +109,20 @@ String Settings::apPassword() const {
   return b;
 }
 
-String Settings::hostname() const { return "wm2-" + zone + "-" + node; }
+static String macHex8() {
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  char b[10];
+  snprintf(b, sizeof b, "%02X%02X%02X%02X", mac[2], mac[3], mac[4], mac[5]);
+  return b;
+}
+
+String Settings::apSsid() const { return "WM2-" + macHex8(); }
+String Settings::hostname() const {
+  String h = "wm2-" + macHex8();
+  h.toLowerCase();
+  return h;
+}
 String Settings::deviceId() const {
   if (agId.length()) return agId;
   uint8_t mac[6];
@@ -211,7 +224,7 @@ void Settings::fromJson(JsonObjectConst o) {
     agId = "";
     agId = v == deviceId() ? String("") : v;  // same as the MAC-based ID: stay automatic
   }
-  take(o, "mqtt_host", mqttHost);
+  if (strlen(o["mqtt_host"] | "") > 0) mqttHost = o["mqtt_host"].as<String>();  // empty keeps the default
   take(o, "mqtt_port", mqttPort);
   take(o, "mqtt_user", mqttUser);
   take(o, "mqtt_pass", mqttPass);

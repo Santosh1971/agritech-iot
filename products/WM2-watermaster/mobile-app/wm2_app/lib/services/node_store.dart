@@ -17,8 +17,10 @@ class NodeEntry {
   String broker; // 'agrisense' | 'girish'
   String agId; // WM2_A98803E8 (filled in automatically on first local connect)
   String farm, zone, node;
+  int position; // order along the zone's main pipe (1 = first)
   NodeEntry(
       {required this.name,
+      this.position = 1,
       this.host = '',
       this.broker = 'agrisense',
       this.agId = '',
@@ -28,7 +30,7 @@ class NodeEntry {
 
   String get base => broker == 'girish' ? '$farm/wm2/$zone/$node/' : 'agrisense/WM2/$agId/';
   Map<String, dynamic> toJson() =>
-      {'name': name, 'host': host, 'broker': broker, 'agId': agId, 'farm': farm, 'zone': zone, 'node': node};
+      {'name': name, 'host': host, 'broker': broker, 'agId': agId, 'farm': farm, 'zone': zone, 'node': node, 'position': position};
   factory NodeEntry.fromJson(Map<String, dynamic> j) => NodeEntry(
       name: j['name'] ?? 'Node',
       host: j['host'] ?? '',
@@ -36,7 +38,20 @@ class NodeEntry {
       agId: j['agId'] ?? '',
       farm: j['farm'] ?? 'girish',
       zone: j['zone'] ?? 'z1',
-      node: j['node'] ?? 'n1');
+      node: j['node'] ?? 'n1',
+      position: j['position'] ?? 1);
+}
+
+/// How a zone is laid out: main pipe down the centre (V1 one side, V2 the
+/// other) or along the left/right edge (V1 and V2 both going the same way).
+class ZoneInfo {
+  String key; // matches NodeEntry.zone, e.g. z1
+  String name;
+  String layout; // 'center' | 'left' | 'right'
+  ZoneInfo({required this.key, required this.name, this.layout = 'center'});
+  Map<String, dynamic> toJson() => {'key': key, 'name': name, 'layout': layout};
+  factory ZoneInfo.fromJson(Map<String, dynamic> j) =>
+      ZoneInfo(key: j['key'] ?? 'z1', name: j['name'] ?? 'Zone', layout: j['layout'] ?? 'center');
 }
 
 class NodeStore extends ChangeNotifier {
@@ -45,12 +60,48 @@ class NodeStore extends ChangeNotifier {
   BrokerSettings girish = BrokerSettings();
 
   BrokerSettings brokerFor(NodeEntry e) => e.broker == 'girish' ? girish : agrisense;
+  final Map<String, ZoneInfo> zones = {};
+
+  ZoneInfo zone(String key) => zones.putIfAbsent(key, () {
+        final digits = RegExp(r'\d+').firstMatch(key)?.group(0);
+        return ZoneInfo(key: key, name: digits != null ? 'Zone $digits' : key);
+      });
+
+  /// Next free zone key: z1, z2, ...
+  String nextZoneKey() {
+    var i = 1;
+    while (zones.containsKey('z$i') || nodes.any((n) => n.zone == 'z$i')) {
+      i++;
+    }
+    return 'z$i';
+  }
+
+  /// Zones in use, sorted by key, each with its nodes sorted by position.
+  List<MapEntry<ZoneInfo, List<NodeEntry>>> layout() {
+    final keys = {...zones.keys, ...nodes.map((n) => n.zone)}.toList()
+      ..sort((a, b) {
+        int n(String k) => int.tryParse(RegExp(r'\d+').firstMatch(k)?.group(0) ?? '') ?? 9999;
+        final c = n(a).compareTo(n(b));
+        return c != 0 ? c : a.compareTo(b);
+      });
+    return [
+      for (final k in keys)
+        MapEntry(zone(k), nodes.where((n) => n.zone == k).toList()..sort((a, b) => a.position.compareTo(b.position)))
+    ];
+  }
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString('nodes');
     if (raw != null) {
       nodes = (jsonDecode(raw) as List).map((e) => NodeEntry.fromJson(Map<String, dynamic>.from(e))).toList();
+    }
+    final z = p.getString('zones');
+    if (z != null) {
+      for (final e in (jsonDecode(z) as List)) {
+        final zi = ZoneInfo.fromJson(Map<String, dynamic>.from(e));
+        zones[zi.key] = zi;
+      }
     }
     final a = p.getString('broker_agrisense');
     if (a != null) agrisense = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(a)));
@@ -62,6 +113,7 @@ class NodeStore extends ChangeNotifier {
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('nodes', jsonEncode(nodes.map((n) => n.toJson()).toList()));
+    await p.setString('zones', jsonEncode(zones.values.map((z) => z.toJson()).toList()));
     await p.setString('broker_agrisense', jsonEncode(agrisense.toJson()));
     await p.setString('broker_girish', jsonEncode(girish.toJson()));
     notifyListeners();
