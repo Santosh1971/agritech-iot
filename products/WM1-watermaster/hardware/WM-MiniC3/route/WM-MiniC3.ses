@@ -1,0 +1,344 @@
+(session "WM-MiniC3"
+  (base_design "WM-MiniC3")
+  (placement
+    (resolution um 10)
+    (component Capacitor_THT:CP_Radial_D10.0mm_P5.00mm
+      (place C1 1063300 -752477 front 90)
+    )
+    (component LED_SMD:LED_1206_3216Metric
+      (place D9 1399500 -632000 front 90)
+      (place D8 1336300 -632000 front 90)
+      (place D7 1270800 -632000 front 90)
+      (place D5 1060600 -631500 front 90)
+      (place D4 1118000 -631700 front 90)
+      (place D6 1210400 -632000 front 90)
+      (place D3 1970000 -632000 front 90)
+    )
+    (component Resistor_SMD:R_0805_2012Metric
+      (place R4 1943000 -638000 front 90)
+      (place R1 1938700 -973800 front 90)
+    )
+    (component MountingHole:MountingHole_3.2mm_M3
+      (place H1 1035000 -840000 front 0)
+      (place H2 1955000 -840000 front 0)
+    )
+    (component Resistor_SMD:R_0805_2012Metric::1
+      (place R10 1364200 -638000 front 270)
+      (place R6 1147200 -637200 front 270)
+      (place R2 1938500 -928600 front 270)
+      (place R8 1238700 -637900 front 270)
+      (place R7 1087400 -636900 front 270)
+      (place R11 1427400 -637300 front 270)
+      (place R9 1299200 -637900 front 270)
+    )
+    (component ASC:Relay_SPDT_SANYOU_SRD_Outline
+      (place K5 1541000 -837000 front 270)
+    )
+    (component ASC:Battery_CR2032_Vertical_3pin
+      (place BT1 1822000 -712000 front 90)
+    )
+    (component "Diode_SMD:D_SOD-123"
+      (place D1 1896325 -1034600 front 0)
+    )
+    (component ASC:Relay_SPDT_SANYOU_SRD_Outline::1
+      (place K3 1541000 -788000 front 90)
+      (place K4 1721000 -788000 front 90)
+    )
+    (component Resistor_SMD:R_0805_2012Metric::2
+      (place R3 1889075 -998600 front 0)
+    )
+    (component ASC:Pluggable_2EDGR_5.08_1x02_Horizontal
+      (place J3 1276000 -1055000 front 0)
+      (place J2 1096000 -1055000 front 0)
+    )
+    (component ASC:Pluggable_2EDGR_5.08_1x03_Horizontal
+      (place J1 1672000 -1055000 front 0)
+    )
+    (component ASC:Pluggable_2EDGR_5.08_1x05_Horizontal
+      (place J4 1403500 -1055000 front 0)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric
+      (place C2 1907100 -898800 front 180)
+    )
+    (component "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+      (place U2 1881100 -943575 front 0)
+    )
+    (component Capacitor_SMD:C_0805_2012Metric::1
+      (place C3 1137400 -721300 front 90)
+    )
+    (component "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm"
+      (place U3 1232425 -719800 front 270)
+    )
+    (component ASC:Relay_SPDT_SANYOU_SRD_Outline::2
+      (place K2 1331000 -837000 front 270)
+    )
+    (component "ASC:ESP32-C3_SuperMini_Socket"
+      (place U1 1899000 -978100 front 180)
+    )
+    (component ASC:Relay_SPDT_SANYOU_SRD_Outline::3
+      (place K6 1721000 -837000 front 270)
+      (place K1 1151000 -837000 front 270)
+    )
+    (component "ASC:D_SOD-523_HandSolder"
+      (place D2 1891900 -1062600 front 0)
+    )
+    (component "Crystal:Crystal_C26-LF_D2.1mm_L6.5mm_Horizontal"
+      (place Y1 1874600 -900850 front 180)
+    )
+  )
+  (was_is
+  )
+  (routes 
+    (resolution um 10)
+    (parser
+      (host_cad "KiCad's Pcbnew")
+      (host_version 9.0.7)
+    )
+    (library_out 
+      (padstack "Via[0-1]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_600:300_um"
+        (shape
+          (circle F.Cu 6000 0 0)
+        )
+        (shape
+          (circle B.Cu 6000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+      (padstack "Via[0-1]_700:350_um"
+        (shape
+          (circle F.Cu 7000 0 0)
+        )
+        (shape
+          (circle B.Cu 7000 0 0)
+        )
+        (attach off)
+      )
+    )
+    (network_out 
+      (net +5V
+        (wire
+          (path F.Cu 10000
+            1187975 -744555
+            1187975 -744550
+          )
+        )
+      )
+      (net /RLY_PUMP
+        (wire
+          (path F.Cu 3000
+            1213380 -692821
+            1213375 -692826
+            1213375 -695050
+          )
+        )
+      )
+      (net /RLY_DOSER
+        (wire
+          (path F.Cu 3000
+            1226080 -693321
+            1226075 -693326
+            1226075 -695050
+          )
+        )
+      )
+      (net /RLY_V1
+        (wire
+          (path F.Cu 3000
+            1238780 -695011
+            1238775 -695016
+            1238775 -695050
+          )
+        )
+      )
+      (net /RLY_V2
+        (wire
+          (path F.Cu 3000
+            1276875 -695050
+            1276880 -695050
+          )
+        )
+      )
+      (net /RLY_V3
+        (wire
+          (path F.Cu 3000
+            1264180 -692443
+            1264175 -692448
+            1264175 -695050
+          )
+        )
+      )
+      (net /RLY_V4
+        (wire
+          (path F.Cu 3000
+            1251480 -698118
+            1251475 -698113
+            1251475 -695050
+          )
+        )
+        (wire
+          (path F.Cu 3000
+            1251480 -704256
+            1251480 -701187
+          )
+        )
+      )
+      (net /FLOW_EXT
+        (wire
+          (path F.Cu 3000
+            1879825 -1034605
+            1879825 -1034600
+          )
+        )
+      )
+      (net /COIL_PUMP
+        (wire
+          (path F.Cu 5000
+            1213380 -744489
+            1213375 -744494
+            1213375 -744550
+          )
+        )
+      )
+      (net /COIL_DOSER
+        (wire
+          (path F.Cu 5000
+            1226080 -748366
+            1226075 -748361
+            1226075 -744550
+          )
+        )
+      )
+      (net /COIL_V3
+        (wire
+          (path F.Cu 5000
+            1264180 -743095
+            1264175 -743100
+            1264175 -744550
+          )
+        )
+      )
+      (net /COIL_V4
+        (wire
+          (path F.Cu 5000
+            1251480 -751744
+            1251475 -751739
+            1251475 -744550
+          )
+        )
+      )
+      (net /V3_NO
+        (wire
+          (path B.Cu 8000
+            1559500 -1050100
+            1555900 -1053700
+            1555900 -1055000
+          )
+        )
+      )
+      (net /V4_NO
+        (wire
+          (path B.Cu 8000
+            1609650 -1049450
+            1606700 -1052400
+            1606700 -1055000
+          )
+        )
+      )
+      (net /COIL_V2
+        (wire
+          (path B.Cu 5000
+            1285000 -759415
+            1253652 -728067
+            1253652 -649533
+          )
+        )
+        (wire
+          (path F.Cu 5000
+            1253652 -649533
+            1267267 -649533
+            1270800 -646000
+          )
+        )
+        (via "Via[0-1]_700:350_um" 1253652 -649533
+        )
+        (wire
+          (path F.Cu 5000
+            1276880 -751297
+            1276875 -751292
+            1276875 -744550
+          )
+        )
+      )
+      (net /COIL_V1
+        (wire
+          (path F.Cu 5000
+            1213359 -658101
+            1213359 -648959
+            1210400 -646000
+          )
+        )
+        (wire
+          (path B.Cu 5000
+            1239200 -760400
+            1239200 -683942
+            1213359 -658101
+          )
+        )
+        (via "Via[0-1]_700:350_um" 1213359 -658101
+        )
+        (wire
+          (path F.Cu 5000
+            1238780 -745958
+            1238775 -745953
+            1238775 -744550
+          )
+        )
+      )
+    )
+  )
+)

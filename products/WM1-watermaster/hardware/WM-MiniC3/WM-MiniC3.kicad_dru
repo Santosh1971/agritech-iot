@@ -1,0 +1,20 @@
+(version 1)
+# 230 V (pump + doser relay contacts, their headers, and K1/K2 NC which is live while the relay is off)
+# keeps 5 mm from all other copper: 5 V logic and the 12/24 VAC valve circuit (reinforced, 250 V).
+(rule "Mains to everything else"
+	(condition "A.NetClass == 'Mains' && B.NetClass != 'Mains'")
+	(constraint clearance (min 5mm)))
+# Inside K1/K2 the SRD's own pins put COM 3.6 mm from the coil pins. The coil feed and the COM track
+# run along the relay there, so +5V and the two coil nets may come to 3.5 mm of 230 V copper.
+(rule "Mains near its own relay coil"
+	(condition "A.NetClass == 'Mains' && (B.NetName == '+5V' || B.NetName == '/COIL_PUMP' || B.NetName == '/COIL_DOSER')")
+	(constraint clearance (min 3.5mm)))
+# Pump and doser are separate 230 V circuits: 2.4 mm between them (functional insulation; the 5.08 mm header itself has 2.48 mm between its pads).
+(rule "Mains to other mains"
+	(condition "A.NetClass == 'Mains' && B.NetClass == 'Mains' && A.NetName != B.NetName")
+	(constraint clearance (min 2.4mm)))
+# The Super Mini plugs in on 8.5 mm sockets after the board is screwed down: its antenna end may
+# overhang the right M3 hole's keep-out (the screw head is ~2.5 mm tall, far below the module).
+(rule "Super Mini over the M3 head"
+	(condition "(A.Reference == 'U1' && B.Reference == 'H2') || (A.Reference == 'H2' && B.Reference == 'U1')")
+	(severity ignore))
