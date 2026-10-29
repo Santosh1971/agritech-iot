@@ -262,6 +262,12 @@ private:
       lastPublish = now;
       publishedSeq = seq;
       _forcePublish = false;
+      // Re-assert online with every status. Each reconnect uses a new random client
+      // ID, so the broker only drops the previous (dead) session after its keepalive
+      // runs out -- and then publishes ITS retained will {"online":false} on top of
+      // the {"online":true} sent in connectMqtt(). Without this the app showed a live
+      // Master as offline until its next reconnect.
+      _mqtt.publish(_topicLwt.c_str(), "{\"online\":true}", true);
     }
   }
 
