@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Workshop Feedback · Agri Sensors and Controls</title>
+<meta name="description" content="What the GPSIOAM students said after the Farm IoT workshop on 1 October 2026: ratings, what worked, what was hard, the lab idea and the projects they want to build next.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@600&display=swap">
+<style>
+:root{
+  --bg:#F3F6F1; --panel:#FFFFFF; --panel-2:#E8EEE5; --ink:#17231C; --ink-2:#4A5A50; --line:#CBD6CC;
+  --mask:#0E5E43; --mask-ink:#FFFFFF; --copper:#A5621F; --copper-soft:#F4E6D6; --bar-bg:#E3EAE0;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{color-scheme:dark;--bg:#0F1612;--panel:#16201A;--panel-2:#1D2A22;--ink:#E4EDE6;--ink-2:#A3B4A8;--line:#2C3B31;
+    --mask:#3FB585;--mask-ink:#08130D;--copper:#E0A062;--copper-soft:#2E2216;--bar-bg:#223029}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:980px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:clamp(1.35rem,3vw,1.75rem);font-weight:800}
+h3{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+p{margin:0}
+a{color:var(--mask)}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--copper)}
+header{padding-block:36px 22px;display:grid;gap:14px;border-bottom:2px solid var(--ink)}
+header h1{font-size:clamp(2rem,5.5vw,3.2rem);font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--mask)}
+.lede{font-size:1.08rem;max-width:66ch;color:var(--ink-2)}
+main{display:grid;gap:44px;margin-top:32px}
+section{display:grid;gap:14px}
+.intro{max-width:68ch;color:var(--ink-2)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px}
+.stat .n{font-family:var(--display);font-size:2.2rem;font-weight:800;line-height:1;color:var(--mask);font-variant-numeric:tabular-nums}
+.stat .l{font-size:.93rem;color:var(--ink-2)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:10px;align-content:start}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.bars li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) 2rem;gap:10px;align-items:center;font-size:.93rem}
+.bars .track{height:12px;background:var(--bar-bg);border-radius:99px;overflow:hidden}
+.bars .fill{display:block;height:100%;background:var(--mask);border-radius:99px}
+.bars .hot .fill{background:var(--copper)}
+.bars b{font-family:var(--mono);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
+.bars .zero .lbl{color:var(--ink-2)}
+@media (max-width:480px){.bars li{grid-template-columns:minmax(0,8.5rem) minmax(0,1fr) 2rem}}
+.insight{background:var(--copper-soft);border-left:4px solid var(--copper);border-radius:8px;padding:12px 16px}
+.insight b{color:var(--copper)}
+blockquote{margin:0;padding:10px 14px;border-left:3px solid var(--mask);background:var(--panel);border-radius:0 8px 8px 0;font-style:italic;color:var(--ink)}
+.quotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px}
+ul.plain{margin:0;padding-left:20px;display:grid;gap:6px}
+.note{font-size:.9rem;color:var(--ink-2)}
+footer{margin-top:52px;padding-top:16px;border-top:2px solid var(--ink);font-size:.9rem;color:var(--ink-2);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px}
+.ideas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:12px}
+.idea h4{font-family:var(--display);font-size:1.1rem;margin:0}
+.idea .who{font-size:.88rem;color:var(--copper);font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:.93rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+td:first-child{font-family:var(--mono);font-size:.82rem;color:var(--ink-2);white-space:nowrap}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">GPSIOAM · Farm IoT workshop · After the workshop</div>
+  <h1>What the students <span>said after</span></h1>
+  <p class="lede">At the end of the day, each student filled in a short form on their phone: how useful the day was, what they liked, what was hard, whether they would use a college IoT lab, and what they want to build next.</p>
+  <p class="note">All 11 students responded (3rd year, B.Sc (Hons) Agriculture) · 1 October 2026 · Bars show how many students chose each option (more than one could be chosen). Quotes are anonymised.</p>
+</header>
+
+<main>
+
+<section>
+  <div class="eyebrow">The day</div>
+  <h2>Every student rated the day 4 or 5 out of 5</h2>
+  <div class="stats">
+    <div class="stat"><span class="n">4.7 / 5</span><span class="l">average usefulness: 8 students gave 5, 3 gave 4, none lower</span></div>
+    <div class="stat"><span class="n">4.5 / 5</span><span class="l">interest in starting their own business after the day (6 gave 5, 5 gave 4)</span></div>
+    <div class="stat"><span class="n">8 of 11</span><span class="l">would use a college IoT lab regularly; the other 3 for projects</span></div>
+    <div class="stat"><span class="n">10 of 11</span><span class="l">would happily teach their juniors</span></div>
+  </div>
+  <p class="insight"><b>Biggest change:</b> one student who rated business interest 1 out of 5 before the workshop rated it 4 after it.</p>
+</section>
+
+<section>
+  <div class="eyebrow">In their words</div>
+  <h2>What worked, and what was hard</h2>
+  <div class="cols">
+    <div class="card"><h3>Liked most</h3>
+      <ul class="plain">
+        <li><b>Making their own phone app</b> and controlling the board from it (4 students)</li>
+        <li><b>Sensors doing what they command</b>, running their own program (4)</li>
+        <li><b>Programming with AI</b> and learning the sensors (1)</li>
+        <li><b>Hands-on</b> building (1)</li>
+      </ul></div>
+    <div class="card"><h3>Found difficult</h3>
+      <ul class="plain">
+        <li><b>Wiring and new components</b>: remembering sensor parts and connections (4)</li>
+        <li><b>Confusing at first</b>, easy and fun after a few tries (2)</li>
+        <li><b>The pace</b>: a lot to take in one day (2)</li>
+        <li><b>Network problems</b> in the room (1)</li>
+      </ul></div>
+  </div>
+  <div class="quotes">
+    <blockquote>“Developing our own app and using it to control the controller.”</blockquote>
+    <blockquote>“Starting the coding felt a little difficult; after many trials it felt easy.”</blockquote>
+    <blockquote>“In the beginning it was confusing, later it started turning into fun.”</blockquote>
+    <blockquote>“Making the LED blink as per our command.”</blockquote>
+  </div>
+  <p class="insight"><b>What this means:</b> the moment a device obeys a student’s own command, or appears as their own app, is what won them over. Wiring is the weak spot. More practice time with the hardware, ideally weekly, is the fix the students themselves asked for.</p>
+</section>
+
+<section>
+  <div class="eyebrow">The college IoT lab</div>
+  <h2>Nobody said no to the lab</h2>
+  <div class="cols">
+    <div class="card"><h3>Would you use a lab like this?</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Yes, regularly</span><span class="track"><span class="fill" style="width:73%"></span></span><b>8</b></li>
+      <li><span class="lbl">Only for projects</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+      <li><span class="lbl">Maybe</span><span class="track"><span class="fill" style="width:0%"></span></span><b>0</b></li>
+      <li><span class="lbl">No</span><span class="track"><span class="fill" style="width:0%"></span></span><b>0</b></li>
+    </ul></div>
+    <div class="card"><h3>How often could you come?</h3><ul class="bars">
+      <li><span class="lbl">Every week</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+      <li><span class="lbl">Evenings, when open</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+      <li><span class="lbl">Twice a month</span><span class="track"><span class="fill" style="width:18%"></span></span><b>2</b></li>
+      <li><span class="lbl">Only for projects</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+    </ul></div>
+    <div class="card"><h3>What interests you most?</h3><ul class="bars">
+      <li class="hot"><span class="lbl">Building devices</span><span class="track"><span class="fill" style="width:82%"></span></span><b>9</b></li>
+      <li class="hot"><span class="lbl">Programming with AI</span><span class="track"><span class="fill" style="width:82%"></span></span><b>9</b></li>
+      <li><span class="lbl">Phone apps</span><span class="track"><span class="fill" style="width:73%"></span></span><b>8</b></li>
+      <li><span class="lbl">Trials with farmers</span><span class="track"><span class="fill" style="width:45%"></span></span><b>5</b></li>
+      <li><span class="lbl">Product and PCB design</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+      <li><span class="lbl">Manufacturing</span><span class="track"><span class="fill" style="width:27%"></span></span><b>3</b></li>
+      <li><span class="lbl">Business and funding</span><span class="track"><span class="fill" style="width:18%"></span></span><b>2</b></li>
+      <li><span class="lbl">Marketing and sales</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+    </ul></div>
+    <div class="card"><h3>What would make it worth it?</h3><ul class="bars">
+      <li class="hot"><span class="lbl">My own business</span><span class="track"><span class="fill" style="width:73%"></span></span><b>8</b></li>
+      <li><span class="lbl">New skills</span><span class="track"><span class="fill" style="width:45%"></span></span><b>5</b></li>
+      <li><span class="lbl">Farmers using my device</span><span class="track"><span class="fill" style="width:18%"></span></span><b>2</b></li>
+      <li><span class="lbl">A job</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+      <li><span class="lbl">An internship</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+      <li><span class="lbl">Credit for RAWE or ELP</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+    </ul></div>
+    <div class="card"><h3>What would stop you?</h3><ul class="bars">
+      <li class="hot"><span class="lbl">No time</span><span class="track"><span class="fill" style="width:45%"></span></span><b>5</b></li>
+      <li class="hot"><span class="lbl">Don’t know where to start</span><span class="track"><span class="fill" style="width:36%"></span></span><b>4</b></li>
+      <li><span class="lbl">Electronics feels hard</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+      <li><span class="lbl">Exams and marks first</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+      <li><span class="lbl">Cost of parts</span><span class="track"><span class="fill" style="width:9%"></span></span><b>1</b></li>
+      <li><span class="lbl">Nothing</span><span class="track"><span class="fill" style="width:18%"></span></span><b>2</b></li>
+    </ul></div>
+    <div class="card"><h3>What they asked of us</h3>
+      <ul class="plain">
+        <li>A <b>longer training programme</b>: “in one day we can’t learn everything”</li>
+        <li><b>Internships</b> after the degree (2)</li>
+        <li><b>Low-cost technology</b> that small farmers can use (2)</li>
+        <li><b>Building new products together</b> with the facilitators</li>
+        <li>Their <b>own ideas represented and implemented</b></li>
+      </ul></div>
+  </div>
+  <p class="insight"><b>What this means:</b> the two main blockers, “no time” and “don’t know where to start”, are exactly what a lab with fixed weekly hours and ready project briefs removes. Ten of eleven are willing to teach juniors, which is the seniors-teach-juniors model of the lab proposal.</p>
+</section>
+
+<section>
+  <div class="eyebrow">What they want to build</div>
+  <h2>Four groups of student ideas</h2>
+  <div class="ideas">
+    <div class="card idea"><h4>Livestock feeding</h4><span class="who">Parashuram, Namitha</span><p>Feeding small ruminants when they are hungry; weight-based feeding in goat farming.</p></div>
+    <div class="card idea"><h4>Low-cost irrigation and water saving</h4><span class="who">Divya, Monisha, Likith</span><p>Irrigation for small and marginal farmers at low cost; water-saving sensors.</p></div>
+    <div class="card idea"><h4>Pest and disease risk</h4><span class="who">Darshan, Narasimha, Sanju</span><p>Sensing pest and disease risk in export containers and storage (humidity, temperature, CO₂, moisture); finding particular diseases; crop health.</p></div>
+    <div class="card idea"><h4>Nutrients and inputs</h4><span class="who">Shrabani, Likith, Varun</span><p>Nutrient management, fertiliser requirement, and identifying adulterated fertilisers and inputs.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Next steps</div>
+  <h2>Ten new projects from their ideas, on the same kit</h2>
+  <p class="intro">We turned the students’ ideas into ten ready projects. Each uses only the kit they already have (ESP32, temperature–humidity sensor, water-flow sensor, pump relay and clock). They are now on the workshop flasher page with the student’s name on each, so students can continue from home or in the lab with Claude.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Project</th><th>What it does</th><th>Idea from</th></tr></thead>
+    <tbody>
+      <tr><td>10</td><td><b>Disease-risk alarm</b></td><td>Counts humid “leaf-wet” hours and warns of downy mildew risk before symptoms appear</td><td>Darshan, Narasimha, Sanju</td></tr>
+      <tr><td>11</td><td><b>Cold-store / container logger</b></td><td>Logs temperature and humidity every 10 minutes without internet; Excel download; out-of-range alarm</td><td>Darshan</td></tr>
+      <tr><td>12</td><td><b>Irrigate by litres</b></td><td>Pump starts at a set time and stops after delivering a set number of litres, with dry-run protection</td><td>Divya, Monisha, Likith</td></tr>
+      <tr><td>13</td><td><b>Leak and theft alarm</b></td><td>Alerts when water moves while the pump is off; daily water report</td><td>Likith</td></tr>
+      <tr><td>14</td><td><b>Humidity controller</b></td><td>Runs a fogger automatically for a mushroom room or polyhouse</td><td>Shrabani, Varun</td></tr>
+      <tr><td>15</td><td><b>Power-cut logger</b></td><td>Records when farm power came and went; restarts the pump safely afterwards</td><td>Whole class</td></tr>
+      <tr><td>16</td><td><b>Timed goat feeder</b></td><td>Feeds at set times; shed heat-stress warning; next step a load cell for weight-based feeding</td><td>Parashuram, Namitha</td></tr>
+      <tr><td>17</td><td><b>Fertigation doser</b></td><td>Doses an exact volume of fertiliser solution and logs each dose</td><td>Shrabani, Likith</td></tr>
+      <tr><td>18</td><td><b>Class farm wall</b></td><td>Every student’s device on one screen with a friendly leaderboard</td><td>Whole class</td></tr>
+      <tr><td>19</td><td><b>Telegram alerts</b></td><td>Pump and disease-risk alerts arrive as phone messages; control by message</td><td>Whole class</td></tr>
+    </tbody>
+  </table></div>
+  <p class="insight"><b>Suggested follow-up:</b> students pick one project in pairs and show it working within four weeks. The best ones can be field-trialled on a farm near the college, which also answers their request for internships and “farmers using my device”.</p>
+</section>
+
+</main>
+
+<footer>
+  <span>Agri Sensors and Controls · agrisenseandcontrol.in</span>
+  <span>Facilitators: Avinash Jha (CEO) and Santosh Kumar Jha (CTO)</span>
+</footer>
+</div>
+</body>
+</html>
