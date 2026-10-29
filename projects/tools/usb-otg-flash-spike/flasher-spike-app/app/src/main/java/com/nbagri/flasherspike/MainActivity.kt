@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                     eraseChipButton.visibility = if (grant.isAdmin) android.view.View.VISIBLE else android.view.View.GONE
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Could not load access: ${friendlyErrorMessage(e)}") }
+                runOnUiThread { log("Could not load access: ${friendlyErrorMessage(e)}"); onApiFailure(e) }
             }
         }.start()
     }
@@ -241,7 +241,7 @@ class MainActivity : AppCompatActivity() {
                     renderBuildList(builds)
                 }
             } catch (e: Exception) {
-                runOnUiThread { log("Could not fetch builds: ${friendlyErrorMessage(e)}") }
+                runOnUiThread { log("Could not fetch builds: ${friendlyErrorMessage(e)}"); onApiFailure(e) }
             }
         }.start()
     }
@@ -351,14 +351,14 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { statusText.text = "Downloading bootloader…" }
                 api.downloadBuildPart(build.id, "bootloader", mac)
             } catch (e: Exception) {
-                runOnUiThread { log("Bootloader download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed" }
+                runOnUiThread { log("Bootloader download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed"; onApiFailure(e) }
                 return@Thread
             }
             val partitions = try {
                 runOnUiThread { statusText.text = "Downloading partition table…" }
                 api.downloadBuildPart(build.id, "partitions", mac)
             } catch (e: Exception) {
-                runOnUiThread { log("Partition table download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed" }
+                runOnUiThread { log("Partition table download failed: ${friendlyErrorMessage(e)}"); statusText.text = "Download failed"; onApiFailure(e) }
                 return@Thread
             }
             val app = downloadWithProgress(build, mac) ?: return@Thread
@@ -412,6 +412,7 @@ class MainActivity : AppCompatActivity() {
                 log("Download failed: ${friendlyErrorMessage(e)}")
                 statusText.text = "Download failed"
                 progressText.text = getString(R.string.progress_idle)
+                onApiFailure(e)
             }
             null
         }
@@ -685,6 +686,12 @@ class MainActivity : AppCompatActivity() {
      *  common cause by far is still being joined to the device's own SoftAP (which has
      *  no internet route) when the app needs to reach the server, which otherwise
      *  surfaces as a cryptic DNS/connect failure that looks like the app did nothing. */
+    /** A dead saved login can't recover on its own — send the user back to the login screen
+     *  (ApiClient has already forgotten the old session) instead of leaving a half-empty picker. */
+    private fun onApiFailure(e: Exception) {
+        if (e is ApiClient.SessionExpiredException) showLoginSection()
+    }
+
     private fun friendlyErrorMessage(e: Exception): String {
         val isNetworkError = e is java.net.UnknownHostException ||
             e is java.net.ConnectException ||

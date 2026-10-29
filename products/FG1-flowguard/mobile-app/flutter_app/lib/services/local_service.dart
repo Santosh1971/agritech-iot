@@ -25,6 +25,25 @@ class LocalService implements DeviceService {
   StreamSubscription? _sub;
   bool _connected = false;
 
+  // Generation counter: every connect attempt gets a new number and all
+  // callbacks from an older channel are ignored. Without it, a superseded
+  // attempt failing late (its socket was closed by the newer attempt)
+  // flipped _connected back to false while the newer socket was healthy,
+  // leaving the dashboard "Offline" though commands and status still
+  // flowed.
+  int _gen = 0;
+  Future<bool>? _connecting;
+  bool _wantConnected = false;
+  int _backoffStep = 0;
+  Timer? _reconnectTimer;
+  Timer? _silenceTimer;
+
+  static const List<int> _backoffSeconds = [2, 3, 5, 8];
+  // The firmware pushes a status every 5s (STATUS_PUBLISH_INTERVAL_MS), so
+  // this long without any message means the link is dead even if the
+  // socket never reported closing.
+  static const Duration _silenceTimeout = Duration(seconds: 15);
+
   final _statusController    = StreamController<DeviceStatus>.broadcast();
   final _historyController   = StreamController<List<HistoryEntry>>.broadcast();
   final _cyclesController    = StreamController<List<Cycle>>.broadcast();
@@ -57,50 +76,103 @@ class LocalService implements DeviceService {
     _host = host;
   }
 
+  /// Safe to call repeatedly and concurrently: overlapping calls share one
+  /// in-flight attempt, and an already-working socket is left alone.
+  /// Also (re)arms automatic reconnection until [pause] is called.
   @override
-  Future<bool> connect() async {
-    if (_connected && _channel != null) return true; // already connected — don't tear down a working socket
+  Future<bool> connect() {
+    _wantConnected = true;
+    if (_connected && _channel != null) return Future.value(true);
+    return _connecting ??= _doConnect().whenComplete(() => _connecting = null);
+  }
 
-    try { await _channel?.sink.close(); } catch (_) {}
-    _sub?.cancel();
+  /// Stops reconnecting and closes the socket (used when switching to
+  /// Cloud mode, so Local doesn't keep retrying in the background).
+  void pause() {
+    _wantConnected = false;
+    _reconnectTimer?.cancel();
+    _silenceTimer?.cancel();
+    _gen++;
+    _teardown();
+    _setConnected(false);
+  }
+
+  Future<bool> _doConnect() async {
+    _reconnectTimer?.cancel();
+    final gen = ++_gen;
+    _teardown();
 
     try {
-      _channel = WebSocketChannel.connect(Uri.parse('ws://$_host/ws'));
-      _sub = _channel!.stream.listen(
-        _handleMessage,
-        onDone: () {
-          _connected = false;
-          _connectedController.add(false);
+      final channel = WebSocketChannel.connect(Uri.parse('ws://$_host/ws'));
+      _channel = channel;
+      _sub = channel.stream.listen(
+        (raw) {
+          if (gen != _gen) return;
+          _onAlive();
+          _handleMessage(raw);
         },
+        onDone: () => _onClosed(gen),
         onError: (e) {
           print('[Local] WS error: $e');
-          _connected = false;
-          _connectedController.add(false);
+          _onClosed(gen);
         },
         cancelOnError: false,
       );
-      // WebSocketChannel.connect() doesn't await the handshake -- it used
-      // to be declared "connected" after a fixed 300ms guess instead of
-      // confirming the handshake actually finished. On the SoftAP link
-      // (already flaky in practice -- see local_setup_screen.dart's
-      // comment on connecting/dropping repeatedly), that guess can be too
-      // optimistic: connectedStream fires true, _requestHistory() sends
-      // get_history_range immediately after, and if the socket wasn't
-      // really open yet that send is silently lost -- with nothing to
-      // retry it until the next real reconnect (an app restart forces
-      // exactly that, which is why restarting "fixed" a stuck-empty
-      // History). Awaiting the channel's own `ready` future instead of a
-      // guessed delay removes the race at its root.
-      await _channel!.ready;
-      _connected = true;
-      _connectedController.add(true);
+      // WebSocketChannel.connect() doesn't await the handshake, so wait
+      // for the channel's own `ready` instead of guessing a delay -- a
+      // send issued before the socket is really open is silently lost.
+      await channel.ready;
+      if (gen != _gen) return false; // superseded by a newer attempt
+      _backoffStep = 0;
+      _onAlive();
       return true;
     } catch (e) {
       print('[Local] Connect error: $e');
-      _connected = false;
-      _connectedController.add(false);
+      _onClosed(gen);
       return false;
     }
+  }
+
+  void _teardown() {
+    _sub?.cancel();
+    _sub = null;
+    try { _channel?.sink.close(); } catch (_) {}
+    _channel = null;
+  }
+
+  void _setConnected(bool value) {
+    if (_connected == value) return;
+    _connected = value;
+    if (!_connectedController.isClosed) _connectedController.add(value);
+  }
+
+  // Anything arriving from the device proves it is reachable right now.
+  void _onAlive() {
+    _setConnected(true);
+    _silenceTimer?.cancel();
+    _silenceTimer = Timer(_silenceTimeout, () {
+      print('[Local] No data for ${_silenceTimeout.inSeconds}s -- reconnecting');
+      _onClosed(_gen);
+    });
+  }
+
+  void _onClosed(int gen) {
+    if (gen != _gen) return; // stale callback from a replaced socket
+    if (_channel == null) return; // already handled (onError + onDone both fire)
+    _silenceTimer?.cancel();
+    _teardown();
+    _setConnected(false);
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (!_wantConnected) return;
+    _reconnectTimer?.cancel();
+    final secs = _backoffSeconds[_backoffStep.clamp(0, _backoffSeconds.length - 1)];
+    _backoffStep++;
+    _reconnectTimer = Timer(Duration(seconds: secs), () {
+      if (_wantConnected && !_connected) connect();
+    });
   }
 
   void _handleMessage(dynamic raw) {
@@ -198,7 +270,9 @@ class LocalService implements DeviceService {
     _cyclesController.close();
     _connectedController.close();
     _responseController.close();
-    _sub?.cancel();
-    try { _channel?.sink.close(); } catch (_) {}
+    _reconnectTimer?.cancel();
+    _silenceTimer?.cancel();
+    _wantConnected = false;
+    _teardown();
   }
 }

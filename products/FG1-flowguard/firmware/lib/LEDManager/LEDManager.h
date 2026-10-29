@@ -6,7 +6,9 @@ enum WiFiLEDState {
     WIFI_LED_OFF,
     WIFI_LED_SEARCHING,
     WIFI_LED_WIFI_ONLY,
-    WIFI_LED_FULL_OK
+    WIFI_LED_FULL_OK,
+    WIFI_LED_AP_IDLE,     // own SoftAP up, nobody joined
+    WIFI_LED_AP_CLIENT    // own SoftAP up, a phone is joined
 };
 
 class LEDManager {

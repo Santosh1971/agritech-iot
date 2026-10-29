@@ -13,7 +13,8 @@ Two boards share one 100 × 100 order:
 - It holds 4 Minis (2 × 2) and **2 sticks** underneath. FG1 builds don't need a stick.
 - **No V-cut.** JLC charges extra for V-cut, so WhyPCB asked for routed slots instead.
 - The boards are separated by **2 mm routed slots**, drawn as closed cut-outs in the board outline.
-- The slots stop short at the panel edges and around the slot crossings. That leaves small tabs, and every tab has **0.5 mm mouse-bite holes** at 0.8 mm pitch along both board edges (78 holes, in the unplated-hole drill file). The boards snap off by hand.
+- The slots stop short at the panel edges and around the slot crossings, leaving small **plain tabs**: about 2 mm at the edges and 5 mm at the crossings.
+- **No mouse bites:** WhyPCB says JLC may not accept them. To set them back, change `MOUSE_BITES` in `tools/panel.py`. Break the tabs with pliers or a nibbler and file the stubs flush.
 - The zip also carries `ASC-MiniC3-panel-drawing.pdf` and `PANEL-README.txt` for the fab.
 - Copper keeps ≥ 0.4 mm from every edge.
 - **Price** (WhyPCB): ₹1,500 for 5 panels or ₹2,000 for 10, which is ₹50 per Mini at 10 panels. 98 × 98 stays inside their 100 × 100 price; they also accept up to 102 × 100.

@@ -97,13 +97,35 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
       // spinning), and the real result once the async scan finishes
       // (data is a List — that's when we actually stop).
       if (ok && msg['data'] is List) {
+        final results = (msg['data'] as List)
+            .map((e) => e as Map<String, dynamic>)
+            .toList()
+          ..sort((a, b) => (b['rssi'] as int).compareTo(a['rssi'] as int));
         setState(() {
           _scanning = false;
-          _scanResults = (msg['data'] as List)
-              .map((e) => e as Map<String, dynamic>)
-              .toList()
-            ..sort((a, b) => (b['rssi'] as int).compareTo(a['rssi'] as int));
+          _scanResults = results;
         });
+        // An empty list used to render as nothing at all -- no list, no
+        // message -- so a failed scan looked identical to "never ran"
+        // (FG1-003: networks "not displayed"). Say so, and invite a retry.
+        if (results.isEmpty && mounted) {
+          _snack('No networks found — tap Scan for Networks to try again');
+        }
+      } else if (msg['data'] is Map) {
+        // {"scanning":true} is the ack: keep spinning. Anything else
+        // ("scanning":false, or an "error") means the device refused or
+        // couldn't start the scan -- there's no result coming, so stop
+        // the spinner instead of leaving the button stuck on "Scanning...".
+        final data = msg['data'] as Map<String, dynamic>;
+        if (data['scanning'] != true || data['error'] != null) {
+          setState(() => _scanning = false);
+          if (mounted) {
+            _snack('Scan couldn\'t start (${data['error'] ?? 'device busy'}) — try again');
+          }
+        }
+      } else if (!ok) {
+        setState(() => _scanning = false);
+        if (mounted) _snack('Scan failed — try again');
       }
       return;
     }

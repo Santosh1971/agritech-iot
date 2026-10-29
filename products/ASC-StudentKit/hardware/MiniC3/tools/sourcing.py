@@ -19,7 +19,7 @@ def lcsc(code):
 
 # group, item, part / spec, refs, qty per kit, supplier, link, unit INR, basis, notes
 ROWS = [
-    ("PCB", "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)", "98 x 98 panel = 4 Minis + 2 sticks, 2 layers, 1.6 mm, HASL; 2 mm routed slots + mouse bites (no V-cut)", "-", 0.25,
+    ("PCB", "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)", "98 x 98 panel = 4 Minis + 2 sticks, 2 layers, 1.6 mm, HASL; 2 mm routed slots + plain tabs (no V-cut, no mouse bites)", "-", 0.25,
      "WhyPCB (JLCPCB partner)", "https://www.whypcb.com/pcb-price-calculator/R0VSQkVSU1RPUkUtMzU2OA==", 200.0, "quoted",
      "WhyPCB rates: Rs 2,000 for 10 panels (Rs 200 each), Rs 1,500 for 5. A panel has 2 sticks for 4 Minis (FG1 builds need none); "
      "student-only batches need an extra stick panel or sticks from a second order. Order fab/ASC-MiniC3-panel-gerbers.zip"),
@@ -96,7 +96,7 @@ SAMPLE_KITS = 2
 U = USD
 # item -> (order qty, unit Rs at that qty, why this qty)
 SAMPLE = {
-    "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)": (5, 300.0, "5 panels = 20 Minis + 10 sticks; WhyPCB Rs 1,500 total (slots + mouse bites, no V-cut)"),
+    "PCB panel share: 1 Mini-C3 (+ half an AHT20 stick)": (10, 200.0, "ORDERED 2026-10-14: 10 panels = 40 Minis + 20 sticks, WhyPCB Rs 2,000 total (routed slots + plain tabs)"),
     "RTC DS1307 (MSKSEMI, pin compatible)": (5, round(0.2544 * U, 1), "LCSC minimum 5"),
     "T/RH sensor AHT20 (on the stick)": (4, round(0.7638 * U, 1), "2 + 2 spare (3 x 3 mm part, hot-air soldering)"),
         "Schottky B5819W (flow level shift)": (20, round(0.0283 * U, 1), "LCSC minimum 20"),

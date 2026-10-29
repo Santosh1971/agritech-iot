@@ -1,5 +1,5 @@
 """Build the 98 x 98 mm fab panel: 4 x ASC-MiniC3 (48 x 44) + 2 x ASC-AHT20 sticks (48 x 6),
-separated by 2 mm routed slots with break-away tabs and mouse-bite holes (WhyPCB / JLC prefer
+separated by 2 mm routed slots with plain break-away tabs, no mouse bites and no V-cut (WhyPCB / JLC prefer
 this to V-cut, which JLC charges extra for).
 
 Runs in KiCad's python after both boards are routed:
@@ -18,8 +18,8 @@ Runs in KiCad's python after both boards are routed:
        +---------+  +---------+
 
 The slots are closed cut-outs on Edge.Cuts. Where a slot stops, the board material bridges to its
-neighbour (a tab); every tab has a row of 0.5 mm NPTH mouse-bite holes along each board edge so the
-boards snap off cleanly (in the NPTH drill file). Two sticks per panel: FG1 builds do not need one.
+neighbour (a tab): ~2 mm at the panel edges, ~5 mm around the slot crossings. JLC may refuse mouse
+bites, so the tabs are plain (MOUSE_BITES = False); snap them with pliers or a nibbler. Two sticks per panel: FG1 builds do not need one.
 Each copy gets its own nets (prefix B1/..B6/) and unique references (R1_1, R1_2 ...), so the
 panel BOM / placement files are valid for assembly of the whole panel.
 """
@@ -38,9 +38,10 @@ COPIES = [("ASC-MiniC3", 0, 0), ("ASC-MiniC3", 50, 0), ("ASC-MiniC3", 0, 46), ("
           ("ASC-AHT20", 0, 92), ("ASC-AHT20", 50, 92)]
 # 2 mm slots (x0, y0, x1, y1), rounded ends. Tabs are what the slots leave: 3 mm at the panel edges,
 # ~7 mm around each slot crossing, and two short ones between the sticks.
-SLOTS = [(48, 3, 50, 41.5), (48, 48.5, 50, 87.5), (48, 94.5, 50, 96.5),     # between the left and right columns
-         (3, 44, 45.5, 46), (52.5, 44, 95, 46),                              # between the Mini rows
-         (3, 90, 45.5, 92), (52.5, 90, 95, 92)]                              # between the Minis and the sticks
+SLOTS = [(48, 2, 50, 42.5), (48, 47.5, 50, 88.5), (48, 94.5, 50, 96.5),     # between the left and right columns
+         (2, 44, 46.5, 46), (51.5, 44, 96, 46),                              # between the Mini rows
+         (2, 90, 46.5, 92), (51.5, 90, 96, 92)]                              # between the Minis and the sticks
+MOUSE_BITES = False          # JLC may not accept mouse-bite holes (WhyPCB, 2026-10-14); plain tabs instead
 BITE_D, BITE_PITCH, BITE_OUT = 0.5, 0.8, 0.15   # mouse bites: hole dia, pitch, centre 0.15 mm outside the board edge
 
 panel = pcbnew.NewBoard(os.path.join(OUT, "ASC-MiniC3-panel.kicad_pcb"))
@@ -145,7 +146,7 @@ def bite_fp(x, y, n):
     p.SetLayerSet(pcbnew.PAD.UnplatedHoleMask()); fp.Add(p)
     fp.SetPosition(pcbnew.VECTOR2I(mm(OX + x), mm(OY + y))); panel.Add(fp)
 nb = 0
-for proj, dx, dy in COPIES:
+for proj, dx, dy in (COPIES if MOUSE_BITES else []):
     w, h = {"ASC-MiniC3": (48.0, 44.0), "ASC-AHT20": (48.0, 6.0)}[proj]
     edges = [((dx, dy), (dx + w, dy), (0, -1)), ((dx, dy + h), (dx + w, dy + h), (0, 1)),
              ((dx, dy), (dx, dy + h), (-1, 0)), ((dx + w, dy), (dx + w, dy + h), (1, 0))]
@@ -166,7 +167,7 @@ for proj, dx, dy in COPIES:
             bite_fp(x, y, nb)
 
 text("ASC Mini-C3 panel 98 x 98: 4 x Mini-C3 + 2 x AHT20 stick. 2 mm routed slots (Edge.Cuts), "
-     "tabs with 0.5 mm mouse-bite holes (NPTH drill). No V-cut.", 0, PH + 6, pcbnew.Cmts_User, 1.2)
+     "plain break-away tabs (no mouse bites). No V-cut.", 0, PH + 6, pcbnew.Cmts_User, 1.2)
 
 # zones keep the fills of the routed source boards (copied with them), so no refill here
 path = os.path.join(OUT, "ASC-MiniC3-panel.kicad_pcb")

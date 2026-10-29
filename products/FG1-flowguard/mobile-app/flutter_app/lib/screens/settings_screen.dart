@@ -109,6 +109,7 @@ class SettingsScreen extends ConsumerWidget {
               selected: mode == TransportMode.cloud,
               onTap: () async {
                 await ref.read(transportModeProvider.notifier).setMode(TransportMode.cloud);
+                ref.read(localServiceProvider).pause();
                 await ref.read(deviceServiceProvider).connect();
               },
             ),

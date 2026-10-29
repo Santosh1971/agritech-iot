@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <nvs_flash.h>
+#include <esp_mac.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "Config.h"
@@ -136,7 +137,11 @@ String buildCyclesJSON() {
 }
 
 void updateWiFiLED() {
-    if (WiFi.status() != WL_CONNECTED)    leds.setWiFiState(WIFI_LED_SEARCHING);
+    // On the device's own SoftAP (no field WiFi), blink like the WPC
+    // Master: slow when idle, fast while a phone is joined.
+    if (connMode == CONN_LOCAL_FALLBACK && WiFi.status() != WL_CONNECTED)
+        leds.setWiFiState(WiFi.softAPgetStationNum() > 0 ? WIFI_LED_AP_CLIENT : WIFI_LED_AP_IDLE);
+    else if (WiFi.status() != WL_CONNECTED)    leds.setWiFiState(WIFI_LED_SEARCHING);
     else if (!mqtt.isConnected())          leds.setWiFiState(WIFI_LED_WIFI_ONLY);
     else                                   leds.setWiFiState(WIFI_LED_FULL_OK);
 }
@@ -147,47 +152,97 @@ void updateWiFiLED() {
 static uint32_t s_lastSyncMillis = 0;
 static bool     s_haveLastSync   = false;
 
-// Sync RTC from NTP (IST = UTC+5:30 = 19800 seconds)
+// NTP sync runs as a small state machine polled from loop() instead of a
+// blocking wait. The old version sat in getLocalTime(&t, 8000) up to 3x
+// with delay(2000) between tries -- ~28s with no leds.loop(), so the WiFi
+// and flow LEDs froze (and, on the fallback-recovery path, relay/scheduler
+// /MQTT stalled too) whenever NTP was unreachable. Bench-seen 2026-10-16.
+// Same attempt count and timeouts as before, just without blocking.
+enum NtpState { NTP_IDLE, NTP_WAITING, NTP_BACKOFF };
+static NtpState s_ntpState      = NTP_IDLE;
+static uint8_t  s_ntpAttempt    = 0;
+static uint32_t s_ntpPhaseStart = 0;
+static uint32_t s_ntpLastPoll   = 0;
+
+static const uint8_t  NTP_MAX_ATTEMPTS   = 3;
+static const uint32_t NTP_ATTEMPT_MS     = 8000;
+static const uint32_t NTP_BACKOFF_MS     = 2000;
+static const uint32_t NTP_POLL_EVERY_MS  = 200;   // getLocalTime(.., 0) still costs a 10ms delay on a miss
+
+void applyNTPTime(struct tm& timeinfo);
+
+// Kick off an RTC sync from NTP (IST = UTC+5:30 = 19800 seconds). Returns
+// immediately; pollNTPSync() finishes the job from loop().
 void syncNTP() {
     configTime(19800, 0, "in.pool.ntp.org", "asia.pool.ntp.org", "pool.ntp.org");
     Serial.println("[NTP] Syncing time...");
-    struct tm timeinfo;
-    bool ntpOk = false;
-    for (int attempt = 0; attempt < 3 && !ntpOk; attempt++) {
-        if (attempt > 0) { delay(2000); Serial.println("[NTP] Retrying..."); }
-        ntpOk = getLocalTime(&timeinfo, 8000);
-    }
-    if (ntpOk) {
-        // --- Drift measurement (logged BEFORE overwriting the RTC) ---
-        // Compare the RTC's own reported time against the fresh NTP time,
-        // using the same DateTime::unixtime() conversion RTCManager uses
-        // internally for both sides, so the comparison is apples-to-apples
-        // regardless of whether that convention is true UTC.
-        if (rtc.isTimeSet()) {
-            DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                           timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-            int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
-            if (s_haveLastSync) {
-                uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
-                if (elapsedSec > 0) {
-                    double ppm = (driftSec * 1e6) / (double)elapsedSec;
-                    Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
-                        (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
-                }
-            } else {
-                Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
-            }
-        }
-        s_lastSyncMillis = millis();
-        s_haveLastSync   = true;
+    s_ntpState      = NTP_WAITING;
+    s_ntpAttempt    = 0;
+    s_ntpPhaseStart = millis();
+    s_ntpLastPoll   = 0;
+}
 
-        rtc.syncFromTm(timeinfo);
-        Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
-            timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,
-            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-    } else {
-        Serial.println("[NTP] Sync failed — using existing RTC time (fine if this device rarely sees internet)");
+void pollNTPSync() {
+    if (s_ntpState == NTP_IDLE) return;
+    uint32_t now = millis();
+
+    if (s_ntpState == NTP_BACKOFF) {
+        if (now - s_ntpPhaseStart >= NTP_BACKOFF_MS) {
+            Serial.println("[NTP] Retrying...");
+            s_ntpState      = NTP_WAITING;
+            s_ntpPhaseStart = now;
+        }
+        return;
     }
+
+    if (now - s_ntpLastPoll < NTP_POLL_EVERY_MS) return;
+    s_ntpLastPoll = now;
+
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 0)) {
+        s_ntpState = NTP_IDLE;
+        applyNTPTime(timeinfo);
+        return;
+    }
+    if (millis() - s_ntpPhaseStart >= NTP_ATTEMPT_MS) {
+        if (++s_ntpAttempt >= NTP_MAX_ATTEMPTS) {
+            s_ntpState = NTP_IDLE;
+            Serial.println("[NTP] Sync failed — using existing RTC time (fine if this device rarely sees internet)");
+        } else {
+            s_ntpState      = NTP_BACKOFF;
+            s_ntpPhaseStart = millis();
+        }
+    }
+}
+
+void applyNTPTime(struct tm& timeinfo) {
+    // --- Drift measurement (logged BEFORE overwriting the RTC) ---
+    // Compare the RTC's own reported time against the fresh NTP time,
+    // using the same DateTime::unixtime() conversion RTCManager uses
+    // internally for both sides, so the comparison is apples-to-apples
+    // regardless of whether that convention is true UTC.
+    if (rtc.isTimeSet()) {
+        DateTime ntpDt(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                       timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+        int32_t driftSec = (int32_t)(ntpDt.unixtime() - rtc.getUnixTime());
+        if (s_haveLastSync) {
+            uint32_t elapsedSec = (millis() - s_lastSyncMillis) / 1000UL;
+            if (elapsedSec > 0) {
+                double ppm = (driftSec * 1e6) / (double)elapsedSec;
+                Serial.printf("[RTC-DRIFT] %+ld s over %lu s since last sync (%.1f ppm, ~%.1f min/month)\n",
+                    (long)driftSec, (unsigned long)elapsedSec, ppm, ppm * 2.628 / 60.0);
+            }
+        } else {
+            Serial.printf("[RTC-DRIFT] %+ld s vs NTP (no prior sync this boot to compute rate)\n", (long)driftSec);
+        }
+    }
+    s_lastSyncMillis = millis();
+    s_haveLastSync   = true;
+
+    rtc.syncFromTm(timeinfo);
+    Serial.printf("[NTP] IST: %02d/%02d/%04d %02d:%02d:%02d\n",
+        timeinfo.tm_mday, timeinfo.tm_mon+1, timeinfo.tm_year+1900,
+        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 }
 
 // Shared success handler — called both on initial boot connect and on
@@ -228,8 +283,16 @@ bool tryConnectSTA(uint32_t timeoutMs) {
 // unit, which — beyond just being unhelpful in the app UI — meant any two
 // devices both in Cloud mode would collide on the exact same MQTT topics.
 String computeDeviceId() {
+    // Read the factory MAC straight from eFuse rather than via
+    // WiFi.macAddress(): that goes through the Wi-Fi driver and can hand
+    // back zeros if the driver isn't up yet, giving "SWC_001_0000".
     uint8_t mac[6];
-    WiFi.macAddress(mac);
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+    uint8_t drv[6];
+    WiFi.macAddress(drv);
+    Serial.printf("[BOOT] MAC eFuse %02X:%02X:%02X:%02X:%02X:%02X  (Wi-Fi driver %02X:%02X:%02X:%02X:%02X:%02X)\n",
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+        drv[0], drv[1], drv[2], drv[3], drv[4], drv[5]);
     char suffix[5];
     snprintf(suffix, sizeof(suffix), "%02X%02X", mac[4], mac[5]);
     return String(DEVICE_ID) + "_" + suffix;
@@ -246,6 +309,16 @@ void startLocalFallback() {
     WiFi.softAP(apSsid.c_str(), SOFTAP_PASSWORD);
     connMode = CONN_LOCAL_FALLBACK;
     lastWiFiRetry = millis();
+    // Stop any STA connect attempt still running. An unreachable saved
+    // SSID leaves the Arduino core's auto-reconnect re-issuing
+    // WiFi.begin() every ~3s (NO_AP_FOUND each time), and AP+STA share one
+    // radio channel: every attempt scans channels and pulls the radio off
+    // the AP's, so phones fail to join the SoftAP or keep dropping.
+    // Bench-seen 2026-10-23 (FG1-003 follow-up): ~21 NO_AP_FOUND in the
+    // first minute after fallback, and the phone took 1-2 minutes to join
+    // `SWC_001_xxxx`. From here the 60s background retry (beginBackground
+    // Retry) is the only thing that touches the STA.
+    if (WiFi.status() != WL_CONNECTED) WiFi.disconnect(false, false);
     Serial.printf("[WiFi] Local fallback active — SSID: %s  IP: %s\n",
         apSsid.c_str(), WiFi.softAPIP().toString().c_str());
 }
@@ -274,6 +347,13 @@ void pollBackgroundRetry() {
     } else if (millis() - retryStartMs >= RETRY_CONNECT_TIMEOUT_MS) {
         Serial.println("[WiFi] Retry timed out — staying in local fallback");
         retryState = RETRY_IDLE;
+        // Actually stop trying. Without this the Arduino core's
+        // auto-reconnect keeps re-issuing WiFi.begin() every ~3s (a
+        // NO_AP_FOUND per attempt in the log) until the next 60s retry,
+        // keeping the STA permanently "connecting" -- which also makes
+        // every wifi_scan fail instantly (FG1-003). A voluntary
+        // disconnect() raises ASSOC_LEAVE, which the core won't reconnect on.
+        WiFi.disconnect(false, false);
     }
 }
 
@@ -420,8 +500,8 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         // SoftAP mode was paying this cost even though no one's
         // listening on MQTT at all in that state).
         if (mqtt.isConnected() && !mqtt.publishHistory(out))
-            Serial.printf("[MQTT] publishHistory gave up after 3 attempts (%d bytes, "
-                           "%d entries, final state=%d)\n", out.length(), count, mqtt.state());
+            Serial.printf("[MQTT] publishHistory not queued (%d bytes, "
+                           "%d entries, state=%d)\n", out.length(), count, mqtt.state());
         localServer.publishHistory(out);
         return out;
     }
@@ -445,8 +525,8 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         Serial.printf("[HISTORY] get_history -> %d entries\n", count);
         Serial.println(out);
         if (mqtt.isConnected() && !mqtt.publishHistory(out))
-            Serial.printf("[MQTT] publishHistory gave up after 3 attempts (%d bytes, "
-                           "%d entries, final state=%d)\n", out.length(), count, mqtt.state());
+            Serial.printf("[MQTT] publishHistory not queued (%d bytes, "
+                           "%d entries, state=%d)\n", out.length(), count, mqtt.state());
         localServer.publishHistory(out);
         return out;
     }
@@ -505,8 +585,16 @@ String handleCommand(const String& cmd, const JsonObject& payload) {
         // pushes the result out as a "wifi_scan_result" broadcast once
         // ready (see wifiScanPending below) — the same non-blocking
         // push pattern already used for status/cycles/history.
+        // A scan the user just asked for wins over the background
+        // reconnect: abort that attempt rather than refusing the scan.
+        // Refusing was FG1-003's second symptom -- the app took the
+        // {"scanning":false,"error":...} reply for the "scan started" ack
+        // and sat on "Scanning..." forever. The retry timer resumes on its
+        // own once the scan finishes (it already skips while a scan is in
+        // flight).
         if (retryState == RETRY_CONNECTING) {
-            return "{\"scanning\":false,\"error\":\"wifi busy, try again shortly\"}";
+            WiFi.disconnect(false, false);
+            retryState = RETRY_IDLE;
         }
         wifiScanInProgress = true;
         wifiScanPending = true;
@@ -664,6 +752,7 @@ void setup() {
 
 void loop() {
     leds.loop();
+    pollNTPSync();
     relay.loop();
     localServer.loop();
     mqtt.loop();
@@ -684,7 +773,7 @@ void loop() {
         ESP.restart();
     }
 
-    if (millis() - lastWiFiCheck >= 2000) {
+    if (millis() - lastWiFiCheck >= 500) {
         lastWiFiCheck = millis();
         updateWiFiLED();
     }

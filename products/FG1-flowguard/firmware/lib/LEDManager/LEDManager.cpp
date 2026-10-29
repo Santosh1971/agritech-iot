@@ -42,6 +42,23 @@ void LEDManager::_updateWiFiLED() {
                 _wifiLedOn = true; _wifiLastMs = now;
             }
             break;
+        // Same two SoftAP patterns as WPC (see updateWifiLed() in
+        // WPC master_node): slow 1000/1000 when idle, fast 50/50 while a
+        // phone is on the AP.
+        case WIFI_LED_AP_IDLE:
+            if (now - _wifiLastMs >= 1000) {
+                _wifiLedOn = !_wifiLedOn;
+                digitalWrite(WIFI_LED_PIN, _wifiLedOn ? HIGH : LOW);
+                _wifiLastMs = now;
+            }
+            break;
+        case WIFI_LED_AP_CLIENT:
+            if (now - _wifiLastMs >= 50) {
+                _wifiLedOn = !_wifiLedOn;
+                digitalWrite(WIFI_LED_PIN, _wifiLedOn ? HIGH : LOW);
+                _wifiLastMs = now;
+            }
+            break;
         case WIFI_LED_WIFI_ONLY:
             if (_wifiLedOn && now - _wifiLastMs >= 1000) {
                 digitalWrite(WIFI_LED_PIN, LOW);
