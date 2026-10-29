@@ -329,6 +329,62 @@ class _StatusScreenState extends State<StatusScreen> {
     }
   }
 
+  // LoRa link health from Master fw >= 1.1.0. "Up" = Pump -> Master (measured at the
+  // Master), "down" = Master -> Pump (measured at the Pump, needs Pump fw >= 1.1.0).
+  // The quality word is the Master's judgement on the weaker direction.
+  Widget _linkRow(Map<String, dynamic> link) {
+    final quality = (link['quality'] as String?) ?? 'unknown';
+    final upRssi = (link['upRssi'] as num?)?.toInt();
+    final upSnr = (link['upSnr'] as num?)?.toDouble();
+    final downRssi = (link['downRssi'] as num?)?.toInt();
+    final downSnr = (link['downSnr'] as num?)?.toDouble();
+    final misses = (link['misses'] as num?)?.toInt() ?? 0;
+    final acks = (link['acks'] as num?)?.toInt() ?? 0;
+    final IconData icon;
+    final Color color;
+    switch (quality) {
+      case 'good':
+        icon = Icons.signal_cellular_alt;
+        color = Colors.green.shade700;
+        break;
+      case 'weak':
+        icon = Icons.signal_cellular_alt_2_bar;
+        color = Colors.orange.shade800;
+        break;
+      case 'poor':
+        icon = Icons.signal_cellular_alt_1_bar;
+        color = Colors.red.shade700;
+        break;
+      default:
+        icon = Icons.signal_cellular_null;
+        color = Colors.grey.shade500;
+    }
+    String dir(String arrow, int? rssi, double? snr) =>
+        rssi == null ? '' : '$arrow $rssi dBm ${snr?.toStringAsFixed(1) ?? '?'} dB';
+    final parts = [
+      dir('\u2191', upRssi, upSnr),
+      dir('\u2193', downRssi, downSnr),
+      if (acks + misses > 0) 'missed $misses/${acks + misses}',
+    ].where((p) => p.isNotEmpty).join('   ');
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, top: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 3),
+          Text('LoRa $quality',
+              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(parts,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _pumpRow(Map<String, dynamic> map) {
     final online = map['online'] == true;
     final relay = map['relay'] == true;
@@ -416,6 +472,7 @@ class _StatusScreenState extends State<StatusScreen> {
                 ],
               ),
             ),
+          if (map['link'] is Map) _linkRow(map['link'] as Map<String, dynamic>),
           if (in1Adc != null && in4Adc != null)
             Padding(
               padding: const EdgeInsets.only(left: 24, top: 2),

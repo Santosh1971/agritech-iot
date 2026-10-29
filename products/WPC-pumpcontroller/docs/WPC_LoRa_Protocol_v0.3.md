@@ -39,6 +39,24 @@ The Master's `pollPump()` requires the received packet to be at least 17 bytes t
 
 There is no separate "telemetry" message type — IN1/IN4 readings are only ever piggybacked on whatever CMD_ACK the normal poll cycle already produces (see §5). A fresh reading only reaches the Master when that pump is actually polled.
 
+### 2.1a CMD_ACK link bytes (firmware 1.1.0)
+
+| Byte offset (from payload start) | Field | Notes |
+|---|---|---|
+| 7 | downlink RSSI | int8, dBm, at which the Pump heard the LEVEL_CMD it is answering |
+| 8 | downlink SNR | int8, in 0.25 dB steps (e.g. 42 = 10.5 dB) |
+
+The ACK is now 19 bytes. The Master reads these only when `rlen >= 19`, and a 1.0.x Master ignores them, so Pumps and Masters can be updated in any order. The Master also keeps the RSSI/SNR of each Pump's ACK (uplink) per slot, plus ACK/miss counters, and publishes them in `/status` and the cloud status as `pumps[].link`:
+
+```json
+"link": {"quality": "good", "upRssi": -19, "upSnr": 10.25, "lastAckSec": 4,
+         "downRssi": -18, "downSnr": 10.5, "acks": 5, "misses": 0}
+```
+
+`quality` is judged on the weaker direction known, by SNR margin above the SF9 demodulation floor (about -12.5 dB): `good` >= 10 dB margin, `weak` 5-10 dB, `poor` < 5 dB, `unknown` before the first ACK of the session. `down*` fields are absent for a Pump older than 1.1.0. All link values are session-only and reset on a fresh join.
+
+**Poll scheduling fix in 1.1.0:** the "desired state differs from the last confirmed relay state" priority (§5) now applies only to online pumps. Before, an offline pump with a pending command won that priority on every pass and no other pump was polled again, so they all hit their 60 s fail-safe. An offline pump now gets its pending command on its normal round-robin turn.
+
 ## 3. Identity & Defaults — unchanged from v0.2
 
 - **Master ID** = lower 4 bytes of the Master's own MAC (`ESP.getEfuseMac()`), computed at boot.

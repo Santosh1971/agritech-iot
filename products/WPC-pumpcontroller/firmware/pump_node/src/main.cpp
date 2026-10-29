@@ -12,7 +12,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "1.0.3"
+#define FW_VERSION "1.1.0"
 #endif
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
@@ -275,14 +275,24 @@ bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
   bool in4 = contactActive(PIN_IN4);
   uint16_t in1Adc = readAdcAveraged(PIN_IN1);
   uint16_t in4Adc = readAdcAveraged(PIN_IN4);
-  // Payload grew from 3 to 7 bytes to carry the two raw ADC channels --
-  // Master's pollPump() must be updated in lockstep to parse this layout.
-  uint8_t payload[7] = {
+  // Payload grew from 3 to 7 bytes to carry the two raw ADC channels, and in 1.1.0 to
+  // 9 bytes: the RSSI (int8 dBm) and SNR (int8, 0.25 dB steps) at which this Pump heard
+  // the LEVEL_CMD it is answering (stLastRssi/stLastSnr were set from that packet just
+  // before handlePacket()). The Master reads fields by minimum length, so an older
+  // Master simply ignores the two extra bytes.
+  int rssi = (int)lroundf(stLastRssi);
+  if (rssi < -128) rssi = -128;
+  if (rssi > 127) rssi = 127;
+  int snrQ = (int)lroundf(stLastSnr * 4.0f);
+  if (snrQ < -128) snrQ = -128;
+  if (snrQ > 127) snrQ = 127;
+  uint8_t payload[9] = {
     (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0),
     (uint8_t)(in1Adc >> 8), (uint8_t)(in1Adc & 0xFF),
     (uint8_t)(in4Adc >> 8), (uint8_t)(in4Adc & 0xFF),
+    (uint8_t)(int8_t)rssi, (uint8_t)(int8_t)snrQ,
   };
-  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 7);
+  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 9);
 
   transmitting = true;
   int state = radio.startTransmit(txPacket, len);

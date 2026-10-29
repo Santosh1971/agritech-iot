@@ -11,7 +11,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "1.0.3"
+#define FW_VERSION "1.1.0"
 #endif
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -328,8 +328,45 @@ struct PumpEntry {
   bool     overrideState;   // desired relay state while overrideEnabled -- session-only: a Master reboot
                              // always comes back in automatic mode rather than risking a pump silently
                              // stuck in a forgotten manual state
+  // LoRa link health, session-only. "Up" = Pump -> Master, measured here on the Pump's
+  // CMD_ACK. "Down" = Master -> Pump, measured by the Pump on our LEVEL_CMD and echoed
+  // back in its CMD_ACK (Pump fw >= 1.1.0; older Pumps leave hasDown false).
+  bool     hasUp;
+  int16_t  upRssi;          // dBm
+  int8_t   upSnrQ;          // SNR in 0.25 dB steps
+  bool     hasDown;
+  int8_t   downRssi;        // dBm
+  int8_t   downSnrQ;        // SNR in 0.25 dB steps
+  uint32_t lastAckMs;       // millis() of the last ACK, 0 = none this session
+  uint16_t acks;            // polls answered / not answered this session
+  uint16_t misses;
 };
 PumpEntry pumps[MAX_PUMPS];
+
+void resetLink(PumpEntry& e) {
+  e.hasUp = false; e.upRssi = 0; e.upSnrQ = 0;
+  e.hasDown = false; e.downRssi = 0; e.downSnrQ = 0;
+  e.lastAckMs = 0; e.acks = 0; e.misses = 0;
+}
+
+// LoRa at SF9 demodulates down to about -12.5 dB SNR, so margin = SNR + 12.5. Judged on
+// the weaker direction we know of. "good" >= 10 dB margin, "weak" 5-10 dB, "poor" < 5 dB.
+const char* linkQuality(const PumpEntry& e) {
+  if (!e.hasUp) return "unknown";
+  float snr = e.upSnrQ / 4.0f;
+  if (e.hasDown && e.downSnrQ / 4.0f < snr) snr = e.downSnrQ / 4.0f;
+  float margin = snr + 12.5f;
+  if (margin >= 10.0f) return "good";
+  if (margin >= 5.0f) return "weak";
+  return "poor";
+}
+
+int8_t snrToQ(float snr) {
+  float q = snr * 4.0f;
+  if (q > 127) q = 127;
+  if (q < -128) q = -128;
+  return (int8_t)(q < 0 ? q - 0.5f : q + 0.5f);
+}
 
 uint8_t numLevels = 3;   // configurable 1-3, persisted in NVS
 
@@ -353,6 +390,7 @@ void initPumpTable() {
     pumps[i].in4Dig = false;
     pumps[i].overrideEnabled = false;
     pumps[i].overrideState = false;
+    resetLink(pumps[i]);
   }
 }
 
@@ -526,6 +564,7 @@ void listenForJoin(uint32_t windowMs) {
             pumps[slot].in4Dig = false;
             pumps[slot].overrideEnabled = false;
             pumps[slot].overrideState = false;
+            resetLink(pumps[slot]);
             savePumpTable();
             Serial.print(F("[JOIN] pumpId "));
             Serial.print(pumpId);
@@ -634,6 +673,17 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
             pumps[slot].in1Adc = ((uint16_t)buf[11] << 8) | buf[12];
             pumps[slot].in4Adc = ((uint16_t)buf[13] << 8) | buf[14];
           }
+          pumps[slot].hasUp = true;
+          pumps[slot].upRssi = (int16_t)lroundf(stLastRssi);
+          pumps[slot].upSnrQ = snrToQ(stLastSnr);
+          pumps[slot].lastAckMs = millis();
+          // v1.1.0 adds 2 bytes: the Pump's RSSI (int8 dBm) and SNR (int8, 0.25 dB) of
+          // the LEVEL_CMD it is answering. An older Pump sends the 17-byte ACK.
+          if (rlen >= 19) {
+            pumps[slot].hasDown = true;
+            pumps[slot].downRssi = (int8_t)buf[15];
+            pumps[slot].downSnrQ = (int8_t)buf[16];
+          }
           startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
         } else {
@@ -703,11 +753,17 @@ void pollCycle() {
   for (int i = 0; i < MAX_PUMPS; i++) if (pumps[i].known) knownCount++;
   if (knownCount == 0) return;
 
-  // Priority 1: a pump whose desired state doesn't match its last
+  // Priority 1: an ONLINE pump whose desired state doesn't match its last
   // confirmed relay state -- service now, regardless of round-robin turn.
+  // Offline pumps are excluded: one that never ACKs keeps its mismatch
+  // forever, and used to win this check on every pass, so no other pump was
+  // ever polled again -- they all fell into their 60 s fail-safe (seen on the
+  // bench, 1.0.3). An offline pump still gets its pending command on its
+  // normal round-robin turn below.
   int slot = -1;
   for (int i = 0; i < MAX_PUMPS; i++) {
-    if (pumps[i].known && pumps[i].everAttempted && desiredPumpState[i] != pumps[i].lastRelayState) {
+    if (pumps[i].known && pumps[i].everAttempted && pumps[i].online &&
+        desiredPumpState[i] != pumps[i].lastRelayState) {
       slot = i;
       break;
     }
@@ -750,6 +806,8 @@ void pollCycle() {
 
   pumps[slot].everAttempted = true;
   pumps[slot].online = acked;
+  if (acked) { if (pumps[slot].acks < 65535) pumps[slot].acks++; }
+  else if (pumps[slot].misses < 65535) pumps[slot].misses++;
   if (acked) {
     pumps[slot].lastRelayState = desired;
     consecutiveFails = 0;
@@ -987,6 +1045,19 @@ String buildStatusJson() {
     // command) and IN4 is its own No-Power contact.
     p["waterFlow"] = pumps[i].in1Dig;
     p["powerOk"] = pumps[i].in4Dig;
+    JsonObject link = p["link"].to<JsonObject>();
+    link["quality"] = linkQuality(pumps[i]);
+    if (pumps[i].hasUp) {
+      link["upRssi"] = pumps[i].upRssi;
+      link["upSnr"] = pumps[i].upSnrQ / 4.0f;
+      link["lastAckSec"] = (millis() - pumps[i].lastAckMs) / 1000;
+    }
+    if (pumps[i].hasDown) {
+      link["downRssi"] = pumps[i].downRssi;
+      link["downSnr"] = pumps[i].downSnrQ / 4.0f;
+    }
+    link["acks"] = pumps[i].acks;
+    link["misses"] = pumps[i].misses;
     JsonObject ov = p["override"].to<JsonObject>();
     ov["enabled"] = pumps[i].overrideEnabled;
     ov["state"] = pumps[i].overrideState;
@@ -1223,7 +1294,13 @@ void handleConsoleLine(String line) {
                     " relay=" + pumps[i].lastRelayState + " desired=" + desiredPumpState[i] +
                     " levels=" + pumps[i].assignedLevels + " adc1=" + pumps[i].in1Adc +
                     " adc4=" + pumps[i].in4Adc + " waterFlow=" + pumps[i].in1Dig +
-                    " powerOk=" + pumps[i].in4Dig + " override=" + pumps[i].overrideEnabled);
+                    " powerOk=" + pumps[i].in4Dig + " override=" + pumps[i].overrideEnabled +
+                    " link=" + linkQuality(pumps[i]) +
+                    " upRssi=" + (pumps[i].hasUp ? String(pumps[i].upRssi) : String("na")) +
+                    " upSnr=" + (pumps[i].hasUp ? String(pumps[i].upSnrQ / 4.0f, 2) : String("na")) +
+                    " downRssi=" + (pumps[i].hasDown ? String(pumps[i].downRssi) : String("na")) +
+                    " downSnr=" + (pumps[i].hasDown ? String(pumps[i].downSnrQ / 4.0f, 2) : String("na")) +
+                    " acks=" + pumps[i].acks + " misses=" + pumps[i].misses);
     }
     reply("OK", String("count=") + n);
   } else if (cmd == "ASSIGN") {           // ASSIGN <slot> <levelMask 0-7>
