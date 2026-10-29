@@ -1,0 +1,2 @@
+# Your own Firebase database URL - copy firebase_config.example.h to this name
+src/firebase_config.h
