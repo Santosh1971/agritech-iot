@@ -27,7 +27,7 @@
 // docs/WPC_LoRa_Protocol_v0.3.md.
 // ---------------------------------------------------------------------
 
-#define JIG_FW_VERSION "0.1.0"
+#define JIG_FW_VERSION "0.1.1"
 
 // ---- WM1 board pin map (from the WM1 schematic) ----------------------
 #define PIN_NSS    5
@@ -76,7 +76,7 @@ SX1262 radio = new Module(PIN_NSS, PIN_DIO1, PIN_RESET, PIN_BUSY, loraSPI);
 volatile bool operationDone = false;
 void ICACHE_RAM_ATTR onRadioAction() { operationDone = true; }
 
-enum Mode { MODE_IDLE, MODE_PUMPEMU, MODE_MASTEREMU };
+enum Mode { MODE_IDLE, MODE_PUMPEMU, MODE_MASTEREMU, MODE_SNIFF };
 Mode mode = MODE_IDLE;
 bool radioOk = false;
 int8_t txPowerDbm = 14;
@@ -298,6 +298,34 @@ void masterEmuLoop() {
   if (pollRadio(rx)) masterEmuHandle(rx);
 }
 
+// Listen-only: print every packet heard on one Master's sync word, never
+// transmit. Lets the host see what is actually on the air between a real
+// Master and real Pumps (system test rig).
+void sniffLoop() {
+  if (!operationDone) return;
+  operationDone = false;
+  uint8_t b[64];
+  int len = radio.getPacketLength();
+  if (len < 1 || len > (int)sizeof(b)) { radio.startReceive(); return; }
+  int st = radio.readData(b, len);
+  float rssi = radio.getRSSI(), snr = radio.getSNR();
+  String hex;
+  for (int i = 0; i < len; i++) { if (b[i] < 16) hex += '0'; hex += String(b[i], HEX); }
+  String line = String("PKT t=") + millis() + " len=" + len + " st=" + st;
+  if (st == RADIOLIB_ERR_NONE && len >= 10) {
+    uint16_t rxCrc = (b[len - 2] << 8) | b[len - 1];
+    uint32_t mid = ((uint32_t)b[2] << 24) | ((uint32_t)b[3] << 16) | ((uint32_t)b[4] << 8) | b[5];
+    char m[9];
+    snprintf(m, sizeof(m), "%08X", (unsigned int)mid);
+    line += String(" crc=") + (crc16(b, len - 2) == rxCrc ? 1 : 0) + " type=" + b[1] + " master=" + m +
+            " slot=" + b[6] + " seq=" + b[7];
+  }
+  line += String(" rssi=") + rssi + " snr=" + snr + " hex=" + hex;
+  Serial.println(String("@EVT ") + line);
+  ledPulse();
+  radio.startReceive();
+}
+
 // ---- console ----------------------------------------------------------
 String consoleBuf;
 
@@ -456,6 +484,15 @@ void handleConsoleLine(String line) {
     cmdPumpEmu(args);
   } else if (cmd == "MASTEREMU") {
     cmdMasterEmu(args);
+  } else if (cmd == "SNIFF") {                // SNIFF <masterId hex8> | SNIFF STOP
+    if (args == "STOP") { modeStop(); reply("OK", "sniff stopped"); return; }
+    uint32_t mid = strtoul(args.c_str(), nullptr, 16);
+    if (mid == 0) { reply("ERR", "usage: SNIFF <masterId hex8>|STOP"); return; }
+    modeStop();
+    emuMasterId = mid;
+    if (!radioStart(mid)) { reply("ERR", "radio init failed"); return; }
+    mode = MODE_SNIFF;
+    reply("OK", String("sniffing master=") + args + " syncWord=0x" + String(syncWordFor(mid), HEX));
   } else if (cmd == "WIFISCAN") {             // WIFISCAN <ssid>
     WiFi.mode(WIFI_STA);
     int n = WiFi.scanNetworks();
@@ -501,7 +538,7 @@ void handleConsoleLine(String line) {
     reply("DATA", resp);   // DATA lines always precede the terminating @OK/@ERR
     reply("OK", String("status=") + code + " len=" + fullLen);
   } else if (cmd == "RADIO") {
-    reply("OK", String("radioOk=") + radioOk + " mode=" + (mode == MODE_PUMPEMU ? "pumpemu" : mode == MODE_MASTEREMU ? "masteremu" : "idle"));
+    reply("OK", String("radioOk=") + radioOk + " mode=" + (mode == MODE_PUMPEMU ? "pumpemu" : mode == MODE_MASTEREMU ? "masteremu" : mode == MODE_SNIFF ? "sniff" : "idle"));
   } else if (cmd == "RESET") {
     modeStop();
     relayByte = 0;
@@ -514,7 +551,7 @@ void handleConsoleLine(String line) {
     delay(200);
     ESP.restart();
   } else {
-    reply("ERR", "unknown command (ID RELAY RELAYS SENSE AOUT TXPOWER PUMPEMU MASTEREMU WIFISCAN WIFICONNECT WIFIDISCONNECT HTTPGET HTTPPOST RADIO RESET REBOOT)");
+    reply("ERR", "unknown command (ID RELAY RELAYS SENSE AOUT TXPOWER PUMPEMU MASTEREMU SNIFF WIFISCAN WIFICONNECT WIFIDISCONNECT HTTPGET HTTPPOST RADIO RESET REBOOT)");
   }
 }
 
@@ -563,5 +600,6 @@ void loop() {
   pollConsole();
   if (mode == MODE_PUMPEMU) pumpEmuLoop();
   else if (mode == MODE_MASTEREMU) masterEmuLoop();
+  else if (mode == MODE_SNIFF) sniffLoop();
   delay(1);
 }

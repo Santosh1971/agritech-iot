@@ -12,7 +12,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "1.0.0"
+#define FW_VERSION "1.0.1"
 #endif
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
@@ -78,6 +78,10 @@ uint32_t stTxStart = 0, stTxDone = 0, stRxIrq = 0, stRxOk = 0, stRxCrcBad = 0, s
 float stLastRssi = 0, stLastSnr = 0;
    // 2x Master's 30s heartbeat -- tolerates one missed heartbeat before declaring real loss of contact
 #define JOIN_RETRY_MS 1200UL   // faster retry while unjoined, paired with Master's wider listen window
+// Each retry waits JOIN_RETRY_MS +/- JOIN_RETRY_JITTER_MS, picked at random. With a fixed
+// interval, two unjoined Pumps can lock ~0.2 s apart so every JOIN_ACCEPT for one collides
+// with the other's JOIN_REQUEST, indefinitely (seen on the system test rig, 2026-10-29).
+#define JOIN_RETRY_JITTER_MS 600UL
 
 // today's bench Master -- override via app/NVS for a different Master
 #define DEFAULT_MASTER_ID 0x68A99B20UL
@@ -108,6 +112,7 @@ uint32_t targetMasterId = 0;
 bool joined = false;
 uint8_t myAssignedSlot = 0xFF;
 uint32_t lastJoinAttemptMs = 0;
+uint32_t joinRetryMs = JOIN_RETRY_MS;
 
 void ICACHE_RAM_ATTR onRadioAction() {
   operationDone = true;
@@ -785,8 +790,9 @@ void loop() {
       setRelay(false);
       Serial.println(F("[FAILSAFE] unjoined -- relay forced OFF"));
     }
-    if (targetMasterId != 0 && millis() - lastJoinAttemptMs > JOIN_RETRY_MS) {
+    if (targetMasterId != 0 && millis() - lastJoinAttemptMs > joinRetryMs) {
       lastJoinAttemptMs = millis();
+      joinRetryMs = JOIN_RETRY_MS - JOIN_RETRY_JITTER_MS + esp_random() % (2 * JOIN_RETRY_JITTER_MS);
       sendJoinRequest();
     }
     return;
