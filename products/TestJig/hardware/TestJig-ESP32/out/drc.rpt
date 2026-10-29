@@ -1,0 +1,33 @@
+** Drc report for TestJig.kicad_pcb **
+** Created on 2026-10-21T15:59:13+0530 **
+
+** Found 6 DRC violations **
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
+    Local override; error
+    @(50.3000 mm, 40.3000 mm): Zone 'GND pour F.Cu' [GND] on F.Cu, priority 0
+    @(144.5000 mm, 88.0000 mm): PTH pad 1 [GND] of J7
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
+    Local override; error
+    @(50.3000 mm, 40.3000 mm): Zone 'GND pour F.Cu' [GND] on F.Cu, priority 0
+    @(117.5000 mm, 135.0000 mm): PTH pad 5 [GND] of J12
+[starved_thermal]: Thermal relief connection to zone incomplete (layer B.Cu; 1 spokes connected to isolated island)
+    Local override; error
+    @(50.3000 mm, 40.3000 mm): Zone 'GND pour B.Cu' [GND] on B.Cu, priority 0
+    @(123.6600 mm, 66.3000 mm): PTH pad 2 [GND] of U1
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; 1 spokes connected to isolated island)
+    Local override; error
+    @(50.3000 mm, 40.3000 mm): Zone 'GND pour F.Cu' [GND] on F.Cu, priority 0
+    @(123.6600 mm, 66.3000 mm): PTH pad 2 [GND] of U1
+[starved_thermal]: Thermal relief connection to zone incomplete (layer F.Cu; zone min spoke count 2; actual 1)
+    Local override; error
+    @(50.3000 mm, 40.3000 mm): Zone 'GND pour F.Cu' [GND] on F.Cu, priority 0
+    @(54.5000 mm, 113.0000 mm): PTH pad 3 [GND] of J9
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(79.2000 mm, 93.2000 mm): Rectangle of U1 on F.Silkscreen
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** End of Report **

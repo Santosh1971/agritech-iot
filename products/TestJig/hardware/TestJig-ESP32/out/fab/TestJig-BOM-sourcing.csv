@@ -1,0 +1,48 @@
+References,Qty,Value,Footprint,Supplier,Listing,Price (incl GST),Link
+"C1, C2, C20",3,10uF,C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,Quartz,10uF 10V X5R 0805 (Kemet),Rs 45 / 20 pcs,https://quartzcomponents.com/products/kemet-10uf-50v-0805-smd-pack-x5r-multilayer-ceramic-capacitor-20-tolerence-pack-of-20
+"C3, C4, C5, C6, C7, C8, C9, C10, C11, C16, C17, C18, C19",13,100nF,C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,Quartz,100nF 50V X7R 0805 (Kemet),Rs 26 / 20 pcs,https://quartzcomponents.com/products/kemet-100nf-50v-0805-smd-pack-x7r-multilayer-ceramic-capacitor-10-tolerence-pack-of-20
+"C12, C13, C14, C15",4,1uF,C_0805_2012Metric_Pad1.18x1.45mm_HandSolder,Quartz,1uF 50V X7R 0805,Rs 15 / 5 pcs,https://quartzcomponents.com/products/1uf-1000nf-50v-0805-x7r-smd-capacitor-pack-of-5-pieces
+"D1, D2",2,BAT54WS,D_SOD-323_HandSoldering,Quartz,BAT54WS SOD-323,Rs 19 / 10 pcs,https://quartzcomponents.com/products/bat54ws-small-signal-schottky-diode-sod-323-smd-package
+D7,1,PASS Green,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Green LED 1206,Rs 36 / 50 pcs,https://quartzcomponents.com/products/green-led-smd-1206-package-pack-of-50
+D8,1,FAIL Red,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Red LED 1206,Rs 35 / 50 pcs,https://quartzcomponents.com/products/red-led-smd-1206-package-pack-of-50
+D9,1,BUSY Yellow,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Yellow LED 1206,Rs 39 / 50 pcs,https://quartzcomponents.com/products/yellow-led-smd-1206-package-pack-of-50
+D10,1,LORA Blue,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Blue LED 1206,Rs 32 / 50 pcs,https://quartzcomponents.com/products/blue-led-smd-1206-package-pack-of-50
+D11,1,USER1 Green,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Green LED 1206,Rs 36 / 50 pcs,https://quartzcomponents.com/products/green-led-smd-1206-package-pack-of-50
+D12,1,USER2 Green,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Green LED 1206,Rs 36 / 50 pcs,https://quartzcomponents.com/products/green-led-smd-1206-package-pack-of-50
+D13,1,USER3 Green,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Green LED 1206,Rs 36 / 50 pcs,https://quartzcomponents.com/products/green-led-smd-1206-package-pack-of-50
+D14,1,USER4 Green,LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder,Quartz,Green LED 1206,Rs 36 / 50 pcs,https://quartzcomponents.com/products/green-led-smd-1206-package-pack-of-50
+J1,1,RLY_SENSE 1-4,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J2,1,RLY_SENSE 5-8,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J3,1,RLY_SENSE 9-12,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J4,1,RLY_SENSE 13-16,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J5,1,DUT_IN 1-4,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J6,1,DUT_IN 5-8,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J7,1,DUT_IN 9-12,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J8,1,DUT_IN 13-16,JST_XH_B5B-XH-A_1x05_P2.50mm_Vertical,Quartz,5-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/5-pin-jst-xh-male-connector-5-24mm-pitch
+J9,1,PULSE IN,JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical,Quartz,4-pin JST XH male (vertical),Rs 2 each,https://quartzcomponents.com/products/4-pin-jst-xh-male-connector-5-24mm-pitch
+J10,1,4-20mA OUT,JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,Quartz,3-pin JST XH male (vertical),Rs 3 each,https://quartzcomponents.com/products/3-pin-jst-xh-male-connector-5-24mm-pitch
+J11,1,"AIN (AI1 /2, AI2 /11)",JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,Quartz,3-pin JST XH male (vertical),Rs 3 each,https://quartzcomponents.com/products/3-pin-jst-xh-male-connector-5-24mm-pitch
+J12,1,JIG_CTRL,JST_XH_B6B-XH-A_1x06_P2.50mm_Vertical,Robu,"JST B6B-XH-A (genuine), SKU R174907",Rs 13 each,https://robu.in/?s=B6B-XH-A&post_type=product
+J13,1,SMA,SMA_Samtec_SMA-J-P-H-ST-EM1_EdgeMount,Quartz,"SMA female straight edge mount, 1.6 mm PCB",Rs 22 each,https://quartzcomponents.com/products/sma-female-straight-edge-pcb-mount-connector-for-1-6mm-pcb
+J14,1,PULSE OUT,JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical,Quartz,3-pin JST XH male (vertical),Rs 3 each,https://quartzcomponents.com/products/3-pin-jst-xh-male-connector-5-24mm-pitch
+"JP1, JP2",2,SELFTEST,PinHeader_1x02_P2.54mm_Vertical,Quartz,Male berg strip 2.54 mm (cut 2 pins) + jumper cap,-,
+"Q1, Q3",2,MMBT3904,SOT-23,Quartz,MMBT3904 SOT-23,Rs 3 each,https://quartzcomponents.com/products/mmbt3904-npn-transistor-sot-23-smd-package
+"Q2, Q4",2,BC807-40,SOT-23,Quartz,BC807-40 SOT-23,Rs 8 / 5 pcs,https://quartzcomponents.com/products/bc807-40-45-v-500-ma-smd-sot-23-package-pnp-general-purpose-transistors-pack-of-5-pieces
+"R1, R2, R3, R8, R9, R10, R11, R12, R13, R14, R15, R17, R20, R21, R30, R31, R121, R122, R123, R124, R125, R126, R127, R128, R129, R130, R131, R132, R133, R134, R135, R136, R171, R172, R173, R174, R175, R176, R177, R178",40,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,10k 1% 0805,Rs 13 / 20 pcs,https://quartzcomponents.com/products/10k-ohm-103-1-smd-resistor-0805-pack-of-20-pieces
+"R4, R5, R141, R142, R143, R144, R145, R146, R147, R148, R149, R150, R151, R152, R153, R154, R155, R156",18,330,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,330R 1% 0805 (Yageo),Rs 6 / 20 pcs,https://quartzcomponents.com/products/yageo-330-ohm-0805-package-1-8w-smd-resistor-1-tolerance-pack-of-20-pieces
+"R6, R7, R22, R25, R32, R35, R101, R102, R103, R104, R105, R106, R107, R108, R109, R110, R111, R112, R113, R114, R115, R116",22,1k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,1k 1% 0805,Rs 18 / 20 pcs,https://quartzcomponents.com/products/1k-ohm-102-1-smd-resistor-0805-pack-of-20-pieces
+R16,1,100k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,100k 1% 0805 (Yageo),Rs 6 / 20 pcs,https://quartzcomponents.com/products/yageo-100k-ohm-0805-package-1-8w-smd-resistor-1-tolerance-pack-of-20-pieces
+"R23, R33",2,10k 1%,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,10k 1% 0805,Rs 13 / 20 pcs,https://quartzcomponents.com/products/10k-ohm-103-1-smd-resistor-0805-pack-of-20-pieces
+"R24, R34",2,4k7,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,4k7 5% 0805,Rs 8 / 20 pcs,https://quartzcomponents.com/products/4-7k-4k7-ohm-472-5-smd-resistor-0805-pack-of-20-pieces
+"R26, R36",2,47R 1%,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,47R 1% 0805,Rs 10 / 20 pcs,https://quartzcomponents.com/products/43-ohm-43r-1-smd-resistor-0805-pack-of-20-pieces-copy
+"R27, R37",2,150R,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,150R 1% 0805 (Yageo),Rs 6 / 20 pcs,https://quartzcomponents.com/products/yageo-150-ohm-0805-package-1-8w-smd-resistor-1-tolerance-pack-of-20-pieces
+"R161, R162, R163, R164, R165, R166, R167, R168",8,470,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,Quartz,470R 1% 0805 (Yageo),Rs 6 / 20 pcs,https://quartzcomponents.com/products/yageo-470-ohm-0805-package-1-8w-smd-resistor-1-tolerance-pack-of-20-pieces
+SW1,1,DIP-4,SW_DIP_SPSTx04_Slide_9.78x12.34mm_W7.62mm_P2.54mm,Robu,"4-pos DIP switch THT 2.54 mm (SHOU HAN CJPB-H), SKU R235110",Rs 36 each,https://robu.in/?s=4+position+dip+switch&post_type=product
+U1,1,ESP32 DevKit 30p,ESP32_DevKit_30pin_W25.4mm,Quartz,ESP32 30-pin CP2102 DevKit,Rs 375 each,https://quartzcomponents.com/products/esp32-30-pin-development-board-with-wi-fi-and-bluetooth
+"U2, U3, U4",3,74HC595,SOIC-16_3.9x9.9mm_P1.27mm,Quartz,74HC595 NXP SOIC-16,Rs 9 each,https://quartzcomponents.com/products/74hc595-8-bit-shift-register-icnxp-soic-16-smd-package
+"U5, U6, U7",3,74HC165,SOIC-16_3.9x9.9mm_P1.27mm,Quartz,74HC165 SOIC-16,Rs 14 each,https://quartzcomponents.com/products/74hc165-ic-8-bit-parallel-in-serial-out-shift-register-ic-smd-package
+"U8, U9",2,MCP6002,SOIC-8_3.9x4.9mm_P1.27mm,Quartz,MCP6002-I/SN SOIC-8,Rs 44 each,https://quartzcomponents.com/products/mcp6002-i-sn-microchip-dualoperational-amplifier-ic-soic-8-package
+U10,1,Ra-01SH (SX1262),Ai-Thinker-Ra-01-LoRa,WM1 source,"ISC-SX1262-B / Ra-01SH, same module as WM1-Pro",-,Not checked on Quartz/Robu; Quartz LRTC-1262 is SX1262 but a different pinout
+U11,1,SRV05-4,SOT-23-6,Quartz,SRV05-4 SOT-23-6,Rs 7 each,https://quartzcomponents.com/products/srv05-4-esd-protection-array-diode-sot-23-6l-smd-package
+-,2,15-pin female header 2.54 mm (cut from 40-pin strip),-,Quartz,40-pin female berg strip,Rs 10 each,https://quartzcomponents.com/products/40-pin-straight-female-berg-strips
+-,4,M3 x 10 mm standoff + screw,-,any,,,

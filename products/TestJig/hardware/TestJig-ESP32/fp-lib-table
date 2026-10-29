@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "TestJig")(type "KiCad")(uri "${KIPRJMOD}/TestJig.pretty")(options "")(descr "Test jig footprints"))
+)

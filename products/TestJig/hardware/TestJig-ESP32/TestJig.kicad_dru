@@ -1,0 +1,4 @@
+(version 1)
+(rule "SMA edge-mount sits on the board edge"
+	(condition "A.Parent == 'J13'")
+	(constraint edge_clearance (min 0mm)))
