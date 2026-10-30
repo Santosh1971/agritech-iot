@@ -57,6 +57,19 @@ The ACK is now 19 bytes. The Master reads these only when `rlen >= 19`, and a 1.
 
 **Poll scheduling fix in 1.1.0:** the "desired state differs from the last confirmed relay state" priority (§5) now applies only to online pumps. Before, an offline pump with a pending command won that priority on every pass and no other pump was polled again, so they all hit their 60 s fail-safe. An offline pump now gets its pending command on its normal round-robin turn.
 
+### 2.1b CMD_ACK restart bytes (firmware 1.2.0)
+
+| Byte offset (from payload start) | Field | Notes |
+|---|---|---|
+| 9 | reset reason | `esp_reset_reason_t` of the Pump's last start (1 power-on, 2 external, 3 software, 4 crash, 5-7 watchdogs, 9 brownout) |
+| 10 | boot counter | low byte of a counter the Pump keeps in NVS, +1 on every start |
+
+The ACK is now 21 bytes; the Master reads these only when `rlen >= 21`, so older Pumps/Masters mix freely. The Master compares the boot counter with the previous ACK from the same Pump: a change means the Pump restarted, logged as `[PUMP] slot N pumpId X RESTARTED, reset=brownout restarts=K`. These fields survive a rejoin (a restarting Pump always rejoins) and are cleared only when the slot goes to a different Pump. A `JOIN_REQUEST` from a Pump the Master still had online is logged as `(REJOIN while online ...)` and counted.
+
+Added to `pumps[]` in `/status` and the cloud status: `restarts` (since the Master booted), `lastReset` (reason name, Pump >= 1.2.0 only), `rejoins`. Master status also gains `uptimeSec` and `reset` (its own last reset reason). The Pump's `/info` gains `boots`, `resetReason`, `uptimeSec`; console `STATE` shows the same. The app shows "Pump restarted N× (last: reason)" under a Pump that restarted.
+
+Why: field report 2026-10-30 (Avinash) of a Pump relay dropping for 2-4 s then recovering; the Master log showed that Pump rejoining every ~21 s while answering polls, i.e. it was restarting. A brownout reason points at the Pump's supply (relay/radio current), not the firmware.
+
 ## 3. Identity & Defaults — unchanged from v0.2
 
 - **Master ID** = lower 4 bytes of the Master's own MAC (`ESP.getEfuseMac()`), computed at boot.

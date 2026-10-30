@@ -11,7 +11,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "1.1.0"
+#define FW_VERSION "1.2.0"
 #endif
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -340,6 +340,15 @@ struct PumpEntry {
   uint32_t lastAckMs;       // millis() of the last ACK, 0 = none this session
   uint16_t acks;            // polls answered / not answered this session
   uint16_t misses;
+  // Pump restart diagnostics (Pump fw >= 1.2.0 sends its reset reason and the low byte of its
+  // boot counter in every CMD_ACK). Kept across a rejoin -- a Pump that restarts rejoins, and
+  // that rejoin is exactly when we need to compare the counter. Cleared only when the slot is
+  // given to a different Pump.
+  bool     hasBoot;
+  uint8_t  bootLow;         // last seen boot counter (low byte)
+  uint8_t  resetReason;     // esp_reset_reason_t of the Pump's last start
+  uint16_t restarts;        // Pump restarts seen by this Master since it booted
+  uint16_t rejoinsOnline;   // JOIN_REQUESTs received while this Pump was marked online
 };
 PumpEntry pumps[MAX_PUMPS];
 
@@ -348,6 +357,23 @@ void resetLink(PumpEntry& e) {
   e.hasDown = false; e.downRssi = 0; e.downSnrQ = 0;
   e.lastAckMs = 0; e.acks = 0; e.misses = 0;
 }
+
+const char* resetReasonName(uint8_t r) {
+  switch (r) {
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_EXT: return "external";
+    case ESP_RST_SW: return "software";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT: return "int-watchdog";
+    case ESP_RST_TASK_WDT: return "task-watchdog";
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep-sleep";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_SDIO: return "sdio";
+    default: return "unknown";
+  }
+}
+uint8_t masterResetReason = 0;
 
 // LoRa at SF9 demodulates down to about -12.5 dB SNR, so margin = SNR + 12.5. Judged on
 // the weaker direction we know of. "good" >= 10 dB margin, "weak" 5-10 dB, "poor" < 5 dB.
@@ -546,8 +572,16 @@ void listenForJoin(uint32_t windowMs) {
           stJoinReq++;
           uint16_t pumpId = ((uint16_t)buf[8] << 8) | buf[9];
           int slot = findSlotByPumpId(pumpId);
+          bool sameUnit = slot >= 0;
           if (slot < 0) slot = findFreeSlot();
           if (slot >= 0) {
+            bool wasOnline = sameUnit && pumps[slot].online;
+            if (!sameUnit) {
+              pumps[slot].hasBoot = false; pumps[slot].bootLow = 0; pumps[slot].resetReason = 0;
+              pumps[slot].restarts = 0; pumps[slot].rejoinsOnline = 0;
+            } else if (wasOnline && pumps[slot].rejoinsOnline < 65535) {
+              pumps[slot].rejoinsOnline++;
+            }
             pumps[slot].known = true;
             pumps[slot].pumpId = pumpId;
             // A fresh join is a genuinely new chance to reconnect --
@@ -569,7 +603,10 @@ void listenForJoin(uint32_t windowMs) {
             Serial.print(F("[JOIN] pumpId "));
             Serial.print(pumpId);
             Serial.print(F(" -> slot "));
-            Serial.println(slot);
+            Serial.print(slot);
+            // A known Pump asking to join while we still had it online means it lost its own
+            // join state: it restarted, or it timed out on its side. Its next ACK says which.
+            Serial.println(wasOnline ? F(" (REJOIN while online -- Pump restarted or timed out)") : F(""));
             startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received the JOIN_REQUEST
 
             // Echo the accepted pumpId back in the payload -- JOIN_ACCEPT
@@ -683,6 +720,25 @@ bool pollPump(uint8_t slot, bool desired, uint32_t txTimeoutMs, uint32_t rxTimeo
             pumps[slot].hasDown = true;
             pumps[slot].downRssi = (int8_t)buf[15];
             pumps[slot].downSnrQ = (int8_t)buf[16];
+          }
+          // v1.2.0 adds 2 more: the Pump's reset reason and the low byte of its boot counter.
+          // A changed counter means the Pump restarted since its previous ACK.
+          if (rlen >= 21) {
+            uint8_t rr = buf[17], bl = buf[18];
+            if (pumps[slot].hasBoot && bl != pumps[slot].bootLow) {
+              if (pumps[slot].restarts < 65535) pumps[slot].restarts++;
+              Serial.print(F("[PUMP] slot "));
+              Serial.print(slot);
+              Serial.print(F(" pumpId "));
+              Serial.print(pumps[slot].pumpId);
+              Serial.print(F(" RESTARTED, reset="));
+              Serial.print(resetReasonName(rr));
+              Serial.print(F(" restarts="));
+              Serial.println(pumps[slot].restarts);
+            }
+            pumps[slot].hasBoot = true;
+            pumps[slot].bootLow = bl;
+            pumps[slot].resetReason = rr;
           }
           startBlinkSequence(loraBlinkSeq, PIN_LORA_LED, 2);   // 2 blinks = we received something back
           return true;
@@ -1005,6 +1061,8 @@ String buildStatusJson() {
   snprintf(idbuf, sizeof(idbuf), "0x%08X", masterId32);
   doc["masterId"] = idbuf;
   doc["fw"] = FW_VERSION;
+  doc["uptimeSec"] = millis() / 1000;
+  doc["reset"] = resetReasonName(masterResetReason);
   doc["numLevels"] = numLevels;
   doc["debounceMs"] = levelDebounceMs;
   doc["txPower"] = loraTxPowerDbm;
@@ -1058,6 +1116,11 @@ String buildStatusJson() {
     }
     link["acks"] = pumps[i].acks;
     link["misses"] = pumps[i].misses;
+    if (pumps[i].hasBoot) {
+      p["restarts"] = pumps[i].restarts;
+      p["lastReset"] = resetReasonName(pumps[i].resetReason);
+    }
+    p["rejoins"] = pumps[i].rejoinsOnline;
     JsonObject ov = p["override"].to<JsonObject>();
     ov["enabled"] = pumps[i].overrideEnabled;
     ov["state"] = pumps[i].overrideState;
@@ -1300,7 +1363,9 @@ void handleConsoleLine(String line) {
                     " upSnr=" + (pumps[i].hasUp ? String(pumps[i].upSnrQ / 4.0f, 2) : String("na")) +
                     " downRssi=" + (pumps[i].hasDown ? String(pumps[i].downRssi) : String("na")) +
                     " downSnr=" + (pumps[i].hasDown ? String(pumps[i].downSnrQ / 4.0f, 2) : String("na")) +
-                    " acks=" + pumps[i].acks + " misses=" + pumps[i].misses);
+                    " acks=" + pumps[i].acks + " misses=" + pumps[i].misses +
+                    " restarts=" + pumps[i].restarts + " lastReset=" + (pumps[i].hasBoot ? resetReasonName(pumps[i].resetReason) : "na") +
+                    " rejoins=" + pumps[i].rejoinsOnline);
     }
     reply("OK", String("count=") + n);
   } else if (cmd == "ASSIGN") {           // ASSIGN <slot> <levelMask 0-7>
@@ -1469,6 +1534,9 @@ void setup() {
 
   Serial.begin(115200);
   delay(500);
+  masterResetReason = (uint8_t)esp_reset_reason();
+  Serial.print(F("[BOOT] reset="));
+  Serial.println(resetReasonName(masterResetReason));
 
   for (auto& in : inputs) {
     pinMode(in.pin, INPUT);

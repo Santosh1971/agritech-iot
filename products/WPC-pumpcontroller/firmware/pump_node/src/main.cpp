@@ -12,7 +12,7 @@
 // env var, set to dev-<shortsha> for auto-builds, or the release version for a tagged
 // release build) -- bump this by hand to match whenever cutting an actual release.
 #ifndef FW_VERSION
-#define FW_VERSION "1.1.0"
+#define FW_VERSION "1.2.0"
 #endif
 
 void updateWifiLed();   // forward declaration -- avoids the ordering bug we've hit repeatedly on this project
@@ -73,6 +73,27 @@ int8_t loraTxPowerDbm = LORA_TXPOWER_DEFAULT;   // runtime/NVS-backed, see handl
 uint32_t failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
 bool testMode = false;   // factory-jig timings, session-only, never persisted
 uint32_t cmdCount = 0, joinCount = 0, failsafeCount = 0;   // for the test jig / diagnostics
+// Why this Pump last started (esp_reset_reason_t) and how many times it has started since
+// flashing (NVS). Sent in every CMD_ACK (1.2.0) so the Master can log a Pump that restarts in
+// the field -- e.g. a brown-out when the relay or radio draws current on a weak supply, which
+// looks exactly like "relay drops for 2-4 s, then comes back" from the outside.
+uint8_t bootResetReason = 0;
+uint16_t bootCount = 0;
+const char* resetReasonName(uint8_t r) {
+  switch (r) {
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_EXT: return "external";
+    case ESP_RST_SW: return "software";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT: return "int-watchdog";
+    case ESP_RST_TASK_WDT: return "task-watchdog";
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep-sleep";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_SDIO: return "sdio";
+    default: return "unknown";
+  }
+}
 // Radio diagnostics (LORASTAT): where in TX -> RX does a link break?
 uint32_t stTxStart = 0, stTxDone = 0, stRxIrq = 0, stRxOk = 0, stRxCrcBad = 0, stRxMine = 0, stRxForeign = 0;
 float stLastRssi = 0, stLastSnr = 0;
@@ -286,13 +307,14 @@ bool sendCmdAck(uint32_t masterId, uint8_t seqEcho) {
   int snrQ = (int)lroundf(stLastSnr * 4.0f);
   if (snrQ < -128) snrQ = -128;
   if (snrQ > 127) snrQ = 127;
-  uint8_t payload[9] = {
+  uint8_t payload[11] = {
     (uint8_t)(relayState ? 1 : 0), (uint8_t)(in1 ? 1 : 0), (uint8_t)(in4 ? 1 : 0),
     (uint8_t)(in1Adc >> 8), (uint8_t)(in1Adc & 0xFF),
     (uint8_t)(in4Adc >> 8), (uint8_t)(in4Adc & 0xFF),
     (uint8_t)(int8_t)rssi, (uint8_t)(int8_t)snrQ,
+    bootResetReason, (uint8_t)(bootCount & 0xFF),   // 1.2.0: restart diagnostics, see bootResetReason
   };
-  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 9);
+  size_t len = buildPacket(MSG_CMD_ACK, masterId, myAssignedSlot, seqEcho, payload, 11);
 
   transmitting = true;
   int state = radio.startTransmit(txPacket, len);
@@ -377,6 +399,9 @@ void handleInfo() {
   doc["joined"] = joined;
   doc["assignedSlot"] = joined ? myAssignedSlot : -1;
   doc["relay"] = relayState;
+  doc["boots"] = bootCount;
+  doc["resetReason"] = resetReasonName(bootResetReason);
+  doc["uptimeSec"] = millis() / 1000;
   doc["in1Adc"] = readAdcAveraged(PIN_IN1);
   doc["in4Adc"] = readAdcAveraged(PIN_IN4);
   // IN1 on this PCB is wired as a Water-Flow contact (confirms the pump is actually running --
@@ -536,7 +561,8 @@ void handleConsoleLine(String line) {
     reply("OK", String("joined=") + joined + " slot=" + (joined ? (int)myAssignedSlot : -1) +
                 " relay=" + relayState + " master=" + m + " txPower=" + loraTxPowerDbm +
                 " cmds=" + cmdCount + " joins=" + joinCount + " failsafes=" + failsafeCount +
-                " lastCmdAgeMs=" + (joined ? (millis() - lastCmdMillis) : 0) + " testMode=" + testMode);
+                " lastCmdAgeMs=" + (joined ? (millis() - lastCmdMillis) : 0) + " testMode=" + testMode +
+                " boots=" + bootCount + " reset=" + resetReasonName(bootResetReason) + " uptimeSec=" + (millis() / 1000));
   } else if (cmd == "LORASTAT") {        // radio diagnostics since boot
     reply("OK", String("txStart=") + stTxStart + " txDone=" + stTxDone + " rxIrq=" + stRxIrq +
                 " rxOk=" + stRxOk + " crcBad=" + stRxCrcBad + " fromMyMaster=" + stRxMine +
@@ -660,6 +686,14 @@ void setup() {
   myPumpId = prefs.getUShort("pumpId", defaultPumpId);
   targetMasterId = prefs.getULong("masterId", DEFAULT_MASTER_ID);
   loraTxPowerDbm = prefs.getChar("txPower", LORA_TXPOWER_DEFAULT);
+
+  bootResetReason = (uint8_t)esp_reset_reason();
+  bootCount = prefs.getUShort("boots", 0) + 1;
+  prefs.putUShort("boots", bootCount);
+  Serial.print(F("[BOOT] reset="));
+  Serial.print(resetReasonName(bootResetReason));
+  Serial.print(F(" boots="));
+  Serial.println(bootCount);
 
   Serial.print(F("[PUMP] pumpId="));
   Serial.print(myPumpId);

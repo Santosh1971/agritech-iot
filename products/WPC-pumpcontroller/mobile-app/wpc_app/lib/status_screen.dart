@@ -385,6 +385,24 @@ class _StatusScreenState extends State<StatusScreen> {
     );
   }
 
+  // Master fw >= 1.2.0: how often this Pump restarted since the Master booted, and why the
+  // last time (e.g. "brownout" = its supply dipped, usually when the relay or radio switched).
+  Widget _restartRow(Map<String, dynamic> map) {
+    final n = (map['restarts'] as num).toInt();
+    final why = (map['lastReset'] as String?) ?? 'unknown';
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, top: 2),
+      child: Row(
+        children: [
+          Icon(Icons.restart_alt, size: 14, color: Colors.deepOrange.shade700),
+          const SizedBox(width: 3),
+          Text('Pump restarted $n\u00d7 (last: $why)',
+              style: TextStyle(fontSize: 11, color: Colors.deepOrange.shade700, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   Widget _pumpRow(Map<String, dynamic> map) {
     final online = map['online'] == true;
     final relay = map['relay'] == true;
@@ -473,6 +491,7 @@ class _StatusScreenState extends State<StatusScreen> {
               ),
             ),
           if (map['link'] is Map) _linkRow(map['link'] as Map<String, dynamic>),
+          if (((map['restarts'] as num?)?.toInt() ?? 0) > 0) _restartRow(map),
           if (in1Adc != null && in4Adc != null)
             Padding(
               padding: const EdgeInsets.only(left: 24, top: 2),
