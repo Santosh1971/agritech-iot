@@ -4,26 +4,57 @@
     {
       "name": "agrisense-webapp",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "webapp/agrisense-webapp", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "webapp/agrisense-webapp",
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "fg1-tester-web",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["projects/tools/production-tester-cli/web_ui.py"],
+      "runtimeArgs": [
+        "projects/tools/production-tester-cli/web_ui.py"
+      ],
       "port": 8420
     },
     {
       "name": "wm2-node-sim",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["products/WM2-watermaster/firmware/tools/node_sim.py", "--port", "8101", "--count", "4"],
+      "runtimeArgs": [
+        "products/WM2-watermaster/firmware/tools/node_sim.py",
+        "--port",
+        "8101",
+        "--count",
+        "4"
+      ],
       "port": 8101
     },
     {
       "name": "wm2-app-web",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8092", "--directory", "products/WM2-watermaster/mobile-app/wm2_app/build/web"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8092",
+        "--directory",
+        "products/WM2-watermaster/mobile-app/wm2_app/build/web"
+      ],
       "port": 8092
+    },
+    {
+      "name": "fg1p-app-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8093",
+        "--directory",
+        "products/FG1-flowguard/polyhouse/app/build/web"
+      ],
+      "port": 8093
     }
   ]
 }
