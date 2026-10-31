@@ -23,7 +23,10 @@ class HomeScreen extends StatelessWidget {
           ]),
         ),
         body: store.houses.isEmpty
-            ? _Empty(onAdd: () => _add(context))
+            ? _Empty(
+                onAdd: () => _add(context),
+                onDemo: () => store.add(House(name: 'Demo polyhouse', deviceId: 'FG1P_DEMO', host: '', demo: true)),
+              )
             : ListView(
                 padding: const EdgeInsets.all(12),
                 children: [for (final h in store.houses) _HouseCard(store: store, house: h)],
@@ -44,8 +47,8 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.onAdd});
-  final VoidCallback onAdd;
+  const _Empty({required this.onAdd, required this.onDemo});
+  final VoidCallback onAdd, onDemo;
   @override
   Widget build(BuildContext context) => Center(
         child: Padding(
@@ -58,6 +61,9 @@ class _Empty extends StatelessWidget {
             const Text('Add the FG1 Controller of your polyhouse to start.', textAlign: TextAlign.center),
             const SizedBox(height: 24),
             FilledButton.icon(onPressed: onAdd, icon: const Icon(Icons.add), label: const Text('Add polyhouse')),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+                onPressed: onDemo, icon: const Icon(Icons.play_circle_outline), label: const Text('See a demo (no hardware)')),
           ]),
         ),
       );
