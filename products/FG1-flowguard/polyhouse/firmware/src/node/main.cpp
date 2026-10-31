@@ -207,10 +207,28 @@ static void printStatus() {
                   (unsigned long)espnow.sentOk(), (unsigned long)espnow.sentFail(), rssiFromCtrl);
 }
 
+
+// Keep the radio TX power capped (RADIO_TX_POWER) across WiFi mode changes.
+static void keepTxPower() {
+#ifdef RADIO_TX_POWER
+    static uint32_t last = 0;
+    if (millis() - last < 1000) return;
+    last = millis();
+    if (WiFi.getMode() != WIFI_OFF && WiFi.getTxPower() != RADIO_TX_POWER) {
+        WiFi.setTxPower(RADIO_TX_POWER);
+        Serial.printf("[WiFi] TX power capped at %.1f dBm\n", RADIO_TX_POWER / 4.0);
+    }
+#endif
+}
+
 void setup() {
     Serial.begin(115200);
     pinMode(RELAY_PIN, OUTPUT);
     digitalWrite(RELAY_PIN, LOW);                 // in case a relay is fitted
+#ifdef PUMP_OUT_PIN
+    pinMode(PUMP_OUT_PIN, OUTPUT);
+    digitalWrite(PUMP_OUT_PIN, LOW);           // unused small-pump output stays OFF
+#endif
     pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
     leds.begin();
 
@@ -244,6 +262,7 @@ void setup() {
 }
 
 void loop() {
+    keepTxPower();
     EspNowRx rx;
     while (espnow.poll(rx)) handleRx(rx);
 

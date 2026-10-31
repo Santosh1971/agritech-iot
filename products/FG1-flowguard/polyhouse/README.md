@@ -24,6 +24,21 @@ pio run -e node -t upload --upload-port /dev/cu.usbserial-YYYY
 pio device monitor -b 115200
 ```
 
+**ESP32-C3 Super Mini carrier** (the ASC Mini-C3 board, the FG1 boards delivered on 2026-11-01): use
+`controller_c3` / `node_c3`. They appear as `/dev/cu.usbmodem*` (native USB), not `usbserial`.
+Pins: relay IO20, I2C SDA 6 / SCL 7, blue LED IO8 = WiFi status, red STATUS LED IO10 = flash on
+each reading, BOOT IO9. The radio is capped at 8.5 dBm, because at full power the Super Mini's
+antenna is too distorted for the other board to hear it. Even so, RSSI was only −70…−92 dBm side by side, so check range early.
+
+Controller bench commands (serial monitor): `cmd {"cmd":"node_add","mac":"48F6EE126AF8"}`
+(any app command), `i2c` (20× bus scan), `i2cswap` (scan with SDA/SCL exchanged), `rtc`
+(raw DS1307 registers), `settime <IST wall-clock unix>`, `gpio <pin> [0|1]`, `sensor` (re-detect),
+`manual`, `auto`, `pump on|off`, `status`, `events`.
+
+The DS1307 needs a CR2032, or its VBAT tied to GND; with VBAT floating it answers only some of the time.
+Plug the T/RH stick in with the power off. The AHT20 datasheet (§5.1) warns that it can start up
+dead if SDA/SCL are powered before VDD.
+
 App: `cd app && flutter build apk --release` (APK in `build/app/outputs/flutter-apk/`).
 The app has a **demo polyhouse** (Add polyhouse → "Add a demo polyhouse") that
 simulates a controller, for showing the customer without hardware.

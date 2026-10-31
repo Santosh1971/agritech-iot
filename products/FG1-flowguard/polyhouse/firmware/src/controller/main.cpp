@@ -12,7 +12,8 @@
 //       SoftAP, double blink = cloud OK); green = flashes per node reading;
 //       yellow (on the relay driver) = pump ON.
 // BOOT held 5 s: forget the farm WiFi and restart into SoftAP.
-// Serial: "status", "events", "pump on", "pump off", "auto".
+// Serial: "status", "events", "pump on", "pump off", "auto", "manual",
+//         bench checks "cmd <app JSON>", "settime <unix>", "gpio N [0|1]", "i2c" (20x bus scan), "i2cswap", "rtc" (raw DS1307 regs), "sensor" (re-detect).
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
@@ -371,7 +372,7 @@ static String statusJson() {
 
     JsonObject w = d["wifi"].to<JsonObject>();
     w["connected"] = WiFi.status() == WL_CONNECTED;
-    w["ssid"] = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : prefs.getString("ssid", "");
+    w["ssid"] = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : (prefs.isKey("ssid") ? prefs.getString("ssid", "") : String());
     w["rssi"] = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
     w["mode"] = connMode == CONN_CLOUD ? "cloud" : "local";
     w["forced_local"] = forcedLocal;
@@ -479,6 +480,36 @@ static String computeId() {
     return b;
 }
 
+
+// Bench check: scan the I2C bus 20 times and count answers per address, so a
+// part that answers only sometimes (e.g. DS1307 on low VCC / floating VBAT)
+// shows up as e.g. 0x68 12/20.
+static void i2cProbe() {
+    uint8_t hits[128] = {0};
+    for (int n = 0; n < 20; n++) {
+        for (uint8_t a = 1; a < 127; a++) { Wire.beginTransmission(a); if (Wire.endTransmission() == 0) hits[a]++; }
+        delay(20);
+    }
+    Serial.print("[I2C] SDA " + String(I2C_SDA) + " SCL " + String(I2C_SCL) + ":");
+    bool any = false;
+    for (uint8_t a = 1; a < 127; a++) if (hits[a]) { Serial.printf(" 0x%02X %u/20", a, hits[a]); any = true; }
+    Serial.println(any ? "" : " nothing");
+}
+
+
+// Keep the radio TX power capped (RADIO_TX_POWER) across WiFi mode changes.
+static void keepTxPower() {
+#ifdef RADIO_TX_POWER
+    static uint32_t last = 0;
+    if (millis() - last < 1000) return;
+    last = millis();
+    if (WiFi.getMode() != WIFI_OFF && WiFi.getTxPower() != RADIO_TX_POWER) {
+        WiFi.setTxPower(RADIO_TX_POWER);
+        Serial.printf("[WiFi] TX power capped at %.1f dBm\n", RADIO_TX_POWER / 4.0);
+    }
+#endif
+}
+
 void setup() {
     Serial.begin(115200);
     uint32_t brownout = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);   // see FG1 main.cpp
@@ -488,6 +519,10 @@ void setup() {
     if (r == ESP_ERR_NVS_NO_FREE_PAGES || r == ESP_ERR_NVS_NEW_VERSION_FOUND) { nvs_flash_erase(); nvs_flash_init(); }
 
     relay.begin(RELAY_PIN);                 // OFF first, before anything else
+#ifdef PUMP_OUT_PIN
+    pinMode(PUMP_OUT_PIN, OUTPUT);
+    digitalWrite(PUMP_OUT_PIN, LOW);           // unused small-pump output stays OFF
+#endif
     pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
     leds.begin();
     leds.setWiFiState(WIFI_LED_SEARCHING);
@@ -537,6 +572,7 @@ void setup() {
 }
 
 void loop() {
+    keepTxPower();
     leds.loop();
     relay.loop();
     web.loop();
@@ -622,6 +658,38 @@ void loop() {
         else if (c == "pump on")  handleCommand("pump_on", p, err);
         else if (c == "pump off") handleCommand("pump_off", p, err);
         else if (c == "auto")     { p["mode"] = "auto"; handleCommand("set_mode", p, err); }
+        else if (c == "manual")   { p["mode"] = "manual"; handleCommand("set_mode", p, err); }
+        else if (c == "i2c")      i2cProbe();
+        else if (c == "i2cswap") {                  // bench: scan with SDA/SCL exchanged (cable wired backwards?)
+            Wire.end(); Wire.begin(I2C_SCL, I2C_SDA);
+            Serial.print("[I2C] swapped pins -> "); i2cProbe();
+            Wire.end(); Wire.begin(I2C_SDA, I2C_SCL);
+        }
+        else if (c == "sensor")   { sensor.begin(); Serial.printf("[TH] %s ok=%d\n", sensor.name(), sensor.ok()); }
+        else if (c == "rtc") {
+            Wire.beginTransmission(0x68); Wire.write(0);
+            int e = Wire.endTransmission();
+            Serial.printf("[RTC] write ptr err=%d  regs:", e);
+            if (e == 0 && Wire.requestFrom(0x68, 8) == 8) while (Wire.available()) Serial.printf(" %02X", Wire.read());
+            Serial.printf("\n[RTC] now %s\n", rtc.getTimeString().c_str());
+        }
+        else if (c.startsWith("cmd ")) {            // bench: any app command, e.g. cmd {"cmd":"node_add","mac":"48:F6:EE:12:6A:F8"}
+            JsonDocument in;
+            if (deserializeJson(in, c.substring(4))) Serial.println("[CMD] bad JSON");
+            else {
+                String name = in["cmd"] | "";
+                String data = handleCommand(name, in.as<JsonObject>(), err);
+                Serial.printf("[CMD] %s -> %s %s\n", name.c_str(), err.length() ? "ERROR" : "ok", data.c_str());
+            }
+        }
+        else if (c.startsWith("settime ")) { p["unix"] = (uint32_t)c.substring(8).toInt(); handleCommand("rtc_sync", p, err); }
+        else if (c.startsWith("gpio ")) {           // bench: "gpio 20 1" drive, "gpio 20" read
+            int sp = c.indexOf(' ', 5);
+            int pin = c.substring(5, sp < 0 ? c.length() : sp).toInt();
+            if (sp > 0) { pinMode(pin, OUTPUT); digitalWrite(pin, c.substring(sp + 1).toInt() ? HIGH : LOW); }
+            Serial.printf("[GPIO] %d reads %d\n", pin, digitalRead(pin));
+        }
+        if (err.length()) Serial.println("[CMD] " + err);
     }
 
     if ((pendingRestart || pendingReset) && (int32_t)(millis() - restartAt) >= 0) {

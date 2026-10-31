@@ -4,6 +4,20 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
+// Idle-task watchdogs off during OTA. The C3 is single-core (no core 1).
+static void wdtOff() {
+    disableCore0WDT();
+#if !CONFIG_FREERTOS_UNICORE
+    disableCore1WDT();
+#endif
+}
+static void wdtOn() {
+    enableCore0WDT();
+#if !CONFIG_FREERTOS_UNICORE
+    enableCore1WDT();
+#endif
+}
+
 // OTA safety handling copied from FG1's LocalServer (bench-proven there):
 // watchdogs + brownout widened for the flash-erase window, stall abort.
 static uint32_t s_savedBrownout = 0;
@@ -41,7 +55,7 @@ void WebApi::begin() {
     ElegantOTA.setAuth(OTA_USERNAME, OTA_PASSWORD);
     ElegantOTA.onStart([]() {
         Serial.println("[WEB] OTA start");
-        disableCore0WDT(); disableCore1WDT();
+        wdtOff();
         s_savedBrownout = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
         WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
         s_lastOtaProgress = millis();
@@ -50,7 +64,7 @@ void WebApi::begin() {
     ElegantOTA.onEnd([](bool ok) {
         Serial.printf("[WEB] OTA %s\n", ok ? "done — rebooting" : "failed");
         WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, s_savedBrownout);
-        enableCore0WDT(); enableCore1WDT();
+        wdtOn();
     });
 
     _server.begin();
@@ -64,7 +78,7 @@ void WebApi::loop() {
         Serial.println("[WEB] OTA stalled — aborting");
         Update.abort();
         WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, s_savedBrownout);
-        enableCore0WDT(); enableCore1WDT();
+        wdtOn();
     }
 }
 

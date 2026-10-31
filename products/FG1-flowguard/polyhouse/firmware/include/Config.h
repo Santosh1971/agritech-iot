@@ -29,13 +29,30 @@
 
 // ---------- OTA (/update on the controller's local server) ----------
 
-// ---------- GPIO (FG1 board, ESP32 30-pin devkit) ----------
+// ---------- GPIO ----------
+#if defined(BOARD_FG1_C3)
+// FG1 / ASC Mini-C3 carrier with an ESP32-C3 Super Mini
+// (products/ASC-StudentKit/hardware/MiniC3/README.md).
+#define RELAY_PIN           20    // ULN2003 ch3 -> HF46F relay. UART0 RX: input at boot, so OFF while booting
+#define PUMP_OUT_PIN        3     // ULN2003 ch1+2 (small DC pump output), held OFF here
+#define WIFI_LED_PIN        8     // Super Mini blue LED, active LOW: WiFi / link status
+#define WIFI_LED_ACTIVE_LOW 1
+#define FLOW_SENSOR_LED_PIN 10    // red STATUS LED, active high: flashes on each sensor reading
+#define BOOT_BUTTON_PIN     9     // Super Mini BOOT button
+#define I2C_SDA             6
+#define I2C_SCL             7
+// Super Mini boards have a poor antenna match: at full power the signal is
+// distorted and often not received. Cap it (a common fix for these boards).
+#define RADIO_TX_POWER      WIFI_POWER_8_5dBm
+#else
+// FG1 board, ESP32 30-pin devkit
 #define RELAY_PIN           19    // RELAY1_MCU -> ULN2003 -> relay (controller only)
 #define WIFI_LED_PIN        2     // on-board LED: link status
 #define FLOW_SENSOR_LED_PIN 32    // green LED: blinks on each ESP-NOW packet
 #define BOOT_BUTTON_PIN     0     // hold 5 s: node forgets its controller / controller forgets WiFi
 #define I2C_SDA             21
 #define I2C_SCL             22
+#endif
 
 // ---------- Timing ----------
 #define SENSOR_READ_MS          5000    // controller's own sensor

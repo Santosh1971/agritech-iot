@@ -1,10 +1,26 @@
 #include "LEDManager.h"
 
+// Boards whose packet/flow LED is lit when the pin is LOW (ESP32-C3 Super
+// Mini blue LED) define FLOW_LED_ACTIVE_LOW. Default: lit when HIGH.
+#ifdef FLOW_LED_ACTIVE_LOW
+#define FLOW_LED_ON  LOW
+#define FLOW_LED_OFF HIGH
+#else
+#define FLOW_LED_ON  HIGH
+#define FLOW_LED_OFF LOW
+#endif
+// Same for the WiFi/status LED (WIFI_LED_ACTIVE_LOW).
+#ifdef WIFI_LED_ACTIVE_LOW
+static inline void wifiWrite(int v) { digitalWrite(WIFI_LED_PIN, v ? LOW : HIGH); }
+#else
+static inline void wifiWrite(int v) { digitalWrite(WIFI_LED_PIN, v ? HIGH : LOW); }
+#endif
+
 void LEDManager::begin() {
     pinMode(WIFI_LED_PIN,        OUTPUT);
     pinMode(FLOW_SENSOR_LED_PIN, OUTPUT);
-    digitalWrite(WIFI_LED_PIN,        LOW);
-    digitalWrite(FLOW_SENSOR_LED_PIN, LOW);
+    wifiWrite(LOW);
+    digitalWrite(FLOW_SENSOR_LED_PIN, FLOW_LED_OFF);
     Serial.println("[LED] Initialized");
 }
 
@@ -23,7 +39,7 @@ void LEDManager::setWiFiState(WiFiLEDState state) {
 
 void LEDManager::flowPulse() {
     _flowLastPulse = millis();
-    digitalWrite(FLOW_SENSOR_LED_PIN, HIGH);
+    digitalWrite(FLOW_SENSOR_LED_PIN, FLOW_LED_ON);
     _flowLedOn = true;
 }
 
@@ -31,14 +47,14 @@ void LEDManager::_updateWiFiLED() {
     uint32_t now = millis();
     switch (_wifiState) {
         case WIFI_LED_OFF:
-            digitalWrite(WIFI_LED_PIN, LOW);
+            wifiWrite(LOW);
             break;
         case WIFI_LED_SEARCHING:
             if (_wifiLedOn && now - _wifiLastMs >= 200) {
-                digitalWrite(WIFI_LED_PIN, LOW);
+                wifiWrite(LOW);
                 _wifiLedOn = false; _wifiLastMs = now;
             } else if (!_wifiLedOn && now - _wifiLastMs >= 200) {
-                digitalWrite(WIFI_LED_PIN, HIGH);
+                wifiWrite(HIGH);
                 _wifiLedOn = true; _wifiLastMs = now;
             }
             break;
@@ -48,23 +64,23 @@ void LEDManager::_updateWiFiLED() {
         case WIFI_LED_AP_IDLE:
             if (now - _wifiLastMs >= 1000) {
                 _wifiLedOn = !_wifiLedOn;
-                digitalWrite(WIFI_LED_PIN, _wifiLedOn ? HIGH : LOW);
+                wifiWrite(_wifiLedOn ? HIGH : LOW);
                 _wifiLastMs = now;
             }
             break;
         case WIFI_LED_AP_CLIENT:
             if (now - _wifiLastMs >= 50) {
                 _wifiLedOn = !_wifiLedOn;
-                digitalWrite(WIFI_LED_PIN, _wifiLedOn ? HIGH : LOW);
+                wifiWrite(_wifiLedOn ? HIGH : LOW);
                 _wifiLastMs = now;
             }
             break;
         case WIFI_LED_WIFI_ONLY:
             if (_wifiLedOn && now - _wifiLastMs >= 1000) {
-                digitalWrite(WIFI_LED_PIN, LOW);
+                wifiWrite(LOW);
                 _wifiLedOn = false; _wifiLastMs = now;
             } else if (!_wifiLedOn && now - _wifiLastMs >= 1000) {
-                digitalWrite(WIFI_LED_PIN, HIGH);
+                wifiWrite(HIGH);
                 _wifiLedOn = true; _wifiLastMs = now;
             }
             break;
@@ -74,7 +90,7 @@ void LEDManager::_updateWiFiLED() {
                 _wifiStep++;
                 if (_wifiStep > 4) _wifiStep = 0;
                 bool on = (_wifiStep == 0 || _wifiStep == 2);
-                digitalWrite(WIFI_LED_PIN, on ? HIGH : LOW);
+                wifiWrite(on ? HIGH : LOW);
                 _wifiLedOn = on;
             }
             break;
@@ -83,7 +99,7 @@ void LEDManager::_updateWiFiLED() {
 
 void LEDManager::_updateFlowLED() {
     if (_flowLedOn && millis() - _flowLastPulse >= 50) {
-        digitalWrite(FLOW_SENSOR_LED_PIN, LOW);
+        digitalWrite(FLOW_SENSOR_LED_PIN, FLOW_LED_OFF);
         _flowLedOn = false;
     }
 }
