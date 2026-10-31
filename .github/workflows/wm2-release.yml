@@ -1,0 +1,109 @@
+name: WM2 — release (firmware + app)
+
+# Publishes a WM2 release to the NB Agri Flasher server: the firmware
+# (with bootloader+partitions so it can flash a blank chip) and the
+# ASAC-WM2 companion app, both under the same version number.
+#
+# Triggers:
+#   - push of a tag "wm2-vX.Y.Z" -> publishes X.Y.Z from that tag
+#   - manual run with release_version -> publishes from the chosen ref
+#
+# Guard: the version must equal FW_VERSION in firmware/wm2/src/app.h and the
+# version in the app's pubspec.yaml, or the run fails before uploading.
+on:
+  push:
+    tags:
+      - "wm2-v*"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to publish, e.g. 0.1.1 (must match app.h and pubspec.yaml)"
+        required: true
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Work out and check the version
+        id: ver
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [ "$EVENT" = "push" ]; then V="${TAG#wm2-v}"; else V="$INPUT_VERSION"; fi
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$V' is not a plain X.Y.Z version"; exit 1
+          fi
+          FW=$(sed -n 's/^#define FW_VERSION[[:space:]]*"\(.*\)"/\1/p' products/WM2-watermaster/firmware/wm2/src/app.h)
+          APP=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' products/WM2-watermaster/mobile-app/wm2_app/pubspec.yaml)
+          if [ "$FW" != "$V" ]; then echo "::error::Publishing $V but app.h FW_VERSION is '$FW'"; exit 1; fi
+          if [ "$APP" != "$V" ]; then echo "::error::Publishing $V but pubspec.yaml version is '$APP'"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+  firmware:
+    needs: version
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/WM2-watermaster/firmware/wm2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+      - name: Logic tests
+        run: pio test -e native
+      - name: Build
+        run: pio run -e wm2
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "product=WM2" \
+            -F "version=${VERSION}" \
+            -F "variant=esp32dev" \
+            -F "notes=Release ${VERSION}, built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA}), run ${GITHUB_RUN_NUMBER}" \
+            -F "file=@.pio/build/wm2/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@.pio/build/wm2/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@.pio/build/wm2/partitions.bin;type=application/octet-stream"
+
+  app:
+    needs: version
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/WM2-watermaster/mobile-app/wm2_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.4"   # Gradle wrapper is 8.3; newer Flutter refuses it
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: flutter pub get
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "versionName=${VERSION}" \
+            -F "buildType=debug" \
+            -F "product=WM2" \
+            -F "notes=ASAC-WM2 ${VERSION}, built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA})" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk;type=application/vnd.android.package-archive"
