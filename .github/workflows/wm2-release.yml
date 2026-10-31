@@ -19,6 +19,11 @@ on:
       release_version:
         description: "Version to publish, e.g. 0.1.1 (must match app.h and pubspec.yaml)"
         required: true
+      parts:
+        description: "What to publish"
+        type: choice
+        options: [both, firmware, app]
+        default: both
 
 jobs:
   version:
@@ -46,6 +51,7 @@ jobs:
 
   firmware:
     needs: version
+    if: github.event_name == 'push' || inputs.parts != 'app'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,6 +84,7 @@ jobs:
 
   app:
     needs: version
+    if: github.event_name == 'push' || inputs.parts != 'firmware'
     runs-on: ubuntu-latest
     defaults:
       run:
