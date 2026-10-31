@@ -43,6 +43,26 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   int _i(String k) => int.tryParse(f(k).text) ?? 0;
+
+  /// Asks the node for a fresh scan and fetches the cached result a few
+  /// seconds later. A phone on the node's SoftAP may drop out briefly while
+  /// the radio scans, so the fetch is retried (WM2-004).
+  Future<List<Map<String, dynamic>>> _scan(BuildContext context) async {
+    List<Map<String, dynamic>> nets(Map r) =>
+        ((r['data']?['networks'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e)).toList();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Scanning for WiFi networks...')));
+    final first = await widget.ctl.send({'cmd': 'wifi_scan'}, timeout: const Duration(seconds: 8));
+    var found = nets(first);
+    for (var i = 0; i < 4; i++) {
+      await Future.delayed(const Duration(seconds: 3));
+      final r = await widget.ctl.send({'cmd': 'wifi_scan', 'refresh': false}, timeout: const Duration(seconds: 6));
+      if (r['ok'] == true) {
+        found = nets(r);
+        if (r['data']?['scanning'] != true && found.isNotEmpty) break;
+      }
+    }
+    return found;
+  }
   double _d(String k) => double.tryParse(f(k).text) ?? 0;
 
   @override
@@ -83,9 +103,12 @@ class _SettingsTabState extends State<SettingsTab> {
             icon: const Icon(Icons.wifi_find),
             label: const Text('Scan'),
             onPressed: () async {
-              final r = await widget.ctl.send({'cmd': 'wifi_scan'}, timeout: const Duration(seconds: 15));
-              final nets = ((r['data']?['networks'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e)).toList();
-              if (!context.mounted || nets.isEmpty) return;
+              final nets = await _scan(context);
+              if (!context.mounted) return;
+              if (nets.isEmpty) {
+                showReply(context, {'ok': false, 'err': 'no networks found; try Scan again'}, '');
+                return;
+              }
               final pick = await showDialog<String>(
                 context: context,
                 builder: (ctx) => SimpleDialog(title: const Text('Networks'), children: [
@@ -94,6 +117,25 @@ class _SettingsTabState extends State<SettingsTab> {
                 ]),
               );
               if (pick != null) setState(() => f('ssid').text = pick);
+            },
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.wifi_off),
+            label: const Text('Disconnect WiFi'),
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Disconnect from the farm WiFi?'),
+                  content: const Text('The node forgets the farm WiFi and switches to its own WiFi (SoftAP). '
+                      'Connect the phone to WM2-xxxxxxxx to reach it again.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disconnect')),
+                  ],
+                ),
+              );
+              if (ok == true) await _send({'cmd': 'wifi_forget'}, 'Farm WiFi forgotten; node is on its SoftAP');
             },
           ),
         ], () => _send({'cmd': 'wifi_config', 'ssid': f('ssid').text.trim(), 'pass': f('wpass').text}, 'WiFi saved; node is joining')),
@@ -189,6 +231,18 @@ class _SettingsTabState extends State<SettingsTab> {
             }, 'Flow sensors saved')),
         section('Options', [
           SizedBox(
+            width: 260,
+            child: DropdownButtonFormField<bool>(
+              value: cfg['ps_fitted'] != false,
+              decoration: const InputDecoration(labelText: 'Pressure switch'),
+              items: const [
+                DropdownMenuItem(value: true, child: Text('Fitted on this node')),
+                DropdownMenuItem(value: false, child: Text('Not fitted: no interlock')),
+              ],
+              onChanged: (v) => cfg['ps_fitted'] = v,
+            ),
+          ),
+          SizedBox(
             width: 220,
             child: DropdownButtonFormField<bool>(
               value: cfg['sequential'] == true,
@@ -207,6 +261,7 @@ class _SettingsTabState extends State<SettingsTab> {
           await _send({
             'cmd': 'set_options',
             'sequential': cfg['sequential'] == true,
+            'ps_fitted': cfg['ps_fitted'] != false,
             'ps_settle_s': _d('settle'),
             'tz_min': _i('tz'),
           }, 'Options saved');

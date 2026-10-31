@@ -17,7 +17,13 @@ int apClients();
 // Publish under <base>/<sub>. Returns false if MQTT is not connected.
 bool publish(const char* sub, const String& payload, bool retain = false);
 void reconfigure();          // WiFi/MQTT settings changed
-void scanStart();            // async WiFi scan; results via scanResult()
-bool scanResult(JsonArray out);  // false while still scanning
+// WiFi scan without blocking: results are cached and also pushed to app/page
+// clients as {"type":"wifi_scan"}. Scanning makes the radio leave the SoftAP
+// channel for ~2 s, so a phone on the SoftAP may see a short dropout.
+void scanRequest();
+bool scanBusy();
+uint32_t scanAgeS();             // seconds since the cached list was made (0 = none)
+void scanCached(JsonArray out);
+void forgetWifi();               // clear farm WiFi, disconnect, SoftAP on
 
 }  // namespace net

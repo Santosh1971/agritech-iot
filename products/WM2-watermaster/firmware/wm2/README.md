@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.0 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.1 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -38,6 +38,31 @@ With no farm WiFi set, the node starts its own WiFi:
 - Settings: set the farm WiFi, then the node shows its farm-WiFi IP on the serial log and
   in Settings > Device. Use that IP in the app afterwards.
 - Double-press RESET within 5 s to bring SoftAP back for 15 minutes.
+
+## LEDs
+
+| LED | Meaning |
+|---|---|
+| WiFi (blue) | solid = farm WiFi + MQTT broker; slow blink (1 s) = WiFi, no broker; fast blink = SoftAP for setup; short flash each second = looking for the farm WiFi |
+| Flow 1-4 | one flash per 25 mL, so the blink rate follows the flow rate (max 8 flashes/s) |
+| Pressure | on = water in the pipe; blinking = bypass on |
+| V1/V2 green/yellow | direction of the last valve pulse (open / close) |
+
+## Hardware caution (WM2-007/008)
+
+Do not power the board from the programmer's 5V (J9 pin 8) while the 12V bulk capacitors
+are fitted. The AP63205 buck runs in forced PWM: with an external 5V slightly above its 5.0 V
+setpoint it pushes energy backwards and boosts the 12V rail (seen above 20 V, ADC full scale;
+C7/C9/C10 are 25 V parts). Connect only TX/RX/GND and power from J6, or fit a Schottky diode
+in series with J9 pin 8 on the next revision. The firmware reports such readings as
+`"over_range"` instead of a voltage.
+
+## Pressure switch per node
+
+One pressure switch serves a whole sub-main, so most nodes have none. Settings > Options >
+Pressure switch = Not fitted: that node opens valves without the water interlock, judges
+"water present" from flow alone (so program minutes still pause when the pump stops), and
+never raises the pressure-switch fault.
 
 ## MQTT broker: AgriSense or Girish
 

@@ -48,6 +48,9 @@ struct Cfg {
   ValveCfg v[NUM_VALVES];
   int8_t flowValve[NUM_FLOW] = {0, 0, 1, 1};  // flow input -> valve index, -1 unused
   bool sequential = true;         // V1 then V2 instead of together
+  bool psFitted = true;           // false: no pressure switch on this node (one switch per sub-main):
+                                  // ignore its input, open valves without the water interlock,
+                                  // and judge "water present" from flow alone
   uint8_t dayStartHour = 0;       // day boundary for programs/results (local hour)
   float flowSeenLpm = 0.5f;       // above this on any input counts as "water present"
   uint8_t lowPct = 50;            // alarm below this % of learned normal

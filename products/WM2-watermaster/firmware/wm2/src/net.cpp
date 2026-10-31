@@ -7,8 +7,12 @@
 #include "app.h"
 #include "commands.h"
 #include "settings.h"
+#include "web.h"
 
 namespace net {
+
+static void scanStore(int n);
+static void scanPoll();
 
 static WiFiClient tcp;
 static PubSubClient mqtt(tcp);
@@ -125,6 +129,11 @@ void begin(bool doubleReset) {
   }
   if (!cfg.ssid.length()) {
     Serial.println("[net] no farm WiFi set: SoftAP stays on until configured");
+    // One scan before the SoftAP starts, so the app's first network list is instant.
+    WiFi.mode(WIFI_STA);
+    int n = WiFi.scanNetworks(false);
+    if (n >= 0) scanStore(n);
+    Serial.printf("[net] %d WiFi networks found\n", n);
     startAp(0);
   } else if (doubleReset) {
     Serial.println("[net] double reset: SoftAP for 15 min");
@@ -135,6 +144,7 @@ void begin(bool doubleReset) {
 
 void loop() {
   uint32_t now = millis();
+  scanPoll();
   bool up = wifiUp();
 
   if (up && !wasUp) {
@@ -190,25 +200,65 @@ void loop() {
 }
 
 static bool scanning = false;
+static String scanCache = "[]";
+static uint32_t scanAt = 0;
 
-void scanStart() {
-  if (scanning) return;
-  WiFi.scanNetworks(true);
-  scanning = true;
-}
-
-bool scanResult(JsonArray out) {
-  int n = WiFi.scanComplete();
-  if (n == WIFI_SCAN_RUNNING) return false;
-  scanning = false;
-  for (int i = 0; i < n && i < 20; i++) {
-    JsonObject o = out.add<JsonObject>();
-    o["ssid"] = WiFi.SSID(i);
+static void scanStore(int n) {
+  JsonDocument d;
+  JsonArray a = d.to<JsonArray>();
+  for (int i = 0; i < n && a.size() < 20; i++) {
+    String ssid = WiFi.SSID(i);
+    if (!ssid.length()) continue;
+    bool dup = false;
+    for (JsonObject o : a)
+      if (ssid == (const char*)o["ssid"]) dup = true;
+    if (dup) continue;
+    JsonObject o = a.add<JsonObject>();
+    o["ssid"] = ssid;
     o["rssi"] = WiFi.RSSI(i);
     o["open"] = WiFi.encryptionType(i) == WIFI_AUTH_OPEN;
   }
+  scanCache = "";
+  serializeJson(d, scanCache);
+  scanAt = millis();
   WiFi.scanDelete();
-  return true;
+}
+
+void scanRequest() {
+  if (scanning) return;
+  if (WiFi.getMode() == WIFI_AP) WiFi.mode(WIFI_AP_STA);  // scanning needs the station interface
+  if (WiFi.scanNetworks(true) == WIFI_SCAN_FAILED) return;
+  scanning = true;
+}
+
+bool scanBusy() { return scanning; }
+uint32_t scanAgeS() { return scanAt ? (millis() - scanAt) / 1000 + 1 : 0; }
+
+void scanCached(JsonArray out) {
+  JsonDocument d;
+  if (deserializeJson(d, scanCache)) return;
+  for (JsonVariant v : d.as<JsonArray>()) out.add(v);
+}
+
+static void scanPoll() {
+  if (!scanning) return;
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_RUNNING) return;
+  scanning = false;
+  if (n >= 0) scanStore(n);
+  web::broadcast("{\"type\":\"wifi_scan\",\"data\":" + scanCache + "}");
+}
+
+void forgetWifi() {
+  cfg.ssid = "";
+  cfg.pass = "";
+  cfg.save();
+  if (mqtt.connected()) mqtt.disconnect();
+  WiFi.disconnect(true);
+  if (mdnsUp) { MDNS.end(); mdnsUp = false; }
+  apActive = false;
+  startAp(0);
+  Serial.println("[net] farm WiFi forgotten; SoftAP on");
 }
 
 }  // namespace net

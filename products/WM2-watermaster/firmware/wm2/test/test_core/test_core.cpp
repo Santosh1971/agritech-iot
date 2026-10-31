@@ -245,6 +245,29 @@ void test_next_due() {
   TEST_ASSERT_FALSE(s.c.nextDue(1, s.t, due));
 }
 
+void test_no_pressure_switch() {
+  Sim s(MON + 8 * 3600);
+  s.c.cfg.psFitted = false;
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.c.setProgram(0, timerProg(0x01, 2));
+  // No pump yet: the valve opens anyway (no interlock) but no minutes count.
+  for (int i = 0; i < 30; i++) {
+    s.in.localEpoch = ++s.t;
+    s.in.ps = true;  // input ignored when not fitted
+    for (int k = 0; k < NUM_FLOW; k++) { s.in.lpm[k] = 0; s.in.litresDelta[k] = 0; }
+    s.c.tick(s.in);
+  }
+  TEST_ASSERT_TRUE(s.c.valve(0).open);
+  TEST_ASSERT_FALSE(s.c.water());
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).runSec);
+  // Pump starts (the sim's "ps" flag drives flow; the node ignores the switch itself):
+  // flow means water, minutes count, program finishes.
+  s.run(125, true, 10.0f);
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+  TEST_ASSERT_FALSE(s.c.valve(0).open);
+  TEST_ASSERT_FALSE(s.c.alarm(A_PS_FAULT));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -261,5 +284,6 @@ int main(int, char**) {
   RUN_TEST(test_leak_alarm);
   RUN_TEST(test_low_flow_after_learning);
   RUN_TEST(test_next_due);
+  RUN_TEST(test_no_pressure_switch);
   return UNITY_END();
 }

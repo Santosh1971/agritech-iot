@@ -41,10 +41,13 @@ String dispatchCommand(const String& json, const char* via) {
   bool saveCfg = false, coreCfg = false;
   JsonObject data = resp["data"].to<JsonObject>();
 
-  if (cmd == "wifi_scan") {  // slow: run without holding the lock
-    net::scanStart();
-    uint32_t t0 = millis();
-    while (!net::scanResult(data["networks"].to<JsonArray>()) && millis() - t0 < 8000) delay(100);
+  if (cmd == "wifi_scan") {
+    // Replies at once with the cached list; "refresh" (default) starts a new
+    // scan whose result is pushed as {"type":"wifi_scan"} and cached (WM2-004).
+    if (in["refresh"] | true) net::scanRequest();
+    net::scanCached(data["networks"].to<JsonArray>());
+    data["age_s"] = net::scanAgeS();
+    data["scanning"] = net::scanBusy();
     resp["ok"] = true;
     String s;
     serializeJson(resp, s);
@@ -170,7 +173,7 @@ String dispatchCommand(const String& json, const char* via) {
     }
   } else if (cmd == "set_options") {
     JsonDocument c;
-    for (const char* k : {"sequential", "day_start_hour", "tz_min", "ps_settle_s", "low_pct", "high_pct",
+    for (const char* k : {"sequential", "ps_fitted", "day_start_hour", "tz_min", "ps_settle_s", "low_pct", "high_pct",
                           "imbalance_pct", "alarm_delay_s", "bypass_default_min"})
       if (!in[k].isNull()) c[k] = in[k];
     cfg.fromJson(c.as<JsonObjectConst>());
@@ -213,12 +216,14 @@ String dispatchCommand(const String& json, const char* via) {
     data["broker"] = cfg.brokerName();
     data["base"] = cfg.base();
     net::reconfigure();
+  } else if (cmd == "wifi_forget") {
+    net::forgetWifi();
   } else if (cmd == "softap_on") {
     net::startAp(in["minutes"] | 15);
   } else if (cmd == "valve_test") {
     int v = valveArg(in);
     if (v < 0) { ok = false; err = "valve must be 1 or 2"; }
-    else if (hw::battVolts() < 9) { ok = false; err = "needs 12V on J6"; }
+    else if (hw::battVolts() < 6.5f) { ok = false; err = "needs 12V on J6"; }
     else {
       hw::valvePulseRaw(v, true);
       delay((uint32_t)(cfg.gapS * 1000));
@@ -259,6 +264,8 @@ String dispatchCommand(const String& json, const char* via) {
     }
     data["ms"] = ms;
     data["samples"] = samples;
+    data["batt_pin_mv"] = roundf(hw::battPinMv());
+    data["batt_over_range"] = hw::battOverRange();
   } else if (cmd == "clear_history") {
     history::wipe();
   } else if (cmd == "reboot") {
@@ -279,7 +286,7 @@ String dispatchCommand(const String& json, const char* via) {
   if (!ok) resp["err"] = err;
   if (data.size() == 0) resp.remove("data");
   if (ok && cmd != "get_state" && cmd != "get_history" && cmd != "get_events" && cmd != "get_config" &&
-      cmd != "device_info" && cmd != "get_days" && cmd != "get_program" && cmd != "wifi_scan")
+      cmd != "device_info" && cmd != "get_days" && cmd != "get_program" && cmd != "wifi_scan" && cmd != "diag_inputs")
     stateChanged();
   String s;
   serializeJson(resp, s);

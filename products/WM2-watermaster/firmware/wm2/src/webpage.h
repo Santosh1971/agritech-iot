@@ -53,7 +53,7 @@ nav button{white-space:nowrap}nav button.sel{background:var(--ink);color:var(--b
  <div class="card"><h2>Detail</h2><div style="overflow-x:auto"><table id="hpts"></table></div></div>
 </section>
 <section id="t-set" class="hide">
- <div class="card"><h2>Farm WiFi</h2><div class="row"><input id="ssid" placeholder="SSID"><input id="wpass" type="password" placeholder="password"><button onclick="scan()">Scan</button><button class="p" onclick="saveWifi()">Save</button></div><div id="scanres" class="q"></div></div>
+ <div class="card"><h2>Farm WiFi</h2><div class="row"><input id="ssid" placeholder="SSID"><input id="wpass" type="password" placeholder="password"><button onclick="scan()">Scan</button><button class="p" onclick="saveWifi()">Save</button><button class="d" onclick="forget()">Disconnect WiFi</button></div><div id="scanres" class="q"></div></div>
  <div class="card"><h2>MQTT broker</h2>
   <div class="row"><label>Use</label><select id="broker" onchange="brokerVis()"><option value="agrisense">AgriSense</option><option value="girish">Girish (own broker)</option></select><span id="mqst" class="q"></span></div>
   <div id="b-ag" class="grid" style="margin-top:8px">
@@ -73,6 +73,7 @@ nav button{white-space:nowrap}nav button.sel{background:var(--ink);color:var(--b
  <div class="card"><h2>Valves and sensors</h2><div id="hwset"></div><button class="p" onclick="saveHw()">Save</button></div>
  <div class="card"><h2>Options</h2><div class="grid">
   <div><label>V1/V2</label><select id="seq"><option value="1">One after the other</option><option value="0">Together</option></select></div>
+  <div><label>Pressure switch</label><select id="psfit"><option value="1">Fitted on this node</option><option value="0">Not fitted (no interlock, water from flow)</option></select></div>
   <div><label>Pressure settle (s)</label><input id="settle" type="number" step="0.5"></div>
   <div><label>Battery Ah</label><input id="cap" type="number"></div>
   <div><label>Chemistry</label><select id="chem"><option>lifepo4</option><option>lead-acid</option></select></div></div>
@@ -87,16 +88,16 @@ const $=id=>document.getElementById(id);let S=null,C=null,ws=null,pend={},nid=1;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'];
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function conn(){ws=new WebSocket('ws://'+location.host+'/ws');ws.onmessage=m=>{const j=JSON.parse(m.data);
- if(j.type==='state'){S=j.data;render();if(!S.time_ok&&!window._ts){window._ts=1;cmd({cmd:'rtc_sync',epoch:Math.floor(Date.now()/1000)}).then(()=>toast('Clock set from phone'))}}else if(j.type==='event'){addEvent(j.data)}else if(j.id&&pend[j.id]){pend[j.id](j);delete pend[j.id]}};
+ if(j.type==='wifi_scan'){showNets(j.data)}else if(j.type==='state'){S=j.data;render();if(!S.time_ok&&!window._ts){window._ts=1;cmd({cmd:'rtc_sync',epoch:Math.floor(Date.now()/1000)}).then(()=>toast('Clock set from phone'))}}else if(j.type==='event'){addEvent(j.data)}else if(j.id&&pend[j.id]){pend[j.id](j);delete pend[j.id]}};
  ws.onclose=()=>{$('sub').textContent='disconnected, retrying...';setTimeout(conn,2000)};ws.onopen=()=>{init()}}
 function cmd(o){return new Promise(r=>{o.id='w'+(nid++);o.src='web';pend[o.id]=j=>{if(!j.ok)toast('Error: '+j.err);r(j)};
  if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));else fetch('/api/cmd',{method:'POST',body:JSON.stringify(o)}).then(x=>x.json()).then(j=>pend[o.id]&&pend[o.id](j))})}
 function fmtT(ts){if(!ts)return'-';const d=new Date(ts*1000);return d.toLocaleString()}
 function render(){if(!S)return;$('title').textContent='WM2 '+S.node;
  $('sub').textContent=(S.time_ok?fmtT(S.ts):'clock not set')+' | '+(S.wifi.ip?('WiFi '+S.wifi.rssi+' dBm'):'no WiFi')+(S.wifi.ap?' | SoftAP on':'')+' | MQTT '+(S.mqtt?'ok':'off')+' | '+S.state;
- $('water').innerHTML=S.water?'<span class="pill on">YES</span>':'<span class="pill">no</span>';
- $('ps').textContent='pressure switch '+(S.ps?'ON':'off');
- $('batt').textContent=S.batt.v?S.batt.v.toFixed(2)+' V':'no 12V';$('battsub').textContent=S.batt.v?(S.batt.soc+'% | '+S.batt.trend+' | ~'+S.batt.days.toFixed(0)+' days | '+S.batt.level):'running on USB';
+ $('water').innerHTML=S.water?'<span class="pill on">YES</span>':'<span class="pill">NO</span>';
+ $('ps').textContent=S.ps_fitted===false?'pressure switch: not fitted':'pressure switch '+(S.ps?'ON':'OFF');
+ $('batt').textContent=S.batt.over_range?'over range':S.batt.v?S.batt.v.toFixed(2)+' V':'no 12V';$('battsub').textContent=S.batt.v?(S.batt.soc+'% | '+S.batt.trend+' | ~'+S.batt.days.toFixed(0)+' days | '+S.batt.level):'running on USB';
  const b=$('byp');b.textContent=S.bypass.on?('ON '+Math.ceil(S.bypass.left_s/60)+' min'):'off';b.className='pill'+(S.bypass.on?' warn':'');
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&$('valves').contains(ae))return renderRest();
  const keep={};[1,2].forEach(i=>{const e=$('om'+i);if(e)keep[i]=e.value});
@@ -139,18 +140,21 @@ function hist(k){const now=Math.floor(Date.now()/1000);let f,t=now,res='';const 
 function loadCfg(){cmd({cmd:'get_config'}).then(j=>{C=j.data;$('ssid').value=C.ssid;$('mhost').value=C.mqtt_host;$('mport').value=C.mqtt_port;$('muser').value=C.mqtt_user;
  $('broker').value=C.broker;$('ahost').value=C.ag_host;$('aport').value=C.ag_port;$('auser').value=C.ag_user;$('aid').value=C.ag_id;brokerVis();
  $('farm').value=C.farm;$('zone').value=C.zone;$('node').value=C.node;$('act').value=C.active_s;$('hb').value=C.heartbeat_s;$('idl').value=C.idle_delay_s;
- $('seq').value=C.sequential?'1':'0';$('settle').value=C.ps_settle_s;$('cap').value=C.capacity_ah;$('chem').value=C.chemistry;
+ $('seq').value=C.sequential?'1':'0';$('psfit').value=C.ps_fitted===false?'0':'1';$('settle').value=C.ps_settle_s;$('cap').value=C.capacity_ah;$('chem').value=C.chemistry;
  $('hwset').innerHTML='<table><tr><th>Valve</th><th>Pulse ms</th><th>Invert</th><th>Never close</th><th>Water lost</th><th>Close after min</th></tr>'+C.valves.map(v=>`<tr><td>V${v.valve}</td><td><input id="hp${v.valve}" type="number" value="${v.pulse_ms}"></td><td><input type="checkbox" id="hi${v.valve}" ${v.invert?'checked':''}></td><td><input type="checkbox" id="hn${v.valve}" ${v.never_close?'checked':''}></td><td><select id="hw${v.valve}"><option ${v.on_water_loss==='keep'?'selected':''}>keep</option><option ${v.on_water_loss==='close'?'selected':''}>close</option></select></td><td><input id="hc${v.valve}" type="number" value="${v.close_after_min}"></td></tr>`).join('')+'</table>'
  +'<table style="margin-top:8px"><tr><th>Flow</th><th>Valve (0 = unused)</th><th>Pulses per litre</th></tr>'+C.flow.map(f=>`<tr><td>${f.input}</td><td><input id="fv${f.input}" type="number" min="0" max="2" value="${f.valve}"></td><td><input id="fp${f.input}" type="number" step="0.1" value="${f.ppl}"></td></tr>`).join('')+'</table>'});
  cmd({cmd:'device_info'}).then(j=>{const d=j.data;$('mqst').textContent=` active: ${d.broker} ${d.broker_host||''} (${d.mqtt?'connected':'not connected'})`;$('dev').textContent=`fw ${d.fw} | ${d.chip} | ${d.mac} | ${d.host} | ${d.ip||'no IP'} | SoftAP ${d.ap?d.ap_ssid:'off'} | storage ${Math.round(d.fs_used/1024)}/${Math.round(d.fs_total/1024)} KB | heap ${d.heap}`})}
-function scan(){$('scanres').textContent='scanning...';cmd({cmd:'wifi_scan'}).then(j=>{$('scanres').innerHTML=(j.data.networks||[]).map(n=>`<a href="#" onclick="$('ssid').value='${n.ssid}';return false">${n.ssid}</a> (${n.rssi})`).join(', ')})}
+function showNets(nets){$('scanres').innerHTML=(nets||[]).length?(nets||[]).map(n=>`<a href="#" onclick="$('ssid').value='${n.ssid}';return false">${n.ssid}</a> (${n.rssi})`).join(', '):'no networks found'}
+function scan(){$('scanres').textContent='scanning... (the page may pause for a few seconds)';cmd({cmd:'wifi_scan'}).then(j=>{if(j.data&&j.data.networks&&j.data.networks.length)showNets(j.data.networks);
+ setTimeout(()=>cmd({cmd:'wifi_scan',refresh:false}).then(k=>k.data&&showNets(k.data.networks)),6000)})}
+function forget(){if(confirm('Disconnect from the farm WiFi and forget it? The node switches to its own WiFi (SoftAP).'))cmd({cmd:'wifi_forget'}).then(j=>j.ok&&toast('Farm WiFi forgotten; SoftAP on'))}
 function saveWifi(){cmd({cmd:'wifi_config',ssid:$('ssid').value,pass:$('wpass').value}).then(j=>j.ok&&toast('Saved, joining '+$('ssid').value))}
 function brokerVis(){const ag=$('broker').value==='agrisense';$('b-ag').classList.toggle('hide',!ag);$('b-gi').classList.toggle('hide',ag)}
 function saveMqtt(){const ag=$('broker').value==='agrisense';const o=ag?{cmd:'mqtt_config',broker:'agrisense',host:$('ahost').value,port:+$('aport').value,user:$('auser').value,ag_id:$('aid').value}
  :{cmd:'mqtt_config',broker:'girish',host:$('mhost').value,port:+$('mport').value,user:$('muser').value,farm:$('farm').value,zone:$('zone').value,node:$('node').value};
  const pw=ag?$('apass').value:$('mpass').value;if(pw)o.pass=pw;cmd(o).then(j=>j.ok&&toast('Saved: '+j.data.broker+' broker, topics '+j.data.base))}
 function saveReport(){cmd({cmd:'set_report',active_s:+$('act').value,heartbeat_s:+$('hb').value,idle_delay_s:+$('idl').value}).then(j=>j.ok&&toast('Saved'))}
-function saveOpts(){cmd({cmd:'set_options',sequential:$('seq').value==='1',ps_settle_s:+$('settle').value}).then(()=>cmd({cmd:'set_battery',capacity_ah:+$('cap').value,chemistry:$('chem').value})).then(j=>j.ok&&toast('Saved'))}
+function saveOpts(){cmd({cmd:'set_options',sequential:$('seq').value==='1',ps_fitted:$('psfit').value==='1',ps_settle_s:+$('settle').value}).then(()=>cmd({cmd:'set_battery',capacity_ah:+$('cap').value,chemistry:$('chem').value})).then(j=>j.ok&&toast('Saved'))}
 function saveHw(){const valves=[1,2].map(v=>({valve:v,pulse_ms:+$('hp'+v).value,invert:$('hi'+v).checked,never_close:$('hn'+v).checked,on_water_loss:$('hw'+v).value,close_after_min:+$('hc'+v).value}));
  const flow=[1,2,3,4].map(i=>({input:i,valve:+$('fv'+i).value,ppl:+$('fp'+i).value}));cmd({cmd:'set_config',config:{valves:valves,flow:flow}}).then(j=>j.ok&&toast('Saved'))}
 function init(){loadEvents()}

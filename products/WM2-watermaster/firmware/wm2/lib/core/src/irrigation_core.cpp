@@ -144,7 +144,7 @@ void Core::_learn(const Inputs& in, float dt) {
     if (v < 0) continue;
     const ValveState& s = _vs[v];
     // Steady flow only: valve open with water for 2+ minutes, not on bypass alone.
-    if (s.open && in.ps && s.openSec >= 120) {
+    if (s.open && (cfg.psFitted ? in.ps : _water) && s.openSec >= 120) {
       _learnSum[i] += in.lpm[i] * dt;
       _learnSec[i] += dt;
     }
@@ -193,7 +193,7 @@ void Core::_alarms(const Inputs& in, float dt) {
   bool flowSeen = flowSum > cfg.flowSeenLpm;
   if (flowSeen && !in.ps) _psFaultSec += dt;
   else _psFaultSec = 0;
-  cond[A_PS_FAULT] = _psFaultSec >= cfg.psFaultMin * 60.0f;
+  cond[A_PS_FAULT] = cfg.psFitted && _psFaultSec >= cfg.psFaultMin * 60.0f;
 
   for (int a = 0; a < A_COUNT; a++) {
     float delay = a == A_PS_FAULT ? 0 : cfg.alarmDelayS;
@@ -272,7 +272,7 @@ int Core::tick(const Inputs& in) {
   // 2) Water present?
   float flowSum = 0;
   for (int i = 0; i < NUM_FLOW; i++) flowSum += in.lpm[i];
-  bool water = in.ps || flowSum > cfg.flowSeenLpm;
+  bool water = (cfg.psFitted && in.ps) || flowSum > cfg.flowSeenLpm;
   if (water != _water) {
     _water = water;
     Event e;
@@ -319,8 +319,8 @@ int Core::tick(const Inputs& in) {
     seqWait[other] = true;
   }
 
-  // 4) Apply with the water interlock.
-  bool canFlow = _water || in.bypass;
+  // 4) Apply with the water interlock (none when the node has no pressure switch).
+  bool canFlow = _water || in.bypass || !cfg.psFitted;
   for (int v = 0; v < NUM_VALVES; v++) {
     ValveState& s = _vs[v];
     const ValveCfg& c = cfg.v[v];

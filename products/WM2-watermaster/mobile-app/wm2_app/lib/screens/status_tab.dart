@@ -32,16 +32,18 @@ class StatusTab extends StatelessWidget {
               Expanded(
                 child: _Big(
                   label: 'Water in pipe',
-                  value: s['water'] == true ? 'YES' : 'no',
+                  value: s['water'] == true ? 'YES' : 'NO',
                   color: s['water'] == true ? cs.primary : null,
-                  sub: 'pressure switch ${s['ps'] == true ? 'ON' : 'off'}',
+                  sub: s['ps_fitted'] == false ? 'pressure switch: not fitted' : 'pressure switch ${s['ps'] == true ? 'ON' : 'OFF'}',
                 ),
               ),
               Expanded(
                 child: _Big(
                   label: 'Battery',
-                  value: bv > 0 ? '${bv.toStringAsFixed(2)} V' : 'no 12V',
-                  sub: bv > 0
+                  value: batt['over_range'] == true ? 'over range' : bv > 0 ? '${bv.toStringAsFixed(2)} V' : 'no 12V',
+                  sub: batt['over_range'] == true
+                      ? 'reading above 20 V: check the supply'
+                      : bv > 0
                       ? '${batt['soc']}%  ${batt['trend']}  ~${(batt['days'] ?? 0).toStringAsFixed(0)} days'
                       : 'running on USB',
                   color: batt['level'] == 'critical' || batt['level'] == 'save' ? cs.error : null,

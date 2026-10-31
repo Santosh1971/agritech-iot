@@ -39,9 +39,13 @@ int battSoc();                    // % from resting-voltage table
 const char* battTrend();          // charging / discharging / steady
 const char* battLevel();          // ok / warning / save / critical / none
 float battDaysLeft();
+bool battOverRange();             // ADC pin at the top of its range: reading not trustworthy
+float battPinMv();                // last raw ADC pin voltage, for diagnostics
 
 // ---- LEDs ----
-enum WifiLed { WL_OFF, WL_AP, WL_WIFI, WL_MQTT };
+// WiFi LED: solid = WiFi + broker, slow blink = WiFi only, fast blink = SoftAP,
+// short flash every second = looking for the farm WiFi. Never fully off.
+enum WifiLed { WL_SEARCH, WL_AP, WL_WIFI, WL_MQTT };
 void ledsBegin();
 void ledsLoop(WifiLed w, bool water, bool bypass);
 

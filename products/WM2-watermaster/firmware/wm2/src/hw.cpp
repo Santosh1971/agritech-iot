@@ -92,6 +92,12 @@ void valvePulseRaw(int v, bool open) {
   digitalWrite(in2, LOW);
   digitalWrite(forward ? in1 : in2, HIGH);
   delay(cfg.pulseMs[v]);
+  // Brake (both inputs high = both low-side switches on) for 20 ms so the
+  // coil's stored energy decays inside the driver instead of kicking back
+  // through the opposite direction LED, which made both LEDs flash (WM2-010).
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, HIGH);
+  delay(20);
   digitalWrite(in1, LOW);
   digitalWrite(in2, LOW);
   lastPulseEnd = millis();
@@ -113,7 +119,7 @@ void valvesLoop() {
   for (int v = 0; v < 2; v++) {
     if (!vPending[v]) continue;
     // A latching valve needs the 12V rail; on USB power the pulse waits.
-    if (battVolts() < 9.0f) {
+    if (battVolts() < 6.5f) {  // DRV8871 minimum supply
       if ((int32_t)(now - nextRetry) < 0) return;
       nextRetry = now + 10000;
       return;
@@ -141,8 +147,8 @@ static uint32_t fLast[4] = {0, 0, 0, 0};
 static uint32_t fHist[4][5] = {};
 static uint8_t fHistIdx = 0;
 static float fTotal[4] = {0, 0, 0, 0};
-static uint32_t fLastLedPulse[4] = {0, 0, 0, 0};
-static int16_t fLedSeen[4] = {0, 0, 0, 0};
+static uint32_t fLedCount[4] = {0, 0, 0, 0};   // pulses already shown as flashes
+static uint32_t fLedFlashAt[4] = {0, 0, 0, 0};
 
 void flowBegin() {
   for (int i = 0; i < 4; i++) {
@@ -176,7 +182,6 @@ static void flowCollect() {
       pcnt_counter_clear(PCNT_UNIT[i]);
       fCount[i] += (uint32_t)v;
     }
-    fLedSeen[i] = 0;
   }
 }
 
@@ -232,6 +237,8 @@ bool psState() {
 // =================================================================== Battery
 
 static float bV = 0;
+static float bPinMv = 0;
+static bool bOver = false;
 static float bTrendRef = 0;
 static uint32_t bTrendAt = 0;
 static const char* bTrend = "steady";
@@ -239,7 +246,9 @@ static const char* bTrend = "steady";
 float battRead() {
   uint32_t mv = 0;
   for (int i = 0; i < 16; i++) mv += analogReadMilliVolts(PIN_BATT_ADC);
-  float v = (mv / 16.0f) * BATT_DIVIDER / 1000.0f;
+  bPinMv = mv / 16.0f;
+  bOver = bPinMv >= 3000;  // ~20 V: ADC near full scale, real voltage may be higher
+  float v = bPinMv * BATT_DIVIDER / 1000.0f;
   if (v < 1.5f) v = 0;  // ADC floor (~0.14 V at the pin) reads ~0.9 V with no 12V
   bV = bV == 0 ? v : bV * 0.8f + v * 0.2f;
   if (v == 0) bV = 0;
@@ -275,8 +284,12 @@ int battSoc() {
 
 const char* battTrend() { return bV <= 0 ? "none" : bTrend; }
 
+bool battOverRange() { return bOver; }
+float battPinMv() { return bPinMv; }
+
 const char* battLevel() {
   if (bV <= 0) return "none";
+  if (bOver) return "over_range";
   if (bV < cfg.vCrit) return "critical";
   if (bV < cfg.vSave) return "save";
   if (bV < cfg.vWarn) return "warning";
@@ -298,23 +311,27 @@ void ledsBegin() {
 
 void ledsLoop(WifiLed w, bool water, bool bypass) {
   uint32_t now = millis();
-  // Flow: flash on activity (raw pulses are too fast to see).
+  // Flow: one 60 ms flash per 25 mL, so the blink rate follows the flow rate
+  // (10 L/min = about 7 flashes/s; capped at 8/s so it never looks solid).
   for (int i = 0; i < 4; i++) {
-    int16_t v = 0;
-    pcnt_get_counter_value(PCNT_UNIT[i], &v);  // pulses since last collect
-    if (v != fLedSeen[i]) { fLedSeen[i] = v; fLastLedPulse[i] = now; }
-    digitalWrite(PIN_LED_FLOW[i], now - fLastLedPulse[i] < 150);
+    uint32_t total = flowPulses(i);
+    uint32_t step = (uint32_t)max(1.0f, (cfg.ppl[i] > 0 ? cfg.ppl[i] : 450) * 0.025f);
+    if (total < fLedCount[i]) fLedCount[i] = total;
+    if (total - fLedCount[i] > step * 40) fLedCount[i] = total - step;  // don't queue a backlog
+    if (total - fLedCount[i] >= step && now - fLedFlashAt[i] >= 125) {
+      fLedCount[i] += step;
+      fLedFlashAt[i] = now;
+    }
+    digitalWrite(PIN_LED_FLOW[i], now - fLedFlashAt[i] < 60);
   }
   // Pressure: on = water, blinking = bypass on.
   digitalWrite(PIN_LED_PS, bypass ? (now / 500) % 2 : water);
-  // WiFi: fast blink = SoftAP, 1 blink / 3 s = MQTT ok, 2 blinks / 3 s = WiFi only.
-  uint32_t ph = now % 3000;
   bool on = false;
   switch (w) {
-    case WL_AP: on = (now / 250) % 2; break;
-    case WL_MQTT: on = ph < 80; break;
-    case WL_WIFI: on = ph < 80 || (ph > 250 && ph < 330); break;
-    default: on = false;
+    case WL_MQTT: on = true; break;                     // connected to WiFi and broker
+    case WL_WIFI: on = (now / 1000) % 2; break;         // WiFi, no broker
+    case WL_AP: on = (now / 250) % 2; break;            // SoftAP for setup
+    default: on = (now % 1000) < 100; break;            // looking for the farm WiFi
   }
   digitalWrite(PIN_LED_WIFI, on);
 }

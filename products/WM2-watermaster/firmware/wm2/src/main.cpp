@@ -178,6 +178,7 @@ void buildState(JsonObject o) {
   o["state"] = isActive() ? "active" : "idle";
   o["water"] = core.water();
   o["ps"] = ps;
+  o["ps_fitted"] = cfg.core.psFitted;
   JsonObject b = o["bypass"].to<JsonObject>();
   b["on"] = bypass;
   b["left_s"] = bypassLeftS();
@@ -232,6 +233,7 @@ void buildState(JsonObject o) {
   bt["trend"] = hw::battTrend();
   bt["days"] = roundf(hw::battDaysLeft() * 10) / 10;
   bt["level"] = hw::battLevel();
+  if (hw::battOverRange()) bt["over_range"] = true;
   JsonObject w = o["wifi"].to<JsonObject>();
   w["ip"] = net::ip();
   w["rssi"] = net::rssi();
@@ -663,11 +665,10 @@ void loop() {
 
   if (now - lastLed >= 40) {
     lastLed = now;
-    hw::ledsLoop(net::apOn() && !net::wifiUp() ? hw::WL_AP
-                 : net::mqttUp()                ? hw::WL_MQTT
-                 : net::wifiUp()                ? hw::WL_WIFI
-                 : net::apOn()                  ? hw::WL_AP
-                                                : hw::WL_OFF,
+    hw::ledsLoop(net::mqttUp()   ? hw::WL_MQTT
+                 : net::wifiUp() ? hw::WL_WIFI
+                 : net::apOn()   ? hw::WL_AP
+                                 : hw::WL_SEARCH,
                  core.water(), bypass);
   }
 

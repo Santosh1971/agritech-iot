@@ -176,6 +176,7 @@ void Settings::toJson(JsonObject o, bool secrets) const {
   o["v_crit"] = vCrit;
   o["daily_ah"] = dailyAh;
   o["sequential"] = core.sequential;
+  o["ps_fitted"] = core.psFitted;
   o["day_start_hour"] = core.dayStartHour;
   o["low_pct"] = core.lowPct;
   o["high_pct"] = core.highPct;
@@ -249,6 +250,7 @@ void Settings::fromJson(JsonObjectConst o) {
   take(o, "v_crit", vCrit);
   take(o, "daily_ah", dailyAh);
   take(o, "sequential", core.sequential);
+  take(o, "ps_fitted", core.psFitted);
   take(o, "day_start_hour", core.dayStartHour);
   take(o, "low_pct", core.lowPct);
   take(o, "high_pct", core.highPct);
