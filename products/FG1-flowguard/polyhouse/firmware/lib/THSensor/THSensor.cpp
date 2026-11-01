@@ -3,6 +3,7 @@
 static const uint32_t REPROBE_MS = 30000;   // retry detection if nothing found / sensor lost
 
 const char* THSensor::name() const {
+    if (_sim) return "SIM";
     switch (_kind) {
         case SENSOR_SHT4X: return "SHT4x";
         case SENSOR_SHT3X: return "SHT3x";
@@ -49,6 +50,7 @@ bool THSensor::begin() {
 }
 
 bool THSensor::read() {
+    if (_sim) { _t = _simT; _rh = _simRh; _ok = true; _fails = 0; return true; }
     if (_kind == SENSOR_NONE) {
         _ok = false;
         if (millis() - _lastProbeMs >= REPROBE_MS) begin();

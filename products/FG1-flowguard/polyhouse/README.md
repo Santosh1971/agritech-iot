@@ -35,6 +35,12 @@ Controller bench commands (serial monitor): `cmd {"cmd":"node_add","mac":"48F6EE
 (raw DS1307 registers), `settime <IST wall-clock unix>`, `gpio <pin> [0|1]`, `sensor` (re-detect),
 `manual`, `auto`, `pump on|off`, `status`, `events`.
 
+**No sensor yet? `sim <T> <RH>`** on the node's (or the controller's) serial port, e.g. `sim 33 40`,
+makes its sensor report that value; the app shows the sensor as `SIM`. `sim off` (or a reboot) goes
+back to the real sensor; it is never saved. Use it to bench-test Auto: `sim 33 40` starts misting
+(after the 3 min lockout following a power-up), `sim 28 40` or `sim 33 65` stops it, `sim off` gives
+the sensor-fault stop. The controller smooths readings, so a sudden change takes ~30-40 s to act.
+
 The DS1307 needs a CR2032, or its VBAT tied to GND; with VBAT floating it answers only some of the time.
 Plug the T/RH stick in with the power off. The AHT20 datasheet (§5.1) warns that it can start up
 dead if SDA/SCL are powered before VDD.
@@ -54,7 +60,7 @@ simulates a controller, for showing the customer without hardware.
 | LED GPIO2 | slow blink = SoftAP idle, fast = phone on SoftAP, double = internet OK | slow = not added yet, fast = searching for controller, double = OK |
 | LED GPIO32 | flash on each sensor reading received | flash on each reading the controller ACKs |
 | BOOT 5 s | forget farm WiFi → SoftAP | forget controller (back to "new sensor") |
-| Serial | `status`, `events`, `pump on`, `pump off`, `auto` | `status`, `forget`, `send` |
+| Serial | `status`, `events`, `pump on`, `pump off`, `auto`, `sim T RH` | `status`, `forget`, `send`, `sim T RH` / `sim off` |
 
 **Misting rules** (`firmware/lib/MistLogic`, all values adjustable in the app):
 stop if T ≤ 29 °C or RH ≥ 60 % (stop always wins); start if T ≥ 32 °C, or

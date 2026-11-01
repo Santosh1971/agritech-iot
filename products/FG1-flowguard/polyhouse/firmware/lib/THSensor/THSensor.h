@@ -18,10 +18,15 @@ public:
     float t()  const { return _t; }
     float rh() const { return _rh; }
     bool  ok() const { return _ok; }
-    SensorKind kind() const { return _kind; }
+    SensorKind kind() const { return _sim ? SENSOR_SIM : _kind; }
     uint8_t address() const { return _addr; }
     const char* name() const;
     uint32_t errors() const { return _errors; }
+    // Bench test without a sensor: read() returns these values (RAM only,
+    // cleared by simOff() or a reboot). name() says "SIM" so the app shows it.
+    void simulate(float t, float rh) { _sim = true; _simT = t; _simRh = rh; }
+    void simOff() { _sim = false; _ok = false; _fails = 0; }
+    bool simulated() const { return _sim; }
 
 private:
     bool _probeSht4x(uint8_t a);
@@ -42,4 +47,6 @@ private:
     uint8_t  _fails = 0;
     uint32_t _errors = 0;
     uint32_t _lastProbeMs = 0;
+    bool  _sim = false;
+    float _simT = 0, _simRh = 0;
 };

@@ -13,7 +13,8 @@
 //       yellow (on the relay driver) = pump ON.
 // BOOT held 5 s: forget the farm WiFi and restart into SoftAP.
 // Serial: "status", "events", "pump on", "pump off", "auto", "manual",
-//         bench checks "cmd <app JSON>", "settime <unix>", "gpio N [0|1]", "i2c" (20x bus scan), "i2cswap", "rtc" (raw DS1307 regs), "sensor" (re-detect).
+//         bench checks "cmd <app JSON>", "settime <unix>", "gpio N [0|1]", "i2c" (20x bus scan), "i2cswap", "rtc" (raw DS1307 regs), "sensor" (re-detect),
+//         "sim <T> <RH>" / "sim off" (fake T/RH reading for bench tests, RAM only).
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
@@ -43,6 +44,17 @@ static RelayControl relay;
 static LEDManager   leds;
 static WiFiScanner  scanner;
 static THSensor     sensor;
+
+// Bench: "sim 33 40" makes the sensor report 33 C / 40 %RH; "sim off" returns to the real sensor.
+static void simCommand(const String& c) {
+    if (c == "sim off") { sensor.simOff(); sensor.read(); Serial.println("[SIM] off, real sensor"); return; }
+    int sp = c.indexOf(' ', 4);
+    if (sp < 0) { Serial.println("[SIM] usage: sim <T> <RH> | sim off"); return; }
+    float t = c.substring(4, sp).toFloat(), rh = c.substring(sp + 1).toFloat();
+    if (t < -20 || t > 80 || rh < 0 || rh > 100) { Serial.println("[SIM] out of range"); return; }
+    sensor.simulate(t, rh); sensor.read();
+    Serial.printf("[SIM] T=%.1f RH=%.1f (until 'sim off' or reboot)\n", t, rh);
+}
 static NodeManager  nodes;
 static Controller   mistCtl;
 static WebApi       web;
@@ -665,6 +677,7 @@ void loop() {
             Serial.print("[I2C] swapped pins -> "); i2cProbe();
             Wire.end(); Wire.begin(I2C_SDA, I2C_SCL);
         }
+        else if (c.startsWith("sim"))  simCommand(c);
         else if (c == "sensor")   { sensor.begin(); Serial.printf("[TH] %s ok=%d\n", sensor.name(), sensor.ok()); }
         else if (c == "rtc") {
             Wire.beginTransmission(0x68); Wire.write(0);

@@ -38,6 +38,7 @@ enum SensorKind : uint8_t {
     SENSOR_SHT3X = 2,
     SENSOR_AHT2X = 3,
     SENSOR_HTU21 = 4,
+    SENSOR_SIM   = 9,   // bench: value typed on the serial port ("sim T RH")
 };
 
 struct __attribute__((packed)) PktHeader {

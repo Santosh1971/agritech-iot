@@ -7,7 +7,8 @@
 //                         not answering | double blink = paired, OK.
 // Green LED (GPIO32):     short flash on every reading the controller ACKs.
 // BOOT button held 5 s:   forget the controller (back to "not paired").
-// Serial (115200):        "status", "forget", "send" for bench testing.
+// Serial (115200):        "status", "forget", "send", "sim <T> <RH>" / "sim off" (fake
+//                         reading for bench tests, RAM only) for bench testing.
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
@@ -23,6 +24,17 @@ static const char* stateName[] = {"unpaired", "paired", "searching"};
 
 static Preferences prefs;
 static THSensor    sensor;
+
+// Bench: "sim 33 40" makes the sensor report 33 C / 40 %RH; "sim off" returns to the real sensor.
+static void simCommand(const String& c) {
+    if (c == "sim off") { sensor.simOff(); sensor.read(); Serial.println("[SIM] off, real sensor"); return; }
+    int sp = c.indexOf(' ', 4);
+    if (sp < 0) { Serial.println("[SIM] usage: sim <T> <RH> | sim off"); return; }
+    float t = c.substring(4, sp).toFloat(), rh = c.substring(sp + 1).toFloat();
+    if (t < -20 || t > 80 || rh < 0 || rh > 100) { Serial.println("[SIM] out of range"); return; }
+    sensor.simulate(t, rh); sensor.read();
+    Serial.printf("[SIM] T=%.1f RH=%.1f (until 'sim off' or reboot)\n", t, rh);
+}
 static LEDManager  leds;
 
 static NodeState state = ST_UNPAIRED;
@@ -304,6 +316,7 @@ void loop() {
         if (cmd == "status") printStatus();
         else if (cmd == "forget") forget("serial");
         else if (cmd == "send" && state != ST_UNPAIRED) sendData();
+        else if (cmd.startsWith("sim")) { simCommand(cmd); if (state != ST_UNPAIRED) sendData(); }
     }
 
     static uint32_t lastStatus = 0;
