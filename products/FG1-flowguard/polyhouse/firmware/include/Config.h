@@ -8,7 +8,7 @@
 // FG1 Polyhouse — shared configuration for the controller and node builds.
 
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION    "0.1.0"
+#define FIRMWARE_VERSION    "0.1.1"
 #endif
 
 // ---------- Identity ----------
