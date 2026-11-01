@@ -1,4 +1,4 @@
-"""Build the 98 x 98 mm fab panel: 4 x ASC-MiniC3 (48 x 44) + 2 x ASC-AHT20 sticks (48 x 6),
+"""Build the 98 x 98 mm fab panel: 4 x ASC-MiniC3 (48 x 44) + 2 x ASC-AHT20 sticks (30 x 6, rev B),
 separated by 2 mm routed slots with plain break-away tabs, no mouse bites and no V-cut (WhyPCB / JLC prefer
 this to V-cut, which JLC charges extra for).
 
@@ -14,8 +14,8 @@ Runs in KiCad's python after both boards are routed:
        +---------+  +---------+  46
        | Mini 3  |  | Mini 4  |
        +---------+  +---------+  90
-       | stick 1 |  | stick 2 |  92..98
-       +---------+  +---------+
+       |stick1| |  |stick2| |  92..98  (x 0..30 and 50..80; the rest is scrap,
+       +---------+  +---------+          freed by a short slot at each stick's right end)
 
 The slots are closed cut-outs on Edge.Cuts. Where a slot stops, the board material bridges to its
 neighbour (a tab): ~2 mm at the panel edges, ~5 mm around the slot crossings. JLC may refuse mouse
@@ -39,6 +39,7 @@ COPIES = [("ASC-MiniC3", 0, 0), ("ASC-MiniC3", 50, 0), ("ASC-MiniC3", 0, 46), ("
 # 2 mm slots (x0, y0, x1, y1), rounded ends. Tabs are what the slots leave: 3 mm at the panel edges,
 # ~7 mm around each slot crossing, and two short ones between the sticks.
 SLOTS = [(48, 2, 50, 42.5), (48, 47.5, 50, 88.5), (48, 94.5, 50, 96.5),     # between the left and right columns
+         (30, 94.5, 32, 96.5), (80, 94.5, 82, 96.5),                         # right end of each 30 mm stick
          (2, 44, 46.5, 46), (51.5, 44, 96, 46),                              # between the Mini rows
          (2, 90, 46.5, 92), (51.5, 90, 96, 92)]                              # between the Minis and the sticks
 MOUSE_BITES = False          # JLC may not accept mouse-bite holes (WhyPCB, 2026-10-14); plain tabs instead
@@ -147,7 +148,7 @@ def bite_fp(x, y, n):
     fp.SetPosition(pcbnew.VECTOR2I(mm(OX + x), mm(OY + y))); panel.Add(fp)
 nb = 0
 for proj, dx, dy in (COPIES if MOUSE_BITES else []):
-    w, h = {"ASC-MiniC3": (48.0, 44.0), "ASC-AHT20": (48.0, 6.0)}[proj]
+    w, h = {"ASC-MiniC3": (48.0, 44.0), "ASC-AHT20": (30.0, 6.0)}[proj]
     edges = [((dx, dy), (dx + w, dy), (0, -1)), ((dx, dy + h), (dx + w, dy + h), (0, 1)),
              ((dx, dy), (dx, dy + h), (-1, 0)), ((dx + w, dy), (dx + w, dy + h), (1, 0))]
     for (ax, ay), (bx, by), (nx, ny) in edges:

@@ -1,20 +1,30 @@
 """ASC-AHT20: the T/RH sensor stick that hangs outside the Mini's box on a 4-core cable.
 
-48 x 6 mm; two of them sit under the four Minis on the 98 x 98 panel (2 mm slots, plain
+30 x 6 mm; two of them sit under the four Minis on the 98 x 98 panel (2 mm slots, plain
 tabs). FG1 builds use the Mini without a stick. The cable is soldered into J1 at one end
-(3V3 GND SCL SDA, the same order as the Mini's I2C terminal); the AHT20 sits at the other end,
-~35 mm away, with no copper pour around it, so heat from the hand-held cable end reaches the
+(3V3 GND SCL SDA, the same order as the Mini's I2C terminal) with C1 right beside it; the AHT20 sits
+alone at the other end, ~12 mm from J1, with no copper pour around it, so heat from the hand-held cable end reaches the
 sensor slowly. Students breathe on the tip to see T and RH move. I2C address 0x38; the Mini's
 4.7k pull-ups serve, so there are none here.
+
+Rev B (2026-11-01): hand-solder AHT20 pads (extended 0.8 mm past the body) and no tracks
+under the sensor, after rev A sticks shorted the I2C bus when soldered by hand. Stick shortened
+from 48 to 30 mm; C1 moved next to J1, away from the sensor. Plated holes in the AHT20 pads
+for back soldering; silk square = sensor window (top centre with pin 1 top-left).
+
+Rev B was finished by hand in KiCad (2026-11-01): C1 turned upright beside J1, the ASAC T/RH and
+company/date labels, a body outline with the window on the silk. ASC-AHT20.kicad_pcb is now
+the master: do NOT re-run gen_pcb.py / route.py for it (they would overwrite those edits); edit the
+board in KiCad, then run tools/panel.py and tools/fab.sh.
 
     DESIGN=design_aht20 python3 tools/gen_sch.py
     DESIGN=design_aht20 $KP tools/gen_pcb.py ; DESIGN=design_aht20 $KP tools/route.py
 """
 
 PROJECT = "ASC-AHT20"
-TITLE = "ASC Student Kit - AHT20 T/RH sensor stick rev A"
-DATE, REV, PAPER = "2026-10-10", "A", "A4"
-COMMENT = "48 x 6 mm stick; two per 98 x 98 panel, under the four Mini-C3 boards"
+TITLE = "ASC Student Kit - AHT20 T/RH sensor stick rev B"
+DATE, REV, PAPER = "2026-11-01", "B", "A4"
+COMMENT = "30 x 6 mm stick; two per 98 x 98 panel, under the four Mini-C3 boards"
 POWER_NETS = {"GND", "+3V3"}
 
 P = []
@@ -35,32 +45,33 @@ part("J1", "Connector_Generic:Conn_01x04", "CABLE", "Connector_PinHeader_2.54mm:
 
 PWR_FLAGS = [("GND", (101.6, 106.68)), ("+3V3", (114.3, 106.68))]
 
-BOARD_W, BOARD_H, CORNER_R = 48.0, 6.0, 0.0
+BOARD_W, BOARD_H, CORNER_R = 30.0, 6.0, 0.0
 HOLES = []
 SLOTS = []
 
 PLACE = {
     "J1": (6.4, 3.0, 90),
-    "C1": (40.6, 3.0, 0),
-    "U1": (45.0, 3.0, 0),
+    "C1": (17.6, 3.0, 0),
+    "U1": (26.0, 3.0, 0),
 }
-NO_POUR = [(30.0, 0.0, 48.0, 6.0)]
+NO_POUR = [(20.5, 0.0, 30.0, 6.0)]           # no copper around the sensor
 PREROUTE = []
 POUR_SOLID = True                           # tiny board: pads join the pour solidly (no thermal spokes)
-NO_TRACK = []
+# Rev B: nothing runs under the sensor. Rev A had GND passing between the pads next to SDA,
+# and a hand-soldered part bridged onto it. Every net leaves its pad outwards instead.
+NO_TRACK = [(25.4, 1.55, 26.6, 4.45)]
 NETCLASSES = {"Power": (0.4, 0.2, ["+3V3", "GND"])}
 
 def silk(T):
     for num, name in {"1": "3V3", "2": "GND", "3": "SCL", "4": "SDA"}.items():
         x, y = T.pad_xy("J1", num)
         T.text(name, x, 5.0, 0.8)
-    T.text("ASC T/RH", 21.0, 1.6, 0.8, bold=True)
-    T.text("U1 AHT20", 42.6, 0.8, 0.7)
-    T.text("BREATHE HERE >", 32.0, 4.4, 0.8, bold=True)
-    T.text("AHT20 0x38 rev A", 24.0, 3.0, 0.8, layer="B", bold=True)
+    T.text("ASC T/RH", 17.2, 0.9, 0.7, bold=True)
+    T.text("AHT20", 21.9, 0.8, 0.7)
+    T.text("AHT20 rev B", 19.3, 3.0, 0.8, layer="B", bold=True)
 
 ASSEMBLY_VALUE = {"C1": "10U"}             # U1 is labelled by hand in silk()
-MARKS = [("U1", "1", "1")]
+MARKS = []                                 # pin 1 dot is in the footprint
 
 def netname(n):
     return n if n in POWER_NETS else "/" + n

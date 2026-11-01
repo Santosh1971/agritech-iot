@@ -3,7 +3,7 @@
   "ref": "U1",
   "fp": "ASC:Aosong_AHT20_DFN-6_3x3mm",
   "value": "AHT20",
-  "uuid": "42cbf352-0f1f-4554-9f0a-8da83d64ae57",
+  "uuid": "3b36265d-f826-42ff-9db1-090574146f9f",
   "pads": {
    "2": "+3V3",
    "5": "GND",
@@ -23,7 +23,7 @@
   "ref": "C1",
   "fp": "Capacitor_SMD:C_0805_2012Metric",
   "value": "10u",
-  "uuid": "6a49c6e3-2021-4d14-b7fc-cb7f7d79bfde",
+  "uuid": "45ec5a3e-914a-4e79-8ee5-cd558071c33c",
   "pads": {
    "1": "+3V3",
    "2": "GND"
@@ -38,7 +38,7 @@
   "ref": "J1",
   "fp": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
   "value": "CABLE",
-  "uuid": "abece12d-af6f-42ac-a814-24031fe96e1c",
+  "uuid": "ab1b464f-c173-4204-b36c-e124ee4ea056",
   "pads": {
    "1": "+3V3",
    "2": "GND",
