@@ -30,6 +30,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // CI passes the debug key of the earlier builds (Santosh's Mac) so every
+    // APK has the same signature and installs over the previous version.
+    signingConfigs {
+        debug {
+            def ks = System.getenv("WM2_DEBUG_KEYSTORE")
+            if (ks) {
+                storeFile = file(ks)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
