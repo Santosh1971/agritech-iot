@@ -330,7 +330,8 @@ void ledsLoop(WifiLed w, bool water, bool bypass) {
   switch (w) {
     case WL_MQTT: on = true; break;                     // connected to WiFi and broker
     case WL_WIFI: on = (now / 1000) % 2; break;         // WiFi, no broker
-    case WL_AP: on = (now / 250) % 2; break;            // SoftAP for setup
+    case WL_AP: on = (now / 250) % 2; break;            // SoftAP on, no phone yet
+    case WL_AP_PHONE: on = (now / 50) % 2; break;       // phone on the SoftAP (as FG1/WPC)
     default: on = (now % 1000) < 100; break;            // looking for the farm WiFi
   }
   digitalWrite(PIN_LED_WIFI, on);

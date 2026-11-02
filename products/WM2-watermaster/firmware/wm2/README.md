@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.1 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.2 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.0-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.2-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -31,8 +31,8 @@ Close every serial monitor before flashing. If the tool can't connect: hold BOOT
 
 With no farm WiFi set, the node starts its own WiFi:
 
-- SSID `WM2-z1-n1`, password `wm2-xxxx` (last 4 hex digits of the MAC, printed on the
-  serial log at boot: `SoftAP WM2-z1-n1 / wm2-xxxx`)
+- SSID `WM2-<8 hex of the MAC>`; the password is printed on the serial log at boot
+  (`SoftAP WM2-... up, password ...`)
 - Open **http://192.168.4.1** in the phone browser, or add a node in the app with local
   address `192.168.4.1`
 - Settings: set the farm WiFi, then the node shows its farm-WiFi IP on the serial log and
@@ -43,10 +43,17 @@ With no farm WiFi set, the node starts its own WiFi:
 
 | LED | Meaning |
 |---|---|
-| WiFi (blue) | solid = farm WiFi + MQTT broker; slow blink (1 s) = WiFi, no broker; fast blink = SoftAP for setup; short flash each second = looking for the farm WiFi |
+| WiFi (blue) | very fast blink = a phone is on the SoftAP; solid = farm WiFi + MQTT broker; slow blink (1 s) = WiFi, no broker; fast blink = SoftAP on, no phone yet; short flash each second = looking for the farm WiFi |
 | Flow 1-4 | one flash per 25 mL, so the blink rate follows the flow rate (max 8 flashes/s) |
 | Pressure | on = water in the pipe; blinking = bypass on |
 | V1/V2 green/yellow | direction of the last valve pulse (open / close) |
+
+## WiFi and the SoftAP (0.1.2, WM2-004)
+
+While a phone is on the SoftAP the node does not try the farm WiFi; it starts again 30 s
+after the last phone leaves. Each try makes the radio hop channels, which dropped the phone
+and made scans fail when the saved farm WiFi was out of reach. The boot log line
+`[boot] reset reason: ...` (also `reset` in the state) shows a brownout if the supply sags.
 
 ## Hardware caution (WM2-007/008)
 

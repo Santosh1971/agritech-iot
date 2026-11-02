@@ -99,9 +99,29 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # Sign with the same debug key as the APKs built on Santosh's Mac, so a
+      # new version installs over the old one. Without it each runner makes a
+      # fresh key and Android refuses the update ("App not installed"), which
+      # left Avinash on app 0.1.0 (tracker WM2-001/006).
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_DEBUG_KEYSTORE_B64 is not set: the APK would not install over earlier builds"; exit 1
+          fi
+          mkdir -p ~/.android
+          printf '%s' "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
       - run: flutter pub get
       - name: Build release APK
         run: flutter build apk --release
+      - name: Check the signing key
+        run: |
+          AS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)apksigner
+          SHA=$("$AS" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          if [ "$SHA" != "5a084b3d56913f0fe636e3d88d54a31127dfcf75e3196edf89f46954b6b2125a" ]; then
+            echo "::error::APK signed with $SHA, not the key of the earlier builds"; exit 1
+          fi
       - name: Upload to NB Agri Flasher
         env:
           CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}

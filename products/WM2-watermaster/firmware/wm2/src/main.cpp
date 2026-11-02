@@ -19,6 +19,23 @@
 #include "timeutil.h"
 #include "web.h"
 #include "wm2_pins.h"
+#include <esp_system.h>
+
+// Why the chip last restarted. "brownout" points at the supply (tracker WM2-002).
+static const char* resetReasonText() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power on";
+    case ESP_RST_EXT: return "reset pin";
+    case ESP_RST_SW: return "software restart";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_BROWNOUT: return "brownout (supply too low)";
+    case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+    default: return "unknown";
+  }
+}
 
 using namespace wm2core;
 
@@ -175,6 +192,7 @@ void buildState(JsonObject o) {
   if (clockOk) o["local"] = fmtLocal(localEpoch());
   o["node"] = cfg.zone + "/" + cfg.node;
   o["fw"] = FW_VERSION;
+  o["reset"] = resetReasonText();
   o["state"] = isActive() ? "active" : "idle";
   o["water"] = core.water();
   o["ps"] = ps;
@@ -499,6 +517,7 @@ void setup() {
   delay(200);
   gLock = xSemaphoreCreateRecursiveMutex();
   Serial.printf("\n\n=== WM2 WaterMaster fw %s ===\n", FW_VERSION);
+  Serial.printf("[boot] reset reason: %s\n", resetReasonText());
 
   bool dbl = doubleResetCheck();
   history::begin();
@@ -665,7 +684,8 @@ void loop() {
 
   if (now - lastLed >= 40) {
     lastLed = now;
-    hw::ledsLoop(net::mqttUp()   ? hw::WL_MQTT
+    hw::ledsLoop(net::apClients() > 0 ? hw::WL_AP_PHONE
+                 : net::mqttUp()   ? hw::WL_MQTT
                  : net::wifiUp() ? hw::WL_WIFI
                  : net::apOn()   ? hw::WL_AP
                                  : hw::WL_SEARCH,

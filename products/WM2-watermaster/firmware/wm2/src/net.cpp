@@ -25,10 +25,21 @@ static uint32_t lastNtpSync = 0;
 static bool mdnsUp = false;
 static bool ntpStarted = false;
 static bool wasUp = false;
+static bool scanning = false;
+static String scanCache = "[]";
+static bool scanWanted = false;     // a scan was refused (radio busy): try again
+static uint32_t scanWantedSince = 0, lastScanTry = 0;
+static uint32_t apIdleSince = 0;    // last time a phone was on the SoftAP
 static String subCmd, subZone, subAll;
 
 static const uint32_t STA_FAIL_TO_AP_MS = 10UL * 60 * 1000;  // farm WiFi missing 10 min -> SoftAP
 static const uint32_t AP_WINDOW_MS = 15UL * 60 * 1000;
+static const uint32_t STA_RETRY_MS = 30000;
+// While a phone is on the SoftAP, the node does not try the farm WiFi: every
+// attempt makes the radio hop channels, so the phone drops off the SoftAP and
+// WiFi scans are refused (tracker WM2-004, same bug as FG1-003). Retries start
+// again this long after the last phone leaves.
+static const uint32_t AP_QUIET_MS = 30000;
 
 bool wifiUp() { return WiFi.status() == WL_CONNECTED; }
 bool mqttUp() { return mqtt.connected(); }
@@ -41,8 +52,10 @@ void startAp(uint32_t minutes) {
   String ssid = cfg.apSsid();
   if (!apActive) {
     WiFi.mode(cfg.ssid.length() ? WIFI_AP_STA : WIFI_AP);
+    WiFi.setSleep(false);  // modem sleep makes the SoftAP drop phones
     WiFi.softAP(ssid.c_str(), cfg.apPassword().c_str());
     apActive = true;
+    apIdleSince = millis();
     Serial.printf("[net] SoftAP %s up, password %s, http://192.168.4.1\n", ssid.c_str(), cfg.apPassword().c_str());
   }
   apUntil = minutes ? millis() + minutes * 60000UL : 0;
@@ -52,6 +65,7 @@ static void stopAp() {
   if (!apActive) return;
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(true);
   apActive = false;
   Serial.println("[net] SoftAP off");
 }
@@ -115,13 +129,20 @@ void reconfigure() {
 
 void begin(bool doubleReset) {
   WiFi.persistent(false);
-  WiFi.setAutoReconnect(true);
+  // Retries are done here in loop(), not by the core's auto-reconnect: that
+  // one re-joins every few seconds and keeps the radio busy.
+  WiFi.setAutoReconnect(false);
   WiFi.setHostname(cfg.hostname().c_str());
   mqtt.setCallback(onMqtt);
   mqtt.setBufferSize(4096);
   mqtt.setKeepAlive(30);
+  // One scan at boot, before joining or starting the SoftAP, so the app's
+  // first network list is instant.
+  WiFi.mode(WIFI_STA);
+  int n = WiFi.scanNetworks(false);
+  if (n >= 0) scanStore(n);
+  Serial.printf("[net] %d WiFi networks found\n", n);
   if (cfg.ssid.length()) {
-    WiFi.mode(WIFI_STA);
     WiFi.setSleep(true);  // modem-sleep between beacons (Responsive profile)
     WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());
     lastStaTry = millis();
@@ -129,11 +150,6 @@ void begin(bool doubleReset) {
   }
   if (!cfg.ssid.length()) {
     Serial.println("[net] no farm WiFi set: SoftAP stays on until configured");
-    // One scan before the SoftAP starts, so the app's first network list is instant.
-    WiFi.mode(WIFI_STA);
-    int n = WiFi.scanNetworks(false);
-    if (n >= 0) scanStore(n);
-    Serial.printf("[net] %d WiFi networks found\n", n);
     startAp(0);
   } else if (doubleReset) {
     Serial.println("[net] double reset: SoftAP for 15 min");
@@ -165,11 +181,30 @@ void loop() {
   }
   wasUp = up;
 
-  // Retry the farm WiFi every 30 s.
-  if (!up && cfg.ssid.length() && now - lastStaTry > 30000) {
+  // Retry the farm WiFi every 30 s, but not while a phone is on the SoftAP.
+  bool phone = apActive && WiFi.softAPgetStationNum() > 0;
+  if (phone) {
+    if (!up && apIdleSince != 0 && cfg.ssid.length()) {
+      WiFi.disconnect();  // stop a join in progress
+      Serial.println("[net] phone on SoftAP: farm WiFi retries paused");
+    }
+    apIdleSince = 0;
+  } else if (apActive && apIdleSince == 0) {
+    apIdleSince = now;
+  }
+  bool quiet = apActive && (phone || (apIdleSince && now - apIdleSince < AP_QUIET_MS));
+  if (!up && cfg.ssid.length() && !quiet && !scanning && now - lastStaTry > STA_RETRY_MS) {
     lastStaTry = now;
     WiFi.disconnect();
     WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());
+  }
+  if (scanWanted && !scanning && now - lastScanTry >= 1000) {
+    if (now - scanWantedSince > 15000) {
+      scanWanted = false;  // give up: send the cached list so the app stops waiting
+      web::broadcast("{\"type\":\"wifi_scan\",\"data\":" + scanCache + "}");
+    } else {
+      scanRequest();
+    }
   }
 
   // SoftAP rules: on after 10 min without farm WiFi; off when its window ends
@@ -199,8 +234,6 @@ void loop() {
   }
 }
 
-static bool scanning = false;
-static String scanCache = "[]";
 static uint32_t scanAt = 0;
 
 static void scanStore(int n) {
@@ -227,7 +260,17 @@ static void scanStore(int n) {
 void scanRequest() {
   if (scanning) return;
   if (WiFi.getMode() == WIFI_AP) WiFi.mode(WIFI_AP_STA);  // scanning needs the station interface
-  if (WiFi.scanNetworks(true) == WIFI_SCAN_FAILED) return;
+  // A join in progress makes the driver refuse the scan: stop it first (the
+  // retry in loop() picks it up again later).
+  if (!wifiUp() && WiFi.status() != WL_IDLE_STATUS) WiFi.disconnect();
+  lastScanTry = millis();
+  if (WiFi.scanNetworks(true) == WIFI_SCAN_FAILED) {
+    if (!scanWanted) scanWantedSince = millis();
+    scanWanted = true;  // try again shortly
+    Serial.println("[net] scan refused, retrying");
+    return;
+  }
+  scanWanted = false;
   scanning = true;
 }
 
