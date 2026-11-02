@@ -159,3 +159,12 @@ body:has(> .as-site) { margin: 0; }
 .as-site .site-footer a { color: #b9cdc2; text-decoration: none; }
 .as-site .site-footer a:hover { color: #fff; }
 .as-site .site-footer .legal { border-top: 1px solid #23463a; margin-top: 32px; padding-top: 18px; font-size: 0.85rem; }
+
+/* Product videos (/products/<slug>): portrait 9:16 clips; .wide grid holds 16:9 ones */
+.as-site .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 22px; align-items: start; }
+.as-site .video-grid.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); margin-bottom: 28px; }
+.as-site .video { margin: 0; }
+.as-site .video video { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 75vh; border-radius: 12px; background: #000; }
+.as-site .video-grid.wide .video video { aspect-ratio: 16 / 9; }
+.as-site .video figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; margin-top: 8px; font-weight: 600; }
+.as-site .video figcaption .muted { font-weight: 400; font-size: 0.9rem; white-space: nowrap; }

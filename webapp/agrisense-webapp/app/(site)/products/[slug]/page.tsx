@@ -58,7 +58,25 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </section>
 
-      <section>
+      {p.videos && p.videos.length > 0 && (
+        <section>
+          <div className="wrap">
+            <div className="section-head"><p className="eyebrow">Videos</p><h2>Watch {p.short} at work</h2></div>
+            {[p.videos.filter((v) => v.wide), p.videos.filter((v) => !v.wide)].map((group, i) => group.length > 0 && (
+              <div key={i} className={i === 0 ? "video-grid wide" : "video-grid"}>
+                {group.map((v) => (
+                  <figure key={v.file} className="video">
+                    <video controls playsInline preload="metadata" src={`/api/site-video/${v.file}#t=0.5`} />
+                    <figcaption><span>{v.title}</span><span className="muted">{v.lang}</span></figcaption>
+                  </figure>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className={p.videos?.length ? "band" : undefined}>
         <div className="wrap split">
           <div className="stack">
             <h2>Features</h2>
@@ -77,7 +95,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       </section>
 
       {related.length > 0 && (
-        <section className="band">
+        <section className={p.videos?.length ? undefined : "band"}>
           <div className="wrap">
             <div className="section-head"><h2>Related products</h2></div>
             <div className="grid">

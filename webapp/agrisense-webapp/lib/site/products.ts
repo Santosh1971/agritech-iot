@@ -16,12 +16,20 @@ export type Product = {
   features: string[];
   forWhom: string[];
   status?: string;
+  videos?: Video[]; // MP4s served by /api/site-video/<file>
   icon: "drop" | "pump" | "valve" | "soil" | "leaf" | "snow" | "fish" | "clock";
 };
+
+export type Video = { title: string; lang: "English" | "हिन्दी"; file: string; wide?: boolean } // portrait 9:16 unless wide (16:9);
 
 export const products: Product[] = [
   {
     slug: "flowguard",
+    videos: [
+      { title: "How FlowGuard works", lang: "English", file: "fg1-explainer-en.mp4" },
+      { title: "FlowGuard कैसे काम करता है", lang: "हिन्दी", file: "fg1-explainer-hi.mp4" },
+      { title: "FlowGuard: 30-second ad", lang: "हिन्दी", file: "fg1-ad-vertical.mp4" },
+    ],
     name: "FG1 FlowGuard",
     short: "FlowGuard",
     family: "Water & pumps",
@@ -47,6 +55,13 @@ export const products: Product[] = [
   },
   {
     slug: "wpc",
+    videos: [
+      { title: "How WPC works", lang: "English", file: "wpc-explainer-en.mp4" },
+      { title: "WPC कैसे काम करता है", lang: "हिन्दी", file: "wpc-explainer-hi.mp4" },
+      { title: "WPC user manual", lang: "English", file: "wpc-user-manual-en.mp4", wide: true },
+      { title: "WPC उपयोग पुस्तिका", lang: "हिन्दी", file: "wpc-user-manual-hi.mp4", wide: true },
+      { title: "WPC: 30-second ad", lang: "हिन्दी", file: "wpc-ad-vertical.mp4" },
+    ],
     name: "WPC Wireless Pump Controller",
     short: "WPC",
     family: "Water & pumps",
@@ -73,6 +88,10 @@ export const products: Product[] = [
   },
   {
     slug: "watermaster",
+    videos: [
+      { title: "How WaterMaster works", lang: "English", file: "wm-explainer-en.mp4" },
+      { title: "WaterMaster कैसे काम करता है", lang: "हिन्दी", file: "wm-explainer-hi.mp4" },
+    ],
     name: "WaterMaster",
     short: "WaterMaster",
     family: "Water & pumps",
