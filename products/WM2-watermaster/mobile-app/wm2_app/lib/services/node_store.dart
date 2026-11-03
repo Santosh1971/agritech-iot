@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'lan_finder.dart';
 import 'local_link.dart';
 import 'mqtt_link.dart';
 import 'node_link.dart';
@@ -14,6 +15,7 @@ import 'node_link.dart';
 class NodeEntry {
   String name;
   String host; // IP, or 192.168.4.1 on SoftAP; empty = MQTT only
+  String lanHost; // the node's farm-WiFi IP, learnt from its state (tried first)
   String broker; // 'agrisense' | 'girish'
   String agId; // WM2_A98803E8 (filled in automatically on first local connect)
   String farm, zone, node;
@@ -22,6 +24,7 @@ class NodeEntry {
       {required this.name,
       this.position = 1,
       this.host = '',
+      this.lanHost = '',
       this.broker = 'agrisense',
       this.agId = '',
       this.farm = 'girish',
@@ -30,10 +33,11 @@ class NodeEntry {
 
   String get base => broker == 'girish' ? '$farm/wm2/$zone/$node/' : 'agrisense/WM2/$agId/';
   Map<String, dynamic> toJson() =>
-      {'name': name, 'host': host, 'broker': broker, 'agId': agId, 'farm': farm, 'zone': zone, 'node': node, 'position': position};
+      {'name': name, 'host': host, 'lanHost': lanHost, 'broker': broker, 'agId': agId, 'farm': farm, 'zone': zone, 'node': node, 'position': position};
   factory NodeEntry.fromJson(Map<String, dynamic> j) => NodeEntry(
       name: j['name'] ?? 'Node',
       host: j['host'] ?? '',
+      lanHost: j['lanHost'] ?? '',
       broker: j['broker'] ?? 'agrisense',
       agId: j['agId'] ?? '',
       farm: j['farm'] ?? 'girish',
@@ -145,14 +149,22 @@ class NodeController extends ChangeNotifier {
     status = 'connecting...';
     _notify();
     _drop();
-    if (entry.host.trim().isNotEmpty) {
-      final l = LocalLink(entry.host.trim());
-      if (await l.connect()) {
-        _use(l);
-        connecting = false;
+    // Direct link: the farm-WiFi address the node last reported, then the
+    // saved address (often 192.168.4.1, its SoftAP).
+    final hosts = {entry.lanHost.trim(), entry.host.trim()}..remove('');
+    for (final h in hosts) {
+      if (await _tryLocal(h)) return;
+    }
+    // Neither answered: the node may have a new address on the farm WiFi.
+    if (entry.agId.isNotEmpty) {
+      status = 'looking for the node on this WiFi...';
+      _notify();
+      final ip = await findNodeOnLan(entry.agId);
+      if (ip != null && await _tryLocal(ip)) {
+        entry.lanHost = ip;
+        store.save();
         return;
       }
-      l.dispose();
     }
     if (broker.isSet && (entry.broker == 'girish' || entry.agId.isNotEmpty)) {
       final m = MqttLink(broker, entry.base);
@@ -170,8 +182,20 @@ class NodeController extends ChangeNotifier {
         ? 'no address: set a local address or the ${entry.broker} broker'
         : entry.host.isEmpty && entry.broker == 'agrisense' && entry.agId.isEmpty
             ? 'set the node\'s AgriSense device ID (WM2_xxxxxxxx)'
-            : 'node not reachable';
+            : 'node not reachable: not found on this WiFi'
+                '${broker.isSet ? '' : ', and no ${entry.broker} broker login set in the app'}';
     _notify();
+  }
+
+  Future<bool> _tryLocal(String h) async {
+    final l = LocalLink(h);
+    if (await l.connect()) {
+      _use(l);
+      connecting = false;
+      return true;
+    }
+    l.dispose();
+    return false;
   }
 
   void _use(NodeLink l) {
@@ -215,6 +239,12 @@ class NodeController extends ChangeNotifier {
 
   void _onState(Map<String, dynamic> s) {
     state = s;
+    // Remember the node's farm-WiFi address for next time.
+    final ip = '${(s['wifi'] as Map?)?['ip'] ?? ''}';
+    if (ip.isNotEmpty && ip != entry.lanHost) {
+      entry.lanHost = ip;
+      store.save();
+    }
     // A node whose clock was never set gets the phone's time once.
     if (s['time_ok'] == false && !_clockSent) {
       _clockSent = true;

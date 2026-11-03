@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.2 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.3 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.2-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.3-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -37,16 +37,24 @@ With no farm WiFi set, the node starts its own WiFi:
   address `192.168.4.1`
 - Settings: set the farm WiFi, then the node shows its farm-WiFi IP on the serial log and
   in Settings > Device. Use that IP in the app afterwards.
-- Double-press RESET within 5 s to bring SoftAP back for 15 minutes.
+- The SoftAP also comes up for 15 minutes after every power-on (kept while a phone is
+  connected), even when a farm WiFi is saved.
 
 ## LEDs
 
 | LED | Meaning |
 |---|---|
-| WiFi (blue) | very fast blink = a phone is on the SoftAP; solid = farm WiFi + MQTT broker; slow blink (1 s) = WiFi, no broker; fast blink = SoftAP on, no phone yet; short flash each second = looking for the farm WiFi |
+| WiFi (blue) | same patterns as FG1: very fast blink (50 ms) = a phone is on the SoftAP; double blink = farm WiFi + MQTT broker; slow blink (1 s) = WiFi without broker, or SoftAP with no phone; fast blink (200 ms) = looking for the farm WiFi |
 | Flow 1-4 | one flash per 25 mL, so the blink rate follows the flow rate (max 8 flashes/s) |
-| Pressure | on = water in the pipe; blinking = bypass on |
+| Pressure | on = pressure switch closed (off on a node set to "Not fitted"); blinking = bypass on |
 | V1/V2 green/yellow | direction of the last valve pulse (open / close) |
+
+## Finding the node on the farm WiFi (0.1.3, WM2-014)
+
+The node's state carries its device ID (`dev`) and farm-WiFi IP. The app remembers that IP,
+and when neither saved address answers it asks every address on the phone's WiFi network for
+`/api/state` and connects to the one with the matching device ID. "Cloud connected" (MQTT)
+still needs the broker login entered on the node (Settings > MQTT) and in the app.
 
 ## WiFi and the SoftAP (0.1.2, WM2-004)
 

@@ -47,6 +47,6 @@ float battPinMv();                // last raw ADC pin voltage, for diagnostics
 // short flash every second = looking for the farm WiFi. Never fully off.
 enum WifiLed { WL_SEARCH, WL_AP, WL_AP_PHONE, WL_WIFI, WL_MQTT };
 void ledsBegin();
-void ledsLoop(WifiLed w, bool water, bool bypass);
+void ledsLoop(WifiLed w, bool psLed, bool bypass);
 
 }  // namespace hw

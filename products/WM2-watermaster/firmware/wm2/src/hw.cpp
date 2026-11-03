@@ -309,7 +309,7 @@ void ledsBegin() {
   pinMode(PIN_LED_WIFI, OUTPUT);
 }
 
-void ledsLoop(WifiLed w, bool water, bool bypass) {
+void ledsLoop(WifiLed w, bool psLed, bool bypass) {
   uint32_t now = millis();
   // Flow: one 60 ms flash per 25 mL, so the blink rate follows the flow rate
   // (10 L/min = about 7 flashes/s; capped at 8/s so it never looks solid).
@@ -324,15 +324,20 @@ void ledsLoop(WifiLed w, bool water, bool bypass) {
     }
     digitalWrite(PIN_LED_FLOW[i], now - fLedFlashAt[i] < 60);
   }
-  // Pressure: on = water, blinking = bypass on.
-  digitalWrite(PIN_LED_PS, bypass ? (now / 500) % 2 : water);
+  // Pressure: on = pressure switch closed, blinking = bypass on (WM2-012).
+  digitalWrite(PIN_LED_PS, bypass ? (now / 500) % 2 : psLed);
+  // WiFi: same patterns as FG1 (WM2-014).
   bool on = false;
   switch (w) {
-    case WL_MQTT: on = true; break;                     // connected to WiFi and broker
-    case WL_WIFI: on = (now / 1000) % 2; break;         // WiFi, no broker
-    case WL_AP: on = (now / 250) % 2; break;            // SoftAP on, no phone yet
-    case WL_AP_PHONE: on = (now / 50) % 2; break;       // phone on the SoftAP (as FG1/WPC)
-    default: on = (now % 1000) < 100; break;            // looking for the farm WiFi
+    case WL_MQTT: {                                      // WiFi + broker: double blink
+      uint32_t t = now % 1400;
+      on = t < 100 || (t >= 200 && t < 300);
+      break;
+    }
+    case WL_WIFI: on = (now / 1000) % 2; break;         // WiFi, no broker: slow blink
+    case WL_AP: on = (now / 1000) % 2; break;           // SoftAP, no phone: slow blink
+    case WL_AP_PHONE: on = (now / 50) % 2; break;       // phone on the SoftAP: very fast
+    default: on = (now / 200) % 2; break;               // looking for the farm WiFi: fast
   }
   digitalWrite(PIN_LED_WIFI, on);
 }

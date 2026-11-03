@@ -192,6 +192,7 @@ void buildState(JsonObject o) {
   if (clockOk) o["local"] = fmtLocal(localEpoch());
   o["node"] = cfg.zone + "/" + cfg.node;
   o["fw"] = FW_VERSION;
+  o["dev"] = cfg.deviceId();  // lets the app find this node on the farm WiFi
   o["reset"] = resetReasonText();
   o["state"] = isActive() ? "active" : "idle";
   o["water"] = core.water();
@@ -689,7 +690,7 @@ void loop() {
                  : net::wifiUp() ? hw::WL_WIFI
                  : net::apOn()   ? hw::WL_AP
                                  : hw::WL_SEARCH,
-                 core.water(), bypass);
+                 cfg.core.psFitted && ps, bypass);
   }
 
   if ((stateDirty && now - lastPush >= 1000) || (web::clients() && now - lastWsPush >= 2000)) {

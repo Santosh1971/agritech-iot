@@ -151,8 +151,11 @@ void begin(bool doubleReset) {
   if (!cfg.ssid.length()) {
     Serial.println("[net] no farm WiFi set: SoftAP stays on until configured");
     startAp(0);
-  } else if (doubleReset) {
-    Serial.println("[net] double reset: SoftAP for 15 min");
+  } else {
+    // SoftAP for 15 min after every power-on (tracker WM2-015), so a phone can
+    // always reach the node on site; it stays on while a phone is connected
+    // and goes off afterwards once the farm WiFi is up.
+    Serial.printf("[net] SoftAP for 15 min after %s\n", doubleReset ? "double reset" : "power on");
     startAp(15);
   }
   staLostSince = millis();
