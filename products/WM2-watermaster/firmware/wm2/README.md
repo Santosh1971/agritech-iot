@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.4 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.5 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.4-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.5-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -62,6 +62,18 @@ While a phone is on the SoftAP the node does not try the farm WiFi; it starts ag
 after the last phone leaves. Each try makes the radio hop channels, which dropped the phone
 and made scans fail when the saved farm WiFi was out of reach. The boot log line
 `[boot] reset reason: ...` (also `reset` in the state) shows a brownout if the supply sags.
+
+## AgriSense broker login (0.1.5)
+
+Every WM2 uses one fixed login on the AgriSense broker: user `wm2-device` and a password that
+is compiled in at build time, never stored in this (public) repo. Leave the AgriSense user and
+password blank on the node and in the app to use it; anything entered there overrides it.
+
+- Local builds: put the password in `~/.config/agrisense/wm2_mqtt_pass` (or set `WM2_AG_PASS`);
+  `wm2_secrets.py` adds it. Without it the build warns and nodes need the login typed in.
+- Release builds: GitHub secret `WM2_MQTT_PASS` (the workflow fails without it); the app gets
+  it with `--dart-define=WM2_AG_PASS=...`.
+- The node never reports the built-in password; `get_config` only says `ag_builtin_login: true`.
 
 ## Battery level (0.1.4)
 

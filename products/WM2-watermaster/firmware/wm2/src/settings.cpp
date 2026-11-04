@@ -150,6 +150,7 @@ void Settings::toJson(JsonObject o, bool secrets) const {
   o["ag_host"] = agHost;
   o["ag_port"] = agPort;
   o["ag_user"] = agUser;
+  o["ag_builtin_login"] = agBuiltInLogin();  // blank user/password = built-in wm2-device login
   o["ag_id"] = deviceId();
   if (secrets) o["ag_pass"] = agPass;
   o["mqtt_host"] = mqttHost;

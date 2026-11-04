@@ -1,4 +1,11 @@
 #pragma once
+
+// Fixed AgriSense broker password, injected at build time by wm2_secrets.py
+// (env WM2_AG_PASS or ~/.config/agrisense/wm2_mqtt_pass; CI: GitHub secret).
+#ifndef WM2_AG_PASS
+#define WM2_AG_PASS ""
+#endif
+#define AG_DEFAULT_USER "wm2-device"
 // All node settings, saved as /config.json in LittleFS. Changed by commands
 // (MQTT, app, web page, SoftAP, serial) and kept across power loss.
 #include <Arduino.h>
@@ -59,8 +66,12 @@ struct Settings {
   // Active broker profile
   const String& brokerHost() const { return broker == 0 ? agHost : mqttHost; }
   uint16_t brokerPort() const { return broker == 0 ? agPort : mqttPort; }
-  const String& brokerUser() const { return broker == 0 ? agUser : mqttUser; }
-  const String& brokerPass() const { return broker == 0 ? agPass : mqttPass; }
+  // AgriSense: one fixed login for every WM2 (user wm2-device, password
+  // compiled in from WM2_AG_PASS, never in the repo). A user/password saved
+  // on the node overrides it; blank means the built-in one.
+  String brokerUser() const { return broker == 0 ? (agUser.length() ? agUser : String(AG_DEFAULT_USER)) : mqttUser; }
+  String brokerPass() const { return broker == 0 ? (agPass.length() ? agPass : String(WM2_AG_PASS)) : mqttPass; }
+  static bool agBuiltInLogin() { return WM2_AG_PASS[0] != 0; }
   const char* brokerName() const { return broker == 0 ? "agrisense" : "girish"; }
 };
 

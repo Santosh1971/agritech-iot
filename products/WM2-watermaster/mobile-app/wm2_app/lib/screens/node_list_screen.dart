@@ -235,7 +235,11 @@ class NodeListScreen extends StatelessWidget {
           TextField(controller: f['${p}host'], decoration: const InputDecoration(labelText: 'Host')),
           TextField(
               controller: f['${p}port'], decoration: const InputDecoration(labelText: 'Port'), keyboardType: TextInputType.number),
-          TextField(controller: f['${p}user'], decoration: const InputDecoration(labelText: 'User')),
+          TextField(
+              controller: f['${p}user'],
+              decoration: InputDecoration(
+                  labelText: 'User',
+                  helperText: p == 'a' && agBuiltInPass.isNotEmpty ? 'Leave user and password blank: built-in WM2 login' : null)),
           TextField(controller: f['${p}pass'], decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
           const SizedBox(height: 16),
         ];
@@ -261,7 +265,7 @@ class NodeListScreen extends StatelessWidget {
         port: int.tryParse(f['${p}port']!.text) ?? 1883,
         user: f['${p}user']!.text.trim(),
         pass: f['${p}pass']!.text);
-    store.agrisense = read('a');
+    store.agrisense = read('a')..builtInLogin = true;
     store.girish = read('g');
     await store.save();
   }

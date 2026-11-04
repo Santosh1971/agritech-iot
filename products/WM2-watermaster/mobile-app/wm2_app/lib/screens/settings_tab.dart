@@ -160,7 +160,7 @@ class _SettingsTabState extends State<SettingsTab> {
           if (cfg['broker'] != 'girish') ...[
             field('ahost', 'AgriSense host', cfg['ag_host'], w: 220),
             field('aport', 'Port', cfg['ag_port'], num: true, w: 90),
-            field('auser', 'User', cfg['ag_user']),
+            field('auser', cfg['ag_builtin_login'] == true ? 'User (blank = built-in)' : 'User', cfg['ag_user']),
             field('apass', 'Password (blank = unchanged)', '', secret: true, w: 200),
             field('aid', 'Device ID', cfg['ag_id'], w: 140),
           ] else ...[

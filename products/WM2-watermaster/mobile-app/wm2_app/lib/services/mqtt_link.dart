@@ -6,12 +6,22 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'mqtt_factory_io.dart' if (dart.library.html) 'mqtt_factory_web.dart';
 import 'node_link.dart';
 
+/// Fixed AgriSense login shared by every WM2 (user wm2-device). The password
+/// is compiled in with --dart-define=WM2_AG_PASS=... (CI secret), never in the repo.
+const agBuiltInUser = 'wm2-device';
+const agBuiltInPass = String.fromEnvironment('WM2_AG_PASS');
+
 class BrokerSettings {
   String host;
   int port;
   String user;
   String pass;
-  BrokerSettings({this.host = '', this.port = 1883, this.user = '', this.pass = ''});
+  /// AgriSense profile: blank user/password means the built-in login.
+  bool builtInLogin;
+  BrokerSettings({this.host = '', this.port = 1883, this.user = '', this.pass = '', this.builtInLogin = false});
+
+  String get effectiveUser => user.isEmpty && builtInLogin && agBuiltInPass.isNotEmpty ? agBuiltInUser : user;
+  String get effectivePass => pass.isEmpty && builtInLogin && agBuiltInPass.isNotEmpty ? agBuiltInPass : pass;
 
   bool get isSet => host.trim().isNotEmpty;
 
@@ -62,7 +72,8 @@ class MqttLink with ReplyMatcher implements NodeLink {
       _subscribe();
     };
     try {
-      await c.connect(broker.user.isEmpty ? null : broker.user, broker.pass.isEmpty ? null : broker.pass)
+      await c.connect(broker.effectiveUser.isEmpty ? null : broker.effectiveUser,
+              broker.effectivePass.isEmpty ? null : broker.effectivePass)
           .timeout(const Duration(seconds: 6));
     } catch (_) {
       _set(false);

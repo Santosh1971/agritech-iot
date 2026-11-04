@@ -60,7 +60,7 @@ class ZoneInfo {
 
 class NodeStore extends ChangeNotifier {
   List<NodeEntry> nodes = [];
-  BrokerSettings agrisense = BrokerSettings(host: 'mqtt.agrisenseandcontrol.in');
+  BrokerSettings agrisense = BrokerSettings(host: 'mqtt.agrisenseandcontrol.in', builtInLogin: true);
   BrokerSettings girish = BrokerSettings();
 
   BrokerSettings brokerFor(NodeEntry e) => e.broker == 'girish' ? girish : agrisense;
@@ -108,7 +108,7 @@ class NodeStore extends ChangeNotifier {
       }
     }
     final a = p.getString('broker_agrisense');
-    if (a != null) agrisense = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(a)));
+    if (a != null) agrisense = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(a)))..builtInLogin = true;
     final g = p.getString('broker_girish');
     if (g != null) girish = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(g)));
     notifyListeners();
