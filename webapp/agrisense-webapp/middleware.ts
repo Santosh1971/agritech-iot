@@ -36,6 +36,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Remote bench tool (tools/bench/bench.py): bearer BENCH_TOKEN, checked
+  // again in the route itself.
+  const benchToken = process.env.BENCH_TOKEN;
+  if (benchToken && pathname === "/api/bench/cli" && req.headers.get("authorization") === `Bearer ${benchToken}`) {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get("agrisense_session")?.value;
   const session = token ? await verifySession(token) : null;
 
