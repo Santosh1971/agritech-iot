@@ -55,6 +55,15 @@
         "products/FG1-flowguard/polyhouse/app/build/web"
       ],
       "port": 8093
+    },
+    {
+      "name": "agrisense-web-bench-local",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd webapp/agrisense-webapp && BENCH_TOKEN=$(cat ~/.config/agrisense/bench_token_local) npx next dev -p 3077"
+      ],
+      "port": 3077
     }
   ]
 }
