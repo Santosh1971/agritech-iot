@@ -4,6 +4,8 @@
 #include <PubSubClient.h>
 #include <WiFi.h>
 
+#include <deque>
+
 #include "app.h"
 #include "commands.h"
 #include "settings.h"
@@ -32,6 +34,26 @@ static uint32_t scanWantedSince = 0, lastScanTry = 0;
 static uint32_t apIdleSince = 0;    // last time a phone was on the SoftAP
 static String subCmd, subZone, subAll;
 
+// PubSubClient/WiFiClient are not thread-safe. App and web-page commands run
+// in the web server's task, so only the main loop task touches the MQTT
+// client: other tasks queue publishes and ask for reconfigure/forget, and
+// read a flag for "MQTT up". (A publish from the web task during a broker
+// reconnect crashed the node in WiFiClient::available, 0.1.5.)
+static TaskHandle_t loopTask = nullptr;
+static SemaphoreHandle_t qLock = nullptr;
+struct Outgoing {
+  String sub, payload;
+  bool retain;
+};
+static std::deque<Outgoing> outQ;
+static const size_t OUTQ_MAX = 40;
+static volatile bool mqttIsUp = false;
+static volatile bool reconfigWanted = false;
+static volatile bool forgetWanted = false;
+static bool onLoopTask() { return loopTask == nullptr || xTaskGetCurrentTaskHandle() == loopTask; }
+static void doReconfigure();
+static void doForget();
+
 static const uint32_t STA_FAIL_TO_AP_MS = 10UL * 60 * 1000;  // farm WiFi missing 10 min -> SoftAP
 static const uint32_t AP_WINDOW_MS = 15UL * 60 * 1000;
 static const uint32_t STA_RETRY_MS = 30000;
@@ -42,7 +64,7 @@ static const uint32_t STA_RETRY_MS = 30000;
 static const uint32_t AP_QUIET_MS = 30000;
 
 bool wifiUp() { return WiFi.status() == WL_CONNECTED; }
-bool mqttUp() { return mqtt.connected(); }
+bool mqttUp() { return mqttIsUp; }
 bool apOn() { return apActive; }
 String ip() { return wifiUp() ? WiFi.localIP().toString() : String(""); }
 int rssi() { return wifiUp() ? WiFi.RSSI() : 0; }
@@ -109,13 +131,46 @@ static void mqttConnect() {
 }
 
 bool publish(const char* sub, const String& payload, bool retain) {
+  if (!onLoopTask()) {
+    if (!mqttIsUp) return false;
+    xSemaphoreTake(qLock, portMAX_DELAY);
+    bool ok = outQ.size() < OUTQ_MAX;
+    if (ok) outQ.push_back({String(sub), payload, retain});
+    xSemaphoreGive(qLock);
+    return ok;
+  }
   if (!mqtt.connected()) return false;
   String t = cfg.base() + sub;
   return mqtt.publish(t.c_str(), (const uint8_t*)payload.c_str(), payload.length(), retain);
 }
 
+static void drainQueue() {
+  for (int n = 0; n < 10; n++) {
+    xSemaphoreTake(qLock, portMAX_DELAY);
+    if (outQ.empty()) {
+      xSemaphoreGive(qLock);
+      return;
+    }
+    Outgoing o = outQ.front();
+    outQ.pop_front();
+    xSemaphoreGive(qLock);
+    if (!mqtt.connected()) return;  // dropped: the store-and-forward log covers records
+    String t = cfg.base() + o.sub;
+    mqtt.publish(t.c_str(), (const uint8_t*)o.payload.c_str(), o.payload.length(), o.retain);
+  }
+}
+
 void reconfigure() {
+  if (!onLoopTask()) {
+    reconfigWanted = true;
+    return;
+  }
+  doReconfigure();
+}
+
+static void doReconfigure() {
   if (mqtt.connected()) mqtt.disconnect();
+  mqttIsUp = false;
   lastMqttTry = 0;
   if (cfg.ssid.length()) {
     WiFi.disconnect();
@@ -128,6 +183,8 @@ void reconfigure() {
 }
 
 void begin(bool doubleReset) {
+  loopTask = xTaskGetCurrentTaskHandle();
+  qLock = xSemaphoreCreateMutex();
   WiFi.persistent(false);
   // Retries are done here in loop(), not by the core's auto-reconnect: that
   // one re-joins every few seconds and keeps the radio busy.
@@ -163,6 +220,14 @@ void begin(bool doubleReset) {
 
 void loop() {
   uint32_t now = millis();
+  if (forgetWanted) {
+    forgetWanted = false;
+    doForget();
+  }
+  if (reconfigWanted) {
+    reconfigWanted = false;
+    doReconfigure();
+  }
   scanPoll();
   bool up = wifiUp();
 
@@ -234,7 +299,9 @@ void loop() {
   if (up) {
     if (!mqtt.connected()) mqttConnect();
     mqtt.loop();
+    drainQueue();
   }
+  mqttIsUp = up && mqtt.connected();
 }
 
 static uint32_t scanAt = 0;
@@ -299,7 +366,16 @@ void forgetWifi() {
   cfg.ssid = "";
   cfg.pass = "";
   cfg.save();
+  if (!onLoopTask()) {
+    forgetWanted = true;
+    return;
+  }
+  doForget();
+}
+
+static void doForget() {
   if (mqtt.connected()) mqtt.disconnect();
+  mqttIsUp = false;
   WiFi.disconnect(true);
   if (mdnsUp) { MDNS.end(); mdnsUp = false; }
   apActive = false;
