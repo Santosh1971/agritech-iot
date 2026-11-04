@@ -19,8 +19,10 @@ type Bench = {
   nextSeq: number;
   queue: BenchCmd[];
   lastSeen: number;
+  owner: string; // page instance holding the bench (one browser tab at a time)
   status: PageStatus;
   firmware: Map<string, { name: string; bytes: Buffer; at: number }>;
+  flashIds: string[]; // flash commands issued (newest last), for status checks
 };
 
 const MAX_LINES = 5000;
@@ -29,15 +31,26 @@ const MAX_FIRMWARE = 4;
 const g = globalThis as unknown as { __bench?: Bench };
 function bench(): Bench {
   if (!g.__bench) {
-    g.__bench = { lines: [], nextSeq: 1, queue: [], lastSeen: 0, status: { connected: false, who: "" }, firmware: new Map() };
+    g.__bench = { lines: [], nextSeq: 1, queue: [], lastSeen: 0, owner: "", status: { connected: false, who: "" }, firmware: new Map(), flashIds: [] };
   }
   return g.__bench;
 }
 
-/** From the bench page: new serial lines and its status in, queued commands out. */
-export function pagePoll(lines: string[], status: PageStatus): BenchCmd[] {
+const OWNER_TIMEOUT_MS = 15000;
+
+/**
+ * From the bench page: new serial lines and its status in, queued commands
+ * out. Only one page (by its instance id) holds the bench; another page is
+ * refused (null) until the holder has been silent for 15 s.
+ */
+export function pagePoll(instance: string, lines: string[], status: PageStatus): BenchCmd[] | null {
   const b = bench();
   const now = Date.now();
+  if (b.owner && b.owner !== instance && now - b.lastSeen < OWNER_TIMEOUT_MS) return null;
+  if (b.owner !== instance) {
+    b.owner = instance;
+    b.lines.push({ seq: b.nextSeq++, t: now, text: `[bench] page opened by ${status.who}` });
+  }
   for (const text of lines.slice(0, 2000)) {
     b.lines.push({ seq: b.nextSeq++, t: now, text: text.slice(0, 2000) });
   }
@@ -57,7 +70,12 @@ export function note(text: string) {
 
 export function enqueue(cmd: NoId<BenchCmd>): BenchCmd {
   const c = { ...cmd, id: randomUUID() } as BenchCmd;
-  bench().queue.push(c);
+  const b = bench();
+  b.queue.push(c);
+  if (c.type === "flash") {
+    b.flashIds.push(c.id);
+    if (b.flashIds.length > 20) b.flashIds.shift();
+  }
   return c;
 }
 
@@ -70,6 +88,15 @@ export function addFirmware(name: string, bytes: Buffer): string {
     b.firmware.delete(oldest);
   }
   return id;
+}
+
+/** True if `id` is a flash command this bench has queued (for status checks). */
+export function knownFlash(id: string) {
+  return bench().flashIds.includes(id);
+}
+
+export function holder() {
+  return bench().status.who;
 }
 
 export function getFirmware(id: string) {

@@ -35,8 +35,13 @@ export default function BenchClient() {
   const busy = useRef(false); // flashing: the port belongs to esptool-js
   const flashRef = useRef<Flash | null>(null);
   const consoleEl = useRef<HTMLDivElement>(null);
+  const instance = useRef<string>("");
+  const [busyMsg, setBusyMsg] = useState("");
 
-  useEffect(() => setSupported(typeof navigator !== "undefined" && "serial" in navigator), []);
+  useEffect(() => {
+    setSupported(typeof navigator !== "undefined" && "serial" in navigator);
+    instance.current = crypto.randomUUID();
+  }, []);
 
   const show = useCallback((lines: string[]) => {
     setView((v) => {
@@ -232,11 +237,19 @@ export default function BenchClient() {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
+            instance: instance.current,
             lines,
             status: { connected: !!port.current && (connected || busy.current), chip, flash: flashRef.current ?? undefined },
           }),
         });
+        if (res.status === 409) {
+          setBusyMsg((await res.json()).error);
+          outbox.current.unshift(...lines);
+          setServer("error");
+          return;
+        }
         if (!res.ok) throw new Error(String(res.status));
+        setBusyMsg("");
         setServer("ok");
         const { cmds } = (await res.json()) as { cmds: Cmd[] };
         if (cmds?.length) await handle(cmds);
@@ -295,6 +308,7 @@ export default function BenchClient() {
         Powered from the programmer&apos;s 5V: the battery reading is not valid and the valves can&apos;t switch (they need 12 V on J6).
       </p>
 
+      {busyMsg && <p className="error">{busyMsg}</p>}
       {pending && (
         <div className="flashbox">
           <b>New firmware to flash: {pending.name}</b>
