@@ -9,6 +9,7 @@ import 'node_link.dart';
 /// Fixed AgriSense login shared by every WM2 (user wm2-device). The password
 /// is compiled in with --dart-define=WM2_AG_PASS=... (CI secret), never in the repo.
 const agBuiltInUser = 'wm2-device';
+const agBuiltInHost = 'mqtt.agrisenseandcontrol.in';
 const agBuiltInPass = String.fromEnvironment('WM2_AG_PASS');
 
 class BrokerSettings {
@@ -20,8 +21,11 @@ class BrokerSettings {
   bool builtInLogin;
   BrokerSettings({this.host = '', this.port = 1883, this.user = '', this.pass = '', this.builtInLogin = false});
 
-  String get effectiveUser => user.isEmpty && builtInLogin && agBuiltInPass.isNotEmpty ? agBuiltInUser : user;
-  String get effectivePass => pass.isEmpty && builtInLogin && agBuiltInPass.isNotEmpty ? agBuiltInPass : pass;
+  /// The built-in login is only ever sent to the AgriSense host itself.
+  bool get _useBuiltIn =>
+      builtInLogin && user.isEmpty && pass.isEmpty && agBuiltInPass.isNotEmpty && host.trim() == agBuiltInHost;
+  String get effectiveUser => _useBuiltIn ? agBuiltInUser : user;
+  String get effectivePass => _useBuiltIn ? agBuiltInPass : pass;
 
   bool get isSet => host.trim().isNotEmpty;
 

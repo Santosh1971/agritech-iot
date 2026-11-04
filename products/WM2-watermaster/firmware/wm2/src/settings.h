@@ -6,6 +6,7 @@
 #define WM2_AG_PASS ""
 #endif
 #define AG_DEFAULT_USER "wm2-device"
+#define AG_DEFAULT_HOST "mqtt.agrisenseandcontrol.in"
 // All node settings, saved as /config.json in LittleFS. Changed by commands
 // (MQTT, app, web page, SoftAP, serial) and kept across power loss.
 #include <Arduino.h>
@@ -22,7 +23,7 @@ struct Settings {
   String ssid, pass;
   // MQTT: two broker profiles, one active.
   uint8_t broker = 0;         // 0 = AgriSense, 1 = Girish (customer's own)
-  String agHost = "mqtt.agrisenseandcontrol.in";
+  String agHost = AG_DEFAULT_HOST;
   uint16_t agPort = 1883;
   String agUser, agPass;
   String agId;                // empty = "WM2_" + last 4 MAC bytes (8 hex)
@@ -69,8 +70,10 @@ struct Settings {
   // AgriSense: one fixed login for every WM2 (user wm2-device, password
   // compiled in from WM2_AG_PASS, never in the repo). A user/password saved
   // on the node overrides it; blank means the built-in one.
-  String brokerUser() const { return broker == 0 ? (agUser.length() ? agUser : String(AG_DEFAULT_USER)) : mqttUser; }
-  String brokerPass() const { return broker == 0 ? (agPass.length() ? agPass : String(WM2_AG_PASS)) : mqttPass; }
+  // The built-in login is only ever sent to the AgriSense host itself.
+  bool agUseBuiltIn() const { return agUser.length() == 0 && agPass.length() == 0 && agHost == AG_DEFAULT_HOST; }
+  String brokerUser() const { return broker == 0 ? (agUseBuiltIn() ? String(AG_DEFAULT_USER) : agUser) : mqttUser; }
+  String brokerPass() const { return broker == 0 ? (agUseBuiltIn() ? String(WM2_AG_PASS) : agPass) : mqttPass; }
   static bool agBuiltInLogin() { return WM2_AG_PASS[0] != 0; }
   const char* brokerName() const { return broker == 0 ? "agrisense" : "girish"; }
 };
