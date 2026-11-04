@@ -89,7 +89,7 @@ export default function BenchClient() {
           partial += dec.decode(value, { stream: true });
           const parts = partial.split("\n");
           partial = parts.pop() ?? "";
-          if (partial.length > 1000) {
+          if (partial.length > 16000) {
             parts.push(partial);
             partial = "";
           }
