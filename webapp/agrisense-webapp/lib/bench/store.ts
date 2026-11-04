@@ -52,7 +52,7 @@ export function pagePoll(instance: string, lines: string[], status: PageStatus):
     b.lines.push({ seq: b.nextSeq++, t: now, text: `[bench] page opened by ${status.who}` });
   }
   for (const text of lines.slice(0, 2000)) {
-    b.lines.push({ seq: b.nextSeq++, t: now, text: text.slice(0, 2000) });
+    b.lines.push({ seq: b.nextSeq++, t: now, text: text.slice(0, 16000) });
   }
   if (b.lines.length > MAX_LINES) b.lines.splice(0, b.lines.length - MAX_LINES);
   b.lastSeen = now;
