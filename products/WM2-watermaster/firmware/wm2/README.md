@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.3 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.4 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.3-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.4-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -62,6 +62,12 @@ While a phone is on the SoftAP the node does not try the farm WiFi; it starts ag
 after the last phone leaves. Each try makes the radio hop channels, which dropped the phone
 and made scans fail when the saved farm WiFi was out of reach. The boot log line
 `[boot] reset reason: ...` (also `reset` in the state) shows a brownout if the supply sags.
+
+## Battery level (0.1.4)
+
+A new battery level (ok / warning / save / critical / over range) must hold for 30 s before
+the node reports it, raises the battery event, or closes valves for a critical battery. On a
+noisy supply such as the programmer's 5V the raw reading jumps between levels every second.
 
 ## Hardware caution (WM2-007/008)
 

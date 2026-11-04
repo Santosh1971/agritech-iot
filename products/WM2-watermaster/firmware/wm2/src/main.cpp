@@ -21,6 +21,38 @@
 #include "wm2_pins.h"
 #include <esp_system.h>
 
+// Battery level as reported: a new raw level must hold for 30 s before it
+// counts. On a noisy supply (e.g. the programmer's 5V) the raw reading jumps
+// between levels every second, which flooded events and toggled the
+// critical-battery valve close (0.1.4).
+static const uint32_t BATT_SETTLE_MS = 30000;
+static const char* battSettled = "";
+static const char* battCand = "";
+static uint32_t battCandSince = 0;
+
+static const char* battLevelNow() { return *battSettled ? battSettled : hw::battLevel(); }
+
+/** Returns the new settled level when it changes (nullptr otherwise). */
+static const char* battLevelTick(uint32_t now) {
+  const char* raw = hw::battLevel();
+  if (!*battSettled) {
+    battSettled = raw;
+    return nullptr;
+  }
+  if (!strcmp(raw, battSettled)) {
+    battCand = battSettled;
+    return nullptr;
+  }
+  if (strcmp(raw, battCand) != 0) {
+    battCand = raw;
+    battCandSince = now;
+    return nullptr;
+  }
+  if (now - battCandSince < BATT_SETTLE_MS) return nullptr;
+  battSettled = raw;
+  return raw;
+}
+
 // Why the chip last restarted. "brownout" points at the supply (tracker WM2-002).
 static const char* resetReasonText() {
   switch (esp_reset_reason()) {
@@ -251,7 +283,7 @@ void buildState(JsonObject o) {
   bt["soc"] = hw::battSoc();
   bt["trend"] = hw::battTrend();
   bt["days"] = roundf(hw::battDaysLeft() * 10) / 10;
-  bt["level"] = hw::battLevel();
+  bt["level"] = battLevelNow();
   if (hw::battOverRange()) bt["over_range"] = true;
   JsonObject w = o["wifi"].to<JsonObject>();
   w["ip"] = net::ip();
@@ -571,7 +603,6 @@ void setup() {
 void loop() {
   static uint32_t lastTick = 0, lastLed = 0, lastPush = 0, lastWsPush = 0, lastSave = 0, lastHouse = 0,
                   lastRtc = 0, lastStatus = 0, lastDrain = 0;
-  static const char* lastLevel = "";
   static bool bootFlagCleared = false;
   uint32_t now = millis();
 
@@ -624,23 +655,20 @@ void loop() {
     runLogTick(dl, dtMs / 1000.0f, core.water() || bypass);
 
     // Valves follow the logic, except at critical battery (safe state).
-    bool critical = !strcmp(hw::battLevel(), "critical");
+    const char* changed = battLevelTick(now);
+    bool critical = !strcmp(battLevelNow(), "critical");
     for (int v = 0; v < 2; v++) {
       bool want = core.valve(v).open;
       if (critical && cfg.safeClose && !cfg.core.v[v].neverClose) want = false;
       hw::valveRequest(v, want);
     }
 
-    const char* lvl = hw::battLevel();
-    if (strcmp(lvl, lastLevel) != 0) {
-      if (*lastLevel) {
-        JsonDocument d;
-        d["event"] = "battery";
-        d["level"] = lvl;
-        d["v"] = roundf(hw::battVolts() * 100) / 100;
-        emitEvent(d);
-      }
-      lastLevel = lvl;
+    if (changed) {
+      JsonDocument d;
+      d["event"] = "battery";
+      d["level"] = changed;
+      d["v"] = roundf(hw::battVolts() * 100) / 100;
+      emitEvent(d);
     }
 
     bool active = isActive();
