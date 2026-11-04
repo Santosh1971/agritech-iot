@@ -14,7 +14,7 @@ Token: BENCH_TOKEN env var, or the file ~/.config/agrisense/bench_token
   bench.py reset [-w 8]                     reset the board, show the boot log
   bench.py flash image.bin [--offset 0x0]   queue a flash, follow its progress
 """
-import argparse, json, os, sys, time, urllib.error, urllib.request, uuid
+import argparse, json, os, re, sys, time, urllib.error, urllib.request, uuid
 
 BASE = os.environ.get("BENCH_URL", "https://agrisenseandcontrol.in")
 
@@ -49,9 +49,17 @@ def snap(after=0):
     return req("GET", f"/api/bench/cli?after={after}")
 
 
+CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def clean(text):
+    """Board output is untrusted: show control characters as \\xNN, never send them to the terminal."""
+    return CTRL.sub(lambda m: "\\x%02x" % ord(m.group()), text)
+
+
 def print_lines(lines):
     for l in lines:
-        print(time.strftime("%H:%M:%S", time.localtime(l["t"] / 1000)), l["text"], flush=True)
+        print(time.strftime("%H:%M:%S", time.localtime(l["t"] / 1000)), clean(l["text"]), flush=True)
 
 
 def head():
