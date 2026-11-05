@@ -1,6 +1,6 @@
 // Leads tracker: who may read and change leads. The team (testing-tracker
 // members) signs in with the site session; Claude uses the bearer token
-// BENCH_TOKEN (tools/leads/leads.py), the same one the remote bench uses.
+// LEADS_TOKEN (tools/leads/leads.py). Its own token, so it can't flash boards.
 import { timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 import type { LeadHeat, LeadKind, LeadStatus } from "@prisma/client";
@@ -21,7 +21,7 @@ export const STATUS_LABEL: Record<LeadStatus, string> = {
 };
 
 function bearerOk(req: NextRequest) {
-  const want = process.env.BENCH_TOKEN;
+  const want = process.env.LEADS_TOKEN;
   const got = req.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
   if (!want || want.length < 24 || got.length !== want.length) return false;
   return timingSafeEqual(Buffer.from(got), Buffer.from(want));

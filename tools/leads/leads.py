@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Leads tracker client for Claude: read and update /dashboard/testing/leads.
 
-Token: BENCH_TOKEN env var or ~/.config/agrisense/bench_token (same as the
-remote bench; never commit it).
+Token: LEADS_TOKEN env var or ~/.config/agrisense/leads_token (same value as
+LEADS_TOKEN in the server's .env; never commit it).
 
   leads.py list [--status NEW]          show leads with their latest notes
   leads.py add leads.json               add/update leads (a list of objects)
@@ -25,12 +25,12 @@ def tls():
 
 
 def token():
-    t = os.environ.get("BENCH_TOKEN")
-    p = os.path.expanduser("~/.config/agrisense/bench_token")
+    t = os.environ.get("LEADS_TOKEN")
+    p = os.path.expanduser("~/.config/agrisense/leads_token")
     if not t and os.path.exists(p):
         t = open(p).read().strip()
     if not t:
-        sys.exit("No token: set BENCH_TOKEN or write ~/.config/agrisense/bench_token")
+        sys.exit("No token: set LEADS_TOKEN or write ~/.config/agrisense/leads_token")
     return t
 
 
