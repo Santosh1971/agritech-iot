@@ -226,6 +226,7 @@ void buildState(JsonObject o) {
   o["fw"] = FW_VERSION;
   o["dev"] = cfg.deviceId();  // lets the app find this node on the farm WiFi
   o["reset"] = resetReasonText();
+  if (hw::benchLeftS()) o["bench_s"] = hw::benchLeftS();  // bench mode on (valves ignore 12V)
   o["state"] = isActive() ? "active" : "idle";
   o["water"] = core.water();
   o["ps"] = ps;
@@ -659,7 +660,7 @@ void loop() {
     bool critical = !strcmp(battLevelNow(), "critical");
     for (int v = 0; v < 2; v++) {
       bool want = core.valve(v).open;
-      if (critical && cfg.safeClose && !cfg.core.v[v].neverClose) want = false;
+      if (critical && cfg.safeClose && !cfg.core.v[v].neverClose && !hw::benchLeftS()) want = false;
       hw::valveRequest(v, want);
     }
 

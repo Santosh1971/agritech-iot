@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.7 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.8 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.7-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.8-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,14 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Bench mode (0.1.8)
+
+Valves need 12V on J6 (DRV8871). For bench checks on programmer power,
+`{"cmd":"bench","on":true,"minutes":60}` (app: Settings > Bench test) lets valve pulses go out
+without 12V and skips the critical-battery safe-close. It lives in RAM only: it ends after the
+time limit (1-240 min) or at any reboot, and `bench_s` in the state shows the time left.
+LEDs across the valve outputs only blink for the pulse length (Valves > pulse ms, default 50).
 
 ## Battery level (0.1.4)
 

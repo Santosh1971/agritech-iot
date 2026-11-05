@@ -113,13 +113,22 @@ void valveResync() {
   vPending[0] = vPending[1] = true;
 }
 
+static uint32_t benchUntil = 0;
+void benchSet(uint32_t minutes) { benchUntil = minutes ? millis() + minutes * 60000UL : 0; }
+uint32_t benchLeftS() {
+  if (!benchUntil) return 0;
+  int32_t left = (int32_t)(benchUntil - millis());
+  if (left <= 0) { benchUntil = 0; return 0; }
+  return left / 1000;
+}
+
 void valvesLoop() {
   uint32_t now = millis();
   if (now - lastPulseEnd < (uint32_t)(cfg.gapS * 1000)) return;
   for (int v = 0; v < 2; v++) {
     if (!vPending[v]) continue;
     // A latching valve needs the 12V rail; on USB power the pulse waits.
-    if (battVolts() < 6.5f) {  // DRV8871 minimum supply
+    if (battVolts() < 6.5f && !benchLeftS()) {  // DRV8871 minimum supply
       if ((int32_t)(now - nextRetry) < 0) return;
       nextRetry = now + 10000;
       return;

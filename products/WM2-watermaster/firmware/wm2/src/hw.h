@@ -17,6 +17,11 @@ void valvesLoop();                // runs queued pulses
 void valveRequest(int v, bool open, bool force = false);  // queue a pulse if state differs
 bool valveState(int v);           // last state actually pulsed (or restored)
 bool valvePending(int v);         // a pulse is waiting (e.g. no 12V yet)
+// Bench mode: valves pulse without 12V and ignore the critical-battery close,
+// so LEDs on the valve outputs can be checked on programmer power. RAM only:
+// ends after `minutes` or at reboot, never saved.
+void benchSet(uint32_t minutes);  // 0 = off
+uint32_t benchLeftS();            // seconds left, 0 = off
 void valveResync();               // re-pulse both valves to their stored state
 void valvePulseRaw(int v, bool open);  // immediate, for valve_test
 

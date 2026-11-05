@@ -181,6 +181,29 @@ class _SettingsTabState extends State<SettingsTab> {
           }
           widget.ctl.store.save();
         }),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Bench test', style: t.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                  (widget.ctl.state?['bench_s'] as num? ?? 0) > 0
+                      ? 'Bench mode ON for ${((widget.ctl.state!['bench_s'] as num) / 60).ceil()} more min: valves switch without 12V.'
+                      : 'Valves need 12V on J6. Bench mode lets them switch on programmer power for 60 min '
+                          '(LEDs on the valve outputs blink on each open/close pulse). Ends at reboot.',
+                  style: t.bodySmall),
+              Wrap(spacing: 8, children: [
+                FilledButton.tonal(
+                    onPressed: () => _send({'cmd': 'bench', 'on': true, 'minutes': 60}, 'Bench mode on for 60 min'),
+                    child: const Text('Bench mode on')),
+                TextButton(
+                    onPressed: () => _send({'cmd': 'bench', 'on': false}, 'Bench mode off'),
+                    child: const Text('Off')),
+              ]),
+            ]),
+          ),
+        ),
         section('Reporting', [
           field('act', 'Active interval s (30-1800)', cfg['active_s'], num: true, w: 200),
           field('hb', 'Heartbeat s (60-14400)', cfg['heartbeat_s'], num: true, w: 200),

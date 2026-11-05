@@ -391,10 +391,10 @@ class _ValveBlock extends StatelessWidget {
     if (s == null) {
       status = 'offline';
       dot = cs.outline;
-    } else if (!open && v['mode'] != 'off' && bv < 6.5) {
+    } else if (!open && v['mode'] != 'off' && bv < 6.5 && (s['bench_s'] ?? 0) == 0) {
       status = 'no 12V';  // valves need the 12V supply to switch
       dot = Colors.red;
-    } else if (!open && v['mode'] != 'off' && critical) {
+    } else if (!open && v['mode'] != 'off' && critical && (s['bench_s'] ?? 0) == 0) {
       status = 'battery critical';  // node keeps valves shut (safe close)
       dot = Colors.red;
     } else if (v['pending'] == true) {

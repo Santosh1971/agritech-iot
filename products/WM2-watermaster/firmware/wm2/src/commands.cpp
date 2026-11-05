@@ -215,10 +215,18 @@ String dispatchCommand(const String& json, const char* via) {
     net::forgetWifi();
   } else if (cmd == "softap_on") {
     net::startAp(in["minutes"] | 15);
+  } else if (cmd == "bench") {
+    // {"on":true,"minutes":60}: valves switch without 12V for bench checks.
+    bool on = in["on"] | true;
+    uint32_t m = constrain((int)(in["minutes"] | 60), 1, 240);
+    hw::benchSet(on ? m : 0);
+    if (on) hw::valveResync();  // re-send the current valve states as pulses
+    Serial.printf("[bench] mode %s\n", on ? "ON: valves switch without 12V, no battery safe-close" : "off");
+    data["bench_s"] = hw::benchLeftS();
   } else if (cmd == "valve_test") {
     int v = valveArg(in);
     if (v < 0) { ok = false; err = "valve must be 1 or 2"; }
-    else if (hw::battVolts() < 6.5f) { ok = false; err = "needs 12V on J6"; }
+    else if (hw::battVolts() < 6.5f && !hw::benchLeftS()) { ok = false; err = "needs 12V on J6 (or bench mode)"; }
     else {
       hw::valvePulseRaw(v, true);
       delay((uint32_t)(cfg.gapS * 1000));
