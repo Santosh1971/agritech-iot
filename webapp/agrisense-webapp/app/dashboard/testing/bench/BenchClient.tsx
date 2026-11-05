@@ -157,9 +157,11 @@ export default function BenchClient() {
   }
 
   // ---- flashing -------------------------------------------------------------
-  async function runFlash(cmd: FlashCmd) {
+  // auto: the programmer's DTR/RTS put the board in download mode (no
+  // buttons); manual: the tester has pressed BOOT+RESET.
+  async function runFlash(cmd: FlashCmd, auto = false) {
     const p = port.current;
-    if (!p) return;
+    if (!p || busy.current) return;
     busy.current = true;
     setPending(null);
     setFlashState({ id: cmd.id, state: "flashing", pct: 0, msg: "starting" });
@@ -172,7 +174,8 @@ export default function BenchClient() {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `download failed (${res.status})`);
       const data = new Uint8Array(await res.arrayBuffer());
       const loader = new ESPLoader({ transport, baudrate: 460800, romBaudrate: 115200, terminal });
-      const c = await loader.main("no_reset");
+      if (auto) log("[flash] putting the board in download mode via the programmer (auto-reset)…");
+      const c = await loader.main(auto ? "default_reset" : "no_reset");
       setChip(c);
       log(`[flash] connected to ${c}`);
       await loader.writeFlash({
@@ -185,14 +188,18 @@ export default function BenchClient() {
         reportProgress: (_i, written, total) =>
           setFlashState({ id: cmd.id, state: "flashing", pct: Math.round((written / total) * 100), msg: "writing" }),
       });
-      await loader.after("hard_reset");
+      // Release DTR (BOOT) before the reset pulse, or the board restarts back
+      // into download mode and needs a manual RESET.
+      await p.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await sleep(120);
+      await p.setSignals({ requestToSend: false });
       setFlashState({ id: cmd.id, state: "done", pct: 100, msg: `${cmd.name} written` });
       log(`[flash] done: ${cmd.name} written at 0x${cmd.offset.toString(16)}, board restarted`);
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setFlashState({ id: cmd.id, state: "failed", pct: 0, msg });
       log(`[flash] FAILED: ${msg}`);
-      setPending(cmd); // let the tester try again
+      setPending(cmd); // let the tester try again with the buttons
     } finally {
       await transport.disconnect().catch(() => {});
       busy.current = false;
@@ -203,6 +210,9 @@ export default function BenchClient() {
       }
     }
   }
+
+  const runFlashRef = useRef(runFlash);
+  runFlashRef.current = runFlash;
 
   // ---- relay to the server --------------------------------------------------
   const handle = useCallback(
@@ -215,9 +225,8 @@ export default function BenchClient() {
           log("[bench] remote reset");
           await reset();
         } else if (c.type === "flash") {
-          setPending(c);
-          setFlashState({ id: c.id, state: "waiting", pct: 0, msg: "waiting for the tester to put the board in download mode" });
           log(`[bench] new firmware to flash: ${c.name} (${c.size} bytes)`);
+          await runFlashRef.current(c, true);
         }
       }
     },
@@ -312,11 +321,13 @@ export default function BenchClient() {
       {pending && (
         <div className="flashbox">
           <b>New firmware to flash: {pending.name}</b>
+          <p className="small">Automatic reset did not work. Put the board in download mode by hand:</p>
           <ol>
             <li>Hold the <b>BOOT</b> button on the board.</li>
             <li>Press and release <b>RESET</b>.</li>
             <li>Release <b>BOOT</b>.</li>
             <li>Click <b>Start flash</b> within a few seconds.</li>
+            <li>After the flash, press <b>RESET</b> once if the log stays quiet.</li>
           </ol>
           <button className="btn" onClick={() => runFlash(pending)} disabled={!port.current || busy.current}>
             Start flash
