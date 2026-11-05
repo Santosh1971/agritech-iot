@@ -39,7 +39,12 @@ export async function middleware(req: NextRequest) {
   // Remote bench tool (tools/bench/bench.py): bearer BENCH_TOKEN, checked
   // again in the route itself.
   const benchToken = process.env.BENCH_TOKEN;
-  if (benchToken && pathname === "/api/bench/cli" && req.headers.get("authorization") === `Bearer ${benchToken}`) {
+  // The leads API (tools/leads/leads.py) takes the same token.
+  if (
+    benchToken &&
+    (pathname === "/api/bench/cli" || pathname === "/api/leads" || pathname.startsWith("/api/leads/")) &&
+    req.headers.get("authorization") === `Bearer ${benchToken}`
+  ) {
     return NextResponse.next();
   }
 

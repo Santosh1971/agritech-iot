@@ -27,6 +27,7 @@ export default async function TestingLayout({ children }: { children: React.Reac
           <nav className="nav">
             <Link href="/dashboard/testing">Overview</Link>
             {u?.trackRole && <Link href="/dashboard/testing/bench">Bench</Link>}
+            {(u?.trackRole || u?.isAdmin) && <Link href="/dashboard/testing/leads">Leads</Link>}
             {u?.isAdmin && <Link href="/dashboard/testing/settings">Team</Link>}
             <Link href="/dashboard">Dashboard</Link>
           </nav>

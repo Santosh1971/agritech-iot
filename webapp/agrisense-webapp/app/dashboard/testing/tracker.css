@@ -127,3 +127,15 @@ body:has(> .tt) { margin: 0; }
 .tt .bar > i { display: block; height: 100%; background: var(--accent); }
 .tt .sendrow { display: flex; gap: 8px; margin-top: 10px; }
 .tt .sendrow input { flex: 1; font-family: var(--mono); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+
+/* Leads */
+.tt .how { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .9rem; }
+.tt .lead h3 { font-size: 1rem; overflow-wrap: anywhere; }
+.tt .lead .said { margin: 0; padding: 8px 12px; border-left: 3px solid var(--lime); background: var(--panel-2); border-radius: 0 8px 8px 0; white-space: pre-wrap; }
+.tt .lead .next, .tt .lead .reply { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; font-size: .9rem; }
+.tt .lead .next { background: var(--info-soft); }
+.tt .lead .reply { background: var(--accent-soft); }
+.tt .lead .reply p, .tt .lead .next p { white-space: pre-wrap; }
+.tt .lead .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tt .lead .notes li { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 2px; font-size: .9rem; }
+.tt .lead .notes li.claude b { color: var(--info); }

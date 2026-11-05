@@ -565,3 +565,66 @@ model TrackFile {
   uploadedBy   User          @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime      @default(now())
 }
+
+// ---------------------------------------------------------------------------
+// Leads (/dashboard/testing/leads): people who said in public they want what
+// we make. Claude finds them (bearer BENCH_TOKEN via tools/leads/leads.py) and
+// writes what to do; Santosh and Avinash contact them, mark progress and add
+// notes. Authors are stored by name, so no relation to User is needed.
+// ---------------------------------------------------------------------------
+
+enum LeadKind {
+  BUYER
+  POLYHOUSE
+  PARTNER
+}
+
+enum LeadHeat {
+  HOT
+  WARM
+  COLD
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  TALKING
+  WON
+  LOST
+  SKIPPED
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  platform       String     @default("Instagram")
+  handle         String
+  name           String?
+  kind           LeadKind
+  heat           LeadHeat   @default(WARM)
+  said           String
+  postUrl        String?
+  language       String?
+  location       String?
+  products       String?
+  phone          String?
+  nextStep       String?
+  suggestedReply String?
+  status         LeadStatus @default(NEW)
+  foundBy        String     @default("Claude")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  notes          LeadNote[]
+
+  @@unique([platform, handle])
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author    String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
