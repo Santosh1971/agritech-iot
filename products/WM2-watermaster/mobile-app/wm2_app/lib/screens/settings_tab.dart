@@ -157,48 +157,28 @@ class _SettingsTabState extends State<SettingsTab> {
               padding: const EdgeInsets.only(top: 18),
               child: Text('now: ${dev!['broker']} ${dev!['mqtt'] == true ? 'connected' : 'not connected'}'),
             ),
-          if (cfg['broker'] != 'girish') ...[
-            field('ahost', 'AgriSense host', cfg['ag_host'], w: 220),
-            field('aport', 'Port', cfg['ag_port'], num: true, w: 90),
-            field('auser', cfg['ag_builtin_login'] == true ? 'User (blank = built-in)' : 'User', cfg['ag_user']),
-            field('apass', 'Password (blank = unchanged)', '', secret: true, w: 200),
-            field('aid', 'Device ID', cfg['ag_id'], w: 140),
-          ] else ...[
-            field('mhost', 'Girish host', cfg['mqtt_host'], w: 220),
-            field('mport', 'Port', cfg['mqtt_port'], num: true, w: 90),
-            field('muser', 'User', cfg['mqtt_user']),
-            field('mpass', 'Password (blank = unchanged)', '', secret: true, w: 200),
-            field('farm', 'Farm', cfg['farm'], w: 100),
+          if (cfg['broker'] != 'girish')
+            Padding(
+              padding: const EdgeInsets.only(top: 18),
+              child: Text('Built-in login. Device ID ${cfg['ag_id'] ?? ''}'),
+            )
+          else ...[
             field('zone', 'Zone', cfg['zone'], w: 80),
             field('node', 'Node', cfg['node'], w: 80),
           ],
         ], () {
           final ag = cfg['broker'] != 'girish';
-          final pw = ag ? f('apass').text : f('mpass').text;
-          _send(
-              ag
-                  ? {
-                      'cmd': 'mqtt_config',
-                      'broker': 'agrisense',
-                      'host': f('ahost').text.trim(),
-                      'port': _i('aport'),
-                      'user': f('auser').text.trim(),
-                      'ag_id': f('aid').text.trim(),
-                      if (pw.isNotEmpty) 'pass': pw,
-                    }
-                  : {
-                      'cmd': 'mqtt_config',
-                      'broker': 'girish',
-                      'host': f('mhost').text.trim(),
-                      'port': _i('mport'),
-                      'user': f('muser').text.trim(),
-                      'farm': f('farm').text.trim(),
-                      'zone': f('zone').text.trim(),
-                      'node': f('node').text.trim(),
-                      if (pw.isNotEmpty) 'pass': pw,
-                    },
-              'Saved: node now uses the ${ag ? 'AgriSense' : 'Girish'} broker');
+          _send({
+            'cmd': 'mqtt_config',
+            'broker': ag ? 'agrisense' : 'girish',
+            if (!ag) 'zone': f('zone').text.trim(),
+            if (!ag) 'node': f('node').text.trim(),
+          }, 'Saved: node now uses the ${ag ? 'AgriSense' : 'Girish'} broker');
           widget.ctl.entry.broker = ag ? 'agrisense' : 'girish';
+          if (!ag) {
+            widget.ctl.entry.zone = f('zone').text.trim();
+            widget.ctl.entry.node = f('node').text.trim();
+          }
           widget.ctl.store.save();
         }),
         section('Reporting', [

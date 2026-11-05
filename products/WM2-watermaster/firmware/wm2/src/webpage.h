@@ -56,14 +56,10 @@ nav button{white-space:nowrap}nav button.sel{background:var(--ink);color:var(--b
  <div class="card"><h2>Farm WiFi</h2><div class="row"><input id="ssid" placeholder="SSID"><input id="wpass" type="password" placeholder="password"><button onclick="scan()">Scan</button><button class="p" onclick="saveWifi()">Save</button><button class="d" onclick="forget()">Disconnect WiFi</button></div><div id="scanres" class="q"></div></div>
  <div class="card"><h2>MQTT broker</h2>
   <div class="row"><label>Use</label><select id="broker" onchange="brokerVis()"><option value="agrisense">AgriSense</option><option value="girish">Girish (own broker)</option></select><span id="mqst" class="q"></span></div>
-  <div id="b-ag" class="grid" style="margin-top:8px">
-   <div><label>AgriSense host</label><input id="ahost"></div><div><label>Port</label><input id="aport" type="number"></div>
-   <div><label>User</label><input id="auser"></div><div><label>Password</label><input id="apass" type="password" placeholder="unchanged"></div>
-   <div><label>Device ID (topic agrisense/WM2/ID/)</label><input id="aid"></div></div>
+  <div id="b-ag" class="q" style="margin-top:8px">Built-in login. Topics agrisense/WM2/<b id="aid"></b>/</div>
   <div id="b-gi" class="grid" style="margin-top:8px">
-   <div><label>Girish host</label><input id="mhost"></div><div><label>Port</label><input id="mport" type="number"></div>
-   <div><label>User</label><input id="muser"></div><div><label>Password</label><input id="mpass" type="password" placeholder="unchanged"></div>
-   <div><label>Farm</label><input id="farm"></div><div><label>Zone</label><input id="zone"></div><div><label>Node</label><input id="node"></div></div>
+   <div><label>Zone</label><input id="zone"></div><div><label>Node</label><input id="node"></div>
+   <div class="q" style="grid-column:1/-1">Topics girish/wm2/zone/node/</div></div>
   <button class="p" onclick="saveMqtt()" style="margin-top:8px">Save</button></div>
  <div class="card"><h2>Reporting</h2><div class="grid">
   <div><label>Active interval (s, 30-1800)</label><input id="act" type="number"></div>
@@ -137,9 +133,9 @@ function hist(k){const now=Math.floor(Date.now()/1000);let f,t=now,res='';const 
   $('htot').innerHTML=`V1 ${T.valve_litres[0]} L, open ${T.valve_open_min[0]} min | V2 ${T.valve_litres[1]} L, open ${T.valve_open_min[1]} min<br>water in pipe ${T.water_min} min | lowest battery ${T.min_batt} V | ${T.records} records`;
   const cols=d.columns.split(',');$('hpts').innerHTML='<tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr>'+d.points.slice(-300).reverse().map(p=>'<tr>'+p.map((x,i)=>'<td>'+(i===0?fmtT(x):x)+'</td>').join('')+'</tr>').join('')});
  cmd({cmd:'get_days',days:Math.max(2,Math.ceil((now-f)/86400)+1)}).then(j=>{$('hdays').innerHTML=(j.data.days||[]).reverse().map(r=>`<tr><td>${r.date}</td><td>V${r.valve}</td><td>${r.planned_min!=null?r.planned_min+' min':r.planned_l+' L'}</td><td>${r.run_min} min</td><td>${(r.litres||[]).join(' + ')}</td><td>${r.status}</td></tr>`).join('')})}
-function loadCfg(){cmd({cmd:'get_config'}).then(j=>{C=j.data;$('ssid').value=C.ssid;$('mhost').value=C.mqtt_host;$('mport').value=C.mqtt_port;$('muser').value=C.mqtt_user;
- $('broker').value=C.broker;$('ahost').value=C.ag_host;$('aport').value=C.ag_port;$('auser').value=C.ag_user;$('aid').value=C.ag_id;brokerVis();
- $('farm').value=C.farm;$('zone').value=C.zone;$('node').value=C.node;$('act').value=C.active_s;$('hb').value=C.heartbeat_s;$('idl').value=C.idle_delay_s;
+function loadCfg(){cmd({cmd:'get_config'}).then(j=>{C=j.data;$('ssid').value=C.ssid;
+ $('broker').value=C.broker;$('aid').textContent=C.ag_id;brokerVis();
+ $('zone').value=C.zone;$('node').value=C.node;$('act').value=C.active_s;$('hb').value=C.heartbeat_s;$('idl').value=C.idle_delay_s;
  $('seq').value=C.sequential?'1':'0';$('psfit').value=C.ps_fitted===false?'0':'1';$('settle').value=C.ps_settle_s;$('cap').value=C.capacity_ah;$('chem').value=C.chemistry;
  $('hwset').innerHTML='<table><tr><th>Valve</th><th>Pulse ms</th><th>Invert</th><th>Never close</th><th>Water lost</th><th>Close after min</th></tr>'+C.valves.map(v=>`<tr><td>V${v.valve}</td><td><input id="hp${v.valve}" type="number" value="${v.pulse_ms}"></td><td><input type="checkbox" id="hi${v.valve}" ${v.invert?'checked':''}></td><td><input type="checkbox" id="hn${v.valve}" ${v.never_close?'checked':''}></td><td><select id="hw${v.valve}"><option ${v.on_water_loss==='keep'?'selected':''}>keep</option><option ${v.on_water_loss==='close'?'selected':''}>close</option></select></td><td><input id="hc${v.valve}" type="number" value="${v.close_after_min}"></td></tr>`).join('')+'</table>'
  +'<table style="margin-top:8px"><tr><th>Flow</th><th>Valve (0 = unused)</th><th>Pulses per litre</th></tr>'+C.flow.map(f=>`<tr><td>${f.input}</td><td><input id="fv${f.input}" type="number" min="0" max="2" value="${f.valve}"></td><td><input id="fp${f.input}" type="number" step="0.1" value="${f.ppl}"></td></tr>`).join('')+'</table>'});
@@ -150,9 +146,8 @@ function scan(){$('scanres').textContent='scanning... (the page may pause for a 
 function forget(){if(confirm('Disconnect from the farm WiFi and forget it? The node switches to its own WiFi (SoftAP).'))cmd({cmd:'wifi_forget'}).then(j=>j.ok&&toast('Farm WiFi forgotten; SoftAP on'))}
 function saveWifi(){cmd({cmd:'wifi_config',ssid:$('ssid').value,pass:$('wpass').value}).then(j=>j.ok&&toast('Saved, joining '+$('ssid').value))}
 function brokerVis(){const ag=$('broker').value==='agrisense';$('b-ag').classList.toggle('hide',!ag);$('b-gi').classList.toggle('hide',ag)}
-function saveMqtt(){const ag=$('broker').value==='agrisense';const o=ag?{cmd:'mqtt_config',broker:'agrisense',host:$('ahost').value,port:+$('aport').value,user:$('auser').value,ag_id:$('aid').value}
- :{cmd:'mqtt_config',broker:'girish',host:$('mhost').value,port:+$('mport').value,user:$('muser').value,farm:$('farm').value,zone:$('zone').value,node:$('node').value};
- const pw=ag?$('apass').value:$('mpass').value;if(pw)o.pass=pw;cmd(o).then(j=>j.ok&&toast('Saved: '+j.data.broker+' broker, topics '+j.data.base))}
+function saveMqtt(){const ag=$('broker').value==='agrisense';const o={cmd:'mqtt_config',broker:$('broker').value};if(!ag){o.zone=$('zone').value;o.node=$('node').value}
+ cmd(o).then(j=>j.ok&&toast('Saved: '+j.data.broker+' broker, topics '+j.data.base))}
 function saveReport(){cmd({cmd:'set_report',active_s:+$('act').value,heartbeat_s:+$('hb').value,idle_delay_s:+$('idl').value}).then(j=>j.ok&&toast('Saved'))}
 function saveOpts(){cmd({cmd:'set_options',sequential:$('seq').value==='1',ps_fitted:$('psfit').value==='1',ps_settle_s:+$('settle').value}).then(()=>cmd({cmd:'set_battery',capacity_ah:+$('cap').value,chemistry:$('chem').value})).then(j=>j.ok&&toast('Saved'))}
 function saveHw(){const valves=[1,2].map(v=>({valve:v,pulse_ms:+$('hp'+v).value,invert:$('hi'+v).checked,never_close:$('hn'+v).checked,on_water_loss:$('hw'+v).value,close_after_min:+$('hc'+v).value}));

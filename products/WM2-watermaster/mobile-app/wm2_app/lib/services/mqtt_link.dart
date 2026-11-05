@@ -12,26 +12,23 @@ const agBuiltInUser = 'wm2-device';
 const agBuiltInHost = 'mqtt.agrisenseandcontrol.in';
 const agBuiltInPass = String.fromEnvironment('WM2_AG_PASS');
 
+/// One of the two fixed broker profiles. Nothing here is typed by the user:
+/// logins come in at build time (--dart-define WM2_AG_PASS / WM2_GR_USER /
+/// WM2_GR_PASS, from GitHub secrets), never from the repo, which is public.
 class BrokerSettings {
-  String host;
-  int port;
-  String user;
-  String pass;
-  /// AgriSense profile: blank user/password means the built-in login.
-  bool builtInLogin;
-  BrokerSettings({this.host = '', this.port = 1883, this.user = '', this.pass = '', this.builtInLogin = false});
+  final String host;
+  final int port;
+  final String user;
+  final String pass;
+  const BrokerSettings({required this.host, this.port = 1883, this.user = '', this.pass = ''});
 
-  /// The built-in login is only ever sent to the AgriSense host itself.
-  bool get _useBuiltIn =>
-      builtInLogin && user.isEmpty && pass.isEmpty && agBuiltInPass.isNotEmpty && host.trim() == agBuiltInHost;
-  String get effectiveUser => _useBuiltIn ? agBuiltInUser : user;
-  String get effectivePass => _useBuiltIn ? agBuiltInPass : pass;
+  String get effectiveUser => user;
+  String get effectivePass => pass;
+  bool get isSet => host.isNotEmpty;
 
-  bool get isSet => host.trim().isNotEmpty;
-
-  Map<String, dynamic> toJson() => {'host': host, 'port': port, 'user': user, 'pass': pass};
-  factory BrokerSettings.fromJson(Map<String, dynamic> j) => BrokerSettings(
-      host: j['host'] ?? '', port: j['port'] ?? 1883, user: j['user'] ?? '', pass: j['pass'] ?? '');
+  static const agrisense = BrokerSettings(host: agBuiltInHost, user: agBuiltInUser, pass: agBuiltInPass);
+  static const girish = BrokerSettings(
+      host: 'mqtt.grty.co.in', user: String.fromEnvironment('WM2_GR_USER'), pass: String.fromEnvironment('WM2_GR_PASS'));
 }
 
 /// Link through Girish's MQTT broker: FARM/wm2/ZONE/NODE/ + cmd, resp, state, event, status, telemetry.

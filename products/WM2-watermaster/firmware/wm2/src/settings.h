@@ -1,12 +1,23 @@
 #pragma once
 
-// Fixed AgriSense broker password, injected at build time by wm2_secrets.py
-// (env WM2_AG_PASS or ~/.config/agrisense/wm2_mqtt_pass; CI: GitHub secret).
+// The two broker profiles are fixed: the user only picks AgriSense or Girish
+// (and zone/node for Girish). Logins are compiled in at build time by
+// wm2_secrets.py from env vars / ~/.config/agrisense files (CI: GitHub
+// secrets), never from the repo, which is public.
 #ifndef WM2_AG_PASS
 #define WM2_AG_PASS ""
 #endif
-#define AG_DEFAULT_USER "wm2-device"
-#define AG_DEFAULT_HOST "mqtt.agrisenseandcontrol.in"
+#ifndef WM2_GR_USER
+#define WM2_GR_USER ""
+#endif
+#ifndef WM2_GR_PASS
+#define WM2_GR_PASS ""
+#endif
+#define AG_HOST "mqtt.agrisenseandcontrol.in"
+#define AG_USER "wm2-device"
+#define GR_HOST "mqtt.grty.co.in"
+#define GR_FARM "girish"
+#define BROKER_PORT 1883
 // All node settings, saved as /config.json in LittleFS. Changed by commands
 // (MQTT, app, web page, SoftAP, serial) and kept across power loss.
 #include <Arduino.h>
@@ -16,20 +27,13 @@
 
 struct Settings {
   // identity: topics are <farm>/wm2/<zone>/<node>/...
-  String farm = "girish";
+  String farm = GR_FARM;      // fixed
   String zone = "z1";
   String node = "n1";
   // network
   String ssid, pass;
-  // MQTT: two broker profiles, one active.
+  // MQTT: two fixed broker profiles, one active.
   uint8_t broker = 0;         // 0 = AgriSense, 1 = Girish (customer's own)
-  String agHost = AG_DEFAULT_HOST;
-  uint16_t agPort = 1883;
-  String agUser, agPass;
-  String agId;                // empty = "WM2_" + last 4 MAC bytes (8 hex)
-  String mqttHost = "mqtt.grty.co.in";  // Girish profile
-  uint16_t mqttPort = 1883;
-  String mqttUser, mqttPass;
   String apPass;              // empty = "wm2-" + last 4 hex of MAC
   int16_t tzMin = 330;        // IST
   // reporting
@@ -64,17 +68,13 @@ struct Settings {
   String apSsid() const;    // WM2-A98803E8 (MAC based, so it can be typed as the device ID)
   String base() const;      // agrisense/WM2/WM2_A98803E8/  or  girish/wm2/z1/n1/
   String deviceId() const;  // WM2_A98803E8
-  // Active broker profile
-  const String& brokerHost() const { return broker == 0 ? agHost : mqttHost; }
-  uint16_t brokerPort() const { return broker == 0 ? agPort : mqttPort; }
-  // AgriSense: one fixed login for every WM2 (user wm2-device, password
-  // compiled in from WM2_AG_PASS, never in the repo). A user/password saved
-  // on the node overrides it; blank means the built-in one.
-  // The built-in login is only ever sent to the AgriSense host itself.
-  bool agUseBuiltIn() const { return agUser.length() == 0 && agPass.length() == 0 && agHost == AG_DEFAULT_HOST; }
-  String brokerUser() const { return broker == 0 ? (agUseBuiltIn() ? String(AG_DEFAULT_USER) : agUser) : mqttUser; }
-  String brokerPass() const { return broker == 0 ? (agUseBuiltIn() ? String(WM2_AG_PASS) : agPass) : mqttPass; }
-  static bool agBuiltInLogin() { return WM2_AG_PASS[0] != 0; }
+  // Active broker profile (all fixed; see top of file)
+  const char* brokerHost() const { return broker == 0 ? AG_HOST : GR_HOST; }
+  uint16_t brokerPort() const { return BROKER_PORT; }
+  const char* brokerUser() const { return broker == 0 ? AG_USER : WM2_GR_USER; }
+  const char* brokerPass() const { return broker == 0 ? WM2_AG_PASS : WM2_GR_PASS; }
+  static bool agLoginBuiltIn() { return WM2_AG_PASS[0] != 0; }
+  static bool grLoginBuiltIn() { return WM2_GR_USER[0] != 0; }
   const char* brokerName() const { return broker == 0 ? "agrisense" : "girish"; }
 };
 

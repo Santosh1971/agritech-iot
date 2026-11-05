@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../services/local_link.dart';
-import '../services/mqtt_link.dart';
 import '../services/node_store.dart';
 import 'farm_screen.dart';
 import 'node_screen.dart';
@@ -24,13 +23,6 @@ class NodeListScreen extends StatelessWidget {
             const SizedBox(width: 10),
             const Text('ASAC-WM2'),
           ]),
-          actions: [
-            IconButton(
-              tooltip: 'MQTT brokers',
-              icon: const Icon(Icons.cloud_outlined),
-              onPressed: () => _editBrokers(context),
-            ),
-          ],
         ),
         body: store.nodes.isEmpty
             ? ListView(padding: const EdgeInsets.all(24), children: [
@@ -45,8 +37,8 @@ class NodeListScreen extends StatelessWidget {
                     'No nodes yet. Tap + to add one.\n\n'
                     'On the farm WiFi, use the node\'s IP address (from the router or the node\'s serial log).\n'
                     'Connected to the node\'s own WiFi (WM2-xxxxxxxx)? Tap + then Detect.\n'
-                    'Away from the farm, the app goes through the node\'s MQTT broker (AgriSense or Girish). '
-                    'Set the broker logins with the cloud icon.'),
+                    'Away from the farm, the app goes through the node\'s MQTT broker (AgriSense or Girish); '
+                    'the logins are built in.'),
               ])
             : ListView(
                 children: [
@@ -95,7 +87,6 @@ class NodeListScreen extends StatelessWidget {
     final name = TextEditingController(text: n.name);
     final host = TextEditingController(text: n.host.isEmpty && existing == null ? '192.168.4.1' : n.host);
     final agId = TextEditingController(text: n.agId);
-    final farm = TextEditingController(text: n.farm);
     final zone = TextEditingController(text: n.zone);
     final node = TextEditingController(text: n.node);
     final pos = TextEditingController(text: '${n.position}');
@@ -191,11 +182,9 @@ class NodeListScreen extends StatelessWidget {
                     decoration: const InputDecoration(
                         labelText: 'Device ID', helperText: 'WM2_xxxxxxxx; filled in when you first connect locally'))
               else
-                Row(children: [
-                  Expanded(child: TextField(controller: farm, decoration: const InputDecoration(labelText: 'Farm'))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: node, decoration: const InputDecoration(labelText: 'Node'))),
-                ]),
+                TextField(
+                    controller: node,
+                    decoration: const InputDecoration(labelText: 'Node', helperText: 'as set on the node, e.g. n1')),
             ]),
           ),
           actions: [
@@ -211,62 +200,11 @@ class NodeListScreen extends StatelessWidget {
       ..host = host.text.trim()
       ..broker = broker
       ..agId = agId.text.trim()
-      ..farm = farm.text.trim()
+      ..farm = 'girish'
       ..zone = zone.text.trim().isEmpty ? 'z1' : zone.text.trim()
       ..node = node.text.trim()
       ..position = int.tryParse(pos.text) ?? 1;
     if (existing == null) store.nodes.add(n);
-    await store.save();
-  }
-
-  Future<void> _editBrokers(BuildContext context) async {
-    final f = <String, TextEditingController>{};
-    void init(String p, BrokerSettings b) {
-      f['${p}host'] = TextEditingController(text: b.host);
-      f['${p}port'] = TextEditingController(text: '${b.port}');
-      f['${p}user'] = TextEditingController(text: b.user);
-      f['${p}pass'] = TextEditingController(text: b.pass);
-    }
-
-    init('a', store.agrisense);
-    init('g', store.girish);
-    List<Widget> fields(String p, String title) => [
-          Align(alignment: Alignment.centerLeft, child: Text(title, style: Theme.of(context).textTheme.titleSmall)),
-          TextField(controller: f['${p}host'], decoration: const InputDecoration(labelText: 'Host')),
-          TextField(
-              controller: f['${p}port'], decoration: const InputDecoration(labelText: 'Port'), keyboardType: TextInputType.number),
-          TextField(
-              controller: f['${p}user'],
-              decoration: InputDecoration(
-                  labelText: 'User',
-                  helperText: p == 'a' && agBuiltInPass.isNotEmpty ? 'Leave user and password blank: built-in WM2 login' : null)),
-          TextField(controller: f['${p}pass'], decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
-          const SizedBox(height: 16),
-        ];
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('MQTT brokers (app login)'),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ...fields('a', 'AgriSense'),
-            ...fields('g', 'Girish'),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    BrokerSettings read(String p) => BrokerSettings(
-        host: f['${p}host']!.text.trim(),
-        port: int.tryParse(f['${p}port']!.text) ?? 1883,
-        user: f['${p}user']!.text.trim(),
-        pass: f['${p}pass']!.text);
-    store.agrisense = read('a')..builtInLogin = true;
-    store.girish = read('g');
     await store.save();
   }
 }

@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.6 (Girish Farm)
+# WM2 WaterMaster firmware 0.1.7 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.6-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.1.7-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -53,8 +53,8 @@ With no farm WiFi set, the node starts its own WiFi:
 
 The node's state carries its device ID (`dev`) and farm-WiFi IP. The app remembers that IP,
 and when neither saved address answers it asks every address on the phone's WiFi network for
-`/api/state` and connects to the one with the matching device ID. "Cloud connected" (MQTT)
-still needs the broker login entered on the node (Settings > MQTT) and in the app.
+`/api/state` and connects to the one with the matching device ID. Away from the farm the app uses
+the node's MQTT broker with the built-in login (see below).
 
 ## WiFi and the SoftAP (0.1.2, WM2-004)
 
@@ -63,17 +63,26 @@ after the last phone leaves. Each try makes the radio hop channels, which droppe
 and made scans fail when the saved farm WiFi was out of reach. The boot log line
 `[boot] reset reason: ...` (also `reset` in the state) shows a brownout if the supply sags.
 
-## AgriSense broker login (0.1.5)
+## MQTT broker: AgriSense or Girish only (0.1.7)
 
-Every WM2 uses one fixed login on the AgriSense broker: user `wm2-device` and a password that
-is compiled in at build time, never stored in this (public) repo. Leave the AgriSense user and
-password blank on the node and in the app to use it; anything entered there overrides it.
+The only broker choice is **AgriSense** or **Girish**; nothing else is typed.
 
-- Local builds: put the password in `~/.config/agrisense/wm2_mqtt_pass` (or set `WM2_AG_PASS`);
-  `wm2_secrets.py` adds it. Without it the build warns and nodes need the login typed in.
-- Release builds: GitHub secret `WM2_MQTT_PASS` (the workflow fails without it); the app gets
-  it with `--dart-define=WM2_AG_PASS=...`.
-- The node never reports the built-in password; `get_config` only says `ag_builtin_login: true`.
+| Profile | Host (port 1883) | Login | Topics |
+|---|---|---|---|
+| AgriSense | mqtt.agrisenseandcontrol.in | `wm2-device` + built-in password | `agrisense/WM2/WM2_<MAC4>/` |
+| Girish | mqtt.grty.co.in | built-in Girish user/password, or none if not set | `girish/wm2/<zone>/<node>/` |
+
+`mqtt_config` takes `broker` (`agrisense` | `girish`) plus `zone` and `node` for Girish; any
+host/port/user/password sent with it, or saved by an older firmware, is ignored, so a mistyped
+login can no longer cut a node off. The device ID always comes from the MAC.
+
+Logins are compiled in, never stored in this (public) repo:
+
+- Local builds: `~/.config/agrisense/wm2_mqtt_pass` (AgriSense), `wm2_girish_user` and
+  `wm2_girish_pass` (Girish), or env `WM2_AG_PASS` / `WM2_GR_USER` / `WM2_GR_PASS`.
+- Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
+  `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
+- `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
 
 ## Battery level (0.1.4)
 

@@ -101,7 +101,7 @@ static void onMqtt(char* topic, byte* payload, unsigned int len) {
 }
 
 static void mqttConnect() {
-  if (cfg.brokerHost().length() == 0 || !wifiUp()) return;
+  if (!wifiUp()) return;
   if (millis() - lastMqttTry < 10000) return;
   lastMqttTry = millis();
   String base = cfg.base();
@@ -112,16 +112,16 @@ static void mqttConnect() {
   subAll = cfg.broker == 1 ? cfg.farm + "/wm2/all/cmd" : "";
   String clientId = cfg.broker == 0 ? cfg.deviceId() : "wm2-" + cfg.farm + "-" + cfg.zone + "-" + cfg.node;
   String will = base + "status";
-  mqtt.setServer(cfg.brokerHost().c_str(), cfg.brokerPort());
-  bool ok = mqtt.connect(clientId.c_str(), cfg.brokerUser().length() ? cfg.brokerUser().c_str() : nullptr,
-                         cfg.brokerPass().length() ? cfg.brokerPass().c_str() : nullptr, will.c_str(), 1, true, "offline",
+  mqtt.setServer(cfg.brokerHost(), cfg.brokerPort());
+  bool ok = mqtt.connect(clientId.c_str(), *cfg.brokerUser() ? cfg.brokerUser() : nullptr,
+                         *cfg.brokerPass() ? cfg.brokerPass() : nullptr, will.c_str(), 1, true, "offline",
                          false /* keep session: commands queued while away */);
   if (!ok) {
-    Serial.printf("[mqtt] %s broker %s:%u connect failed (state %d%s)\n", cfg.brokerName(), cfg.brokerHost().c_str(),
-                  cfg.brokerPort(), mqtt.state(), mqtt.state() == 4 || mqtt.state() == 5 ? ": check user/password" : "");
+    Serial.printf("[mqtt] %s broker %s:%u connect failed (state %d%s)\n", cfg.brokerName(), cfg.brokerHost(),
+                  cfg.brokerPort(), mqtt.state(), mqtt.state() == 4 || mqtt.state() == 5 ? ": built-in login refused, check the build secrets" : "");
     return;
   }
-  Serial.printf("[mqtt] connected to %s broker %s as %s, topics %s...\n", cfg.brokerName(), cfg.brokerHost().c_str(),
+  Serial.printf("[mqtt] connected to %s broker %s as %s, topics %s...\n", cfg.brokerName(), cfg.brokerHost(),
                 clientId.c_str(), base.c_str());
   mqtt.subscribe(subCmd.c_str(), 1);
   if (subZone.length()) mqtt.subscribe(subZone.c_str(), 1);

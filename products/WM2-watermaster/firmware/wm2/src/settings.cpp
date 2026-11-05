@@ -124,7 +124,6 @@ String Settings::hostname() const {
   return h;
 }
 String Settings::deviceId() const {
-  if (agId.length()) return agId;
   uint8_t mac[6];
   WiFi.macAddress(mac);
   char b[16];
@@ -147,19 +146,11 @@ void Settings::toJson(JsonObject o, bool secrets) const {
   o["ssid"] = ssid;
   if (secrets) o["pass"] = pass;
   o["broker"] = brokerName();
-  o["ag_host"] = agHost;
-  o["ag_port"] = agPort;
-  o["ag_user"] = agUser;
-  o["ag_builtin_login"] = agBuiltInLogin();  // blank user/password = built-in wm2-device login
+  o["broker_host"] = brokerHost();  // fixed per profile, for display
   o["ag_id"] = deviceId();
-  if (secrets) o["ag_pass"] = agPass;
-  o["mqtt_host"] = mqttHost;
-  o["mqtt_port"] = mqttPort;
-  o["mqtt_user"] = mqttUser;
-  if (secrets) {
-    o["mqtt_pass"] = mqttPass;
-    o["ap_pass"] = apPass;
-  }
+  o["ag_builtin_login"] = agLoginBuiltIn();
+  o["girish_builtin_login"] = grLoginBuiltIn();
+  if (secrets) o["ap_pass"] = apPass;
   o["tz_min"] = tzMin;
   o["active_s"] = activeS;
   o["heartbeat_s"] = heartbeatS;
@@ -211,25 +202,13 @@ static void take(JsonObjectConst o, const char* k, T& dst) {
 }
 
 void Settings::fromJson(JsonObjectConst o) {
-  take(o, "farm", farm);
   take(o, "zone", zone);
   take(o, "node", node);
   take(o, "ssid", ssid);
   take(o, "pass", pass);
   if (!o["broker"].isNull()) broker = !strcmp(o["broker"] | "agrisense", "girish") ? 1 : 0;
-  take(o, "ag_host", agHost);
-  take(o, "ag_port", agPort);
-  take(o, "ag_user", agUser);
-  take(o, "ag_pass", agPass);
-  if (!o["ag_id"].isNull()) {
-    String v = o["ag_id"].as<String>();
-    agId = "";
-    agId = v == deviceId() ? String("") : v;  // same as the MAC-based ID: stay automatic
-  }
-  if (strlen(o["mqtt_host"] | "") > 0) mqttHost = o["mqtt_host"].as<String>();  // empty keeps the default
-  take(o, "mqtt_port", mqttPort);
-  take(o, "mqtt_user", mqttUser);
-  take(o, "mqtt_pass", mqttPass);
+  // Old per-node broker host/user/password keys (ag_*, mqtt_*) are ignored:
+  // the profiles are fixed, so a mistyped login can no longer cut a node off.
   take(o, "ap_pass", apPass);
   take(o, "tz_min", tzMin);
   take(o, "active_s", activeS);

@@ -69,6 +69,9 @@ jobs:
         env:
           # Fixed AgriSense login password for wm2-device (wm2_secrets.py compiles it in).
           WM2_AG_PASS: ${{ secrets.WM2_MQTT_PASS }}
+          # Girish broker login (optional: blank = connect without a login).
+          WM2_GR_USER: ${{ secrets.WM2_GIRISH_USER }}
+          WM2_GR_PASS: ${{ secrets.WM2_GIRISH_PASS }}
         run: |
           if [ -z "$WM2_AG_PASS" ]; then echo "::error::Secret WM2_MQTT_PASS is not set: nodes would not reach the AgriSense broker"; exit 1; fi
           pio run -e wm2
@@ -121,9 +124,12 @@ jobs:
       - name: Build release APK
         env:
           WM2_AG_PASS: ${{ secrets.WM2_MQTT_PASS }}
+          WM2_GR_USER: ${{ secrets.WM2_GIRISH_USER }}
+          WM2_GR_PASS: ${{ secrets.WM2_GIRISH_PASS }}
         run: |
           if [ -z "$WM2_AG_PASS" ]; then echo "::error::Secret WM2_MQTT_PASS is not set"; exit 1; fi
-          flutter build apk --release --dart-define=WM2_AG_PASS="$WM2_AG_PASS"
+          flutter build apk --release --dart-define=WM2_AG_PASS="$WM2_AG_PASS" \
+            --dart-define=WM2_GR_USER="$WM2_GR_USER" --dart-define=WM2_GR_PASS="$WM2_GR_PASS"
       - name: Check the signing key
         run: |
           AS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)apksigner

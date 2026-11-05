@@ -60,10 +60,8 @@ class ZoneInfo {
 
 class NodeStore extends ChangeNotifier {
   List<NodeEntry> nodes = [];
-  BrokerSettings agrisense = BrokerSettings(host: 'mqtt.agrisenseandcontrol.in', builtInLogin: true);
-  BrokerSettings girish = BrokerSettings();
 
-  BrokerSettings brokerFor(NodeEntry e) => e.broker == 'girish' ? girish : agrisense;
+  BrokerSettings brokerFor(NodeEntry e) => e.broker == 'girish' ? BrokerSettings.girish : BrokerSettings.agrisense;
   final Map<String, ZoneInfo> zones = {};
 
   ZoneInfo zone(String key) => zones.putIfAbsent(key, () {
@@ -107,10 +105,6 @@ class NodeStore extends ChangeNotifier {
         zones[zi.key] = zi;
       }
     }
-    final a = p.getString('broker_agrisense');
-    if (a != null) agrisense = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(a)))..builtInLogin = true;
-    final g = p.getString('broker_girish');
-    if (g != null) girish = BrokerSettings.fromJson(Map<String, dynamic>.from(jsonDecode(g)));
     notifyListeners();
   }
 
@@ -118,8 +112,6 @@ class NodeStore extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     await p.setString('nodes', jsonEncode(nodes.map((n) => n.toJson()).toList()));
     await p.setString('zones', jsonEncode(zones.values.map((z) => z.toJson()).toList()));
-    await p.setString('broker_agrisense', jsonEncode(agrisense.toJson()));
-    await p.setString('broker_girish', jsonEncode(girish.toJson()));
     notifyListeners();
   }
 }

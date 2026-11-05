@@ -82,7 +82,9 @@ String dispatchCommand(const String& json, const char* via) {
     // Bulk settings change, same keys as get_config (app settings screen).
     cfg.fromJson(in["config"].as<JsonObjectConst>());
     saveCfg = coreCfg = true;
-    if (!in["config"]["ssid"].isNull() || !in["config"]["mqtt_host"].isNull()) net::reconfigure();
+    if (!in["config"]["ssid"].isNull() || !in["config"]["broker"].isNull() || !in["config"]["zone"].isNull() ||
+        !in["config"]["node"].isNull())
+      net::reconfigure();
   } else if (cmd == "valve_open") {
     int v = valveArg(in);
     uint32_t sec = (uint32_t)((in["minutes"] | 0.0f) * 60);
@@ -198,19 +200,12 @@ String dispatchCommand(const String& json, const char* via) {
     saveCfg = true;
     net::reconfigure();
   } else if (cmd == "mqtt_config") {
-    // {"broker":"agrisense"|"girish", "host","port","user","pass", ...}. Without
-    // "broker", the fields go to the active profile. farm/zone/node and ag_id
-    // set the topic names.
+    // {"broker":"agrisense"|"girish", "zone","node"}. Host, port and login are
+    // fixed per profile; any other keys are ignored.
     JsonDocument c;
-    String which = in["broker"] | cfg.brokerName();
-    bool ag = which != "girish";
-    c["broker"] = ag ? "agrisense" : "girish";
-    const char* pre = ag ? "ag_" : "mqtt_";
-    for (const char* k : {"host", "port", "user", "pass"})
-      if (!in[k].isNull()) c[String(pre) + k] = in[k];
-    for (const char* k : {"mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass", "ag_host", "ag_port", "ag_user",
-                          "ag_pass", "ag_id", "farm", "zone", "node"})
-      if (!in[k].isNull()) c[k] = in[k];
+    if (!in["broker"].isNull()) c["broker"] = strcmp(in["broker"] | "", "girish") ? "agrisense" : "girish";
+    for (const char* k : {"zone", "node"})
+      if (strlen(in[k] | "") > 0) c[k] = in[k];
     cfg.fromJson(c.as<JsonObjectConst>());
     saveCfg = true;
     data["broker"] = cfg.brokerName();
