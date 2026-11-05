@@ -384,11 +384,19 @@ class _ValveBlock extends StatelessWidget {
     final flowing = open && (s?['water'] == true || s?['bypass']?['on'] == true);
     final last = v['last'] as Map?;
 
+    final bv = (s?['batt']?['v'] as num?)?.toDouble() ?? 0;
+    final critical = s?['batt']?['level'] == 'critical';
     String status;
     Color dot;
     if (s == null) {
       status = 'offline';
       dot = cs.outline;
+    } else if (!open && v['mode'] != 'off' && bv < 6.5) {
+      status = 'no 12V';  // valves need the 12V supply to switch
+      dot = Colors.red;
+    } else if (!open && v['mode'] != 'off' && critical) {
+      status = 'battery critical';  // node keeps valves shut (safe close)
+      dot = Colors.red;
     } else if (v['pending'] == true) {
       status = 'pending 12V';
       dot = Colors.orange;
@@ -414,12 +422,14 @@ class _ValveBlock extends StatelessWidget {
 
     final small = Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11);
     final laterals = Column(crossAxisAlignment: toLeft ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-      for (var i = 0; i < flows.length; i++)
+      for (var i = 0; i < flows.length; i++) ...[
         Row(mainAxisSize: MainAxisSize.min, children: [
           if (!toLeft) Text('FL${flows[i]['in']} ', style: small),
-          _Laterals(active: flowing, width: 34),
+          _Laterals(active: flowing || ((flows[i]['lpm'] as num?) ?? 0) > 0, width: 34),
           if (toLeft) Text(' FL${flows[i]['in']}', style: small),
         ]),
+        Text(_flowText(flows[i]), style: small?.copyWith(color: cs.primary)),
+      ],
     ]);
 
     return GestureDetector(
@@ -451,6 +461,13 @@ class _ValveBlock extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "1.7 L/min · 12 L": current flow and litres today for one flow sensor.
+String _flowText(Map<String, dynamic> f) {
+  final lpm = ((f['lpm'] as num?) ?? 0).toDouble();
+  final l = ((f['l_today'] as num?) ?? 0).toDouble();
+  return '${lpm.toStringAsFixed(1)} L/min · ${l < 10 ? l.toStringAsFixed(1) : l.round()} L';
 }
 
 /// Three drip lines (one flow sensor covers 3 laterals).
