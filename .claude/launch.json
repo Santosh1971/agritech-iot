@@ -64,6 +64,18 @@
         "cd webapp/agrisense-webapp && BENCH_TOKEN=$(cat ~/.config/agrisense/bench_token_local) npx next dev -p 3077"
       ],
       "port": 3077
+    },
+    {
+      "name": "asac-demo-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8094",
+        "--directory",
+        "products/ASAC-Demo/demo_app/build/web"
+      ],
+      "port": 8094
     }
   ]
 }
