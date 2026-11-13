@@ -163,14 +163,17 @@ class _ValveCard extends StatelessWidget {
       st = 'closed';
     }
     String prog;
+    final m = ((v['manual_min'] as num?) ?? 0).toInt();
+    final manual = m > 0 ? ' · manual today $m min (not counted)' : '';
     if (v['mode'] == 'program') {
-      prog = v['due'] == true
-          ? 'today ${v['run_min']} / ${v['planned_min'] ?? v['planned_l']} ${v['planned_l'] != null ? 'L' : 'min'}'
-          : v['done'] == true
-              ? 'done for today'
-              : 'not due today';
+      prog = (v['due'] == true
+              ? 'program today ${v['run_min']} / ${v['planned_min'] ?? v['planned_l']} ${v['planned_l'] != null ? 'L' : 'min'}'
+              : v['done'] == true
+                  ? 'program done for today (${v['run_min']} min)'
+                  : 'not due today') +
+          manual;
     } else {
-      prog = v['mode'];
+      prog = '${v['mode']}$manual';
     }
     return Card(
       child: Padding(

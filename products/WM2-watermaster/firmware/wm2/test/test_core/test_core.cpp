@@ -333,6 +333,25 @@ void test_seq_entry_state() {
   TEST_ASSERT_EQUAL(SEQ_LOST, seqEntryState(false, true, false, SEQ_LOST_S + 1, 1000));
 }
 
+
+// Manual minutes are counted separately and never toward the program's day
+// target: a 10-min manual run, then the 5-min program, gives run 5 / manual 10.
+void test_manual_minutes_separate_from_program() {
+  Sim s(MON + 8 * 3600);
+  s.c.setProgram(0, timerProg(0x01, 5));
+  s.c.cfg.v[1].mode = MODE_OFF;
+  TEST_ASSERT_TRUE(s.c.manualOpen(0, 600, 0));
+  s.run(601, true);                           // manual 10 min (program waits behind it)
+  TEST_ASSERT_UINT32_WITHIN(2, 600, s.c.valve(0).manualSec);
+  TEST_ASSERT_UINT32_WITHIN(2, 0, s.c.valve(0).runSec);
+  s.run(310, true);                           // then the program's own 5 min
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+  TEST_ASSERT_UINT32_WITHIN(2, 300, s.c.valve(0).runSec);
+  TEST_ASSERT_UINT32_WITHIN(2, 600, s.c.valve(0).manualSec);
+  s.run(24 * 3600, true);                     // next day: both reset
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).manualSec);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -354,5 +373,6 @@ int main(int, char**) {
   RUN_TEST(test_zone_turn_does_not_gate_manual);
   RUN_TEST(test_seq_current_turn);
   RUN_TEST(test_seq_entry_state);
+  RUN_TEST(test_manual_minutes_separate_from_program);
   return UNITY_END();
 }

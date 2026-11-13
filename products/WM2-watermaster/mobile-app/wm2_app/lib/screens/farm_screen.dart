@@ -127,7 +127,7 @@ class _Banner extends StatelessWidget {
           ],
           if (open.isEmpty && closed.isNotEmpty)
             Text('Last: ${_where(closed.first)} ended ${fmtWhen(closed.first.lastEnd)} '
-                '(${closed.first.v['last']['min']} min, ${closed.first.v['last']['l']} L)'),
+                '(${closed.first.v['last']['min']} min, ${closed.first.v['last']['l']} L${runKind(closed.first.v['last'])})'),
           const Divider(height: 18),
           Row(children: [
             Icon(Icons.water_drop, size: 18, color: wet.isEmpty ? null : Colors.blue),
@@ -416,7 +416,7 @@ class _ValveBlock extends StatelessWidget {
       status = 'pending 12V';
       dot = Colors.orange;
     } else if (open) {
-      status = valveProgress(v);
+      status = valveProgress(v, withManual: false);
       dot = Colors.green;
     } else if (v['turn_wait'] == true) {
       // Due, but not this valve's zone turn yet (or no water in the zone).
@@ -475,7 +475,9 @@ class _ValveBlock extends StatelessWidget {
           laterals,
           if (isLast && !open) Text('last irrigated', style: small?.copyWith(color: Colors.amber.shade800, fontWeight: FontWeight.bold)),
           Text(last == null ? 'last: never' : 'last ${fmtWhen((last['end'] as num).toInt())}', style: small, textAlign: toLeft ? TextAlign.right : TextAlign.left),
-          if (last != null) Text('${last['min']} min · ${last['l']} L', style: small),
+          if (last != null) Text('${last['min']} min · ${last['l']} L${runKind(last)}', style: small),
+          if (((v['manual_min'] as num?) ?? 0) > 0)
+            Text('+${v['manual_min']} min manual today', style: small, textAlign: toLeft ? TextAlign.right : TextAlign.left),
           Text(open ? 'running now' : 'next ${fmtDue((v['next_due'] as num?)?.toInt())}',
               style: small, textAlign: toLeft ? TextAlign.right : TextAlign.left),
         ]),

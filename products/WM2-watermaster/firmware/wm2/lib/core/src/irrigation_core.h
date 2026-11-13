@@ -121,6 +121,8 @@ struct ValveState {
   bool done = false;          // today's program finished
   uint32_t runSec = 0;        // today's program run time (counted only with water)
   float runL = 0;             // today's program litres
+  uint32_t manualSec = 0;     // today's manual run time with water (NOT counted toward the program)
+  float manualL = 0;          // today's manual litres
   uint32_t carrySec = 0;      // carried in from yesterday
   float carryL = 0;
   // manual run
@@ -159,7 +161,7 @@ class Core {
   void setProgram(int v, const Program& p);
   void setNormal(int input, float lpm, uint8_t samples) { _normal[input] = lpm; _samples[input] = samples; }
   // Restore today's progress after a reboot (from persisted state).
-  void restoreProgress(int v, uint32_t day, uint32_t runSec, float runL);
+  void restoreProgress(int v, uint32_t day, uint32_t runSec, float runL, uint32_t manualSec = 0, float manualL = 0);
   const char* lastError = "";
 
   static uint32_t localDay(uint32_t localEpoch, uint8_t dayStartHour) {

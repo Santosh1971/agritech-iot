@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.4 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.5 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.4-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.5-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,15 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Program vs manual minutes (0.2.5)
+
+A valve's day program counts only its own (program) minutes; manual runs never count toward
+it. The state now also carries `manual_min` / `manual_l` per valve for today (kept across
+reboots, reset at the day boundary), and run records (`run`, `last`) say `manual` true/false.
+A manual run that carries straight on as a program run (valve never closes) is recorded as two
+runs: before, one "15 min" entry hid that 10 of its minutes were manual and did not count.
+App: "8/17 min" with "+10 min manual today" on its own line; last runs end "· manual"/"· program".
 
 ## LEDs (0.2.4)
 

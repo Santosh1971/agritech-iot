@@ -131,6 +131,8 @@ void Core::_rollDay(uint32_t newDay) {
     }
     s.runSec = 0;
     s.runL = 0;
+    s.manualSec = 0;
+    s.manualL = 0;
     s.done = false;
   }
   for (int i = 0; i < NUM_FLOW; i++) _dayL[i] = 0;
@@ -251,6 +253,8 @@ int Core::tick(const Inputs& in) {
     if (s.open && _water) s.openSec += (uint32_t)(dt + 0.5f);
     if (!flowing) continue;
     if (s.manual) {
+      s.manualSec += (uint32_t)(dt + 0.5f);
+      s.manualL += l;
       if (s.manualTimed) s.manualLeftSec = s.manualLeftSec > dt ? s.manualLeftSec - (uint32_t)(dt + 0.5f) : 0;
       if (s.manualLitres) s.manualLeftL = s.manualLeftL > l ? s.manualLeftL - l : 0;
       if ((s.manualTimed && s.manualLeftSec == 0) || (s.manualLitres && s.manualLeftL <= 0)) {
@@ -402,12 +406,14 @@ void Core::setProgram(int v, const Program& p) {
   _vs[v].carryL = 0;
 }
 
-void Core::restoreProgress(int v, uint32_t day, uint32_t runSec, float runL) {
+void Core::restoreProgress(int v, uint32_t day, uint32_t runSec, float runL, uint32_t manualSec, float manualL) {
   if (v < 0 || v >= NUM_VALVES) return;
   _day = day;
   _started = true;
   _vs[v].runSec = runSec;
   _vs[v].runL = runL;
+  _vs[v].manualSec = manualSec;
+  _vs[v].manualL = manualL;
   const Program& p = cfg.v[v].prog;
   if (p.enabled && ((p.type == PROG_TIMER && runSec >= (uint32_t)p.minutes * 60u) ||
                     (p.type == PROG_LITRES && runL >= (float)p.litres)))

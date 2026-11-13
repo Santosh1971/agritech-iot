@@ -67,7 +67,7 @@ class Node:
             self.valves.append({
                 "open": False, "mode": "program", "manual": False, "left": 0, "litres": 0.0,
                 "run": None,
-                "last": {"start": last_end - mins * 60, "end": last_end, "min": mins,
+                "last": {"start": last_end - mins * 60, "end": last_end, "min": mins, "manual": v == 1,
                          "l": round(mins * 20.8 * random.uniform(0.85, 1.05), 1)},
                 "program": {"enabled": True, "type": "timer", "days": days, "minutes": mins,
                             "window": ["00:00", "23:59"], "carry_over": False},
@@ -150,6 +150,7 @@ class Node:
                  "waiting": v["manual"] and not v["open"], "mode": v["mode"], "due": bool(v["open"]),
                  "done": False, "planned_min": v["program"].get("minutes", 0),
                  "run_min": (v["run"]["sec"] // 60) if v["run"] else 0, "litres": round(v["litres"], 1),
+                 "manual_min": 10 if (self.idx == 0 and i == 0) else 0,
                  "manual": v["manual"], "manual_left_s": v["left"], "never_close": False,
                  "prog": v["program"], "last": v["last"]}
             if v["run"]:

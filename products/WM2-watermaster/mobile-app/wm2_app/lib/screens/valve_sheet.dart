@@ -116,7 +116,7 @@ class _ValveSheetState extends State<_ValveSheet> {
       const SizedBox(height: 6),
       _kv('Now', v['open'] == true ? 'OPEN, ${valveProgress(v)}, ${v['run']?['l'] ?? '-'} L this run' : (v['waiting'] == true ? 'waiting for water' : 'closed')),
       _kv('Program', '${v['mode']} · ${progText(v['prog'])}'),
-      _kv('Last run', last == null ? 'never' : '${fmtWhen((last['start'] as num).toInt())} to ${fmtWhen((last['end'] as num).toInt())} · ${last['min']} min · ${last['l']} L'),
+      _kv('Last run', last == null ? 'never' : '${fmtWhen((last['start'] as num).toInt())} to ${fmtWhen((last['end'] as num).toInt())} · ${last['min']} min · ${last['l']} L${runKind(last)}'),
       _kv('Next due', fmtDue((v['next_due'] as num?)?.toInt())),
       const SizedBox(height: 12),
       Wrap(spacing: 6, runSpacing: 6, children: [

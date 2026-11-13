@@ -144,6 +144,7 @@ struct RunLog {
   uint32_t start = 0, end = 0;  // UTC
   uint32_t waterSec = 0;        // seconds it actually had water (or bypass)
   float litres = 0;
+  bool manual = false;          // opened by hand (app/web/serial), not by its program
 };
 static RunLog lastRun[2];
 static RunLog curRun[2];
@@ -157,6 +158,7 @@ static void runLogLoad() {
     k[0] = 'e'; lastRun[v].end = prefs.getULong(k, 0);
     k[0] = 'w'; lastRun[v].waterSec = prefs.getULong(k, 0);
     k[0] = 'l'; lastRun[v].litres = prefs.getFloat(k, 0);
+    k[0] = 'm'; lastRun[v].manual = prefs.getBool(k, false);
   }
   prefs.end();
 }
@@ -168,29 +170,41 @@ static void runLogSave(int v) {
   k[0] = 'e'; prefs.putULong(k, lastRun[v].end);
   k[0] = 'w'; prefs.putULong(k, lastRun[v].waterSec);
   k[0] = 'l'; prefs.putFloat(k, lastRun[v].litres);
+  k[0] = 'm'; prefs.putBool(k, lastRun[v].manual);
   prefs.end();
+}
+
+static void runLogEnd(int v) {
+  curRun[v].end = nowUtc();
+  // Ignore open/close pulses that delivered nothing (e.g. a valve test).
+  if (curRun[v].waterSec >= 30 || curRun[v].litres >= 1) {
+    lastRun[v] = curRun[v];
+    runLogSave(v);
+  }
 }
 
 static void runLogTick(const float dl[4], float dt, bool flowing) {
   for (int v = 0; v < 2; v++) {
     bool open = hw::valveState(v);
+    bool manual = core.valve(v).manual;
+    // A manual run that carries straight on as a program run (or the other
+    // way round) is two runs: the program counts only its own minutes, and
+    // one "15 min" entry hid that 10 of them were manual (Avinash, 2026-11-13).
+    if (open && runOpen[v] && manual != curRun[v].manual) {
+      runLogEnd(v);
+      runOpen[v] = false;
+    }
     if (open && !runOpen[v]) {
       curRun[v] = RunLog();
       curRun[v].start = nowUtc();
+      curRun[v].manual = manual;
     }
     if (open) {
       for (int i = 0; i < 4; i++)
         if (cfg.core.flowValve[i] == v) curRun[v].litres += dl[i];
       if (flowing) curRun[v].waterSec += (uint32_t)(dt + 0.5f);
     }
-    if (!open && runOpen[v]) {
-      curRun[v].end = nowUtc();
-      // Ignore open/close pulses that delivered nothing (e.g. a valve test).
-      if (curRun[v].waterSec >= 30 || curRun[v].litres >= 1) {
-        lastRun[v] = curRun[v];
-        runLogSave(v);
-      }
-    }
+    if (!open && runOpen[v]) runLogEnd(v);
     runOpen[v] = open;
   }
 }
@@ -253,7 +267,9 @@ void buildState(JsonObject o) {
     j["done"] = s.done;
     if (c.prog.type == PROG_LITRES) j["planned_l"] = c.prog.litres + (uint32_t)s.carryL;
     else j["planned_min"] = c.prog.enabled ? c.prog.minutes + s.carrySec / 60 : 0;
-    j["run_min"] = s.runSec / 60;
+    j["run_min"] = s.runSec / 60;            // program minutes today (what the plan counts)
+    j["manual_min"] = s.manualSec / 60;      // manual minutes today, shown separately
+    j["manual_l"] = roundf(s.manualL * 10) / 10;
     float l = 0;
     for (int i = 0; i < 4; i++)
       if (cfg.core.flowValve[i] == v) l += litresToday[i];
@@ -269,6 +285,7 @@ void buildState(JsonObject o) {
       r["since"] = curRun[v].start;
       r["min"] = curRun[v].waterSec / 60;
       r["l"] = roundf(curRun[v].litres * 10) / 10;
+      r["manual"] = curRun[v].manual;
     }
     if (lastRun[v].end) {
       JsonObject l = j["last"].to<JsonObject>();
@@ -276,6 +293,7 @@ void buildState(JsonObject o) {
       l["end"] = lastRun[v].end;
       l["min"] = lastRun[v].waterSec / 60;
       l["l"] = roundf(lastRun[v].litres * 10) / 10;
+      l["manual"] = lastRun[v].manual;
     }
     uint32_t due;
     if (clockOk && core.nextDue(v, localEpoch(), due)) j["next_due"] = due - cfg.tzMin * 60;  // UTC
@@ -326,6 +344,10 @@ void saveProgressNow() {
   prefs.putULong("r1", core.valve(1).runSec);
   prefs.putFloat("l0", core.valve(0).runL);
   prefs.putFloat("l1", core.valve(1).runL);
+  prefs.putULong("m0", core.valve(0).manualSec);
+  prefs.putULong("m1", core.valve(1).manualSec);
+  prefs.putFloat("ml0", core.valve(0).manualL);
+  prefs.putFloat("ml1", core.valve(1).manualL);
   for (int i = 0; i < 4; i++) {
     char k[4] = {'n', (char)('0' + i), 0};
     prefs.putFloat(k, core.normalLpm(i));
@@ -333,8 +355,8 @@ void saveProgressNow() {
     prefs.putUChar(k, core.normalSamples(i));
   }
   prefs.end();
-  savedRun[0] = core.valve(0).runSec;
-  savedRun[1] = core.valve(1).runSec;
+  savedRun[0] = core.valve(0).runSec + core.valve(0).manualSec;
+  savedRun[1] = core.valve(1).runSec + core.valve(1).manualSec;
 }
 
 static void restoreProgress() {
@@ -347,8 +369,10 @@ static void restoreProgress() {
     core.setNormal(i, n, prefs.getUChar(k, 0));
   }
   if (clockOk && day && (day == todayIndex() || day + 1 == todayIndex())) {
-    core.restoreProgress(0, day, prefs.getULong("r0", 0), prefs.getFloat("l0", 0));
-    core.restoreProgress(1, day, prefs.getULong("r1", 0), prefs.getFloat("l1", 0));
+    core.restoreProgress(0, day, prefs.getULong("r0", 0), prefs.getFloat("l0", 0), prefs.getULong("m0", 0),
+                         prefs.getFloat("ml0", 0));
+    core.restoreProgress(1, day, prefs.getULong("r1", 0), prefs.getFloat("l1", 0), prefs.getULong("m1", 0),
+                         prefs.getFloat("ml1", 0));
     Serial.printf("[prog] restored today's progress: V1 %lu s, V2 %lu s\n", (unsigned long)core.valve(0).runSec,
                   (unsigned long)core.valve(1).runSec);
   }
@@ -696,7 +720,9 @@ void loop() {
 
     if (now - lastSave >= 60000) {
       lastSave = now;
-      if (core.valve(0).runSec != savedRun[0] || core.valve(1).runSec != savedRun[1]) saveProgressNow();
+      if (core.valve(0).runSec + core.valve(0).manualSec != savedRun[0] ||
+          core.valve(1).runSec + core.valve(1).manualSec != savedRun[1])
+        saveProgressNow();
       if (lastSentUtc != lastSentSaved) {
         prefs.begin("net", false);
         prefs.putULong("sent", lastSentUtc);
