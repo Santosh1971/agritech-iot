@@ -22,7 +22,9 @@ class LocalLink with ReplyMatcher implements NodeLink {
   final _conn = StreamController<bool>.broadcast();
 
   @override
-  String get kind => 'Local';
+  // How the phone reaches the node, in the user's words: through the node's
+  // own WiFi (SoftAP, 192.168.4.1) or both on the same farm/office WiFi.
+  String get kind => host.startsWith('192.168.4.1') ? "node's own WiFi" : 'same WiFi';
   @override
   Stream<Map<String, dynamic>> get state => _state.stream;
   @override

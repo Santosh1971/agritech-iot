@@ -155,7 +155,7 @@ class NodeController extends ChangeNotifier {
   String _statusFor(NodeLink l, bool up) {
     if (!up) return 'reconnecting (${l.kind})...';
     if (l is MqttLink && !l.nodeOnline) return 'node offline (not connected to the cloud)';
-    return l is MqttLink ? 'connected (cloud)' : 'connected (${l.kind})';
+    return 'connected (${l.kind})';
   }
 
   /// After the app comes back to the foreground: ask the node for its state;

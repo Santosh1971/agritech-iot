@@ -49,7 +49,7 @@ class MqttLink with ReplyMatcher implements NodeLink {
   bool get nodeOnline => _nodeOnline;
 
   @override
-  String get kind => 'MQTT';
+  String get kind => 'cloud';
   @override
   Stream<Map<String, dynamic>> get state => _state.stream;
   @override
