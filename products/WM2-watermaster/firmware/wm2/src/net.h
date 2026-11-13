@@ -12,6 +12,8 @@ bool mqttUp();
 bool apOn();
 void startAp(uint32_t minutes);
 String ip();
+String joinStatus();  // after wifi_config: joining / joined / failed ("" = none)
+String lastError();   // why the last join failed, in words ("" = none)
 int rssi();
 int apClients();
 // Publish under <base>/<sub>. Returns false if MQTT is not connected.

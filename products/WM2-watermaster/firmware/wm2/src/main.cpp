@@ -292,6 +292,8 @@ void buildState(JsonObject o) {
   JsonObject w = o["wifi"].to<JsonObject>();
   w["ip"] = net::ip();
   w["rssi"] = net::rssi();
+  if (net::joinStatus().length()) w["join"] = net::joinStatus();
+  if (!net::wifiUp() && net::lastError().length()) w["error"] = net::lastError();
   w["ap"] = net::apOn();
   w["ap_clients"] = net::apClients();
   o["mqtt"] = net::mqttUp();
@@ -726,9 +728,9 @@ void loop() {
 
   if (now - lastLed >= 40) {
     lastLed = now;
-    hw::ledsLoop(net::apClients() > 0 ? hw::WL_AP_PHONE
-                 : net::mqttUp()   ? hw::WL_MQTT
-                 : net::wifiUp() ? hw::WL_WIFI
+    hw::ledsLoop(net::mqttUp()      ? hw::WL_MQTT
+                 : net::wifiUp()   ? hw::WL_WIFI
+                 : net::apClients() > 0 ? hw::WL_AP_PHONE
                  : net::apOn()   ? hw::WL_AP
                                  : hw::WL_SEARCH,
                  cfg.core.psFitted && ps, bypass);

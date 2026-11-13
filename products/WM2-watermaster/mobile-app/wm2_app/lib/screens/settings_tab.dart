@@ -97,6 +97,25 @@ class _SettingsTabState extends State<SettingsTab> {
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.all(12), children: [
         section('Farm WiFi', [
+          Builder(builder: (_) {
+            // Live result of the node's WiFi join (state.wifi: ip / join / error).
+            final w = (widget.ctl.state?['wifi'] as Map?) ?? {};
+            final ip = '${w['ip'] ?? ''}';
+            final text = ip.isNotEmpty
+                ? 'Connected to the farm WiFi ($ip)'
+                : w['join'] == 'joining'
+                    ? 'Joining the farm WiFi...'
+                    : w['error'] != null
+                        ? 'Not connected: ${w['error']}'
+                        : 'Not connected to the farm WiFi';
+            return SizedBox(
+              width: double.infinity,
+              child: Text(text,
+                  style: TextStyle(
+                      color: ip.isNotEmpty ? Colors.green.shade700 : w['error'] != null ? Colors.red.shade700 : null,
+                      fontWeight: FontWeight.w600)),
+            );
+          }),
           field('ssid', 'SSID', cfg['ssid'], w: 200),
           field('wpass', 'Password', '', secret: true, w: 200),
           TextButton.icon(
@@ -138,7 +157,7 @@ class _SettingsTabState extends State<SettingsTab> {
               if (ok == true) await _send({'cmd': 'wifi_forget'}, 'Farm WiFi forgotten; node is on its SoftAP');
             },
           ),
-        ], () => _send({'cmd': 'wifi_config', 'ssid': f('ssid').text.trim(), 'pass': f('wpass').text}, 'WiFi saved; node is joining')),
+        ], () => _send({'cmd': 'wifi_config', 'ssid': f('ssid').text.trim(), 'pass': f('wpass').text}, 'WiFi saved; node is joining. Once it joins, its own WiFi closes after 1 min: put the phone back on the farm WiFi.')),
         section('MQTT broker (node)', [
           SizedBox(
             width: 220,

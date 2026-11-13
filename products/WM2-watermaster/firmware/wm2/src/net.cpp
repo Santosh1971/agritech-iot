@@ -62,8 +62,31 @@ static const uint32_t STA_RETRY_MS = 30000;
 // WiFi scans are refused (tracker WM2-004, same bug as FG1-003). Retries start
 // again this long after the last phone leaves.
 static const uint32_t AP_QUIET_MS = 30000;
+// After the user saves WiFi details: one protected join attempt (a phone
+// re-joining the SoftAP must not cancel it, as the background-retry guard
+// above would), then the SoftAP closes so the phone goes back to the farm
+// WiFi, as on FG1.
+static const uint32_t JOIN_NOW_MS = 25000;
+static const uint32_t AP_AFTER_JOIN_MS = 60000;
+static uint32_t joinUntil = 0;          // millis; 0 = no user join in progress
+static String joinState = "";           // "", joining, joined, failed
+static uint8_t lastDiscReason = 0;      // last STA disconnect reason (esp_wifi)
+
+static const char* reasonText(uint8_t r) {
+  switch (r) {
+    case 0: return "";
+    case 201: return "network not found (check the name, 2.4 GHz only)";
+    case 202: case 15: case 204: case 2: return "wrong password";
+    case 203: return "router refused the node (association failed)";
+    case 200: return "router signal lost";
+    case 8: return "left the network";
+    default: return "could not connect";
+  }
+}
 
 bool wifiUp() { return WiFi.status() == WL_CONNECTED; }
+String joinStatus() { return joinState; }
+String lastError() { return reasonText(lastDiscReason); }
 bool mqttUp() { return mqttIsUp; }
 bool apOn() { return apActive; }
 String ip() { return wifiUp() ? WiFi.localIP().toString() : String(""); }
@@ -176,8 +199,13 @@ static void doReconfigure() {
     WiFi.disconnect();
     WiFi.mode(apActive ? WIFI_AP_STA : WIFI_STA);
     WiFi.setHostname(cfg.hostname().c_str());
+    lastDiscReason = 0;
     WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());
     lastStaTry = millis();
+    joinUntil = millis() + JOIN_NOW_MS;
+    if (!joinUntil) joinUntil = 1;
+    joinState = "joining";
+    Serial.printf("[net] joining %s now (saved by the user)\n", cfg.ssid.c_str());
   }
   if (mdnsUp) { MDNS.end(); mdnsUp = false; }
 }
@@ -193,6 +221,9 @@ void begin(bool doubleReset) {
   mqtt.setCallback(onMqtt);
   mqtt.setBufferSize(4096);
   mqtt.setKeepAlive(30);
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
+    lastDiscReason = info.wifi_sta_disconnected.reason;
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   // One scan at boot, before joining or starting the SoftAP, so the app's
   // first network list is instant.
   WiFi.mode(WIFI_STA);
@@ -231,6 +262,21 @@ void loop() {
   scanPoll();
   bool up = wifiUp();
 
+  // The user's join: report the result; on success close the SoftAP soon.
+  if (joinUntil) {
+    if (up) {
+      joinUntil = 0;
+      joinState = "joined";
+      lastDiscReason = 0;
+      if (apActive) apUntil = now + AP_AFTER_JOIN_MS;
+      Serial.printf("[net] joined %s; SoftAP closes in %lu s\n", cfg.ssid.c_str(), AP_AFTER_JOIN_MS / 1000);
+    } else if ((int32_t)(now - joinUntil) > 0) {
+      joinUntil = 0;
+      joinState = "failed";
+      Serial.printf("[net] could not join %s: %s (reason %u)\n", cfg.ssid.c_str(), reasonText(lastDiscReason), lastDiscReason);
+    }
+  }
+
   if (up && !wasUp) {
     Serial.printf("[net] WiFi up, IP %s, RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
     if (!mdnsUp && MDNS.begin(cfg.hostname().c_str())) {
@@ -252,7 +298,7 @@ void loop() {
   // Retry the farm WiFi every 30 s, but not while a phone is on the SoftAP.
   bool phone = apActive && WiFi.softAPgetStationNum() > 0;
   if (phone) {
-    if (!up && apIdleSince != 0 && cfg.ssid.length()) {
+    if (!up && apIdleSince != 0 && cfg.ssid.length() && !joinUntil) {
       WiFi.disconnect();  // stop a join in progress
       Serial.println("[net] phone on SoftAP: farm WiFi retries paused");
     }
@@ -261,7 +307,7 @@ void loop() {
     apIdleSince = now;
   }
   bool quiet = apActive && (phone || (apIdleSince && now - apIdleSince < AP_QUIET_MS));
-  if (!up && cfg.ssid.length() && !quiet && !scanning && now - lastStaTry > STA_RETRY_MS) {
+  if (!up && cfg.ssid.length() && !quiet && !scanning && !joinUntil && now - lastStaTry > STA_RETRY_MS) {
     lastStaTry = now;
     WiFi.disconnect();
     WiFi.begin(cfg.ssid.c_str(), cfg.pass.c_str());
@@ -279,7 +325,7 @@ void loop() {
   // and nobody is connected, if the farm WiFi is configured.
   if (!up && cfg.ssid.length() && !apActive && now - staLostSince > STA_FAIL_TO_AP_MS) startAp(15);
   if (apActive && cfg.ssid.length() && apUntil && (int32_t)(now - apUntil) > 0) {
-    if (WiFi.softAPgetStationNum() == 0) {
+    if (WiFi.softAPgetStationNum() == 0 || (up && joinState == "joined")) {
       if (up) stopAp();
       else { staLostSince = now; stopAp(); }  // off for a while, back after another 10 min
     } else {

@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.0 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.1 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.0-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.1-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,16 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Saving the farm WiFi (0.2.1)
+
+Saving WiFi details (app or web page) starts one protected join of up to 25 s: a phone
+re-joining the SoftAP no longer cancels it (it did before, so a node set up from the
+SoftAP often never joined). The result is in the state: `wifi.join` joining / joined /
+failed and `wifi.error` in words (wrong password, network not found - 2.4 GHz only...).
+After a successful join the SoftAP closes 1 min later, even with the phone still on it,
+so the phone goes back to the farm WiFi (as on FG1). The WiFi LED now shows the farm WiFi
+state (connected / MQTT) ahead of "phone on the SoftAP".
 
 ## Zone turns (0.2.0)
 
