@@ -18,7 +18,7 @@ fill in the real values (same MQTT login as FG1).
 
 ```bash
 cd products/FG1-flowguard/polyhouse/firmware
-pio test -e native                     # 21 misting-rule tests, no board needed
+pio test -e native                     # 24 misting-rule tests, no board needed
 pio run -e controller -t upload --upload-port /dev/cu.usbserial-XXXX
 pio run -e node -t upload --upload-port /dev/cu.usbserial-YYYY
 pio device monitor -b 115200
@@ -72,9 +72,11 @@ simulates a controller, for showing the customer without hardware.
 
 **Misting rules** (`firmware/lib/MistLogic`, all values adjustable in the app):
 stop if T ≤ 29 °C or RH ≥ 60 % (stop always wins); start if T ≥ 32 °C, or
-RH ≤ 45 % with T > 29 °C; in between the last decision holds. After a humidity stop, misting
-restarts only once RH has fallen 3 % below the stop line (57 % by default), so humidity hovering at
-60 % cannot cycle the pump. While misting:
+RH ≤ 45 % with T > 29 °C; in between the last decision holds. Restart margins (app: Settings →
+Restart margin, fw 0.1.3+): after a humidity stop misting restarts only once RH <= stop − margin
+(60 − 3 = 57 %), after a temperature stop only once T >= stop + margin (29 + 1 = 30 °C), so a value
+hovering at a stop line cannot cycle the pump. Saved settings from older firmware carry over on
+update (the margins start at 1 °C / 3 %). While misting:
 2:00 ON / 3:00 OFF pulses, only inside the working hours (11:00–15:00).
 Motor protection: at least the OFF time between any two starts (a power cut
 counts as an OFF, so the pump never restarts within 3 min of power coming
@@ -100,7 +102,7 @@ newer, by its `rev`).
 
 ## Bench test with two boards (tomorrow)
 
-1. **Logic**: `pio test -e native`. All 21 tests should pass.
+1. **Logic**: `pio test -e native`. All 24 tests should pass.
 2. **Flash** board A as controller and board B as node. On each boot log,
    check the sensor line, e.g. `[TH] SHT4x at 0x44`. If it says
    `No T/RH sensor found`, the I2C scan lists what is on the bus; tell me

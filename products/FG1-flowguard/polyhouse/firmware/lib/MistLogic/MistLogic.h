@@ -9,8 +9,10 @@
 //   START:                T >= tStart (32) or (RH <= rhLow (45) and T > tStop)
 //   Between the two (29 < T < 32, 45 < RH < 60) the last decision holds,
 //   so the pump does not chatter around one threshold.
-//   After an RH stop, misting may restart only once RH <= rhHigh - 3 (57),
-//   so humidity hovering at 60 % cannot start and stop the pump repeatedly.
+//   Restart margins (settings): after an RH stop, misting may restart only
+//   once RH <= rhHigh - rhHyst (60 - 3 = 57); after a temperature stop, only
+//   once T >= tStop + tHyst (29 + 1 = 30). So T or RH hovering at a stop line
+//   cannot start and stop the pump repeatedly.
 //   While misting is wanted, the pump pulses onSec ON / offSec OFF (2/3 min),
 //   only inside the working window (11:00-15:00), all adjustable.
 #include <stdint.h>
@@ -47,6 +49,11 @@ struct Settings {
     uint16_t winEndMin    = 15 * 60;
     uint8_t  maxStartsHr  = 15;    // 0 = no limit
     uint16_t manualMaxMin = 30;    // manual ON auto-stops after this (0 = never)
+    // Restart margins. Keep these LAST: settings are saved as raw bytes and
+    // older (shorter) saves are loaded as a prefix, the new fields keeping
+    // these defaults.
+    float    tHyst        = 1.0f;  // °C above tStop before misting may restart after a temp stop
+    float    rhHyst       = 3.0f;  // %RH below rhHigh before misting may restart after an RH stop
 
     // Clamps nonsense from the app into a safe range; returns false if it
     // had to change anything.
@@ -64,7 +71,6 @@ struct Inputs {
 
 class Controller {
 public:
-    static constexpr float RH_RESTART_MARGIN = 3.0f;   // %RH below rhHigh before misting may restart
 
     void setSettings(const Settings& s) { _s = s; }
     const Settings& settings() const { return _s; }
@@ -99,7 +105,8 @@ private:
     bool     _demand  = false;
     bool     _inWindow = false;
     Reason   _reason  = Reason::Idle;
-    bool     _rhStopped = false;      // latched by RH >= rhHigh, released at rhHigh - RH_RESTART_MARGIN
+    bool     _rhStopped = false;      // latched by RH >= rhHigh, released at rhHigh - rhHyst
+    bool     _tStopped  = false;      // latched by T <= tStop, released at tStop + tHyst
     bool     _everOff = true;         // boot counts as an OFF edge at t=0: a power blip can't restart the motor before offSec
     uint32_t _onAt    = 0;
     uint32_t _offAt   = 0;

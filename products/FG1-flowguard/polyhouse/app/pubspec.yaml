@@ -1,7 +1,7 @@
 name: asac_fg1
 description: "ASAC FG1 — polyhouse misting controller (Agri Sensors and Controls)"
 publish_to: 'none'
-version: 0.1.1+2
+version: 0.1.3+3
 
 environment:
   sdk: ^3.6.0

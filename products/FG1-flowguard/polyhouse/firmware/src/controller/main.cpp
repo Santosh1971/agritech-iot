@@ -165,13 +165,17 @@ static uint32_t today = 0, startsToday = 0, onSecToday = 0, pumpOnSince = 0;
 static void saveSettings() {
     Settings s = mistCtl.settings();
     prefs.putBytes("mist", &s, sizeof(s));
-    prefs.putUChar("mistv", 1);
+    prefs.putUChar("mistv", 2);       // 2 = with restart margins (tHyst, rhHyst)
     prefs.putULong("rev", settingsRev);
 }
 static void loadSettings() {
     Settings s;
-    if (prefs.getUChar("mistv", 0) == 1 && prefs.getBytesLength("mist") == sizeof(Settings))
-        prefs.getBytes("mist", &s, sizeof(s));
+    // Settings are raw bytes. A save from older firmware is shorter (no margins
+    // at the end): load it as a prefix, so the user's values survive and the
+    // new fields keep their defaults.
+    size_t len = prefs.getBytesLength("mist");
+    if (prefs.getUChar("mistv", 0) >= 1 && len > 0 && len <= sizeof(Settings))
+        prefs.getBytes("mist", &s, len);
     s.sanitize();
     mistCtl.setSettings(s);
     settingsRev = prefs.getULong("rev", 0);
@@ -187,6 +191,7 @@ static void settingsToJson(JsonObject o) {
     o["on_s"] = s.onSec;      o["off_s"] = s.offSec;
     o["win_on"] = s.windowOn; o["win_start"] = s.winStartMin; o["win_end"] = s.winEndMin;
     o["max_starts"] = s.maxStartsHr; o["manual_max"] = s.manualMaxMin;
+    o["t_hyst"] = s.tHyst;    o["rh_hyst"] = s.rhHyst;
     o["sensor_timeout"] = nodes.sensorTimeoutSec;
     o["rev"] = settingsRev;
 }
@@ -206,14 +211,17 @@ static bool applySettings(JsonObject p, String& err, bool fromRetained) {
     if (p["win_end"].is<int>())    s.winEndMin = p["win_end"];
     if (p["max_starts"].is<int>()) s.maxStartsHr = p["max_starts"];
     if (p["manual_max"].is<int>()) s.manualMaxMin = p["manual_max"];
+    if (p["t_hyst"].is<float>())   s.tHyst = p["t_hyst"];
+    if (p["rh_hyst"].is<float>())  s.rhHyst = p["rh_hyst"];
     bool clamped = !s.sanitize();   // saved anyway, with out-of-range values pulled into range
     mistCtl.setSettings(s);
     settingsRev = rev ? rev : settingsRev + 1;
     saveSettings();
-    char b[96];
-    snprintf(b, sizeof(b), "Settings: start %.1f/%.0f%%, stop %.1f/%.0f%%, %us on/%us off, %02u:%02u-%02u:%02u%s",
-             s.tStart, s.rhLow, s.tStop, s.rhHigh, s.onSec, s.offSec, s.winStartMin / 60, s.winStartMin % 60,
-             s.winEndMin / 60, s.winEndMin % 60, clamped ? " (adjusted)" : s.windowOn ? "" : " (window off)");
+    char b[128];
+    // Fits the 72-char event: "Settings 32.0/45% > 29.0/60% +-1.0/3 120/180s 11:00-15:00 (adjusted)"
+    snprintf(b, sizeof(b), "Settings %.1f/%.0f%% > %.1f/%.0f%% +-%.1f/%.0f %u/%us %02u:%02u-%02u:%02u%s",
+             s.tStart, s.rhLow, s.tStop, s.rhHigh, s.tHyst, s.rhHyst, s.onSec, s.offSec, s.winStartMin / 60, s.winStartMin % 60,
+             s.winEndMin / 60, s.winEndMin % 60, clamped ? " (adjusted)" : s.windowOn ? "" : " (no window)");
     logEvent(b);
     return true;
 }

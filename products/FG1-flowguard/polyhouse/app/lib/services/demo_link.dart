@@ -18,11 +18,12 @@ class DemoLink implements NodeLink {
   final Map<String, dynamic> s = {
     't_start': 32.0, 't_stop': 29.0, 'rh_low': 45.0, 'rh_high': 60.0,
     'on_s': 120, 'off_s': 180, 'win_on': false, 'win_start': 660, 'win_end': 900,
-    'max_starts': 15, 'manual_max': 30, 'sensor_timeout': 120, 'rev': 0,
+    'max_starts': 15, 'manual_max': 30, 't_hyst': 1.0, 'rh_hyst': 3.0, 'sensor_timeout': 120, 'rev': 0,
   };
   String mode = 'auto';
   bool manualWant = false;
   bool pump = false;
+  bool rhStopped = false, tStopped = false; // restart margins, as in the firmware
   bool demand = false;
   String reason = 'idle';
   int onAt = 0, offAt = 0;
@@ -116,14 +117,19 @@ class DemoLink implements NodeLink {
     if (!ok) {
       demand = false;
       climate = 'sensor_fault';
-    } else if (rh >= s['rh_high']) {
+    } else if (rh >= s['rh_high'] || (rhStopped && rh > s['rh_high'] - s['rh_hyst'])) {
+      rhStopped = true;
       demand = false;
       climate = 'stop_rh_high';
-    } else if (t <= s['t_stop']) {
+    } else if (t <= s['t_stop'] || (tStopped && t < s['t_stop'] + s['t_hyst'])) {
+      rhStopped = false;
+      tStopped = true;
       demand = false;
       climate = 'stop_temp_low';
-    } else if (t >= s['t_start'] || rh <= s['rh_low']) {
-      demand = true;
+    } else {
+      rhStopped = false;
+      tStopped = false;
+      if (t >= s['t_start'] || rh <= s['rh_low']) demand = true;
     }
     if (mode == 'off') {
       reason = 'mode_off';

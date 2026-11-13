@@ -131,6 +131,37 @@ void test_rh_margin_only_after_a_rh_stop() {
     TEST_ASSERT_TRUE(step(33, 59.0f));             // never reached 60: starts as before
 }
 
+void test_temp_stop_needs_margin_to_restart() {
+    TEST_ASSERT_TRUE(step(29.5f, 40));             // dry and warm: misting
+    TEST_ASSERT_FALSE(step(29.0f, 40));            // T at stop line: stop
+    TEST_ASSERT_EQUAL(Reason::StopTempLow, c.reason());
+    TEST_ASSERT_FALSE(step(29.5f, 40, 400));       // above stop, below stop + 1: still stopped
+    TEST_ASSERT_EQUAL(Reason::StopTempLow, c.reason());
+    TEST_ASSERT_TRUE(step(30.0f, 40, 10));         // 30 = 29 + 1: misting again
+}
+
+void test_margins_are_settings() {
+    Settings s; s.rhHyst = 0; s.tHyst = 0;
+    c.setSettings(s);
+    step(33, 50);
+    TEST_ASSERT_FALSE(step(33, 60.0f));
+    TEST_ASSERT_TRUE(step(33, 59.8f, 400));        // no margin: restarts just under the stop line
+    s.rhHyst = 10; c.setSettings(s);
+    TEST_ASSERT_FALSE(step(33, 60.0f, 10));
+    TEST_ASSERT_FALSE(step(33, 51.0f, 400));       // 10 % margin: 51 is not enough
+    TEST_ASSERT_TRUE(step(33, 50.0f, 10));
+}
+
+void test_margin_sanitize() {
+    Settings s; s.tHyst = 9; s.rhHyst = -1;
+    TEST_ASSERT_FALSE(s.sanitize());
+    TEST_ASSERT_EQUAL_FLOAT(5.0f, s.tHyst);
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, s.rhHyst);
+    Settings d;
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, d.tHyst);
+    TEST_ASSERT_EQUAL_FLOAT(3.0f, d.rhHyst);
+}
+
 void test_boot_hold() {
     c = Controller();
     in.nowSec = 10;                                // 10 s after power-on
@@ -194,6 +225,9 @@ int main(int, char**) {
     RUN_TEST(test_rh_high_wins_over_hot);
     RUN_TEST(test_rh_stop_needs_margin_to_restart);
     RUN_TEST(test_rh_margin_only_after_a_rh_stop);
+    RUN_TEST(test_temp_stop_needs_margin_to_restart);
+    RUN_TEST(test_margins_are_settings);
+    RUN_TEST(test_margin_sanitize);
     RUN_TEST(test_hysteresis_keeps_misting_in_band);
     RUN_TEST(test_pulse_2_on_3_off);
     RUN_TEST(test_stop_mid_pulse_is_immediate);

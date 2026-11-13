@@ -44,6 +44,18 @@ class _SettingsTabState extends State<SettingsTab> {
           onChanged: (v) => set('t_stop', v)),
       _Stepper(label: 'or humidity reaches', value: n('rh_high'), unit: '%', step: 1, min: 20, max: 100,
           onChanged: (v) => set('rh_high', v)),
+      // Controllers from fw 0.1.3 report the margins; older ones don't have them.
+      if (e.containsKey('t_hyst')) ...[
+        const SectionTitle('Restart margin (after a stop)'),
+        _Stepper(
+            label: 'Temperature: restart only at ${(n('t_stop') + n('t_hyst')).toStringAsFixed(1)} °C or above',
+            value: n('t_hyst'), unit: '°C', step: 0.5, min: 0, max: 5,
+            onChanged: (v) => set('t_hyst', v)),
+        _Stepper(
+            label: 'Humidity: restart only at ${(n('rh_high') - n('rh_hyst')).toStringAsFixed(0)} % or below',
+            value: n('rh_hyst'), unit: '%', step: 1, min: 0, max: 20,
+            onChanged: (v) => set('rh_hyst', v)),
+      ],
       const SectionTitle('Pulse'),
       _Stepper(label: 'Pump ON for', value: n('on_s'), unit: 's', step: 10, min: 10, max: 1800, asTime: true,
           onChanged: (v) => set('on_s', v)),
@@ -135,8 +147,8 @@ class _SettingsTabState extends State<SettingsTab> {
     final e = _edit!;
     final cmd = <String, dynamic>{
       'cmd': 'set_settings',
-      for (final k in ['t_start', 't_stop', 'rh_low', 'rh_high', 'on_s', 'off_s', 'win_on', 'win_start', 'win_end', 'max_starts', 'manual_max'])
-        k: e[k],
+      for (final k in ['t_start', 't_stop', 'rh_low', 'rh_high', 'on_s', 'off_s', 'win_on', 'win_start', 'win_end', 'max_starts', 'manual_max', 't_hyst', 'rh_hyst'])
+        if (e.containsKey(k)) k: e[k],
       'rev': DateTime.now().millisecondsSinceEpoch ~/ 1000,
     };
     final r = await runCmd(context, widget.conn.send(cmd), okMsg: 'Saved');

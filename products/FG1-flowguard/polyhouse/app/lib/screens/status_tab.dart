@@ -127,7 +127,8 @@ class StatusTab extends StatelessWidget {
             _rule(Icons.play_circle_outline, Colors.green,
                 'Start at ${set['t_start']} °C, or RH ≤ ${set['rh_low']} % when above ${set['t_stop']} °C'),
             _rule(Icons.stop_circle_outlined, Colors.red,
-                'Stop at ${set['t_stop']} °C or RH ≥ ${set['rh_high']} %'),
+                'Stop at ${set['t_stop']} °C or RH ≥ ${set['rh_high']} %'
+                '${set['t_hyst'] == null ? '' : ' · restart from ${((set['t_stop'] as num) + (set['t_hyst'] as num)).toStringAsFixed(1)} °C / ${((set['rh_high'] as num) - (set['rh_hyst'] as num)).toStringAsFixed(0)} %'}'),
             _rule(Icons.timelapse, cs.primary,
                 'Pulse ${mmss(set['on_s'] ?? 0)} ON / ${mmss(set['off_s'] ?? 0)} OFF'),
             _rule(Icons.schedule, s.inWindow ? cs.primary : Colors.orange,

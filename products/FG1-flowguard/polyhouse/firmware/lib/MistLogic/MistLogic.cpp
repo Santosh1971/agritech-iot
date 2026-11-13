@@ -55,6 +55,8 @@ bool Settings::sanitize() {
     ok &= clampI<uint16_t>(winEndMin, 0, 1439);
     ok &= clampI<uint8_t>(maxStartsHr, 0, 60);
     ok &= clampI<uint16_t>(manualMaxMin, 0, 240);
+    ok &= clampF(tHyst, 0, 5);
+    ok &= clampF(rhHyst, 0, 20);
     return ok;
 }
 
@@ -121,19 +123,22 @@ bool Controller::update(const Inputs& in) {
     if (!in.sensorOk) {
         _demand = false;
         climate = Reason::SensorFault;
-    } else if (in.rh >= _s.rhHigh || (_rhStopped && in.rh > _s.rhHigh - RH_RESTART_MARGIN)) {
-        _rhStopped = true;                    // stays stopped until RH falls 3 % below the stop line
+    } else if (in.rh >= _s.rhHigh || (_rhStopped && in.rh > _s.rhHigh - _s.rhHyst)) {
+        _rhStopped = true;                    // stays stopped until RH falls rhHyst below the stop line
         _demand = false;
         climate = Reason::StopRhHigh;
     } else {
         _rhStopped = false;
-        if (in.t <= _s.tStop) {
+        if (in.t <= _s.tStop || (_tStopped && in.t < _s.tStop + _s.tHyst)) {
+            _tStopped = true;                 // stays stopped until T rises tHyst above the stop line
             _demand = false;
             climate = Reason::StopTempLow;
-        } else if (in.t >= _s.tStart || in.rh <= _s.rhLow) {
-            _demand = true;                   // T > tStop already true here
+        } else {
+            _tStopped = false;
+            if (in.t >= _s.tStart || in.rh <= _s.rhLow)
+                _demand = true;               // T > tStop already true here
+            // else: inside the band — _demand unchanged
         }
-        // else: inside the band — _demand unchanged
     }
 
     if (_mode == Mode::Off) {
