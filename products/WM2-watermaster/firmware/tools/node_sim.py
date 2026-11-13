@@ -30,8 +30,22 @@ def local_day(ts):
     return (ts + TZ) // 86400
 
 
+ALL = []  # every simulated node, for zone turns
+SEQ_RUN_S = 60  # a turn valve "finishes" after this long open with water (short, for testing)
+
+
+def zone_leader_of(dev):
+    """The simulated leader whose turns list any valve of `dev`."""
+    for n in ALL:
+        if any(e.split(":")[0] == dev for t in n.seq for e in t):
+            return n
+    return None
+
+
 class Node:
     def __init__(self, idx, port):
+        self.seq = []          # zone turns when this node leads (node 1 has the pressure switch)
+        self.seq_done = set()  # "DEV:v" finished today
         self.idx = idx
         self.port = port
         mac8 = "SIM%05d" % (idx + 1)
@@ -96,8 +110,40 @@ class Node:
                 return day * 86400 - TZ
         return None
 
+    def seq_turn(self):
+        for t, turn in enumerate(self.seq):
+            if any(e not in self.seq_done for e in turn):
+                return t
+        return -1
+
+    def seq_allowed(self, eid):
+        t = self.seq_turn()
+        return self.water and t >= 0 and eid in self.seq[t] and eid not in self.seq_done
+
+    def zone_state(self):
+        if self.seq:
+            t = self.seq_turn()
+            turns = []
+            for turn in self.seq:
+                row = []
+                for e in turn:
+                    dev, v = e.split(":")
+                    n = next((x for x in ALL if x.dev_id == dev), None)
+                    open_ = bool(n and n.valves[int(v) - 1]["open"])
+                    st = "finished" if e in self.seq_done else "running" if open_ else "waiting" if n else "lost"
+                    row.append({"id": e, "st": st, "heard_s": 1})
+                turns.append(row)
+            return {"role": "leader", "turn": t + 1, "water": self.water, "wifi": True, "turns": turns}
+        ld = zone_leader_of(self.dev_id)
+        if ld:
+            gated = [v for v in (1, 2) if any(e == "%s:%d" % (self.dev_id, v) for t in ld.seq for e in t)]
+            return {"role": "member", "leader": ld.dev_id, "heard_s": 1, "lost": False, "gated": gated,
+                    "allowed": [v for v in gated if ld.seq_allowed("%s:%d" % (self.dev_id, v))]}
+        return None
+
     def state(self):
         now = int(time.time())
+        zone = self.zone_state()
         vals = []
         for i, v in enumerate(self.valves):
             j = {"v": i + 1, "open": v["open"], "target": v["open"], "pending": False,
@@ -108,6 +154,14 @@ class Node:
                  "prog": v["program"], "last": v["last"]}
             if v["run"]:
                 j["run"] = {"since": v["run"]["since"], "min": v["run"]["sec"] // 60, "l": round(v["run"]["l"], 1)}
+            eid = "%s:%d" % (self.dev_id, i + 1)
+            if zone and (zone["role"] == "leader" and any(eid in t for t in self.seq) or
+                         zone["role"] == "member" and (i + 1) in zone["gated"]):
+                ld = self if zone["role"] == "leader" else zone_leader_of(self.dev_id)
+                if eid not in ld.seq_done and not v["open"] and not ld.seq_allowed(eid):
+                    j["turn_wait"] = True
+                    j["waiting"] = True
+                    j["due"] = True
             nd = self.next_due(i)
             if nd:
                 j["next_due"] = nd
@@ -116,7 +170,7 @@ class Node:
             "v": 1, "ts": now, "time_ok": True, "local": time.strftime("%Y-%m-%d %H:%M:%S"),
             "node": "%s/%s" % (self.cfg["zone"], self.cfg["node"]), "fw": "sim",
             "state": "active" if self.water or any(v["open"] for v in self.valves) else "idle",
-            "water": self.water, "ps": self.water,
+            "water": self.water, "ps": self.water, "dev": self.dev_id, "ps_fitted": self.idx == 0,
             "bypass": {"on": self.bypass, "left_s": max(0, self.bypass_until - now) if self.bypass else 0},
             "flow": [{"in": i + 1, "valve": 1 if i < 2 else 2, "lpm": self.lpm(i), "l_today": round(self.flow_today[i], 1),
                       "l_total": round(self.flow_today[i], 1)} for i in range(4)],
@@ -124,6 +178,7 @@ class Node:
             "batt": {"v": 13.21 - self.idx * 0.1, "soc": 72 - self.idx * 5, "trend": "charging", "days": 24.5, "level": "ok"},
             "wifi": {"ip": "192.168.1.%d" % (50 + self.idx), "rssi": -58 - self.idx * 4, "ap": False, "ap_clients": 0},
             "mqtt": False, "alarms": [], "uptime_s": now % 100000,
+            **({"zone": zone} if zone else {}),
         }
 
     async def broadcast(self, obj):
@@ -161,6 +216,19 @@ class Node:
                     "ap": True, "ap_ssid": self.ssid}
         elif cmd == "get_config":
             data = cfg
+        elif cmd == "set_seq":
+            turns = req.get("turns", [])
+            ok = isinstance(turns, list) and len(turns) <= 8 and all(
+                isinstance(t, list) and 0 < len(t) <= 8 and all(re.fullmatch(r"WM2_\w+:[12]", str(e)) for e in t)
+                for t in turns)
+            if not ok:
+                resp.update(ok=False, err="turns: up to 8 lists of WM2_XXXXXXXX:1|2")
+            else:
+                self.seq = [list(t) for t in turns]
+                self.seq_done = set()
+                await self.event({"event": "zone", "what": "turn" if turns else "off", "turn": 1 if turns else 0})
+        elif cmd == "zone_leave":
+            pass
         elif cmd == "mqtt_config":
             ag = req.get("broker", cfg["broker"]) != "girish"
             cfg["broker"] = "agrisense" if ag else "girish"
@@ -283,9 +351,17 @@ class Node:
         now = int(time.time())
         if self.bypass and now >= self.bypass_until:
             self.bypass = False
-        flowing = self.water or self.bypass
+        ld = self if self.seq else zone_leader_of(self.dev_id)
         for i, v in enumerate(self.valves):
-            want = v["manual"] or (v["open"] and not v.pop("force_close", False))
+            eid = "%s:%d" % (self.dev_id, i + 1)
+            gated = bool(ld) and any(eid in t for t in ld.seq)
+            flowing = (ld.water if gated else self.water) or self.bypass
+            if gated:
+                if v["open"] and v["run"] and v["run"]["sec"] >= SEQ_RUN_S:
+                    ld.seq_done.add(eid)
+                want = v["manual"] or ld.seq_allowed(eid)
+            else:
+                want = v["manual"] or (v["open"] and not v.pop("force_close", False))
             if want and not v["open"] and flowing:
                 v["open"] = True
                 v["run"] = {"since": now, "sec": 0, "l": 0.0}
@@ -296,7 +372,7 @@ class Node:
                 v["last"] = {"start": r["since"], "end": now, "min": r["sec"] // 60, "l": round(r["l"], 1)}
                 v["run"] = None
                 await self.event({"event": "valve", "valve": i + 1, "open": False, "reason": "manual"})
-            if v["open"] and flowing:
+            if v["open"] and flowing and v["run"]:
                 v["run"]["sec"] += 1
                 v["run"]["l"] += 20.6 / 60
                 if v["manual"] and v["left"]:
@@ -325,6 +401,7 @@ class Node:
 
 async def main(port, count):
     nodes = [Node(i, port + i) for i in range(count)]
+    ALL.extend(nodes)
     for n in nodes:
         await n.start()
     while True:

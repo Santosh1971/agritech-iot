@@ -4,6 +4,7 @@ import '../services/farm.dart';
 import '../services/node_link.dart';
 import '../services/node_store.dart';
 import 'node_screen.dart';
+import 'turns_editor.dart';
 import 'valve_sheet.dart';
 
 const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -178,6 +179,7 @@ class _ZoneCard extends StatelessWidget {
           valve: v,
           toLeft: toLeft,
           isLast: last != null && last.node == n && last.n == v,
+          zoneNodes: nodes,
         );
 
     Widget hub(NodeEntry n) => _NodeHub(farm: farm, store: store, node: n);
@@ -250,6 +252,16 @@ class _ZoneCard extends StatelessWidget {
               },
             ),
           ),
+          if (nodes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(children: [
+                Icon(Icons.format_list_numbered, size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 6),
+                Expanded(child: Text(turnsSummary(farm, nodes) ?? 'Turns: off (all valves run when water comes)', style: t.bodySmall)),
+                TextButton(onPressed: () => showTurnsEditor(context, farm, nodes), child: const Text('Turns')),
+              ]),
+            ),
           if (nodes.isEmpty)
             Padding(
               padding: const EdgeInsets.all(8),
@@ -366,7 +378,9 @@ class _ValveBlock extends StatelessWidget {
       required this.node,
       required this.valve,
       required this.toLeft,
-      required this.isLast});
+      required this.isLast,
+      required this.zoneNodes});
+  final List<NodeEntry> zoneNodes;
   final FarmController farm;
   final NodeStore store;
   final NodeEntry node;
@@ -404,6 +418,12 @@ class _ValveBlock extends StatelessWidget {
     } else if (open) {
       status = valveProgress(v);
       dot = Colors.green;
+    } else if (v['turn_wait'] == true) {
+      // Due, but not this valve's zone turn yet (or no water in the zone).
+      final lost = s['zone']?['lost'] == true;
+      final n = turnOf(farm, zoneNodes, '${s['dev'] ?? node.agId}', valve);
+      status = lost ? 'zone leader lost' : n == null ? 'waiting its turn' : 'waiting turn $n';
+      dot = lost ? Colors.red : Colors.orange;
     } else if (v['waiting'] == true) {
       status = 'waiting water';
       dot = Colors.orange;

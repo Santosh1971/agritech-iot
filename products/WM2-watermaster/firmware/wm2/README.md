@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.1.8 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.0 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.1.8-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.0-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,30 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Zone turns (0.2.0)
+
+One pressure switch per zone shows water in the pipe, but the pressure only feeds some valves
+at a time. In the app (zone card > Turns) list the valves in turns; they are saved on the node
+with the pressure switch (the **leader**):
+
+`{"cmd":"set_seq","turns":[["WM2_A98803E8:1","WM2_A98803E8:2","WM2_0D4D4FB0:1"],["WM2_11223344:1"]]}`
+
+- With water on, only the current turn's valves may run their programs (each valve keeps its
+  own days/minutes). The next turn starts when every valve of the earlier turns has finished
+  today (or is not programmed today). Valves not listed run as before; manual opens are never gated.
+- Water off mid-turn: the turn pauses (time without water does not count) and carries on
+  with the same turn when water is back.
+- Nodes talk by UDP broadcast on the farm WiFi, port 47811: leader every 2 s
+  (`wm2z`: water, turn, allowed valves, all turns), members every 3 s (`wm2m`: due/done/open).
+  No internet or broker needed; no IP addresses to set.
+- A member stores its leader, so after a reboot it still waits for it. No word from the
+  leader for 60 s: its listed valves stay shut and a `zone`/`leader_lost` event is raised.
+  A member silent for 90 s is skipped by the leader (`lost`) so the zone is not stuck.
+- State: `zone` (leader: turn, water, per-valve `st` waiting/running/finished/lost; member:
+  leader, heard_s, gated, allowed) and `turn_wait` on a valve waiting for its turn.
+  `zone_leave` makes a member forget its leader; `set_seq` with `[]` stops a leader.
+- Logic in `lib/core/src/zone_seq.h` + the core's turn gate, covered by native tests.
 
 ## Bench mode (0.1.8)
 

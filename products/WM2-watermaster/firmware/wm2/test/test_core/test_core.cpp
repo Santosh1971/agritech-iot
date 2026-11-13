@@ -2,6 +2,7 @@
 #include <unity.h>
 
 #include "irrigation_core.h"
+#include "zone_seq.h"
 
 using namespace wm2core;
 
@@ -268,6 +269,70 @@ void test_no_pressure_switch() {
   TEST_ASSERT_FALSE(s.c.alarm(A_PS_FAULT));
 }
 
+
+// Zone turns: a gated valve waits (time not counted) until allowed, then runs;
+// losing the turn mid-run pauses it and it carries on when allowed again.
+void test_zone_turn_gate_pauses_and_resumes() {
+  Sim s(MON + 8 * 3600);
+  s.c.setProgram(0, timerProg(0x01, 2));
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.in.turnGated[0] = true;
+  s.in.turnAllowed[0] = false;
+  s.run(60, true);                          // water, but not this valve's turn
+  TEST_ASSERT_FALSE(s.c.valve(0).open);
+  TEST_ASSERT_TRUE(s.c.valve(0).waiting);
+  TEST_ASSERT_TRUE(s.c.valve(0).turnWait);
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).runSec);
+  s.in.turnAllowed[0] = true;               // its turn
+  s.run(60, true);
+  TEST_ASSERT_TRUE(s.c.valve(0).open);
+  TEST_ASSERT_FALSE(s.c.valve(0).turnWait);
+  s.in.turnAllowed[0] = false;              // leader takes the turn away (PS off)
+  s.run(30, true);
+  TEST_ASSERT_FALSE(s.c.valve(0).open);
+  TEST_ASSERT_UINT32_WITHIN(2, 60, s.c.valve(0).runSec);
+  s.in.turnAllowed[0] = true;
+  s.run(62, true);                          // finishes the remaining minute
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+  TEST_ASSERT_FALSE(s.c.valve(0).open);
+}
+
+// Manual opens are never gated by zone turns.
+void test_zone_turn_does_not_gate_manual() {
+  Sim s(MON + 8 * 3600);
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.in.turnGated[0] = true;
+  s.in.turnAllowed[0] = false;
+  TEST_ASSERT_TRUE(s.c.manualOpen(0, 120, 0));
+  s.run(5, true);
+  TEST_ASSERT_TRUE(s.c.valve(0).open);
+}
+
+void test_seq_current_turn() {
+  uint8_t st[SEQ_MAX_TURNS][SEQ_MAX_PER_TURN] = {};
+  uint8_t n[SEQ_MAX_TURNS] = {3, 2, 1};
+  // turn 1 still has one valve running -> turn 1
+  st[0][0] = SEQ_FINISHED; st[0][1] = SEQ_PENDING; st[0][2] = SEQ_FINISHED;
+  st[1][0] = SEQ_PENDING; st[1][1] = SEQ_PENDING; st[2][0] = SEQ_PENDING;
+  TEST_ASSERT_EQUAL(0, seqCurrentTurn(st, n, 3));
+  st[0][1] = SEQ_FINISHED;                 // turn 1 done -> turn 2
+  TEST_ASSERT_EQUAL(1, seqCurrentTurn(st, n, 3));
+  st[1][0] = SEQ_LOST; st[1][1] = SEQ_FINISHED;  // lost node is skipped
+  TEST_ASSERT_EQUAL(2, seqCurrentTurn(st, n, 3));
+  st[2][0] = SEQ_FINISHED;
+  TEST_ASSERT_EQUAL(-1, seqCurrentTurn(st, n, 3));
+}
+
+void test_seq_entry_state() {
+  TEST_ASSERT_EQUAL(SEQ_PENDING, seqEntryState(true, true, false, SEQ_NEVER, 999));   // own valve due
+  TEST_ASSERT_EQUAL(SEQ_FINISHED, seqEntryState(true, false, false, SEQ_NEVER, 999)); // not programmed today
+  TEST_ASSERT_EQUAL(SEQ_PENDING, seqEntryState(false, false, false, SEQ_NEVER, 10));  // just booted: wait
+  TEST_ASSERT_EQUAL(SEQ_LOST, seqEntryState(false, true, false, SEQ_NEVER, 100));     // never heard
+  TEST_ASSERT_EQUAL(SEQ_PENDING, seqEntryState(false, true, false, 5, 100));
+  TEST_ASSERT_EQUAL(SEQ_FINISHED, seqEntryState(false, true, true, 5, 100));
+  TEST_ASSERT_EQUAL(SEQ_LOST, seqEntryState(false, true, false, SEQ_LOST_S + 1, 1000));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -285,5 +350,9 @@ int main(int, char**) {
   RUN_TEST(test_low_flow_after_learning);
   RUN_TEST(test_next_due);
   RUN_TEST(test_no_pressure_switch);
+  RUN_TEST(test_zone_turn_gate_pauses_and_resumes);
+  RUN_TEST(test_zone_turn_does_not_gate_manual);
+  RUN_TEST(test_seq_current_turn);
+  RUN_TEST(test_seq_entry_state);
   return UNITY_END();
 }

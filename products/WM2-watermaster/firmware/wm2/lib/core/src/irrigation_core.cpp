@@ -310,6 +310,17 @@ int Core::tick(const Inputs& in) {
             (programmedOn(v, _day) || s.carrySec > 0 || s.carryL > 0);
   }
 
+  // Zone turns: a gated program valve waits until the zone leader allows it.
+  // Manual opens are an explicit user choice and are never gated.
+  bool turnWait[NUM_VALVES] = {false, false};
+  for (int v = 0; v < NUM_VALVES; v++) {
+    if (want[v] && why[v] == R_PROGRAM && in.turnGated[v] && !in.turnAllowed[v]) {
+      want[v] = false;
+      turnWait[v] = true;
+    }
+    _vs[v].turnWait = turnWait[v];
+  }
+
   // One after the other: program runs only (manual is an explicit user choice).
   bool seqWait[NUM_VALVES] = {false, false};
   if (cfg.sequential && want[0] && want[1] && why[0] == R_PROGRAM && why[1] == R_PROGRAM) {
@@ -343,9 +354,9 @@ int Core::tick(const Inputs& in) {
         s.waiting = true;
       }
     } else {
-      s.waiting = seqWait[v];
+      s.waiting = seqWait[v] || turnWait[v];
       s.noWaterSec = 0;
-      if (s.open) _setOpen(v, false, seqWait[v] ? R_SEQUENCE : why[v]);
+      if (s.open) _setOpen(v, false, turnWait[v] ? R_ZONE_TURN : seqWait[v] ? R_SEQUENCE : why[v]);
     }
   }
 
@@ -416,6 +427,7 @@ const char* reasonName(uint8_t r) {
     case R_NEVER_CLOSE: return "never_close";
     case R_WINDOW_END: return "stopped";
     case R_DAY_END: return "day_end";
+    case R_ZONE_TURN: return "zone_turn";
     default: return "none";
   }
 }

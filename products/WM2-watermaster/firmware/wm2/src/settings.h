@@ -34,6 +34,12 @@ struct Settings {
   String ssid, pass;
   // MQTT: two fixed broker profiles, one active.
   uint8_t broker = 0;         // 0 = AgriSense, 1 = Girish (customer's own)
+  // Zone turns (see zone.h). Leader: the turns as JSON text,
+  // [["WM2_A98803E8:1","WM2_0D4D4FB0:2"],["WM2_...:1"]]; "" = not a leader.
+  // Member: the leader that lists this node and which valves (bit0 V1, bit1 V2).
+  String seqTurns;
+  String seqLeader;
+  uint8_t seqMask = 0;
   String apPass;              // empty = "wm2-" + last 4 hex of MAC
   int16_t tzMin = 330;        // IST
   // reporting

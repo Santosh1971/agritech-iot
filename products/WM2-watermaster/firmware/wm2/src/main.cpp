@@ -19,6 +19,7 @@
 #include "timeutil.h"
 #include "web.h"
 #include "wm2_pins.h"
+#include "zone.h"
 #include <esp_system.h>
 
 // Battery level as reported: a new raw level must hold for 30 s before it
@@ -231,6 +232,7 @@ void buildState(JsonObject o) {
   o["water"] = core.water();
   o["ps"] = ps;
   o["ps_fitted"] = cfg.core.psFitted;
+  zone::toJson(o);
   JsonObject b = o["bypass"].to<JsonObject>();
   b["on"] = bypass;
   b["left_s"] = bypassLeftS();
@@ -245,6 +247,7 @@ void buildState(JsonObject o) {
     j["target"] = s.open;
     j["pending"] = hw::valvePending(v);
     j["waiting"] = s.waiting;
+    if (s.turnWait) j["turn_wait"] = true;  // due, but not its zone turn (or no water in the zone)
     j["mode"] = modeName(c.mode);
     j["due"] = s.due;
     j["done"] = s.done;
@@ -610,6 +613,14 @@ void loop() {
   net::loop();
   web::loop();
   hw::valvesLoop();
+  {
+    static uint32_t lastZone = 0;
+    if (now - lastZone >= 100) {
+      lastZone = now;
+      Lock lock;
+      zone::loop();
+    }
+  }
   serialConsole();
 
   if (!bootFlagCleared && now > 5000) {
@@ -639,6 +650,7 @@ void loop() {
       in.lpm[i] = lpm[i];
       in.litresDelta[i] = dl[i];
     }
+    zone::gate(in);  // zone turns: which program valves may run now
     uint32_t dayBefore = core.dayIndex();
     int n = core.tick(in);
     handleCoreEvents(n);

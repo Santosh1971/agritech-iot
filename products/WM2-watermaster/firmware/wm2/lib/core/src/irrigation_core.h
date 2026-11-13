@@ -68,6 +68,10 @@ struct Inputs {
   float lpm[NUM_FLOW] = {0, 0, 0, 0};
   float litresDelta[NUM_FLOW] = {0, 0, 0, 0};  // since previous tick
   uint32_t dtMs = 1000;           // since previous tick
+  // Zone turns (one pressure switch shared by several nodes): a gated valve's
+  // program may only open while the zone leader allows it (its turn, water on).
+  bool turnGated[NUM_VALVES] = {false, false};
+  bool turnAllowed[NUM_VALVES] = {false, false};
 };
 
 enum EventType : uint8_t {
@@ -82,6 +86,7 @@ enum EventType : uint8_t {
 enum Reason : uint8_t {
   R_NONE = 0, R_PROGRAM, R_PROGRAM_DONE, R_MANUAL, R_MANUAL_DONE, R_WATER_LOSS,
   R_WATER_BACK, R_MODE_OFF, R_SEQUENCE, R_NEVER_CLOSE, R_WINDOW_END, R_DAY_END,
+  R_ZONE_TURN,  // waiting for (or paused out of) its zone turn
 };
 
 enum AlarmCode : uint8_t {
@@ -111,6 +116,7 @@ struct Event {
 struct ValveState {
   bool open = false;          // desired state (what the node commands)
   bool waiting = false;       // wants to open but no water / sequence
+  bool turnWait = false;      // program due but not this valve's zone turn
   bool due = false;           // programmed today and not finished
   bool done = false;          // today's program finished
   uint32_t runSec = 0;        // today's program run time (counted only with water)

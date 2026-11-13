@@ -145,6 +145,11 @@ void Settings::toJson(JsonObject o, bool secrets) const {
   o["node"] = node;
   o["ssid"] = ssid;
   if (secrets) o["pass"] = pass;
+  if (seqTurns.length()) o["seq_turns"] = serialized(seqTurns);
+  if (seqLeader.length()) {
+    o["seq_leader"] = seqLeader;
+    o["seq_mask"] = seqMask;
+  }
   o["broker"] = brokerName();
   o["broker_host"] = brokerHost();  // fixed per profile, for display
   o["ag_id"] = deviceId();
@@ -206,6 +211,12 @@ void Settings::fromJson(JsonObjectConst o) {
   take(o, "node", node);
   take(o, "ssid", ssid);
   take(o, "pass", pass);
+  if (o["seq_turns"].is<JsonArrayConst>()) {
+    seqTurns = "";
+    if (o["seq_turns"].size()) serializeJson(o["seq_turns"], seqTurns);
+  }
+  take(o, "seq_leader", seqLeader);
+  take(o, "seq_mask", seqMask);
   if (!o["broker"].isNull()) broker = !strcmp(o["broker"] | "agrisense", "girish") ? 1 : 0;
   // Old per-node broker host/user/password keys (ag_*, mqtt_*) are ignored:
   // the profiles are fixed, so a mistyped login can no longer cut a node off.
