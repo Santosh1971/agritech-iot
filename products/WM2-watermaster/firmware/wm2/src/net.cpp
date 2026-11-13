@@ -82,7 +82,7 @@ static const char* reasonText(uint8_t r) {
   switch (r) {
     case 0: return "";
     case 201: return "network not found (check the name, 2.4 GHz only)";
-    case 202: case 15: case 204: case 2: return "wrong password";
+    case 202: case 15: case 204: return "wrong password";
     case 203: return "router refused the node (association failed)";
     case 200: return "router signal lost";
     case 8: return "left the network";
@@ -92,7 +92,20 @@ static const char* reasonText(uint8_t r) {
 
 bool wifiUp() { return WiFi.status() == WL_CONNECTED; }
 String joinStatus() { return joinState; }
-String lastError() { return reasonText(lastDiscReason); }
+// The saved network is not in the last scan: say so, whatever the reason
+// code (the radio often reports an auth timeout for a network that is simply
+// not there, which read as "wrong password" - Avinash, 2026-11-13).
+static bool ssidSeen() {
+  String q = cfg.ssid;
+  q.replace("\\", "\\\\");
+  q.replace("\"", "\\\"");
+  return scanCache.indexOf("\"ssid\":\"" + q + "\"") >= 0;
+}
+String lastError() {
+  if (!lastDiscReason) return "";
+  if (cfg.ssid.length() && scanCache.length() > 2 && !ssidSeen()) return "network not found here (out of range, or 5 GHz only)";
+  return reasonText(lastDiscReason);
+}
 bool mqttUp() { return mqttIsUp; }
 bool apOn() { return apActive; }
 String ip() { return wifiUp() ? WiFi.localIP().toString() : String(""); }
@@ -199,8 +212,15 @@ void reconfigure() {
   doReconfigure();
 }
 
+static void offlineAndDisconnect() {
+  if (!mqtt.connected()) return;
+  String t = cfg.base() + "status";
+  mqtt.publish(t.c_str(), "offline", true);  // a clean disconnect does not fire the last will
+  mqtt.disconnect();
+}
+
 static void doReconfigure() {
-  if (mqtt.connected()) mqtt.disconnect();
+  offlineAndDisconnect();
   mqttIsUp = false;
   lastMqttTry = 0;
   if (cfg.ssid.length()) {
@@ -281,7 +301,7 @@ void loop() {
     } else if ((int32_t)(now - joinUntil) > 0) {
       joinUntil = 0;
       joinState = "failed";
-      Serial.printf("[net] could not join %s: %s (reason %u)\n", cfg.ssid.c_str(), reasonText(lastDiscReason), lastDiscReason);
+      Serial.printf("[net] could not join %s: %s (reason %u)\n", cfg.ssid.c_str(), lastError().c_str(), lastDiscReason);
     }
   }
 
@@ -428,7 +448,7 @@ void forgetWifi() {
 }
 
 static void doForget() {
-  if (mqtt.connected()) mqtt.disconnect();
+  offlineAndDisconnect();
   mqttIsUp = false;
   WiFi.disconnect(true);
   if (mdnsUp) { MDNS.end(); mdnsUp = false; }

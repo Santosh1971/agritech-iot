@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.2 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.3 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.2-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.3-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -101,6 +101,10 @@ Saving WiFi details (app or web page) starts one protected join of up to 25 s: a
 re-joining the SoftAP no longer cancels it (it did before, so a node set up from the
 SoftAP often never joined). The result is in the state: `wifi.join` joining / joined /
 failed and `wifi.error` in words (wrong password, network not found - 2.4 GHz only...).
+If the saved network is not in the node's last WiFi scan the error is always "network not
+found here (out of range, or 5 GHz only)": the radio often reports an auth timeout for a
+missing network, which read as "wrong password" (0.2.3). A deliberate disconnect (forget /
+WiFi change) now publishes "offline" first; a clean disconnect does not fire the last will.
 After a successful join the SoftAP closes 1 min later, even with the phone still on it,
 so the phone goes back to the farm WiFi (as on FG1). The WiFi LED now shows the farm WiFi
 state (connected / MQTT) ahead of "phone on the SoftAP".
