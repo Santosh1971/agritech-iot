@@ -28,7 +28,8 @@ void gate(wm2core::Inputs& in);
 void loop();
 // set_seq command (leader): turns as an array of arrays of "WM2_XXXXXXXX:1|2".
 // Empty array = stop being a leader. Returns false with `err` if malformed.
-bool setTurns(JsonVariantConst turns, String& err);
+// `ips`: optional {"WM2_...":"192.168.1.20"} from the app, to reach members directly.
+bool setTurns(JsonVariantConst turns, JsonVariantConst ips, String& err);
 // zone_leave command (member): forget the leader.
 void leave();
 // "zone" object in the node state (nothing when not part of zone turns).

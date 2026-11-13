@@ -161,7 +161,14 @@ Future<void> showTurnsEditor(BuildContext context, FarmController farm, List<Nod
       await farm.ctl(n)!.send({'cmd': 'set_seq', 'turns': []});
     }
   }
-  final r = await farm.ctl(leader)!.send({'cmd': 'set_seq', 'turns': list});
+  // The members' farm-WiFi addresses, so the leader can reach them directly
+  // (some routers do not pass broadcasts between WiFi clients).
+  final ips = <String, String>{
+    for (final n in nodes)
+      if (nodeDev(farm, n).isNotEmpty && '${farm.ctl(n)?.state?['wifi']?['ip'] ?? ''}'.isNotEmpty)
+        nodeDev(farm, n): '${farm.ctl(n)!.state!['wifi']['ip']}'
+  };
+  final r = await farm.ctl(leader)!.send({'cmd': 'set_seq', 'turns': list, 'ips': ips});
   if (context.mounted) {
     showReply(context, r, list.isEmpty ? 'Zone turns off' : 'Saved ${list.length} turn${list.length == 1 ? '' : 's'} on ${leader.name}');
   }

@@ -38,6 +38,7 @@ struct Settings {
   // [["WM2_A98803E8:1","WM2_0D4D4FB0:2"],["WM2_...:1"]]; "" = not a leader.
   // Member: the leader that lists this node and which valves (bit0 V1, bit1 V2).
   String seqTurns;
+  String seqIps;   // leader: {"WM2_A98803E8":"192.168.1.20",...} from the app, so it can reach members directly
   String seqLeader;
   uint8_t seqMask = 0;
   String apPass;              // empty = "wm2-" + last 4 hex of MAC

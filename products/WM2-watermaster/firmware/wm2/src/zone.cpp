@@ -26,11 +26,13 @@ struct Entry {
 struct Member {
   String dev;
   uint32_t heardMs = 0;
+  IPAddress ip;  // learnt from its reports: the leader also sends to it directly
   bool due[2] = {false, false}, done[2] = {false, false}, open[2] = {false, false};
 };
 
 static WiFiUDP udp;
 static bool udpOn = false;
+static uint32_t txOk = 0, txErr = 0, rxN = 0;
 
 // leader
 static std::vector<std::vector<Entry>> turns;
@@ -43,6 +45,7 @@ static uint32_t lastLeaderTx = 0;
 
 // member
 static uint32_t leaderHeardMs = 0;
+static IPAddress leaderIp;  // learnt from its packets: reports also go to it directly
 static bool allowedMine[2] = {false, false};
 static bool lostRaised = false;
 static uint32_t lastMemberTx = 0;
@@ -57,6 +60,8 @@ static bool parseEntry(const char* s, Entry& e) {
   e.v = c[1] - '1';
   return true;
 }
+
+static struct Member* findMember(const String& dev, bool add);
 
 static void reparse() {
   if (parsedFrom == cfg.seqTurns) return;
@@ -74,9 +79,22 @@ static void reparse() {
     }
     if (!turn.empty() && turns.size() < SEQ_MAX_TURNS) turns.push_back(turn);
   }
+  // Addresses the app gave for the listed nodes: reach them directly from the
+  // start, even where the router does not pass broadcasts between WiFi clients.
+  if (cfg.seqIps.length()) {
+    JsonDocument ips;
+    if (!deserializeJson(ips, cfg.seqIps))
+      for (JsonPairConst kv : ips.as<JsonObjectConst>()) {
+        IPAddress ip;
+        if (ip.fromString(kv.value() | "")) {
+          Member* m = findMember(kv.key().c_str(), true);
+          if (!(uint32_t)m->ip) m->ip = ip;
+        }
+      }
+  }
 }
 
-static Member* findMember(const String& dev, bool add) {
+static struct Member* findMember(const String& dev, bool add) {
   for (auto& m : members)
     if (m.dev == dev) return &m;
   if (!add) return nullptr;
@@ -85,13 +103,28 @@ static Member* findMember(const String& dev, bool add) {
   return &members.back();
 }
 
+static void sendTo(const IPAddress& to, const String& s) {
+  bool ok = udp.beginPacket(to, PORT);
+  udp.print(s);
+  ok = udp.endPacket() && ok;
+  if (ok) txOk++;
+  else txErr++;
+}
+
+// Broadcast (to find each other), plus directly to every peer whose address
+// is known: some routers do not pass a WiFi client's broadcasts on to the
+// other clients, but always pass packets addressed to one of them.
 static void send(JsonDocument& d) {
   if (!udpOn) return;
   String s;
   serializeJson(d, s);
-  udp.beginPacket(WiFi.broadcastIP(), PORT);
-  udp.print(s);
-  udp.endPacket();
+  sendTo(WiFi.broadcastIP(), s);
+  if (isLeader()) {
+    for (auto& m : members)
+      if ((uint32_t)m.ip) sendTo(m.ip, s);
+  } else if ((uint32_t)leaderIp) {
+    sendTo(leaderIp, s);
+  }
 }
 
 static void zoneEvent(const char* what, int turn) {
@@ -172,7 +205,7 @@ static void memberReport() {
   send(d);
 }
 
-static void onLeaderPacket(JsonDocument& d, uint32_t now) {
+static void onLeaderPacket(JsonDocument& d, uint32_t now, const IPAddress& from) {
   if (isLeader()) return;  // a leader does not follow another leader
   String ld = d["ld"] | "";
   String me = cfg.deviceId();
@@ -212,9 +245,10 @@ static void onLeaderPacket(JsonDocument& d, uint32_t now) {
     stateChanged();
   }
   leaderHeardMs = now;
+  leaderIp = from;
 }
 
-static void onMemberPacket(JsonDocument& d, uint32_t now) {
+static void onMemberPacket(JsonDocument& d, uint32_t now, const IPAddress& from) {
   if (!isLeader() || cfg.deviceId() != (d["ld"] | "")) return;
   String dev = d["dev"] | "";
   bool listed = false;
@@ -224,6 +258,7 @@ static void onMemberPacket(JsonDocument& d, uint32_t now) {
   if (!listed) return;
   Member* m = findMember(dev, true);
   m->heardMs = now;
+  m->ip = from;
   JsonArrayConst va = d["v"];
   for (int v = 0; v < 2 && v < (int)va.size(); v++) {
     m->due[v] = va[v][0] | 0;
@@ -261,6 +296,7 @@ void loop() {
     for (int n = 0; n < 8; n++) {
       int len = udp.parsePacket();
       if (len <= 0) break;
+      IPAddress from = udp.remoteIP();
       if (len > 1400) {
         udp.flush();
         continue;
@@ -270,9 +306,10 @@ void loop() {
       buf[r > 0 ? r : 0] = 0;
       JsonDocument d;
       if (deserializeJson(d, buf)) continue;
+      rxN++;
       const char* t = d["t"] | "";
-      if (!strcmp(t, "wm2z") && cfg.deviceId() != (d["ld"] | "")) onLeaderPacket(d, now);
-      else if (!strcmp(t, "wm2m")) onMemberPacket(d, now);
+      if (!strcmp(t, "wm2z") && cfg.deviceId() != (d["ld"] | "")) onLeaderPacket(d, now, from);
+      else if (!strcmp(t, "wm2m")) onMemberPacket(d, now, from);
     }
   }
 
@@ -280,7 +317,7 @@ void loop() {
     water = core.water() || bypassOn();
     leaderDecide(now);
     for (size_t i = 0; i < members.size();)
-      if (now - members[i].heardMs > MEMBER_KEEP_MS) members.erase(members.begin() + i);
+      if (members[i].heardMs && now - members[i].heardMs > MEMBER_KEEP_MS) members.erase(members.begin() + i);
       else i++;
     if (now - lastLeaderTx >= 2000) {
       lastLeaderTx = now;
@@ -301,7 +338,7 @@ void loop() {
   }
 }
 
-bool setTurns(JsonVariantConst in, String& err) {
+bool setTurns(JsonVariantConst in, JsonVariantConst ips, String& err) {
   if (!in.is<JsonArrayConst>()) {
     err = "turns must be an array of arrays";
     return false;
@@ -336,14 +373,17 @@ bool setTurns(JsonVariantConst in, String& err) {
       ot.add(id);
     }
   }
+  members.clear();
+  cfg.seqIps = "";
+  if (o.size() && ips.is<JsonObjectConst>() && ips.size()) serializeJson(ips, cfg.seqIps);
   cfg.seqTurns = "";
   if (o.size()) serializeJson(o, cfg.seqTurns);
   if (o.size()) {  // a leader is not a member of anyone
     cfg.seqLeader = "";
     cfg.seqMask = 0;
   }
+  parsedFrom = "\x01";  // re-read turns and addresses
   reparse();
-  members.clear();
   lastLeaderTx = 0;  // tell the members now
   stateChanged();
   return true;
@@ -374,6 +414,7 @@ void toJson(JsonObject o) {
     z["turn"] = curTurn + 1;  // 0 = all turns done today
     z["water"] = water;
     z["wifi"] = udpOn;
+    z["udp"] = String(txOk) + " sent, " + txErr + " failed, " + rxN + " received, to " + WiFi.broadcastIP().toString();
     String me = cfg.deviceId();
     JsonArray ta = z["turns"].to<JsonArray>();
     for (size_t t = 0; t < turns.size(); t++) {

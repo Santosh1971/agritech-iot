@@ -146,6 +146,7 @@ void Settings::toJson(JsonObject o, bool secrets) const {
   o["ssid"] = ssid;
   if (secrets) o["pass"] = pass;
   if (seqTurns.length()) o["seq_turns"] = serialized(seqTurns);
+  if (seqIps.length()) o["seq_ips"] = serialized(seqIps);
   if (seqLeader.length()) {
     o["seq_leader"] = seqLeader;
     o["seq_mask"] = seqMask;
@@ -214,6 +215,10 @@ void Settings::fromJson(JsonObjectConst o) {
   if (o["seq_turns"].is<JsonArrayConst>()) {
     seqTurns = "";
     if (o["seq_turns"].size()) serializeJson(o["seq_turns"], seqTurns);
+  }
+  if (o["seq_ips"].is<JsonObjectConst>()) {
+    seqIps = "";
+    if (o["seq_ips"].size()) serializeJson(o["seq_ips"], seqIps);
   }
   take(o, "seq_leader", seqLeader);
   take(o, "seq_mask", seqMask);

@@ -99,7 +99,13 @@ with the pressure switch (the **leader**):
   with the same turn when water is back.
 - Nodes talk by UDP broadcast on the farm WiFi, port 47811: leader every 2 s
   (`wm2z`: water, turn, allowed valves, all turns), members every 3 s (`wm2m`: due/done/open).
-  No internet or broker needed; no IP addresses to set.
+  No internet or broker needed; no IP addresses to set. Packets also go directly to each
+  known peer: the app sends the members' farm-WiFi addresses with `set_seq` (`"ips"`), and
+  nodes learn each other's address from every packet. Needed because some routers (seen on
+  the office Airtel router, 2026-11-13) do not pass an ESP32's broadcasts to other WiFi
+  clients. Best: reserve fixed addresses for the nodes in the router (DHCP reservation); if a
+  member's address changes, open Turns in the app and Save again. `zone.udp` in the leader's
+  state shows packets sent/failed/received.
 - A member stores its leader, so after a reboot it still waits for it. No word from the
   leader for 60 s: its listed valves stay shut and a `zone`/`leader_lost` event is raised.
   A member silent for 90 s is skipped by the leader (`lost`) so the zone is not stuck.

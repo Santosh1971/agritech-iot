@@ -218,7 +218,7 @@ String dispatchCommand(const String& json, const char* via) {
     net::startAp(in["minutes"] | 15);
   } else if (cmd == "set_seq") {
     // Zone turns (leader node): {"turns":[["WM2_A98803E8:1","WM2_0D4D4FB0:2"],["WM2_...:1"]]}
-    if (!zone::setTurns(in["turns"], err)) ok = false;
+    if (!zone::setTurns(in["turns"], in["ips"], err)) ok = false;
     else {
       saveCfg = true;
       if (cfg.seqTurns.length() && !cfg.core.psFitted) data["warning"] = "this node has no pressure switch: water is judged from flow";
