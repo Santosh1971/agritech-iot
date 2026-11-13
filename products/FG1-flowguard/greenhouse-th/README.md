@@ -141,6 +141,9 @@ newer, by its `rev`).
 
 ## Known limits / to decide
 
+- Nodes reach the controller directly (star, no hopping). A repeater version (far node → nearer
+  node → controller), kept alongside this star version, is planned in [docs/repeater-plan.md](docs/repeater-plan.md).
+
 - Trend (24 h) and events live in RAM and restart after a power cut. Settings,
   mode, sensors and WiFi are kept.
 - While the controller is on its own SoftAP and has a farm WiFi saved that
