@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'lan_finder.dart';
@@ -119,7 +119,13 @@ class NodeStore extends ChangeNotifier {
 /// Owns the active link to one node: tries the direct link first (works with
 /// no internet), then MQTT. Keeps the latest state and a short event list.
 class NodeController extends ChangeNotifier {
-  NodeController(this.entry, this.store);
+  NodeController(this.entry, this.store) {
+    // Android may kill the app's sockets while it is in the background
+    // (WhatsApp open, screen off) without telling us; check on return and
+    // keep a watchdog so a dead link is replaced instead of hanging.
+    _life = AppLifecycleListener(onResume: checkAlive);
+    _watch = Timer.periodic(const Duration(seconds: 5), (_) => _watchdog());
+  }
 
   final NodeEntry entry;
   final NodeStore store;
@@ -132,12 +138,52 @@ class NodeController extends ChangeNotifier {
   final List<StreamSubscription> _subs = [];
   bool _clockSent = false;
   bool _disposed = false;
+  late final AppLifecycleListener _life;
+  late final Timer _watch;
+  DateTime _lastRx = DateTime.now(); // last state/event from the node
+  DateTime? _downSince; // link missing or disconnected since
+  bool _probing = false;
 
   bool get connected => link?.isConnected ?? false;
 
+  /// After the app comes back to the foreground: ask the node for its state;
+  /// if the link does not answer, reconnect from scratch.
+  Future<void> checkAlive() async {
+    if (_disposed || connecting || _probing) return;
+    final l = link;
+    if (l == null || !l.isConnected) return connect();
+    _probing = true;
+    final r = await l.send({'cmd': 'get_state'},
+        timeout: Duration(seconds: l is LocalLink ? 5 : 12));
+    _probing = false;
+    if (_disposed || link != l) return;
+    if (r['ok'] == true && r['data'] is Map) {
+      _onState(Map<String, dynamic>.from(r['data']));
+    } else {
+      status = 'reconnecting...';
+      _notify();
+      await connect();
+    }
+  }
+
+  void _watchdog() {
+    if (_disposed || connecting || _probing) return;
+    final now = DateTime.now();
+    final l = link;
+    if (l == null || !l.isConnected) {
+      _downSince ??= now;
+      if (now.difference(_downSince!) > const Duration(seconds: 15)) connect();
+      return;
+    }
+    _downSince = null;
+    // A local node pushes its state every 2 s: 10 s of silence is a dead socket.
+    if (l is LocalLink && now.difference(_lastRx) > const Duration(seconds: 10)) connect();
+  }
+
   Future<void> connect() async {
-    if (connecting) return;
+    if (connecting || _disposed) return;
     connecting = true;
+    _downSince = null;
     status = 'connecting...';
     _notify();
     _drop();
@@ -193,8 +239,10 @@ class NodeController extends ChangeNotifier {
   void _use(NodeLink l) {
     link = l;
     status = 'connected (${l.kind})';
+    _lastRx = DateTime.now();
     _subs.add(l.state.listen(_onState));
     _subs.add(l.events.listen((e) {
+      _lastRx = DateTime.now();
       events.insert(0, e);
       if (events.length > 50) events.removeLast();
       _notify();
@@ -230,6 +278,7 @@ class NodeController extends ChangeNotifier {
   }
 
   void _onState(Map<String, dynamic> s) {
+    _lastRx = DateTime.now();
     state = s;
     // Remember the node's farm-WiFi address for next time.
     final ip = '${(s['wifi'] as Map?)?['ip'] ?? ''}';
@@ -267,6 +316,8 @@ class NodeController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _watch.cancel();
+    _life.dispose();
     _drop();
     super.dispose();
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/farm.dart';
+import '../services/node_link.dart';
 import '../services/node_store.dart';
 import 'node_screen.dart';
 import 'valve_sheet.dart';
@@ -120,7 +121,7 @@ class _Banner extends StatelessWidget {
             const SizedBox(height: 6),
             Text(_where(r), style: t.titleSmall),
             Text('since ${fmtWhen((r.v['run']?['since'] as num?)?.toInt() ?? 0)}  ·  '
-                '${r.v['run']?['min'] ?? r.v['run_min'] ?? 0} of ${r.v['planned_min'] ?? '-'} min  ·  ${r.v['run']?['l'] ?? '-'} L'),
+                '${valveProgress(r.v)}  ·  ${r.v['run']?['l'] ?? '-'} L this run'),
             Text('program: ${progText(r.v['prog'])}', style: t.bodySmall),
           ],
           if (open.isEmpty && closed.isNotEmpty)
@@ -401,7 +402,7 @@ class _ValveBlock extends StatelessWidget {
       status = 'pending 12V';
       dot = Colors.orange;
     } else if (open) {
-      status = '${v['run']?['min'] ?? v['run_min'] ?? 0}/${v['planned_min'] ?? '-'} min';
+      status = valveProgress(v);
       dot = Colors.green;
     } else if (v['waiting'] == true) {
       status = 'waiting water';

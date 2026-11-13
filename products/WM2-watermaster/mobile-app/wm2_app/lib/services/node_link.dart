@@ -52,3 +52,18 @@ mixin ReplyMatcher {
     _pending.clear();
   }
 }
+
+/// "3/4 min" for a valve: minutes run TODAY against today's plan (the
+/// node's run_min). run.min is only the current open run, so it must not be
+/// compared with the day's plan. A manual run shows the minutes it has left.
+String valveProgress(Map v) {
+  if (v['manual'] == true) {
+    final left = ((v['manual_left_s'] as num?) ?? 0).toInt();
+    if (left > 0) return 'manual, ${(left / 60).ceil()} min left';
+    final l = (v['manual_left_l'] as num?) ?? 0;
+    if (l > 0) return 'manual, ${l.round()} L left';
+    return 'manual';
+  }
+  if (v['planned_l'] != null) return '${v['litres'] ?? 0}/${v['planned_l']} L';
+  return '${v['run_min'] ?? 0}/${v['planned_min'] ?? '-'} min';
+}

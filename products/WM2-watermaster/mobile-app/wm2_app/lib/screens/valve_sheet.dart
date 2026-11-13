@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../services/node_link.dart';
 import '../services/node_store.dart';
 import 'farm_screen.dart';
 import 'node_screen.dart';
@@ -113,7 +114,7 @@ class _ValveSheetState extends State<_ValveSheet> {
     return ListView(controller: widget.scroll, padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
       Text('${zone.name} · ${widget.node.name} · Valve ${widget.valve}', style: t.titleLarge),
       const SizedBox(height: 6),
-      _kv('Now', v['open'] == true ? 'OPEN, ${v['run']?['min'] ?? v['run_min']} of ${v['planned_min']} min, ${v['run']?['l'] ?? '-'} L' : (v['waiting'] == true ? 'waiting for water' : 'closed')),
+      _kv('Now', v['open'] == true ? 'OPEN, ${valveProgress(v)}, ${v['run']?['l'] ?? '-'} L this run' : (v['waiting'] == true ? 'waiting for water' : 'closed')),
       _kv('Program', '${v['mode']} · ${progText(v['prog'])}'),
       _kv('Last run', last == null ? 'never' : '${fmtWhen((last['start'] as num).toInt())} to ${fmtWhen((last['end'] as num).toInt())} · ${last['min']} min · ${last['l']} L'),
       _kv('Next due', fmtDue((v['next_due'] as num?)?.toInt())),
