@@ -1,6 +1,15 @@
 #include "Nodes.h"
 
 static uint32_t nowS() { return millis() / 1000; }
+#ifdef FG1_REPEATER
+static bool isZero(const uint8_t* m) { for (int i = 0; i < 6; i++) if (m[i]) return false; return true; }
+// Sets NodeManager::_via for one scope (the path replies and commands take).
+struct ViaScope {
+    const uint8_t*& ref; const uint8_t* old;
+    ViaScope(const uint8_t*& r, const uint8_t* v) : ref(r), old(r) { ref = (v && !isZero(v)) ? v : nullptr; }
+    ~ViaScope() { ref = old; }
+};
+#endif
 
 String NodeManager::_shortId(const uint8_t* mac) {
     char b[16];
@@ -73,13 +82,28 @@ NodeManager::Disc* NodeManager::_discSlot(const uint8_t* mac) {
 
 // ---------------- radio ----------------
 
+void NodeManager::_sendTo(const uint8_t* mac, const void* data, size_t len) {
+#ifdef FG1_REPEATER
+    if (_via) {
+        PktRelayDown d = {};
+        protoFill(d.h, PKT_RELAY_DOWN);
+        memcpy(d.origin, mac, 6);
+        d.innerLen = len < sizeof(d.inner) ? len : sizeof(d.inner);
+        memcpy(d.inner, data, d.innerLen);
+        espnow.send(_via, &d, relayDownSize(d.innerLen));
+        return;
+    }
+#endif
+    espnow.send(mac, data, len);
+}
+
 void NodeManager::_sendAnnounce(const uint8_t* mac, bool knows) {
     PktAnnounce a = {};
     protoFill(a.h, PKT_ANNOUNCE);
     strlcpy(a.ctrlId, _ctrlId, sizeof(a.ctrlId));
     a.channel = EspNowLink::channel();
     a.knowsYou = knows;
-    espnow.send(mac, &a, sizeof(a));
+    _sendTo(mac, &a, sizeof(a));
 }
 
 void NodeManager::_sendPair(const uint8_t* mac) {
@@ -87,13 +111,13 @@ void NodeManager::_sendPair(const uint8_t* mac) {
     protoFill(p.h, PKT_PAIR);
     strlcpy(p.ctrlId, _ctrlId, sizeof(p.ctrlId));
     p.channel = EspNowLink::channel();
-    espnow.send(mac, &p, sizeof(p));
+    _sendTo(mac, &p, sizeof(p));
 }
 
 void NodeManager::_sendSimple(const uint8_t* mac, PktType t) {
     PktHeader h;
     protoFill(h, t);
-    espnow.send(mac, &h, sizeof(h));
+    _sendTo(mac, &h, sizeof(h));
 }
 
 void NodeManager::loop() {
@@ -106,6 +130,17 @@ void NodeManager::loop() {
 
 void NodeManager::_handle(const EspNowRx& rx) {
     if (!protoValid(rx.data, rx.len)) return;
+#ifdef FG1_REPEATER
+    if (_noDirectId.length() && _shortId(rx.mac) == _noDirectId) return;   // bench: "out of range"
+    switch (rx.data[3]) {
+        case PKT_RELAY_UP:
+            _onRelayUp(rx);
+            return;
+        case PKT_NODE_INFO:
+            if (rx.len >= sizeof(PktNodeInfo)) _onNodeInfo(rx.mac, *(const PktNodeInfo*)rx.data);
+            return;
+    }
+#endif
     switch (rx.data[3]) {
         case PKT_HELLO:
             if (rx.len >= sizeof(PktHello)) _onHello(rx, *(const PktHello*)rx.data);
@@ -142,6 +177,11 @@ void NodeManager::_onHello(const EspNowRx& rx, const PktHello& p) {
     }
     Disc* d = _discSlot(rx.mac);
     bool isNew = d->lastMs == 0;
+#ifdef FG1_REPEATER
+    // Heard directly in the last 10 s wins over a repeater's copy of the same HELLO.
+    if (_via && d->directMs && millis() - d->directMs < 10000) return;
+    if (_via) memcpy(d->via, _via, 6); else { memset(d->via, 0, 6); d->directMs = millis(); }
+#endif
     d->lastMs = millis();
     d->rssi = rx.rssi;
     strlcpy(d->fw, p.fw, sizeof(d->fw));
@@ -149,8 +189,8 @@ void NodeManager::_onHello(const EspNowRx& rx, const PktHello& p) {
         _sendPair(rx.mac);
     } else {
         _sendAnnounce(rx.mac, false);
-        if (isNew) Serial.printf("[NODES] Discovered %s (RSSI %d) — waiting for Add in the app\n",
-                                 _shortId(rx.mac).c_str(), rx.rssi);
+        if (isNew) Serial.printf("[NODES] Discovered %s (RSSI %d)%s — waiting for Add in the app\n",
+                                 _shortId(rx.mac).c_str(), rx.rssi, _via ? " via repeater" : "");
     }
 }
 
@@ -170,6 +210,9 @@ void NodeManager::_finishPair(const uint8_t* mac, const char* fw) {
         n->control = !anyControl;
     }
     n->resetByUser = false;
+#ifdef FG1_REPEATER
+    if (_via) memcpy(n->via, _via, 6); else memset(n->via, 0, 6);
+#endif
     strlcpy(n->fw, fw[0] ? fw : d->fw, sizeof(n->fw));
     d->used = false;
     _save();
@@ -204,6 +247,16 @@ void NodeManager::_onData(const EspNowRx& rx, const PktData& p) {
     n->rssiAtNode = p.rssiFromCtrl;
     n->uptime = p.uptimeSec;
     strlcpy(n->fw, p.fw, sizeof(n->fw));
+#ifdef FG1_REPEATER
+    if (_via) {
+        if (memcmp(n->via, _via, 6) != 0) _event(String("Sensor ") + (n->name[0] ? n->name : _shortId(rx.mac).c_str()) + " now via " + _shortId(_via));
+        memcpy(n->via, _via, 6);
+    } else if (!isZero(n->via)) {
+        _event(String("Sensor ") + (n->name[0] ? n->name : _shortId(rx.mac).c_str()) + " now direct");
+        memset(n->via, 0, 6);
+    }
+    _sendDataAck(rx.mac, p.seq);
+#endif
     if (p.sensorOk) { n->avgT.add(n->t, now); n->avgRh.add(n->rh, now); }
     if (wasOffline && n->rx > 1)
         _event(String("Sensor ") + (n->name[0] ? n->name : _shortId(rx.mac).c_str()) + " back online");
@@ -266,7 +319,11 @@ bool NodeManager::remove(const String& macS, String& err) {
     if (d) d->used = false;                 // also cancels a pending add
     Node* n = _find(mac);
     if (!n) { if (d) return true; err = "not found"; return false; }
+#ifdef FG1_REPEATER
+    { ViaScope vs(_via, n->via); _sendSimple(mac, PKT_UNPAIR); }
+#else
     _sendSimple(mac, PKT_UNPAIR);           // if it is in range it resets right away
+#endif
     String label = n->name[0] ? String(n->name) : _shortId(mac);
     *n = Node();
     _save();
@@ -287,10 +344,80 @@ bool NodeManager::rename(const String& macS, const String& name, String& err) {
 bool NodeManager::identify(const String& macS, String& err) {
     uint8_t mac[6];
     if (!EspNowLink::parseMac(macS, mac)) { err = "bad mac"; return false; }
-    if (!_find(mac)) { err = "not found"; return false; }
+    Node* n = _find(mac);
+    if (!n) { err = "not found"; return false; }
+#ifdef FG1_REPEATER
+    ViaScope vs(_via, n->via);
+#endif
     _sendSimple(mac, PKT_IDENTIFY);
     return true;
 }
+
+#ifdef FG1_REPEATER
+bool NodeManager::setRelay(const String& macS, bool on, String& err) {
+    uint8_t mac[6];
+    if (!EspNowLink::parseMac(macS, mac)) { err = "bad mac"; return false; }
+    Node* n = _find(mac);
+    if (!n) { err = "not found"; return false; }
+    if (!n->relayCap) { err = "this sensor has the standard (no repeater) firmware"; return false; }
+    PktRelayCfg c = {};
+    protoFill(c.h, PKT_RELAY_CFG);
+    memcpy(c.origin, mac, 6);
+    c.relayOn = on;
+    ViaScope vs(_via, n->via);
+    _sendTo(mac, &c, sizeof(c));
+    n->relayOn = on;                         // NODE_INFO confirms it within a few seconds
+    _event(String("Sensor ") + (n->name[0] ? n->name : _shortId(mac).c_str()) + (on ? " may relay" : " will not relay"));
+    return true;
+}
+
+void NodeManager::_sendDataAck(const uint8_t* mac, uint16_t seq) {
+    PktDataAck a = {};
+    protoFill(a.h, PKT_DATA_ACK);
+    memcpy(a.origin, mac, 6);
+    a.seq = seq;
+    _sendTo(mac, &a, sizeof(a));
+}
+
+void NodeManager::_onNodeInfo(const uint8_t* mac, const PktNodeInfo& p) {
+    Node* n = _find(mac);
+    if (!n) return;
+    n->relayCap = true;
+    n->relayOn = p.relayOn;
+    n->carrying = p.children;
+}
+
+// A repeater forwards a far node's packet: handle it as if it came from the
+// far node, with replies going back through the same repeater.
+void NodeManager::_onRelayUp(const EspNowRx& rx) {
+    if (rx.len < relayUpSize(0)) return;
+    const PktRelayUp* u = (const PktRelayUp*)rx.data;
+    if (u->innerLen > sizeof(u->inner) || rx.len < relayUpSize(u->innerLen)) return;
+    if (!protoValid(u->inner, u->innerLen)) return;
+    Node* rep = _find(rx.mac);
+    if (!rep) return;                        // only our own paired nodes may relay
+    EspNowRx in = {};
+    memcpy(in.mac, u->origin, 6);
+    in.rssi = u->rssi;
+    in.len = u->innerLen;
+    memcpy(in.data, u->inner, u->innerLen);
+    ViaScope vs(_via, rx.mac);
+    switch (in.data[3]) {
+        case PKT_HELLO:
+            if (in.len >= sizeof(PktHello)) _onHello(in, *(const PktHello*)in.data);
+            break;
+        case PKT_PAIR_OK:
+            _finishPair(in.mac, "");
+            break;
+        case PKT_DATA:
+            if (in.len >= sizeof(PktData)) _onData(in, *(const PktData*)in.data);
+            break;
+        case PKT_NODE_INFO:
+            if (in.len >= sizeof(PktNodeInfo)) _onNodeInfo(in.mac, *(const PktNodeInfo*)in.data);
+            break;
+    }
+}
+#endif
 
 void NodeManager::setControlSources(JsonArrayConst sources) {
     _localControl = false;
@@ -335,6 +462,10 @@ void NodeManager::toJson(JsonObject root, uint32_t now) const {
             o["up"] = n.uptime;
             o["sensor"] = n.sensorKind;
         }
+#ifdef FG1_REPEATER
+        if (!isZero(n.via)) o["via"] = _shortId(n.via);       // rssi above is then the far hop
+        if (n.relayCap) { o["relay"] = n.relayOn; o["carrying"] = n.carrying; }
+#endif
     }
     JsonArray disc = root["discovered"].to<JsonArray>();
     for (auto& d : _disc) {
@@ -345,7 +476,13 @@ void NodeManager::toJson(JsonObject root, uint32_t now) const {
         o["rssi"] = d.rssi;
         o["fw"] = d.fw;
         o["pending"] = d.pending;
+#ifdef FG1_REPEATER
+        if (!isZero(d.via)) o["via"] = _shortId(d.via);
+#endif
         o["age"] = (millis() - d.lastMs) / 1000;
     }
     root["local_control"] = _localControl;
+#ifdef FG1_REPEATER
+    root["repeater"] = true;                 // repeater-version controller
+#endif
 }

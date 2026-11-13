@@ -74,6 +74,10 @@ class SensorsTab extends StatelessWidget {
             final m = n['mac'] as String;
             setSources(v ? [...chosen, m] : chosen.where((x) => x != m).toList(), local);
           },
+          onRelay: n['relay'] == null
+              ? null
+              : () => runCmd(context, conn.send({'cmd': 'node_relay', 'mac': n['mac'], 'on': n['relay'] != true}),
+                  okMsg: n['relay'] == true ? 'It will no longer relay for other sensors' : 'It may now relay for other sensors'),
           onIdentify: () => runCmd(context, conn.send({'cmd': 'node_identify', 'mac': n['mac']}),
               okMsg: 'The sensor\'s lights will flash for 15 s'),
           onRename: () => _rename(context, n),
@@ -116,7 +120,13 @@ class SensorsTab extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.fiber_new),
             title: Text(d['id'] ?? ''),
-            subtitle: SignalBars(rssi: (d['rssi'] as num?)?.toInt() ?? 0),
+            subtitle: Row(children: [
+              SignalBars(rssi: (d['rssi'] as num?)?.toInt() ?? 0),
+              if (d['via'] != null) ...[
+                const SizedBox(width: 8),
+                Text('via ${d['via']}', style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+              ],
+            ]),
             trailing: d['pending'] == true
                 ? const Row(mainAxisSize: MainAxisSize.min, children: [
                     SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -167,11 +177,18 @@ class SensorsTab extends StatelessWidget {
 
 class _NodeCard extends StatelessWidget {
   const _NodeCard(
-      {required this.node, required this.label, required this.onControl, required this.onIdentify, required this.onRename, required this.onRemove});
+      {required this.node,
+      required this.label,
+      required this.onControl,
+      required this.onIdentify,
+      required this.onRename,
+      required this.onRemove,
+      this.onRelay});
   final Map<String, dynamic> node;
   final String label;
   final ValueChanged<bool> onControl;
   final VoidCallback onIdentify, onRename, onRemove;
+  final VoidCallback? onRelay; // repeater-version sensors only
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +199,15 @@ class _NodeCard extends StatelessWidget {
     final lost = (node['lost'] as num?)?.toInt() ?? 0;
     final delivered = rx + lost == 0 ? null : (100 * rx / (rx + lost));
     final age = (node['age'] as num?)?.toInt();
+    // Repeater version: "via FG1N_xxxx" when it reports through another sensor
+    // (its signal is then the far hop), and how many far sensors it carries.
+    final via = node['via'] as String?;
+    final carrying = (node['carrying'] as num?)?.toInt() ?? 0;
+    final path = [
+      if (via != null) 'via $via',
+      if (node['relay'] == true && carrying > 0) 'relaying for $carrying',
+      if (node['relay'] == false) 'relay off',
+    ].join(' · ');
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Padding(
@@ -193,7 +219,8 @@ class _NodeCard extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-                Text(node['id'] ?? '', style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+                Text(path.isEmpty ? (node['id'] ?? '') : '${node['id'] ?? ''} · $path',
+                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
               ]),
             ),
             if (online && node['ok'] == true)
@@ -203,11 +230,15 @@ class _NodeCard extends StatelessWidget {
               Text(reset ? 'reset — add again' : online ? 'sensor fault' : 'offline',
                   style: const TextStyle(color: Colors.red)),
             PopupMenuButton<String>(
-              onSelected: (v) => {'identify': onIdentify, 'rename': onRename, 'remove': onRemove}[v]!(),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'identify', child: Text('Flash its lights')),
-                PopupMenuItem(value: 'rename', child: Text('Rename')),
-                PopupMenuItem(value: 'remove', child: Text('Remove')),
+              onSelected: (v) => {'identify': onIdentify, 'rename': onRename, 'remove': onRemove, 'relay': onRelay}[v]?.call(),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'identify', child: Text('Flash its lights')),
+                const PopupMenuItem(value: 'rename', child: Text('Rename')),
+                if (onRelay != null)
+                  PopupMenuItem(
+                      value: 'relay',
+                      child: Text(node['relay'] == true ? 'Stop relaying for other sensors' : 'Allow relaying for other sensors')),
+                const PopupMenuItem(value: 'remove', child: Text('Remove')),
               ],
             ),
           ]),

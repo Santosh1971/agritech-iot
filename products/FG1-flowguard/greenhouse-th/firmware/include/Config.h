@@ -8,7 +8,7 @@
 // FG1 Greenhouse TH — shared configuration for the controller and node builds.
 
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION    "0.1.4"
+#define FIRMWARE_VERSION    "0.2.0"
 #endif
 
 // ---------- Identity ----------

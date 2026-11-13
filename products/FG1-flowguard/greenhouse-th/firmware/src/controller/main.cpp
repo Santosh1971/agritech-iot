@@ -15,6 +15,9 @@
 // Serial: "status", "events", "pump on", "pump off", "auto", "manual",
 //         bench checks "cmd <app JSON>", "settime <unix>", "gpio N [0|1]", "i2c" (20x bus scan), "i2cswap", "rtc" (raw DS1307 regs), "sensor" (re-detect),
 //         "sim <T> <RH>" / "sim off" (fake T/RH reading for bench tests, RAM only).
+// Repeater version (FG1_REPEATER): far nodes may report through a nearer node;
+//         app command node_relay {mac, on}; serial "nodirect <node id>|off" (bench:
+//         ignore that node's direct packets, as if out of range).
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
@@ -444,6 +447,9 @@ static String handleCommand(const String& cmd, JsonObject p, String& err, bool f
     if (cmd == "node_remove")   { nodes.remove(p["mac"] | "", err); publishStatus(); return "{}"; }
     if (cmd == "node_rename")   { nodes.rename(p["mac"] | "", p["name"] | "", err); publishStatus(); return "{}"; }
     if (cmd == "node_identify") { nodes.identify(p["mac"] | "", err); return "{}"; }
+#ifdef FG1_REPEATER
+    if (cmd == "node_relay")    { nodes.setRelay(p["mac"] | "", p["on"] | true, err); publishStatus(); return "{}"; }
+#endif
     if (cmd == "set_control")   { nodes.setControlSources(p["sources"].as<JsonArrayConst>()); publishStatus(); return "{}"; }
 
     if (cmd == "get_events") return eventsJson();
@@ -547,7 +553,11 @@ void setup() {
     leds.begin();
     leds.setWiFiState(WIFI_LED_SEARCHING);
     deviceId = computeId();
+#ifdef FG1_REPEATER
+    Serial.printf("\n[BOOT] FG1 Greenhouse TH Controller %s  fw %s (repeater version)\n", deviceId.c_str(), FIRMWARE_VERSION);
+#else
     Serial.printf("\n[BOOT] FG1 Greenhouse TH Controller %s  fw %s\n", deviceId.c_str(), FIRMWARE_VERSION);
+#endif
 
     prefs.begin("fg1p", false);
     loadSettings();
@@ -686,6 +696,13 @@ void loop() {
             Wire.end(); Wire.begin(I2C_SDA, I2C_SCL);
         }
         else if (c.startsWith("sim"))  simCommand(c);
+#ifdef FG1_REPEATER
+        else if (c.startsWith("nodirect")) {         // bench: "nodirect FG1N_6AF8" / "nodirect off"
+            String id = c.substring(8); id.trim();
+            nodes.setNoDirect(id == "off" ? String() : id);
+            Serial.printf("[NODES] nodirect: %s\n", nodes.noDirect().length() ? nodes.noDirect().c_str() : "off");
+        }
+#endif
         else if (c == "sensor")   { sensor.begin(); Serial.printf("[TH] %s ok=%d\n", sensor.name(), sensor.ok()); }
         else if (c == "rtc") {
             Wire.beginTransmission(0x68); Wire.write(0);

@@ -9,6 +9,11 @@
 // BOOT button held 5 s:   forget the controller (back to "not paired").
 // Serial (115200):        "status", "forget", "send", "sim <T> <RH>" / "sim off" (fake
 //                         reading for bench tests, RAM only) for bench testing.
+// Repeater version (FG1_REPEATER, docs/repeater-plan.md): a node that can't
+// reach the controller well goes through a nearer node, and a node that
+// talks to the controller directly carries up to 4 far nodes. Extra serial
+// commands: "relay on|off" (carry far nodes; saved), "nodirect on|off"
+// (bench: pretend the controller is out of range; RAM only).
 #include <Arduino.h>
 #include <Wire.h>
 #include <Preferences.h>
@@ -18,6 +23,9 @@
 #include "EspNowLink.h"
 #include "THSensor.h"
 #include "LEDManager.h"
+#ifdef FG1_REPEATER
+#include "RelayLogic.h"
+#endif
 
 enum NodeState { ST_UNPAIRED, ST_PAIRED, ST_LOST };
 static const char* stateName[] = {"unpaired", "paired", "searching"};
@@ -63,11 +71,45 @@ static const uint32_t RETRY_SEND_MS      = 2000;
 
 static uint32_t  btnDownAt = 0;
 
+#ifdef FG1_REPEATER
+// ---- repeater version state ----
+static uint8_t   myMac[6] = {0};
+static uint8_t   parentMac[6] = {0};    // repeater we go through (all 0 = direct)
+static int8_t    rssiParent = 0;
+static bool      relayOn = true;        // carry far nodes (saved; app or "relay on|off")
+static bool      ctrlAcks = false;      // controller sends DATA_ACK -> count delivery by it
+static bool      waitingDataAck = false;
+static uint16_t  ackWaitSeq = 0;
+static uint32_t  ackWaitStart = 0;
+static bool      noDirect = false;      // bench: ignore the controller's own packets
+static relay::ChildTable children;
+// what the current sweep heard
+static bool      heardDirect = false, heardOffer = false;
+static int8_t    directRssi = 0, offerBest = -128;
+static uint8_t   offerMac[6] = {0};
+static uint32_t  nextDirectCheck = 0;
+static uint32_t  lastInfoMs = 0;
+static const uint32_t DATA_ACK_TIMEOUT_MS = 1500;
+static const uint32_t DIRECT_CHECK_MS     = 10UL * 60 * 1000;
+static const uint32_t NODE_INFO_MS        = 60000;
+
+static bool isZero(const uint8_t* m) { for (int i = 0; i < 6; i++) if (m[i]) return false; return true; }
+static bool viaParent() { return !isZero(parentMac); }
+// Carries far nodes only when paired directly to a controller that answers
+// with DATA_ACK (a repeater-build controller; a star one would drop relayed packets).
+static bool isRepeater() { return relayOn && state == ST_PAIRED && !viaParent() && ctrlAcks; }
+static void sendNodeInfo();
+#endif
+
 static void saveCtrl() {
     prefs.putBool("paired", state != ST_UNPAIRED);
     prefs.putBytes("ctrl", ctrlMac, 6);
     prefs.putUChar("ch", ctrlCh);
     prefs.putString("cid", ctrlId);
+#ifdef FG1_REPEATER
+    prefs.putBytes("par", parentMac, 6);
+    prefs.putBool("relay", relayOn);
+#endif
 }
 
 static void forget(const char* why) {
@@ -76,7 +118,16 @@ static void forget(const char* why) {
     memset(ctrlMac, 0, 6);
     ctrlId[0] = 0;
     state = ST_UNPAIRED;
+#ifdef FG1_REPEATER
+    memset(parentMac, 0, 6);
+    ctrlAcks = false;
+    waitingDataAck = false;
+    bool keepRelay = relayOn;
     prefs.clear();
+    prefs.putBool("relay", keepRelay);
+#else
+    prefs.clear();
+#endif
     sweeping = false;
     nextSweepAt = millis();
 }
@@ -108,6 +159,28 @@ static void sendData() {
     p.rssiFromCtrl = rssiFromCtrl;
     p.uptimeSec  = millis() / 1000;
     strlcpy(p.fw, FIRMWARE_VERSION, sizeof(p.fw));
+#ifdef FG1_REPEATER
+    lastSendMs = millis();
+    if (noDirect && !viaParent()) {          // bench: out of range, nothing to send to
+        consecutiveFails++;
+        Serial.printf("[NODE] DATA #%u not sent (nodirect, no repeater)\n", p.seq);
+        return;
+    }
+    bool sent = espnow.send(viaParent() ? parentMac : ctrlMac, &p, sizeof(p));
+    if (viaParent() || ctrlAcks) {           // delivery = end-to-end DATA_ACK
+        awaitingAck = false;
+        waitingDataAck = sent;
+        ackWaitSeq = p.seq;
+        ackWaitStart = millis();
+    } else {
+        awaitingAck = sent;                  // delivery = radio ACK (star controller)
+    }
+    Serial.printf("[NODE] DATA #%u  T=%.2f RH=%.1f %s  ch%u%s\n", p.seq, sensor.t(), sensor.rh(),
+                  sensor.ok() ? "" : "(sensor fault)", EspNowLink::channel(),
+                  viaParent() ? (" via " + EspNowLink::macStr(parentMac)).c_str() : "");
+    if (!sent) consecutiveFails++;
+    return;
+#endif
     awaitingAck = espnow.send(ctrlMac, &p, sizeof(p));
     lastSendMs = millis();
     Serial.printf("[NODE] DATA #%u  T=%.2f RH=%.1f %s  ch%u\n", p.seq, sensor.t(), sensor.rh(),
@@ -115,7 +188,45 @@ static void sendData() {
     if (!awaitingAck) consecutiveFails++;
 }
 
+#ifdef FG1_REPEATER
+static void goDirect(const char* why) {
+    if (viaParent()) Serial.printf("[NODE] Going direct to the controller (%s)\n", why);
+    memset(parentMac, 0, 6);
+    rssiParent = 0;
+    saveCtrl();
+}
+static void resetHeard() { heardDirect = heardOffer = false; directRssi = 0; offerBest = -128; }
+
+// End of a channel dwell while searching: take the best path heard on it.
+static bool decideSweep() {
+    if (state != ST_LOST || (!heardDirect && !heardOffer)) return false;
+    relay::Path p = relay::choose(heardDirect, directRssi, heardOffer, offerBest);
+    uint8_t ch = EspNowLink::channel();
+    if (p == relay::Path::Direct) {
+        goDirect("best path");
+    } else {
+        memcpy(parentMac, offerMac, 6);
+        rssiParent = offerBest;
+        PktHeader j; protoFill(j, PKT_RELAY_JOIN);
+        espnow.send(parentMac, &j, sizeof(j));
+        Serial.printf("[NODE] Going through repeater %s (path %d dBm)\n", EspNowLink::macStr(parentMac).c_str(), offerBest);
+    }
+    sweeping = false;
+    if (ch != ctrlCh) ctrlCh = ch;
+    saveCtrl();
+    resetHeard();
+    setState(ST_PAIRED);
+    consecutiveFails = 0;
+    sendData();
+    sendNodeInfo();
+    return true;
+}
+#endif
+
 static void startSweep() {
+#ifdef FG1_REPEATER
+    resetHeard();
+#endif
     sweeping = true;
     sweepCh = 1;
     EspNowLink::setChannel(sweepCh);
@@ -129,6 +240,9 @@ static void stepSweep() {
         return;
     }
     if (millis() - sweepDwellStart < SWEEP_DWELL_MS) return;
+#ifdef FG1_REPEATER
+    if (decideSweep()) return;
+#endif
     if (++sweepCh > 13) {
         sweeping = false;
         nextSweepAt = millis() + (state == ST_UNPAIRED ? UNPAIRED_PAUSE_MS : LOST_PAUSE_MS);
@@ -142,10 +256,84 @@ static void stepSweep() {
     sendHello();
 }
 
+#ifdef FG1_REPEATER
+static void relayUp(const EspNowRx& rx) {            // wrap a far node's packet for the controller
+    PktRelayUp u = {};
+    protoFill(u.h, PKT_RELAY_UP);
+    memcpy(u.origin, rx.mac, 6);
+    u.rssi = rx.rssi;
+    u.innerLen = rx.len < sizeof(u.inner) ? rx.len : sizeof(u.inner);
+    memcpy(u.inner, rx.data, u.innerLen);
+    espnow.send(ctrlMac, &u, relayUpSize(u.innerLen));
+}
+
+// Repeater side. Returns true if the packet was for the repeater role.
+static bool handleAsRepeater(const EspNowRx& rx, uint8_t type, bool fromCtrl) {
+    if (!isRepeater()) return false;
+    if (fromCtrl) {
+        if (type != PKT_RELAY_DOWN || rx.len < relayDownSize(0)) return false;
+        const PktRelayDown* d = (const PktRelayDown*)rx.data;
+        if (d->innerLen < sizeof(PktHeader) || rx.len < relayDownSize(d->innerLen)) return true;
+        uint8_t innerType = d->inner[3];
+        if (innerType == PKT_PAIR && d->innerLen >= sizeof(PktPair)) {
+            const PktPair* pp = (const PktPair*)d->inner;
+            PktRelayPair rp = {};
+            protoFill(rp.h, PKT_RELAY_PAIR);
+            strlcpy(rp.ctrlId, pp->ctrlId, sizeof(rp.ctrlId));
+            rp.channel = pp->channel;
+            memcpy(rp.ctrlMac, ctrlMac, 6);
+            children.touch(d->origin, millis());
+            espnow.send(d->origin, &rp, sizeof(rp));
+            Serial.printf("[RELAY] Pairing %s for the controller\n", EspNowLink::macStr(d->origin).c_str());
+        } else {
+            espnow.send(d->origin, d->inner, d->innerLen);
+            if (innerType == PKT_UNPAIR) children.remove(d->origin);
+        }
+        return true;
+    }
+    // From another node.
+    switch (type) {
+    case PKT_HELLO: {
+        if (rx.len < sizeof(PktHello)) return true;
+        const PktHello* h = (const PktHello*)rx.data;
+        if (!h->paired) { relayUp(rx); return true; }                // so the app lists it "via" us
+        if (memcmp(h->ctrlMac, ctrlMac, 6) == 0 && children.canAccept(rx.mac)) {
+            PktRelayOffer o = {};
+            protoFill(o.h, PKT_RELAY_OFFER);
+            strlcpy(o.ctrlId, ctrlId, sizeof(o.ctrlId));
+            o.rssiToCtrl = rssiFromCtrl;
+            o.children = children.count();
+            espnow.send(rx.mac, &o, sizeof(o));
+        }
+        return true;
+    }
+    case PKT_RELAY_JOIN:
+        if (children.touch(rx.mac, millis()))
+            Serial.printf("[RELAY] Carrying %s (%u far node(s))\n", EspNowLink::macStr(rx.mac).c_str(), children.count());
+        return true;
+    case PKT_DATA:
+    case PKT_PAIR_OK:
+    case PKT_NODE_INFO:
+        if (children.touch(rx.mac, millis())) relayUp(rx);           // it sent to us: it chose us
+        return true;
+    }
+    return false;
+}
+#endif
+
 static void handleRx(const EspNowRx& rx) {
     if (!protoValid(rx.data, rx.len)) return;
     uint8_t type = rx.data[3];
     bool fromCtrl = (state != ST_UNPAIRED) && memcmp(rx.mac, ctrlMac, 6) == 0;
+#ifdef FG1_REPEATER
+    if (noDirect && fromCtrl) return;                  // bench: controller "out of range"
+    bool fromParent = viaParent() && memcmp(rx.mac, parentMac, 6) == 0;
+    if (fromParent && rx.rssi) rssiParent = rx.rssi;
+    if (handleAsRepeater(rx, type, fromCtrl)) return;
+    bool fromPath = fromCtrl || fromParent;            // packets for us arrive on our path
+#else
+    bool fromPath = fromCtrl;
+#endif
     if (fromCtrl && rx.rssi) rssiFromCtrl = rx.rssi;
 
     switch (type) {
@@ -156,6 +344,18 @@ static void handleRx(const EspNowRx& rx) {
             Serial.printf("[NODE] Controller %.*s heard on ch%u (RSSI %d) — add this node in the app\n",
                           (int)sizeof(a->ctrlId), a->ctrlId, a->channel, rx.rssi);
         } else if (fromCtrl) {
+#ifdef FG1_REPEATER
+            if (state == ST_PAIRED && viaParent()) {           // reply to the periodic direct check
+                if (relay::switchBackToDirect(rx.rssi)) { goDirect("direct signal good again"); sendNodeInfo(); }
+                break;
+            }
+            if (sweeping && !relay::directGoodEnough(rx.rssi)) {   // weak: wait for repeater offers
+                heardDirect = true;
+                directRssi = rx.rssi;
+                break;
+            }
+            goDirect("controller heard");
+#endif
             uint8_t ch = EspNowLink::channel();
             sweeping = false;
             if (ch != ctrlCh) { ctrlCh = ch; saveCtrl(); }
@@ -177,6 +377,9 @@ static void handleRx(const EspNowRx& rx) {
         strlcpy(ctrlId, p->ctrlId, sizeof(ctrlId));
         ctrlCh = EspNowLink::channel();
         sweeping = false;
+#ifdef FG1_REPEATER
+        memset(parentMac, 0, 6);
+#endif
         setState(ST_PAIRED);
         saveCtrl();
         PktHeader ok; protoFill(ok, PKT_PAIR_OK);
@@ -187,11 +390,67 @@ static void handleRx(const EspNowRx& rx) {
         break;
     }
     case PKT_UNPAIR:
-        if (fromCtrl) forget("removed in app");
+        if (fromPath) forget("removed in app");
         break;
     case PKT_IDENTIFY:
-        if (fromCtrl) { identifyUntil = millis() + 15000; Serial.println("[NODE] Identify"); }
+        if (fromPath) { identifyUntil = millis() + 15000; Serial.println("[NODE] Identify"); }
         break;
+#ifdef FG1_REPEATER
+    case PKT_RELAY_OFFER: {
+        if (rx.len < sizeof(PktRelayOffer) || state != ST_LOST || !sweeping) break;
+        const PktRelayOffer* o = (const PktRelayOffer*)rx.data;
+        int8_t score = relay::offerScore(rx.rssi, o->rssiToCtrl);
+        if (!heardOffer || score > offerBest) {
+            heardOffer = true;
+            offerBest = score;
+            memcpy(offerMac, rx.mac, 6);
+        }
+        break;
+    }
+    case PKT_RELAY_PAIR: {                             // added in the app, through a repeater
+        if (rx.len < sizeof(PktRelayPair) || state != ST_UNPAIRED) break;
+        const PktRelayPair* p = (const PktRelayPair*)rx.data;
+        memcpy(ctrlMac, p->ctrlMac, 6);
+        strlcpy(ctrlId, p->ctrlId, sizeof(ctrlId));
+        memcpy(parentMac, rx.mac, 6);
+        rssiParent = rx.rssi;
+        ctrlCh = EspNowLink::channel();
+        sweeping = false;
+        setState(ST_PAIRED);
+        saveCtrl();
+        PktHeader ok; protoFill(ok, PKT_PAIR_OK);
+        espnow.send(parentMac, &ok, sizeof(ok));
+        Serial.printf("[NODE] Paired with %s through repeater %s on ch%u\n", ctrlId,
+                      EspNowLink::macStr(parentMac).c_str(), ctrlCh);
+        consecutiveFails = 0;
+        lastSendMs = millis() - NODE_SEND_MS + 500;
+        break;
+    }
+    case PKT_DATA_ACK: {
+        if (rx.len < sizeof(PktDataAck) || !fromPath) break;
+        const PktDataAck* a = (const PktDataAck*)rx.data;
+        if (memcmp(a->origin, myMac, 6) != 0) break;
+        if (fromCtrl && !ctrlAcks) {
+            ctrlAcks = true;
+            Serial.println("[NODE] Controller confirms readings (repeater version)");
+            lastInfoMs = millis() - NODE_INFO_MS + 300;       // tell it soon that we can relay
+        }
+        if (waitingDataAck && a->seq == ackWaitSeq) {
+            waitingDataAck = false;
+            consecutiveFails = 0;
+            leds.flowPulse();
+        }
+        break;
+    }
+    case PKT_RELAY_CFG: {
+        if (rx.len < sizeof(PktRelayCfg) || !fromPath) break;
+        relayOn = ((const PktRelayCfg*)rx.data)->relayOn;
+        saveCtrl();
+        Serial.printf("[NODE] Relaying for far nodes %s (from app)\n", relayOn ? "ON" : "OFF");
+        sendNodeInfo();
+        break;
+    }
+#endif
     }
 }
 
@@ -210,6 +469,21 @@ static void updateLeds() {
     leds.loop();
 }
 
+#ifdef FG1_REPEATER
+static void sendNodeInfo() {
+    if (state != ST_PAIRED) return;
+    PktNodeInfo i = {};
+    protoFill(i.h, PKT_NODE_INFO);
+    i.relayOn = relayOn;
+    i.children = children.count();
+    memcpy(i.parent, parentMac, 6);
+    i.rssiParent = rssiParent;
+    if (noDirect && !viaParent()) return;
+    espnow.send(viaParent() ? parentMac : ctrlMac, &i, sizeof(i));
+    lastInfoMs = millis();
+}
+#endif
+
 static void printStatus() {
     Serial.printf("[NODE] id=%s fw=%s state=%s ctrl=%s (%s) ch=%u sensor=%s ok=%d T=%.2f RH=%.1f "
                   "acked=%lu failed=%lu rssiFromCtrl=%d\n",
@@ -217,6 +491,11 @@ static void printStatus() {
                   EspNowLink::macStr(ctrlMac).c_str(), EspNowLink::channel(), sensor.name(),
                   sensor.ok(), sensor.t(), sensor.rh(),
                   (unsigned long)espnow.sentOk(), (unsigned long)espnow.sentFail(), rssiFromCtrl);
+#ifdef FG1_REPEATER
+    Serial.printf("[NODE] path=%s%s rssiParent=%d relay=%s carrying=%u ctrlAcks=%d nodirect=%d\n",
+                  viaParent() ? "via " : "direct", viaParent() ? EspNowLink::macStr(parentMac).c_str() : "",
+                  rssiParent, relayOn ? "on" : "off", children.count(), ctrlAcks, noDirect);
+#endif
 }
 
 
@@ -249,7 +528,12 @@ void setup() {
     char id[16];
     snprintf(id, sizeof(id), "%s_%02X%02X", NODE_PREFIX, mac[4], mac[5]);
     nodeId = id;
+#ifdef FG1_REPEATER
+    memcpy(myMac, mac, 6);
+    Serial.printf("\n[BOOT] FG1 Greenhouse TH Sensor Node %s  fw %s (repeater version)\n", nodeId.c_str(), FIRMWARE_VERSION);
+#else
     Serial.printf("\n[BOOT] FG1 Greenhouse TH Sensor Node %s  fw %s\n", nodeId.c_str(), FIRMWARE_VERSION);
+#endif
 
     Wire.begin(I2C_SDA, I2C_SCL);
     sensor.begin();
@@ -260,9 +544,16 @@ void setup() {
     espnow.begin();
 
     prefs.begin("fg1n", false);
+#ifdef FG1_REPEATER
+    relayOn = prefs.getBool("relay", true);
+#endif
     if (prefs.getBool("paired", false) && prefs.getBytes("ctrl", ctrlMac, 6) == 6) {
         ctrlCh = prefs.getUChar("ch", 1);
         prefs.getString("cid", ctrlId, sizeof(ctrlId));
+#ifdef FG1_REPEATER
+        if (prefs.getBytesLength("par") == 6) prefs.getBytes("par", parentMac, 6);
+        if (viaParent()) Serial.printf("[NODE] Through repeater %s\n", EspNowLink::macStr(parentMac).c_str());
+#endif
         state = ST_PAIRED;
         EspNowLink::setChannel(ctrlCh);
         Serial.printf("[NODE] Paired with %s (%s), ch%u\n", ctrlId, EspNowLink::macStr(ctrlMac).c_str(), ctrlCh);
@@ -279,6 +570,20 @@ void loop() {
     while (espnow.poll(rx)) handleRx(rx);
 
     if (state == ST_PAIRED) {
+#ifdef FG1_REPEATER
+        if (waitingDataAck && millis() - ackWaitStart >= DATA_ACK_TIMEOUT_MS) {
+            waitingDataAck = false;
+            consecutiveFails++;
+            Serial.printf("[NODE] No DATA_ACK (%u in a row)\n", consecutiveFails);
+        }
+        children.expire(millis());
+        if (millis() - lastInfoMs >= NODE_INFO_MS) sendNodeInfo();
+        // A node on a repeater checks now and then whether the controller is reachable directly.
+        if (viaParent() && !noDirect && (int32_t)(millis() - nextDirectCheck) >= 0) {
+            nextDirectCheck = millis() + DIRECT_CHECK_MS;
+            sendHello();
+        }
+#endif
         if (awaitingAck && espnow.sendDone()) {
             awaitingAck = false;
             if (espnow.lastSendOk()) {
@@ -292,9 +597,18 @@ void loop() {
         if (consecutiveFails >= FAILS_BEFORE_LOST) {
             setState(ST_LOST);
             consecutiveFails = 0;
+#ifdef FG1_REPEATER
+            // Relearn whether the controller confirms readings: it may have been
+            // reflashed with the star firmware (then the radio ACK is all we get).
+            ctrlAcks = false;
+            waitingDataAck = false;
+#endif
             nextSweepAt = millis();
         } else {
             uint32_t every = consecutiveFails ? RETRY_SEND_MS : NODE_SEND_MS;
+#ifdef FG1_REPEATER
+            if (waitingDataAck) every = 0xFFFFFFFF;
+#endif
             if (!awaitingAck && millis() - lastSendMs >= every) sendData();
         }
     } else {
@@ -317,6 +631,18 @@ void loop() {
         else if (cmd == "forget") forget("serial");
         else if (cmd == "send" && state != ST_UNPAIRED) sendData();
         else if (cmd.startsWith("sim")) { simCommand(cmd); if (state != ST_UNPAIRED) sendData(); }
+#ifdef FG1_REPEATER
+        else if (cmd == "relay on" || cmd == "relay off") {
+            relayOn = cmd == "relay on"; saveCtrl(); sendNodeInfo();
+            Serial.printf("[NODE] Relaying for far nodes %s\n", relayOn ? "ON" : "OFF");
+        }
+        else if (cmd == "nodirect on" || cmd == "nodirect off") {
+            noDirect = cmd == "nodirect on";
+            Serial.printf("[NODE] nodirect %s (bench: controller %s)\n", noDirect ? "ON" : "OFF",
+                          noDirect ? "treated as out of range" : "reachable again");
+            if (noDirect && !viaParent() && state == ST_PAIRED) { setState(ST_LOST); nextSweepAt = millis(); }
+        }
+#endif
     }
 
     static uint32_t lastStatus = 0;

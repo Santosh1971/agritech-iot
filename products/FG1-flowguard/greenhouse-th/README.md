@@ -141,8 +141,10 @@ newer, by its `rev`).
 
 ## Known limits / to decide
 
-- Nodes reach the controller directly (star, no hopping). A repeater version (far node → nearer
-  node → controller), kept alongside this star version, is planned in [docs/repeater-plan.md](docs/repeater-plan.md).
+- Star version: nodes reach the controller directly (no hopping). **Repeater version** (0.2.0+, envs
+  `controller_c3_rpt` / `node_c3_rpt`): a far node may go through one nearer node; see
+  [docs/repeater-plan.md](docs/repeater-plan.md). Star and repeater builds work together, but
+  repeaters need the repeater controller.
 
 - Trend (24 h) and events live in RAM and restart after a power cut. Settings,
   mode, sensors and WiFi are kept.

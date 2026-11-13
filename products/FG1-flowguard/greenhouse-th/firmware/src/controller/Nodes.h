@@ -40,6 +40,12 @@ public:
     bool identify(const String& mac, String& err);
     // sources: node MACs and/or "local". Empty = fallback to local.
     void setControlSources(JsonArrayConst sources);
+#ifdef FG1_REPEATER
+    bool setRelay(const String& mac, bool on, String& err);   // "Can relay for other sensors"
+    // Bench: ignore direct packets from this node id ("FG1N_6AF8"), "" = off.
+    void setNoDirect(const String& id) { _noDirectId = id; }
+    const String& noDirect() const { return _noDirectId; }
+#endif
 
     void toJson(JsonObject root, uint32_t nowSec) const;
     uint8_t count() const;
@@ -70,6 +76,12 @@ private:
         char     fw[12] = {0};
         bool     resetByUser = false;     // node said it is no longer paired
         mist::RollingAvg avgT, avgRh;
+#ifdef FG1_REPEATER
+        uint8_t  via[6] = {0};            // repeater it reports through (all 0 = direct)
+        bool     relayCap = false;        // repeater-version node (sent NODE_INFO)
+        bool     relayOn = false;
+        uint8_t  carrying = 0;            // far nodes it carries
+#endif
     };
     struct Disc {
         bool     used = false;
@@ -78,6 +90,10 @@ private:
         int8_t   rssi = 0;
         char     fw[12] = {0};
         bool     pending = false;
+#ifdef FG1_REPEATER
+        uint8_t  via[6] = {0};            // heard through this repeater (all 0 = direct)
+        uint32_t directMs = 0;            // last time heard directly
+#endif
     };
     struct Persist { uint8_t mac[6]; char name[20]; uint8_t control; };
 
@@ -88,6 +104,15 @@ private:
     void _sendAnnounce(const uint8_t* mac, bool knows);
     void _sendPair(const uint8_t* mac);
     void _sendSimple(const uint8_t* mac, PktType t);
+    // Sends to a node directly, or through _via (RELAY_DOWN) when set.
+    void _sendTo(const uint8_t* mac, const void* data, size_t len);
+#ifdef FG1_REPEATER
+    void _onRelayUp(const EspNowRx& rx);
+    void _onNodeInfo(const uint8_t* mac, const PktNodeInfo& p);
+    void _sendDataAck(const uint8_t* mac, uint16_t seq);
+    String _noDirectId;
+#endif
+    const uint8_t* _via = nullptr;            // path of the packet being handled / sent
     Node* _find(const uint8_t* mac);
     Disc* _findDisc(const uint8_t* mac);
     Disc* _discSlot(const uint8_t* mac);

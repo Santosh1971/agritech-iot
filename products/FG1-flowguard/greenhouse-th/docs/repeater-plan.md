@@ -1,6 +1,8 @@
 # FG1 Greenhouse TH: repeater version (plan)
 
-Status: plan, 13 Nov 2026. Nothing is built yet. The current star firmware stays as it is.
+Status: built 13 Nov 2026 as 0.2.0 (choices: one hop, every node may relay, -85 dBm). Tested on two boards
+(direct path, relay switch, mixing star and repeater builds); the far-node path needs a third board.
+The current star firmware stays as it is.
 
 ## Why
 
@@ -77,12 +79,23 @@ airtime). Channel: everyone stays on the controller's WiFi channel, as today.
 
 | Type | Direction | Contents |
 |---|---|---|
-| 8 `RELAY_OFFER` | repeater -> far node | repeater MAC/ID, its RSSI to controller, children count |
-| 9 `RELAY_JOIN` | far node -> repeater | "carry me" (repeater accepts if < 4 children) |
-| 10 `RELAY_DATA` | repeater -> controller | origin MAC, RSSI repeater heard, the original DATA |
-| 11 `DATA_ACK` | controller -> node (via repeater) | origin MAC, seq |
-| 12 `RELAY_CMD` | controller -> repeater -> node | origin MAC, wrapped PAIR / UNPAIR / IDENTIFY |
-| 13 `RELAY_HELLO` | repeater -> controller | forwards a far node's HELLO so it appears in the app |
+| 8 `RELAY_OFFER` | repeater -> far node | controller id, repeater's RSSI to controller, children count |
+| 9 `RELAY_JOIN` | far node -> repeater | "carry me" (accepted if < 4 children) |
+| 10 `RELAY_UP` | repeater -> controller | origin MAC, RSSI it heard, wrapped HELLO / PAIR_OK / DATA / NODE_INFO |
+| 11 `RELAY_DOWN` | controller -> repeater | origin MAC, wrapped PAIR / UNPAIR / IDENTIFY / DATA_ACK / RELAY_CFG |
+| 12 `DATA_ACK` | controller -> node | origin MAC, seq (end-to-end "reading arrived") |
+| 13 `RELAY_PAIR` | repeater -> far node | PAIR that also carries the controller's MAC |
+| 14 `NODE_INFO` | node -> controller, every 60 s | relay on/off, children, parent, parent RSSI |
+| 15 `RELAY_CFG` | controller -> node | relay on/off (from the app) |
+
+Delivery: every reading a repeater-version controller receives gets a `DATA_ACK`. A repeater-version
+node counts delivery by it once it has seen one from its controller, and always when it goes
+through a repeater. It forgets that when it loses the controller, so it relearns after the
+controller is reflashed with the star firmware (which never sends `DATA_ACK`).
+
+Bench commands: node `relay on|off`, `nodirect on|off` (ignore the controller's own packets);
+controller `nodirect <node id>|off` (ignore that node's direct packets). With both set, a node
+behaves as if out of the controller's range. App command `node_relay {mac, on}`.
 
 ## Bench test plan
 
