@@ -124,3 +124,12 @@ Needs a **third C3 board** (we have two): controller A, repeater node B, far nod
 - Get a third C3 board for the bench test.
 - Compare with the simpler fix: a C3 board with an external antenna may make repeaters unnecessary
   at this site; worth a range test first.
+
+## Security notes
+
+- The controller uses a relayed packet only from a paired repeater-version node with relaying on
+  that talks to it directly, never for the sender itself or the controller, and never for a node
+  it has heard directly in the last 60 s.
+- ESP-NOW packets are not signed or encrypted (star and repeater versions alike), so a device that
+  copies a paired node's MAC could still inject readings. The fix is ESP-NOW encryption with a
+  per-site key set at pairing; planned as a separate change.
