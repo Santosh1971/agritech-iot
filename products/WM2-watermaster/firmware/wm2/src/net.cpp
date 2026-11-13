@@ -51,6 +51,12 @@ static volatile bool mqttIsUp = false;
 static volatile bool reconfigWanted = false;
 static volatile bool forgetWanted = false;
 static bool onLoopTask() { return loopTask == nullptr || xTaskGetCurrentTaskHandle() == loopTask; }
+// True while a command from the broker is being handled. A WiFi change from
+// there must wait until PubSubClient has acknowledged the message (it does so
+// after the callback); dropping WiFi inside the callback left the command
+// unacknowledged, so the broker re-sent it on every reconnect and the node
+// forgot each new farm WiFi 1 s after joining it (Avinash, 2026-11-13).
+static bool inMqttCallback = false;
 static void doReconfigure();
 static void doForget();
 
@@ -119,7 +125,9 @@ static void onMqtt(char* topic, byte* payload, unsigned int len) {
   String msg;
   msg.reserve(len);
   for (unsigned i = 0; i < len; i++) msg += (char)payload[i];
+  inMqttCallback = true;
   String resp = dispatchCommand(msg, "mqtt");
+  inMqttCallback = false;
   publish("resp", resp);
 }
 
@@ -184,7 +192,7 @@ static void drainQueue() {
 }
 
 void reconfigure() {
-  if (!onLoopTask()) {
+  if (!onLoopTask() || inMqttCallback) {
     reconfigWanted = true;
     return;
   }
@@ -412,7 +420,7 @@ void forgetWifi() {
   cfg.ssid = "";
   cfg.pass = "";
   cfg.save();
-  if (!onLoopTask()) {
+  if (!onLoopTask() || inMqttCallback) {
     forgetWanted = true;
     return;
   }

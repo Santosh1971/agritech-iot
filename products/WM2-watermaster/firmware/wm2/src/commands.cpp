@@ -42,6 +42,21 @@ String dispatchCommand(const String& json, const char* via) {
   bool saveCfg = false, coreCfg = false;
   JsonObject data = resp["data"].to<JsonObject>();
 
+  // A command the broker held while the node was offline can arrive hours
+  // late (the session is kept so commands are not lost). Actions sent more
+  // than 5 min ago are refused; reads (get_*, device_info, wifi_scan) still run.
+  // The app stamps "ts" (UTC seconds); commands without it are not checked.
+  uint32_t sentAt = in["ts"] | 0;
+  if (sentAt && !strcmp(via, "mqtt") && timeValid() && nowUtc() > sentAt + 300 && !cmd.startsWith("get_") &&
+      cmd != "device_info" && cmd != "wifi_scan") {
+    resp["ok"] = false;
+    resp["err"] = "stale command (sent " + String((nowUtc() - sentAt) / 60) + " min ago), not done";
+    String s;
+    serializeJson(resp, s);
+    Serial.printf("[cmd] ignored stale %s from %s, %lu s old\n", cmd.c_str(), src, (unsigned long)(nowUtc() - sentAt));
+    return s;
+  }
+
   if (cmd == "wifi_scan") {
     // Replies at once with the cached list; "refresh" (default) starts a new
     // scan whose result is pushed as {"type":"wifi_scan"} and cached (WM2-004).

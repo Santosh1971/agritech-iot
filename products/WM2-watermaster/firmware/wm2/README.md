@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.1 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.2 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.1-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.2-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,17 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Commands held by the broker (0.2.2)
+
+The node keeps its MQTT session, so the broker holds commands sent while it was offline
+and delivers them on reconnect. Two problems seen on Avinash's node (2026-11-13), fixed:
+- A `wifi_forget` from the cloud dropped the WiFi inside the MQTT callback, before the
+  message was acknowledged, so the broker re-sent it on every reconnect: the node forgot
+  each new farm WiFi 1 s after joining. WiFi changes from MQTT now run after the ack.
+- Stale actions (e.g. a "valve_open 10 min" from hours before) ran on reconnect. The app
+  stamps `ts` (UTC s); an action from MQTT older than 5 min is refused ("stale command");
+  reads still run. Commands without `ts` are not checked.
 
 ## Saving the farm WiFi (0.2.1)
 

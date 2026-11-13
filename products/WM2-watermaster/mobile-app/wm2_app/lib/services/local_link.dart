@@ -82,7 +82,7 @@ class LocalLink with ReplyMatcher implements NodeLink {
       {Duration timeout = const Duration(seconds: 12)}) async {
     if (_ch == null) return {'ok': false, 'err': 'not connected'};
     final id = nextId();
-    final msg = {...cmd, 'id': id, 'src': 'app'};
+    final msg = {...cmd, 'id': id, 'src': 'app', 'ts': DateTime.now().millisecondsSinceEpoch ~/ 1000};
     final f = awaitReply(id, timeout);
     _ch!.sink.add(jsonEncode(msg));
     return f;

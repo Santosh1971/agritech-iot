@@ -130,7 +130,7 @@ class MqttLink with ReplyMatcher implements NodeLink {
       {Duration timeout = const Duration(seconds: 15)}) async {
     if (_c == null || !_connected) return {'ok': false, 'err': 'broker not connected'};
     final id = nextId();
-    final b = MqttClientPayloadBuilder()..addUTF8String(jsonEncode({...cmd, 'id': id, 'src': 'app'}));
+    final b = MqttClientPayloadBuilder()..addUTF8String(jsonEncode({...cmd, 'id': id, 'src': 'app', 'ts': DateTime.now().millisecondsSinceEpoch ~/ 1000}));
     final f = awaitReply(id, timeout);
     _c!.publishMessage('${base}cmd', MqttQos.atLeastOnce, b.payload!);
     return f;
