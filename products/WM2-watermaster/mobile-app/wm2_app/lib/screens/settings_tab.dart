@@ -138,26 +138,37 @@ class _SettingsTabState extends State<SettingsTab> {
               if (pick != null) setState(() => f('ssid').text = pick);
             },
           ),
-          TextButton.icon(
-            icon: const Icon(Icons.wifi_off),
-            label: const Text('Disconnect WiFi'),
+        ], () => f('ssid').text.trim().isEmpty
+            ? showReply(context, {'ok': false, 'err': 'WiFi name is empty: tap Scan and pick the network'}, '')
+            : _send({'cmd': 'wifi_config', 'ssid': f('ssid').text.trim(), 'pass': f('wpass').text}, 'WiFi saved; node is joining. Once it joins, its own WiFi closes after 1 min: put the phone back on the farm WiFi.')),
+        // Kept apart from Save and named for what it does: "Disconnect WiFi"
+        // next to Save was tapped as "disconnect my phone" and made the node
+        // forget the farm WiFi right after joining it (Avinash, 2026-11-13).
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
+            icon: const Icon(Icons.wifi_off, size: 18),
+            label: const Text('Forget farm WiFi on the node...'),
             onPressed: () async {
+              final net = '${cfg['ssid'] ?? ''}';
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Disconnect from the farm WiFi?'),
-                  content: const Text('The node forgets the farm WiFi and switches to its own WiFi (SoftAP). '
-                      'Connect the phone to WM2-xxxxxxxx to reach it again.'),
+                  title: Text('Make the node forget ${net.isEmpty ? 'its farm WiFi' : net}?'),
+                  content: const Text('The NODE leaves the farm WiFi and stops reporting to the cloud. It stays on its own '
+                      'WiFi (WM2-xxxxxxxx) until you save a farm WiFi again.\n\n'
+                      'To take only your phone off the node\'s WiFi, use the phone\'s WiFi settings instead.'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disconnect')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Forget')),
                   ],
                 ),
               );
-              if (ok == true) await _send({'cmd': 'wifi_forget'}, 'Farm WiFi forgotten; node is on its SoftAP');
+              if (ok == true) await _send({'cmd': 'wifi_forget'}, 'Farm WiFi forgotten; node is on its own WiFi');
             },
           ),
-        ], () => _send({'cmd': 'wifi_config', 'ssid': f('ssid').text.trim(), 'pass': f('wpass').text}, 'WiFi saved; node is joining. Once it joins, its own WiFi closes after 1 min: put the phone back on the farm WiFi.')),
+        ),
         section('MQTT broker (node)', [
           SizedBox(
             width: 220,

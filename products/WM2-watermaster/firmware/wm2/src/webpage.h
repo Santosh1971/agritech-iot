@@ -53,7 +53,7 @@ nav button{white-space:nowrap}nav button.sel{background:var(--ink);color:var(--b
  <div class="card"><h2>Detail</h2><div style="overflow-x:auto"><table id="hpts"></table></div></div>
 </section>
 <section id="t-set" class="hide">
- <div class="card"><h2>Farm WiFi</h2><div class="row"><input id="ssid" placeholder="SSID"><input id="wpass" type="password" placeholder="password"><button onclick="scan()">Scan</button><button class="p" onclick="saveWifi()">Save</button><button class="d" onclick="forget()">Disconnect WiFi</button></div><div id="scanres" class="q"></div></div>
+ <div class="card"><h2>Farm WiFi</h2><div class="row"><input id="ssid" placeholder="SSID"><input id="wpass" type="password" placeholder="password"><button onclick="scan()">Scan</button><button class="p" onclick="saveWifi()">Save</button><button class="d" onclick="forget()">Forget farm WiFi</button></div><div id="scanres" class="q"></div></div>
  <div class="card"><h2>MQTT broker</h2>
   <div class="row"><label>Use</label><select id="broker" onchange="brokerVis()"><option value="agrisense">AgriSense</option><option value="girish">Girish (own broker)</option></select><span id="mqst" class="q"></span></div>
   <div id="b-ag" class="q" style="margin-top:8px">Built-in login. Topics agrisense/WM2/<b id="aid"></b>/</div>
@@ -143,7 +143,7 @@ function loadCfg(){cmd({cmd:'get_config'}).then(j=>{C=j.data;$('ssid').value=C.s
 function showNets(nets){$('scanres').innerHTML=(nets||[]).length?(nets||[]).map(n=>`<a href="#" onclick="$('ssid').value='${n.ssid}';return false">${n.ssid}</a> (${n.rssi})`).join(', '):'no networks found'}
 function scan(){$('scanres').textContent='scanning... (the page may pause for a few seconds)';cmd({cmd:'wifi_scan'}).then(j=>{if(j.data&&j.data.networks&&j.data.networks.length)showNets(j.data.networks);
  setTimeout(()=>cmd({cmd:'wifi_scan',refresh:false}).then(k=>k.data&&showNets(k.data.networks)),6000)})}
-function forget(){if(confirm('Disconnect from the farm WiFi and forget it? The node switches to its own WiFi (SoftAP).'))cmd({cmd:'wifi_forget'}).then(j=>j.ok&&toast('Farm WiFi forgotten; SoftAP on'))}
+function forget(){if(confirm('Make the NODE forget the farm WiFi? It leaves the farm WiFi and the cloud and stays on its own WiFi until a farm WiFi is saved again. (To take only your phone off the node, use the phone settings.)'))cmd({cmd:'wifi_forget'}).then(j=>j.ok&&toast('Farm WiFi forgotten; SoftAP on'))}
 function saveWifi(){cmd({cmd:'wifi_config',ssid:$('ssid').value,pass:$('wpass').value}).then(j=>j.ok&&toast('Saved, joining '+$('ssid').value))}
 function brokerVis(){const ag=$('broker').value==='agrisense';$('b-ag').classList.toggle('hide',!ag);$('b-gi').classList.toggle('hide',ag)}
 function saveMqtt(){const ag=$('broker').value==='agrisense';const o={cmd:'mqtt_config',broker:$('broker').value};if(!ag){o.zone=$('zone').value;o.node=$('node').value}

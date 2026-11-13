@@ -196,10 +196,25 @@ String dispatchCommand(const String& json, const char* via) {
     if (e < 1735689600) { ok = false; err = "epoch (UTC seconds) required"; }
     else setTimeUtc(e, src);
   } else if (cmd == "wifi_config") {
-    cfg.ssid = in["ssid"] | "";
-    cfg.pass = in["pass"] | "";
-    saveCfg = true;
-    net::reconfigure();
+    String ssid = in["ssid"] | "";
+    ssid.trim();
+    if (!ssid.length()) {
+      // A blank name would leave the node on its SoftAP for good; forgetting
+      // the farm WiFi is wifi_forget ("Disconnect WiFi") only.
+      ok = false;
+      err = "WiFi name is empty: pick a network with Scan";
+    } else {
+      cfg.ssid = ssid;
+      cfg.pass = in["pass"] | "";
+      saveCfg = true;
+      net::reconfigure();
+      JsonDocument e;
+      e["event"] = "wifi";
+      e["what"] = "saved";
+      e["ssid"] = ssid;
+      e["src"] = src;
+      emitEvent(e);
+    }
   } else if (cmd == "mqtt_config") {
     // {"broker":"agrisense"|"girish", "zone","node"}. Host, port and login are
     // fixed per profile; any other keys are ignored.
@@ -214,6 +229,11 @@ String dispatchCommand(const String& json, const char* via) {
     net::reconfigure();
   } else if (cmd == "wifi_forget") {
     net::forgetWifi();
+    JsonDocument e;
+    e["event"] = "wifi";
+    e["what"] = "forgotten";
+    e["src"] = src;
+    emitEvent(e);
   } else if (cmd == "softap_on") {
     net::startAp(in["minutes"] | 15);
   } else if (cmd == "set_seq") {
