@@ -45,6 +45,14 @@ The DS1307 needs a CR2032, or its VBAT tied to GND; with VBAT floating it answer
 Plug the T/RH stick in with the power off. The AHT20 datasheet (§5.1) warns that it can start up
 dead if SDA/SCL are powered before VDD.
 
+**Release images for people without PlatformIO** (e.g. Avinash): one merged file per board, flashed at
+0x0 (esptool-js in Chrome, or `esptool.py --chip esp32c3 write_flash 0x0 <file>`). Make them with
+`esptool.py --chip esp32c3 merge_bin -o <out>.bin --flash_mode keep --flash_freq keep --flash_size keep
+0x0 bootloader.bin 0x8000 partitions.bin 0xe000 boot_app0.bin 0x10000 firmware.bin`. Note that the
+merged file fills 0x9000-0xDFFF (NVS) with 0xFF, so **flashing it wipes the pairing, settings and farm
+WiFi** (checked 2026-11-13): fine for a first install; to update a board in use, flash only
+`firmware.bin` at 0x10000. Release files contain the credentials: keep them in `release-*/` (git-ignored).
+
 App: `cd app && flutter build apk --release` (APK in `build/app/outputs/flutter-apk/`).
 The app has a **demo polyhouse** (Add polyhouse → "Add a demo polyhouse") that
 simulates a controller, for showing the customer without hardware.
