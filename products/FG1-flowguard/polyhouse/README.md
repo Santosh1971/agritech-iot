@@ -18,7 +18,7 @@ fill in the real values (same MQTT login as FG1).
 
 ```bash
 cd products/FG1-flowguard/polyhouse/firmware
-pio test -e native                     # 19 misting-rule tests, no board needed
+pio test -e native                     # 21 misting-rule tests, no board needed
 pio run -e controller -t upload --upload-port /dev/cu.usbserial-XXXX
 pio run -e node -t upload --upload-port /dev/cu.usbserial-YYYY
 pio device monitor -b 115200
@@ -72,7 +72,9 @@ simulates a controller, for showing the customer without hardware.
 
 **Misting rules** (`firmware/lib/MistLogic`, all values adjustable in the app):
 stop if T ≤ 29 °C or RH ≥ 60 % (stop always wins); start if T ≥ 32 °C, or
-RH ≤ 45 % with T > 29 °C; in between the last decision holds. While misting:
+RH ≤ 45 % with T > 29 °C; in between the last decision holds. After a humidity stop, misting
+restarts only once RH has fallen 3 % below the stop line (57 % by default), so humidity hovering at
+60 % cannot cycle the pump. While misting:
 2:00 ON / 3:00 OFF pulses, only inside the working hours (11:00–15:00).
 Motor protection: at least the OFF time between any two starts (a power cut
 counts as an OFF, so the pump never restarts within 3 min of power coming
@@ -98,7 +100,7 @@ newer, by its `rev`).
 
 ## Bench test with two boards (tomorrow)
 
-1. **Logic**: `pio test -e native`. All 19 tests should pass.
+1. **Logic**: `pio test -e native`. All 21 tests should pass.
 2. **Flash** board A as controller and board B as node. On each boot log,
    check the sensor line, e.g. `[TH] SHT4x at 0x44`. If it says
    `No T/RH sensor found`, the I2C scan lists what is on the bus; tell me

@@ -115,6 +115,22 @@ void test_sensor_fault_stops() {
     TEST_ASSERT_EQUAL(Reason::SensorFault, c.reason());
 }
 
+void test_rh_stop_needs_margin_to_restart() {
+    TEST_ASSERT_TRUE(step(33, 50));                // misting
+    TEST_ASSERT_FALSE(step(33, 60.0f));            // RH hits 60: stop at once
+    TEST_ASSERT_EQUAL(Reason::StopRhHigh, c.reason());
+    TEST_ASSERT_FALSE(step(33, 59.8f, 400));       // just under 60, rest done: still stopped
+    TEST_ASSERT_EQUAL(Reason::StopRhHigh, c.reason());
+    TEST_ASSERT_FALSE(step(33, 57.1f, 10));        // not yet 3 % below
+    TEST_ASSERT_EQUAL(Reason::StopRhHigh, c.reason());
+    TEST_ASSERT_TRUE(step(33, 57.0f, 10));         // 57 = 60 - 3: misting again
+    TEST_ASSERT_EQUAL(Reason::PulseOn, c.reason());
+}
+
+void test_rh_margin_only_after_a_rh_stop() {
+    TEST_ASSERT_TRUE(step(33, 59.0f));             // never reached 60: starts as before
+}
+
 void test_boot_hold() {
     c = Controller();
     in.nowSec = 10;                                // 10 s after power-on
@@ -176,6 +192,8 @@ int main(int, char**) {
     RUN_TEST(test_dry_and_warm_starts);
     RUN_TEST(test_dry_but_cool_does_not_start);
     RUN_TEST(test_rh_high_wins_over_hot);
+    RUN_TEST(test_rh_stop_needs_margin_to_restart);
+    RUN_TEST(test_rh_margin_only_after_a_rh_stop);
     RUN_TEST(test_hysteresis_keeps_misting_in_band);
     RUN_TEST(test_pulse_2_on_3_off);
     RUN_TEST(test_stop_mid_pulse_is_immediate);

@@ -9,6 +9,8 @@
 //   START:                T >= tStart (32) or (RH <= rhLow (45) and T > tStop)
 //   Between the two (29 < T < 32, 45 < RH < 60) the last decision holds,
 //   so the pump does not chatter around one threshold.
+//   After an RH stop, misting may restart only once RH <= rhHigh - 3 (57),
+//   so humidity hovering at 60 % cannot start and stop the pump repeatedly.
 //   While misting is wanted, the pump pulses onSec ON / offSec OFF (2/3 min),
 //   only inside the working window (11:00-15:00), all adjustable.
 #include <stdint.h>
@@ -62,6 +64,8 @@ struct Inputs {
 
 class Controller {
 public:
+    static constexpr float RH_RESTART_MARGIN = 3.0f;   // %RH below rhHigh before misting may restart
+
     void setSettings(const Settings& s) { _s = s; }
     const Settings& settings() const { return _s; }
 
@@ -95,6 +99,7 @@ private:
     bool     _demand  = false;
     bool     _inWindow = false;
     Reason   _reason  = Reason::Idle;
+    bool     _rhStopped = false;      // latched by RH >= rhHigh, released at rhHigh - RH_RESTART_MARGIN
     bool     _everOff = true;         // boot counts as an OFF edge at t=0: a power blip can't restart the motor before offSec
     uint32_t _onAt    = 0;
     uint32_t _offAt   = 0;

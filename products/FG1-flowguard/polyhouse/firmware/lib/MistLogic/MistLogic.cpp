@@ -121,16 +121,20 @@ bool Controller::update(const Inputs& in) {
     if (!in.sensorOk) {
         _demand = false;
         climate = Reason::SensorFault;
-    } else if (in.rh >= _s.rhHigh) {
+    } else if (in.rh >= _s.rhHigh || (_rhStopped && in.rh > _s.rhHigh - RH_RESTART_MARGIN)) {
+        _rhStopped = true;                    // stays stopped until RH falls 3 % below the stop line
         _demand = false;
         climate = Reason::StopRhHigh;
-    } else if (in.t <= _s.tStop) {
-        _demand = false;
-        climate = Reason::StopTempLow;
-    } else if (in.t >= _s.tStart || in.rh <= _s.rhLow) {
-        _demand = true;                       // T > tStop already true here
+    } else {
+        _rhStopped = false;
+        if (in.t <= _s.tStop) {
+            _demand = false;
+            climate = Reason::StopTempLow;
+        } else if (in.t >= _s.tStart || in.rh <= _s.rhLow) {
+            _demand = true;                   // T > tStop already true here
+        }
+        // else: inside the band — _demand unchanged
     }
-    // else: inside the band — _demand unchanged
 
     if (_mode == Mode::Off) {
         _set(false, now);
