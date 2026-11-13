@@ -132,6 +132,7 @@ void NodeManager::_handle(const EspNowRx& rx) {
     if (!protoValid(rx.data, rx.len)) return;
 #ifdef FG1_REPEATER
     if (_noDirectId.length() && _shortId(rx.mac) == _noDirectId) return;   // bench: "out of range"
+    if (Node* d = _find(rx.mac)) d->directMs = millis();
     switch (rx.data[3]) {
         case PKT_RELAY_UP:
             _onRelayUp(rx);
@@ -394,8 +395,17 @@ void NodeManager::_onRelayUp(const EspNowRx& rx) {
     const PktRelayUp* u = (const PktRelayUp*)rx.data;
     if (u->innerLen > sizeof(u->inner) || rx.len < relayUpSize(u->innerLen)) return;
     if (!protoValid(u->inner, u->innerLen)) return;
+    // Only a paired repeater-version node that talks to us directly and has
+    // relaying on may relay, and never for itself or for us.
     Node* rep = _find(rx.mac);
-    if (!rep) return;                        // only our own paired nodes may relay
+    if (!rep || !rep->relayCap || !rep->relayOn || !isZero(rep->via)) return;
+    if (memcmp(u->origin, rx.mac, 6) == 0) return;
+    uint8_t myMac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, myMac);
+    if (memcmp(u->origin, myMac, 6) == 0) return;
+    // A node we hear directly does not get its readings or path taken over by a
+    // relayed copy for 60 s (a node that really is out of range is never heard directly).
+    if (Node* o = _find(u->origin)) if (o->directMs && millis() - o->directMs < 60000) return;
     EspNowRx in = {};
     memcpy(in.mac, u->origin, 6);
     in.rssi = u->rssi;

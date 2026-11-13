@@ -81,6 +81,7 @@ private:
         bool     relayCap = false;        // repeater-version node (sent NODE_INFO)
         bool     relayOn = false;
         uint8_t  carrying = 0;            // far nodes it carries
+        uint32_t directMs = 0;            // last packet heard from it directly
 #endif
     };
     struct Disc {
