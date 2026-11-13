@@ -567,6 +567,7 @@ void setup() {
   hw::ledsBegin();
   hw::flowBegin();
   hw::psBegin();
+  hw::ledsStart();  // LEDs blink from their own task from here on (also during the boot WiFi scan)
   analogSetPinAttenuation(wm2::PIN_BATT_ADC, ADC_11db);
   for (int i = 0; i < 5; i++) hw::battRead();
 
@@ -728,7 +729,7 @@ void loop() {
 
   if (now - lastLed >= 40) {
     lastLed = now;
-    hw::ledsLoop(net::mqttUp()      ? hw::WL_MQTT
+    hw::ledsSet(net::mqttUp()      ? hw::WL_MQTT
                  : net::wifiUp()   ? hw::WL_WIFI
                  : net::apClients() > 0 ? hw::WL_AP_PHONE
                  : net::apOn()   ? hw::WL_AP

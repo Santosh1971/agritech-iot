@@ -249,6 +249,7 @@ void begin(bool doubleReset) {
   mqtt.setCallback(onMqtt);
   mqtt.setBufferSize(4096);
   mqtt.setKeepAlive(30);
+  mqtt.setSocketTimeout(5);  // default 15 s: the main loop waited that long when the broker was unreachable
   WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) {
     lastDiscReason = info.wifi_sta_disconnected.reason;
   }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);

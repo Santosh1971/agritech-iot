@@ -103,7 +103,10 @@ class MqttLink with ReplyMatcher implements NodeLink {
       final text = utf8.decode(p.payload.message);
       final sub = m.topic.substring(base.length);
       if (sub == 'status') {
+        final was = _nodeOnline;
         _nodeOnline = text == 'online';
+        // Tell listeners: through the cloud, "connected" means the NODE is online.
+        if (was != _nodeOnline && !_conn.isClosed) _conn.add(_connected);
         continue;
       }
       try {

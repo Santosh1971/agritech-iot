@@ -403,8 +403,8 @@ class _ValveBlock extends StatelessWidget {
     final critical = s?['batt']?['level'] == 'critical';
     String status;
     Color dot;
-    if (s == null) {
-      status = 'offline';
+    if (s == null || !(farm.ctl(node)?.connected ?? false)) {
+      status = 'offline';  // node not reachable (last known values still shown below)
       dot = cs.outline;
     } else if (!open && v['mode'] != 'off' && bv < 6.5 && (s['bench_s'] ?? 0) == 0) {
       status = 'no 12V';  // valves need the 12V supply to switch

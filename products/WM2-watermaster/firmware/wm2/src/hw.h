@@ -53,5 +53,10 @@ float battPinMv();                // last raw ADC pin voltage, for diagnostics
 enum WifiLed { WL_SEARCH, WL_AP, WL_AP_PHONE, WL_WIFI, WL_MQTT };
 void ledsBegin();
 void ledsLoop(WifiLed w, bool psLed, bool bypass);
+// LEDs run in their own task (every 20 ms), so a busy main loop (broker
+// reconnect, history read, valve test) never freezes the blinking. The main
+// loop only says what to show.
+void ledsStart();
+void ledsSet(WifiLed w, bool psLed, bool bypass);
 
 }  // namespace hw

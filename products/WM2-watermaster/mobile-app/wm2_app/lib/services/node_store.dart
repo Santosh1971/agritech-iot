@@ -144,7 +144,19 @@ class NodeController extends ChangeNotifier {
   DateTime? _downSince; // link missing or disconnected since
   bool _probing = false;
 
-  bool get connected => link?.isConnected ?? false;
+  /// The node can be reached: directly, or through the cloud with the node
+  /// itself online. The phone merely reaching the broker does not count.
+  bool get connected {
+    final l = link;
+    if (l == null || !l.isConnected) return false;
+    return l is! MqttLink || l.nodeOnline;
+  }
+
+  String _statusFor(NodeLink l, bool up) {
+    if (!up) return 'reconnecting (${l.kind})...';
+    if (l is MqttLink && !l.nodeOnline) return 'node offline (not connected to the cloud)';
+    return l is MqttLink ? 'connected (cloud)' : 'connected (${l.kind})';
+  }
 
   /// After the app comes back to the foreground: ask the node for its state;
   /// if the link does not answer, reconnect from scratch.
@@ -238,7 +250,7 @@ class NodeController extends ChangeNotifier {
 
   void _use(NodeLink l) {
     link = l;
-    status = 'connected (${l.kind})';
+    status = _statusFor(l, true);
     _lastRx = DateTime.now();
     _subs.add(l.state.listen(_onState));
     _subs.add(l.events.listen((e) {
@@ -248,7 +260,7 @@ class NodeController extends ChangeNotifier {
       _notify();
     }));
     _subs.add(l.connected.listen((c) {
-      status = c ? 'connected (${l.kind})' : 'reconnecting (${l.kind})...';
+      status = _statusFor(l, c);
       _notify();
     }));
     _notify();

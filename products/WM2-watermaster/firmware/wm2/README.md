@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.3 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.4 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.3-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.4-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,14 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## LEDs (0.2.4)
+
+The LEDs are driven by their own FreeRTOS task every 20 ms (priority above loop()), so the
+blinking never freezes while the main loop waits (broker reconnect, history reads, valve
+test). The MQTT socket timeout is 5 s (PubSubClient default 15 s). The app shows a node
+reached through the cloud as connected only while the node itself is online (its retained
+`status`), not just because the phone reached the broker.
 
 ## Commands held by the broker (0.2.2)
 

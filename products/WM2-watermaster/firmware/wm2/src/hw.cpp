@@ -351,4 +351,28 @@ void ledsLoop(WifiLed w, bool psLed, bool bypass) {
   digitalWrite(PIN_LED_WIFI, on);
 }
 
+static volatile uint8_t ledW = WL_SEARCH;
+static volatile bool ledPs = false, ledBypass = false;
+
+void ledsSet(WifiLed w, bool psLed, bool bypass) {
+  ledW = w;
+  ledPs = psLed;
+  ledBypass = bypass;
+}
+
+static void ledTask(void*) {
+  for (;;) {
+    ledsLoop((WifiLed)ledW, ledPs, ledBypass);
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
+void ledsStart() {
+  static bool started = false;
+  if (started) return;
+  started = true;
+  // Above the Arduino loop's priority (1) so it keeps time while loop() waits.
+  xTaskCreatePinnedToCore(ledTask, "leds", 2048, nullptr, 2, nullptr, 1);
+}
+
 }  // namespace hw
