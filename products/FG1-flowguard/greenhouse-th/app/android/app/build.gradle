@@ -30,6 +30,21 @@ android {
         versionName = flutter.versionName
     }
 
+    // CI (fg1th-release.yml) signs with the Mac's debug key from a secret, so a
+    // new version installs over the APKs built on the Mac. Locally the default
+    // ~/.android/debug.keystore is used, which is the same key.
+    signingConfigs {
+        debug {
+            def ks = System.getenv("FG1TH_DEBUG_KEYSTORE")
+            if (ks) {
+                storeFile = file(ks)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
