@@ -62,6 +62,26 @@ jobs:
       - run: pip install --upgrade platformio
       - name: Logic tests
         run: pio test -e native
+      - name: Write include/Secrets.h
+        # Same values as the boards already run (copied from the Mac's Secrets.h
+        # into FG1TH_FW_* secrets), so the SoftAP password and update login match.
+        env:
+          MQTT_USER: ${{ secrets.FG1TH_FW_MQTT_USER }}
+          MQTT_PASS: ${{ secrets.FG1TH_FW_MQTT_PASS }}
+          SOFTAP_PASSWORD: ${{ secrets.FG1TH_FW_SOFTAP_PASSWORD }}
+          OTA_USERNAME: ${{ secrets.FG1TH_FW_OTA_USERNAME }}
+          OTA_PASSWORD: ${{ secrets.FG1TH_FW_OTA_PASSWORD }}
+        run: |
+          for k in MQTT_USER MQTT_PASS SOFTAP_PASSWORD OTA_USERNAME OTA_PASSWORD; do
+            if [ -z "${!k}" ]; then echo "::error::Secret FG1TH_FW_$k is not set"; exit 1; fi
+          done
+          {
+            echo "#pragma once"
+            echo "// Written by CI from repo secrets."
+            for k in MQTT_USER MQTT_PASS SOFTAP_PASSWORD OTA_USERNAME OTA_PASSWORD; do
+              printf '#define %-16s "%s"\n' "$k" "${!k}"
+            done
+          } > include/Secrets.h
       - name: Build the four C3 firmwares
         run: |
           for e in controller_c3 node_c3 controller_c3_rpt node_c3_rpt; do pio run -e "$e"; done
