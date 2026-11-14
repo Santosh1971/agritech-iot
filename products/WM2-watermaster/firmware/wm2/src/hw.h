@@ -58,5 +58,7 @@ void ledsLoop(WifiLed w, bool psLed, bool bypass);
 // loop only says what to show.
 void ledsStart();
 void ledsSet(WifiLed w, bool psLed, bool bypass);
+// "Which board is this?": all LEDs blink together, fast, for `seconds`.
+void ledsIdentify(uint32_t seconds);
 
 }  // namespace hw

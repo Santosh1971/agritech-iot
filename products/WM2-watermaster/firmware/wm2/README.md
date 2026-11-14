@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.5 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.6 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.5-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.6-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,12 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Identify (0.2.6)
+
+`{"cmd":"identify","seconds":20}` (app: the flash icon in the node screen header) blinks every
+LED on the board together, 4 times a second, so you can tell which physical board has which
+device ID when several are on the same WiFi. Normal LED patterns resume afterwards.
 
 ## Program vs manual minutes (0.2.5)
 

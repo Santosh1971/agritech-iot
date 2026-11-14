@@ -49,6 +49,17 @@ class _NodeScreenState extends State<NodeScreen> {
               ),
             ]),
             actions: [
+              // "Which board is this?": every LED on the node blinks fast for 20 s.
+              IconButton(
+                icon: const Icon(Icons.flash_on),
+                tooltip: 'Identify: blink this node\'s LEDs',
+                onPressed: ctl.connected
+                    ? () async {
+                        final r = await ctl.send({'cmd': 'identify', 'seconds': 20});
+                        if (context.mounted) showReply(context, r, 'All LEDs on this node blink fast for 20 s');
+                      }
+                    : null,
+              ),
               IconButton(icon: const Icon(Icons.refresh), tooltip: 'Reconnect', onPressed: ctl.connect),
             ],
           ),

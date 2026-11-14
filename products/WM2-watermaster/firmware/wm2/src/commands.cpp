@@ -260,6 +260,12 @@ String dispatchCommand(const String& json, const char* via) {
     }
   } else if (cmd == "zone_leave") {
     zone::leave();
+  } else if (cmd == "identify") {
+    // Blink every LED together for a while so the user can see which board this is.
+    uint32_t sec = constrain((int)(in["seconds"] | 20), 0, 120);
+    hw::ledsIdentify(sec);
+    Serial.printf("[identify] blinking all LEDs for %lu s\n", (unsigned long)sec);
+    data["seconds"] = sec;
   } else if (cmd == "bench") {
     // {"on":true,"minutes":60}: valves switch without 12V for bench checks.
     bool on = in["on"] | true;

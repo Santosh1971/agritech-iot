@@ -360,8 +360,20 @@ void ledsSet(WifiLed w, bool psLed, bool bypass) {
   ledBypass = bypass;
 }
 
+static volatile uint32_t identifyUntil = 0;
+void ledsIdentify(uint32_t seconds) { identifyUntil = seconds ? millis() + seconds * 1000UL : 0; }
+
 static void ledTask(void*) {
   for (;;) {
+    if (identifyUntil && (int32_t)(identifyUntil - millis()) > 0) {
+      bool on = (millis() / 125) % 2;  // 4 blinks/s, every LED at once
+      for (int i = 0; i < 4; i++) digitalWrite(PIN_LED_FLOW[i], on);
+      digitalWrite(PIN_LED_PS, on);
+      digitalWrite(PIN_LED_WIFI, on);
+      vTaskDelay(pdMS_TO_TICKS(20));
+      continue;
+    }
+    identifyUntil = 0;
     ledsLoop((WifiLed)ledW, ledPs, ledBypass);
     vTaskDelay(pdMS_TO_TICKS(20));
   }
