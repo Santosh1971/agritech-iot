@@ -1,0 +1,102 @@
+name: FG1 Greenhouse TH — release (ASAC TH app)
+
+# Publishes the ASAC TH app (FG1 Greenhouse TH, products/FG1-flowguard/greenhouse-th)
+# to the NB Agri Flasher under product FG1_TH, like wm2-release.yml does for WM2.
+# Firmware is not published here: the C3 boards can't be flashed by the
+# flasher app yet (see the release folders / READ ME for flashing by laptop).
+#
+# Triggers:
+#   - push of a tag "fg1th-vX.Y.Z" -> publishes X.Y.Z from that tag
+#   - manual run with release_version -> publishes from the chosen ref
+#
+# Guard: the version must equal the app's pubspec.yaml version and
+# FIRMWARE_VERSION in firmware/include/Config.h, or the run fails before uploading.
+#
+# The APK is the arm64 split (about 19 MB; every current phone). Its versionCode
+# is 2000 + build number, so it installs over the full-size APKs built earlier.
+on:
+  push:
+    tags:
+      - "fg1th-v*"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Version to publish, e.g. 0.2.0 (must match pubspec.yaml and Config.h)"
+        required: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/FG1-flowguard/greenhouse-th/app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Work out and check the version
+        id: ver
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [ "$EVENT" = "push" ]; then V="${TAG#fg1th-v}"; else V="$INPUT_VERSION"; fi
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$V' is not a plain X.Y.Z version"; exit 1
+          fi
+          APP=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+          FW=$(sed -n 's/^#define FIRMWARE_VERSION[[:space:]]*"\(.*\)"/\1/p' ../firmware/include/Config.h)
+          if [ "$APP" != "$V" ]; then echo "::error::Publishing $V but pubspec.yaml version is '$APP'"; exit 1; fi
+          if [ "$FW" != "$V" ]; then echo "::error::Publishing $V but Config.h FIRMWARE_VERSION is '$FW'"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.4"   # Gradle wrapper is 8.3; newer Flutter refuses it
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Same debug key as the APKs built on Santosh's Mac, so a new version
+      # installs over the old one (the app uses the default debug signing).
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_DEBUG_KEYSTORE_B64 is not set: the APK would not install over earlier builds"; exit 1
+          fi
+          mkdir -p "$HOME/.android"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$HOME/.android/debug.keystore"
+      # The MQTT login lives only in git-ignored lib/services/secrets.dart (public repo).
+      - name: Write secrets.dart
+        env:
+          MQTT_USER: ${{ secrets.FG1TH_MQTT_USER }}
+          MQTT_PASS: ${{ secrets.FG1TH_MQTT_PASS }}
+        run: |
+          if [ -z "$MQTT_USER" ] || [ -z "$MQTT_PASS" ]; then
+            echo "::error::Secrets FG1TH_MQTT_USER / FG1TH_MQTT_PASS are not set"; exit 1
+          fi
+          printf "// Written by CI from repo secrets.\nconst mqttUser = '%s';\nconst mqttPass = '%s';\n" \
+            "$MQTT_USER" "$MQTT_PASS" > lib/services/secrets.dart
+      - run: flutter pub get
+      - name: Build release APK (arm64)
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+      - name: Check the signing key
+        run: |
+          AS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)apksigner
+          SHA=$("$AS" verify --print-certs build/app/outputs/flutter-apk/app-arm64-v8a-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          if [ "$SHA" != "5a084b3d56913f0fe636e3d88d54a31127dfcf75e3196edf89f46954b6b2125a" ]; then
+            echo "::error::APK signed with $SHA, not the key of the earlier builds"; exit 1
+          fi
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "versionName=${VERSION}" \
+            -F "buildType=debug" \
+            -F "product=FG1_TH" \
+            -F "notes=ASAC TH ${VERSION} (arm64), built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA})" \
+            -F "file=@build/app/outputs/flutter-apk/app-arm64-v8a-release.apk;type=application/vnd.android.package-archive"

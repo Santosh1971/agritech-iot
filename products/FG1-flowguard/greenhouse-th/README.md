@@ -55,6 +55,12 @@ merged file fills 0x9000-0xDFFF (NVS) with 0xFF, so **flashing it wipes the pair
 WiFi** (checked 2026-11-13): fine for a first install; to update a board in use, flash only
 `firmware.bin` at 0x10000. Release files contain the credentials: keep them in `release-*/` (git-ignored).
 
+**Releasing the app** to the NB Agri Flasher (product `FG1_TH`, "My apps"): set the same X.Y.Z in
+`app/pubspec.yaml` and `firmware/include/Config.h`, commit, then push a tag `fg1th-vX.Y.Z`.
+`.github/workflows/fg1th-release.yml` builds the arm64 APK in CI (login from the repo secrets
+FG1TH_MQTT_USER / FG1TH_MQTT_PASS, signed with the Mac's debug key) and uploads it. Firmware for
+the C3 boards still goes out as release files (the flasher app can't flash C3 yet).
+
 App: `cd app && flutter build apk --release` (APK in `build/app/outputs/flutter-apk/`).
 The app has a **demo greenhouse** (Add greenhouse → "Add a demo greenhouse") that
 simulates a controller, for showing the customer without hardware.
