@@ -335,10 +335,15 @@ void emitEvent(JsonDocument& d) {
   d["node"] = cfg.zone + "/" + cfg.node;
   String line;
   serializeJson(d, line);
+  crumb(40);  // event: writing the event log (flash)
   if (clockOk) history::addEvent(line);
+  crumb(41);  // event: MQTT publish
   net::publish("event", line);
+  crumb(42);  // event: queue for the phones
   web::broadcast("{\"type\":\"event\",\"data\":" + line + "}");
+  crumb(43);  // event: serial log
   Serial.println("[event] " + line);
+  crumb(44);
   stateDirty = true;
 }
 

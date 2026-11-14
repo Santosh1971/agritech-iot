@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.9 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.10 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.9-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.10-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,16 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Web tasks never wait forever on the node lock (0.2.10)
+
+Two watchdog restarts ("task starved", step 8 = inside event handling) on Santosh's board, both
+seconds after a valve opened with real water; not reproduced by a stress test (3 WebSocket
+clients + valve cycling, ~2000 requests). Hardening anyway: messages for phones are queued and
+sent from web::loop() while the main loop does NOT hold the lock; web/WebSocket/command paths
+take the lock with a 3 s limit (`TryLock`) and answer "node busy" instead of hanging. Event
+handling is split into breadcrumb steps 40-46 (40 event log write, 41 MQTT publish,
+42 phone queue, 43 serial, 45-46 inside the MQTT TCP write) so the next crash event names it.
 
 ## Run time counts only while a valve is really open (0.2.9)
 

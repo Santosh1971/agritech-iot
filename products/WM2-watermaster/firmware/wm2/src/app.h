@@ -5,7 +5,7 @@
 
 #include "irrigation_core.h"
 
-#define FW_VERSION "0.2.9"
+#define FW_VERSION "0.2.10"
 
 extern wm2core::Core core;
 
@@ -15,6 +15,17 @@ extern SemaphoreHandle_t gLock;
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(gLock, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(gLock); }
+};
+// For the web server / WebSocket tasks: wait at most `ms` for the lock and
+// answer "busy" otherwise, so a request can never hang the web task for good
+// (a web task blocked on the lock while the main loop waited on the web
+// server froze the node until the watchdog restarted it - 0.2.9, T5).
+struct TryLock {
+  bool ok;
+  explicit TryLock(uint32_t ms) { ok = xSemaphoreTakeRecursive(gLock, pdMS_TO_TICKS(ms)) == pdTRUE; }
+  ~TryLock() {
+    if (ok) xSemaphoreGiveRecursive(gLock);
+  }
 };
 
 // Time: UTC from RTC / NTP / phone, local = UTC + cfg.tzMin

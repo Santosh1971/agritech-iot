@@ -3,6 +3,7 @@
 #include <ESPAsyncWebServer.h>
 #include <Update.h>
 
+#include <deque>
 #include <memory>
 
 #include "app.h"
@@ -30,8 +31,35 @@ static AsyncWebSocket ws("/ws");
 
 int clients() { return ws.count(); }
 
+// Messages for the phones are queued and sent from web::loop(), which the
+// main loop runs while NOT holding the node lock. Sending straight from the
+// tick (lock held) could wait on the web server while a web task waited on
+// the lock: the node froze until the watchdog restarted it (0.2.9, T5).
+static std::deque<String> outQ;
+static SemaphoreHandle_t outLock = nullptr;
+
 void broadcast(const String& json) {
-  if (ws.count()) ws.textAll(json);
+  if (!ws.count()) return;
+  if (!outLock) outLock = xSemaphoreCreateMutex();
+  xSemaphoreTake(outLock, portMAX_DELAY);
+  if (outQ.size() >= 30) outQ.pop_front();  // a stalled phone must not use up memory
+  outQ.push_back(json);
+  xSemaphoreGive(outLock);
+}
+
+static void sendQueued() {
+  if (!outLock) return;
+  for (int n = 0; n < 10; n++) {
+    xSemaphoreTake(outLock, portMAX_DELAY);
+    if (outQ.empty()) {
+      xSemaphoreGive(outLock);
+      return;
+    }
+    String m = outQ.front();
+    outQ.pop_front();
+    xSemaphoreGive(outLock);
+    if (ws.count()) ws.textAll(m);
+  }
 }
 
 void begin() {
@@ -41,7 +69,8 @@ void begin() {
       JsonDocument d;
       d["type"] = "state";
       {
-        Lock lock;
+        TryLock lock(3000);
+        if (!lock.ok) return;  // the next state push (every 2 s) brings it
         buildState(d["data"].to<JsonObject>());
       }
       String s;
@@ -64,7 +93,8 @@ void begin() {
   server.on("/api/state", HTTP_GET, [](AsyncWebServerRequest* req) {
     JsonDocument d;
     {
-      Lock lock;
+      TryLock lock(3000);
+      if (!lock.ok) return req->send(503, "application/json", "{\"ok\":false,\"err\":\"node busy, try again\"}");
       buildState(d.to<JsonObject>());
     }
     String s;
@@ -90,7 +120,8 @@ void begin() {
     auto cur = std::make_shared<history::CsvCursor>();
     history::csvBegin(*cur, from, to, cfg.tzMin);
     AsyncWebServerResponse* r = req->beginChunkedResponse("text/csv", [cur](uint8_t* buf, size_t max, size_t) -> size_t {
-      Lock lock;
+      TryLock lock(3000);
+      if (!lock.ok) return RESPONSE_TRY_AGAIN;
       return history::csvChunk(*cur, buf, max > 1024 ? 1024 : max);
     });
     r->addHeader("Content-Disposition", "attachment; filename=\"" + cfg.hostname() + "-history.csv\"");
@@ -158,6 +189,9 @@ void begin() {
   server.begin();
 }
 
-void loop() { ws.cleanupClients(4); }
+void loop() {  // main loop, without the node lock
+  sendQueued();
+  ws.cleanupClients(4);
+}
 
 }  // namespace web

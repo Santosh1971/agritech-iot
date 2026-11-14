@@ -71,7 +71,14 @@ String dispatchCommand(const String& json, const char* via) {
     return s;
   }
 
-  Lock lock;
+  TryLock lock(3000);
+  if (!lock.ok) {
+    resp["ok"] = false;
+    resp["err"] = "node busy, try again";
+    String s;
+    serializeJson(resp, s);
+    return s;
+  }
 
   if (cmd == "get_state") {
     buildState(data);

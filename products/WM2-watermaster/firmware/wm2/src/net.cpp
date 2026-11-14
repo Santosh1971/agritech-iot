@@ -185,7 +185,10 @@ bool publish(const char* sub, const String& payload, bool retain) {
   }
   if (!mqtt.connected()) return false;
   String t = cfg.base() + sub;
-  return mqtt.publish(t.c_str(), (const uint8_t*)payload.c_str(), payload.length(), retain);
+  crumb(45);  // inside MQTT publish (TCP write)
+  bool ok = mqtt.publish(t.c_str(), (const uint8_t*)payload.c_str(), payload.length(), retain);
+  crumb(46);
+  return ok;
 }
 
 static void drainQueue() {
