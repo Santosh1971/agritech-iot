@@ -5,7 +5,7 @@
 
 #include "irrigation_core.h"
 
-#define FW_VERSION "0.2.12"
+#define FW_VERSION "0.2.13"
 
 extern wm2core::Core core;
 

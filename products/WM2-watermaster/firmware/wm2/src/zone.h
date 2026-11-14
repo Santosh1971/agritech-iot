@@ -21,6 +21,9 @@
 
 namespace zone {
 
+// Zone turns built in (-DWM2_ZONE_TURNS=1); off by default: independent nodes.
+bool enabled();
+
 // Every tick, before core.tick (under Lock): which program valves are gated
 // and which of them may run now.
 void gate(wm2core::Inputs& in);

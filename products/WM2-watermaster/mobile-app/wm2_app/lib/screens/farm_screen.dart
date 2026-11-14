@@ -252,7 +252,9 @@ class _ZoneCard extends StatelessWidget {
               },
             ),
           ),
-          if (nodes.isNotEmpty)
+          // Zone turns only exist in the leader/follower firmware build
+          // (wm2_zone); default nodes are independent and report nothing.
+          if (nodes.any((n) => farm.ctl(n)?.state?['zone_turns'] == true))
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(children: [

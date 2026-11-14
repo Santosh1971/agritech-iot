@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.12 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.13 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.12-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.13-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,20 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Independent nodes by default (0.2.13)
+
+Decision 2026-11-14 (Santosh): nodes that share a pipe (side by side, one solar panel and
+battery) use ONE pressure switch wired in parallel to each node's PS input (J1); every node is
+independent and starts its own valves when the switch closes. No node depends on another or on
+the WiFi. The default build (`env:wm2`, the release build) therefore has zone turns OFF:
+`zone::gate/loop` do nothing, no UDP is sent, `set_seq` answers "not in this firmware", and the
+app hides Turns (it shows them only for a node whose state has `zone_turns: true`).
+
+To bring leader/follower zone turns back (e.g. if Girish asks): build `env:wm2_zone`
+(`-DWM2_ZONE_TURNS=1`), or check out tag `wm2-zone-turns-0.2.12` (tested on two boards, T6).
+Wiring for the shared switch: the nodes must share GND (same battery does that); each node's
+pull-up (R11) is in parallel, which only doubles the small switch current.
 
 ## Zone turns: members follow the leader's water; released when dropped (0.2.11-0.2.12)
 

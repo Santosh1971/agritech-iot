@@ -13,7 +13,18 @@
 
 using namespace wm2core;
 
+// Zone turns are OFF in the default build (2026-11-14): every node is
+// independent and starts its valves from its own pressure-switch input (one
+// switch wired in parallel to the nodes that share a pipe). The tested
+// leader/follower version is git tag wm2-zone-turns-0.2.12; build with
+// -DWM2_ZONE_TURNS=1 to bring it back (the app then shows Turns again).
+#ifndef WM2_ZONE_TURNS
+#define WM2_ZONE_TURNS 0
+#endif
+
 namespace zone {
+
+bool enabled() { return WM2_ZONE_TURNS != 0; }
 
 static const uint16_t PORT = 47811;
 static const uint32_t LEADER_LOST_MS = 60000;
@@ -277,6 +288,7 @@ static void onMemberPacket(JsonDocument& d, uint32_t now, const IPAddress& from)
 
 // ---- public ---------------------------------------------------------------
 void gate(Inputs& in) {
+  if (!enabled()) return;
   reparse();
   if (isLeader()) {
     String me = cfg.deviceId();
@@ -296,6 +308,7 @@ void gate(Inputs& in) {
 }
 
 void loop() {
+  if (!enabled()) return;
   uint32_t now = millis();
   reparse();
   if (!udpOn && net::wifiUp()) udpOn = udp.begin(PORT);
@@ -368,6 +381,10 @@ void loop() {
 }
 
 bool setTurns(JsonVariantConst in, JsonVariantConst ips, String& err) {
+  if (!enabled()) {
+    err = "zone turns are not in this firmware (independent nodes)";
+    return false;
+  }
   if (!in.is<JsonArrayConst>()) {
     err = "turns must be an array of arrays";
     return false;
@@ -450,6 +467,8 @@ static const char* stName(uint8_t s, bool open) {
 }
 
 void toJson(JsonObject o) {
+  if (!enabled()) return;
+  o["zone_turns"] = true;  // this build has zone turns: the app shows Turns
   reparse();
   uint32_t now = millis();
   if (isLeader()) {
