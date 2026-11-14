@@ -2,6 +2,7 @@
 
 #include <LittleFS.h>
 
+#include "app.h"  // nowUtc()
 #include "timeutil.h"
 
 namespace history {
@@ -77,6 +78,11 @@ static void scan(uint32_t fromUtc, uint32_t toUtc, int16_t tzMin, F fn) {
   int32_t tz = tzMin * 60;
   uint32_t d0 = (uint32_t)(((int64_t)fromUtc + tz) / 86400);
   uint32_t d1 = (uint32_t)(((int64_t)toUtc + tz) / 86400);
+  // At most ~13 months of day files: a wild range (from 0) would hold the node
+  // lock for minutes opening thousands of missing files.
+  uint32_t today = (uint32_t)(((int64_t)nowUtc() + tz) / 86400);
+  if (d1 > today + 1) d1 = today + 1;
+  if (d1 > 400 && d0 < d1 - 400) d0 = d1 - 400;
   // Records are filed under the day boundary in use, so look one day either side.
   for (uint32_t d = d0 > 0 ? d0 - 1 : 0; d <= d1 + 1; d++) {
     File f = LittleFS.open(rawPath(d), "r");

@@ -306,9 +306,17 @@ class NodeController extends ChangeNotifier {
     _notify();
   }
 
-  Future<Map<String, dynamic>> send(Map<String, dynamic> cmd, {Duration? timeout}) {
+  /// Sends a command. While the app is still (re)connecting (on mobile data it
+  /// first tries the node's local addresses, then the cloud), waits up to 25 s
+  /// for the link instead of failing at once with "not connected".
+  Future<Map<String, dynamic>> send(Map<String, dynamic> cmd, {Duration? timeout}) async {
+    final end = DateTime.now().add(const Duration(seconds: 25));
+    while (!_disposed && (link == null || !link!.isConnected) && DateTime.now().isBefore(end)) {
+      if (!connecting && link == null) unawaited(connect());
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
     final l = link;
-    if (l == null) return Future.value({'ok': false, 'err': 'not connected'});
+    if (l == null || !l.isConnected) return {'ok': false, 'err': 'not connected: $status'};
     return timeout == null ? l.send(cmd) : l.send(cmd, timeout: timeout);
   }
 

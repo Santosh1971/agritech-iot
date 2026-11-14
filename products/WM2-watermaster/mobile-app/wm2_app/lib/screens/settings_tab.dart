@@ -13,6 +13,7 @@ class SettingsTab extends StatefulWidget {
 class _SettingsTabState extends State<SettingsTab> {
   Map<String, dynamic>? c;
   Map<String, dynamic>? dev;
+  String? loadErr;
   final _f = <String, TextEditingController>{};
 
   TextEditingController f(String k, [Object? init]) =>
@@ -25,10 +26,12 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   Future<void> _load() async {
+    if (mounted && loadErr != null) setState(() => loadErr = null);
     final r = await widget.ctl.send({'cmd': 'get_config'});
     final d = await widget.ctl.send({'cmd': 'device_info'});
     if (!mounted) return;
     setState(() {
+      if (r['ok'] != true && c == null) loadErr = '${r['err'] ?? 'no reply from the node'}';
       if (r['ok'] == true) {
         c = Map<String, dynamic>.from(r['data']);
         _f.clear();
@@ -68,7 +71,20 @@ class _SettingsTabState extends State<SettingsTab> {
   @override
   Widget build(BuildContext context) {
     final cfg = c;
-    if (cfg == null) return const Center(child: CircularProgressIndicator());
+    if (cfg == null) {
+      return Center(
+        child: loadErr == null
+            ? const CircularProgressIndicator()
+            : Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Could not load the settings: $loadErr', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+                ]),
+              ),
+      );
+    }
     final valves = (cfg['valves'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
     final flow = (cfg['flow'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
     final t = Theme.of(context).textTheme;
