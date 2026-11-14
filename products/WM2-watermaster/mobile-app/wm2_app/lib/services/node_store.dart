@@ -201,12 +201,14 @@ class NodeController extends ChangeNotifier {
     _drop();
     // Direct link: the farm-WiFi address the node last reported, then the
     // saved address (often 192.168.4.1, its SoftAP).
-    final hosts = {entry.lanHost.trim(), entry.host.trim()}..remove('');
+    // On mobile data only the cloud can work: skip the local tries.
+    final wifi = await phoneOnWifi();
+    final hosts = wifi ? ({entry.lanHost.trim(), entry.host.trim()}..remove('')) : <String>{};
     for (final h in hosts) {
       if (await _tryLocal(h)) return;
     }
     // Neither answered: the node may have a new address on the farm WiFi.
-    if (entry.agId.isNotEmpty) {
+    if (wifi && entry.agId.isNotEmpty) {
       status = 'looking for the node on this WiFi...';
       _notify();
       final ip = await findNodeOnLan(entry.agId);

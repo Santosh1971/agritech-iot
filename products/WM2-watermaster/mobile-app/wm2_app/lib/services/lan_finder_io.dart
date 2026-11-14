@@ -5,11 +5,34 @@ import 'dart:io';
 /// Asks every address of the phone's WiFi /24 network for /api/state and
 /// returns the IP of the node whose "dev" matches [deviceId], or null.
 /// Takes about 2-4 s on a typical farm router.
+/// WiFi/Ethernet interfaces (Android wlan0/swlan0/ap0/eth0, iOS en0); mobile
+/// data is rmnet*/ccmni*/pdp_ip* and carries a carrier-private address that
+/// must not be swept or tried.
+bool _isWifi(String name) {
+  final n = name.toLowerCase();
+  return n.startsWith('wlan') || n.startsWith('swlan') || n.startsWith('ap') || n.startsWith('eth') ||
+      n.startsWith('en') || n.startsWith('wifi');
+}
+
+/// True when the phone is on a WiFi (farm WiFi or a node's own WiFi), so a
+/// direct link to the node is possible at all.
+Future<bool> phoneOnWifi() async {
+  try {
+    for (final nic in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
+      if (_isWifi(nic.name) && nic.addresses.any((a) => !a.isLoopback)) return true;
+    }
+    return false;
+  } catch (_) {
+    return true; // unknown: try local as before
+  }
+}
+
 Future<String?> findNodeOnLan(String deviceId) async {
   if (deviceId.isEmpty) return null;
   final prefixes = <String>{};
   try {
     for (final nic in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
+      if (!_isWifi(nic.name)) continue; // not the mobile-data network
       for (final a in nic.addresses) {
         final p = a.address.split('.');
         if (p.length != 4 || a.isLoopback) continue;
