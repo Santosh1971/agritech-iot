@@ -18,6 +18,7 @@ const PRODUCT_ID_SCHEME: Record<string, { prefix: string; suffixBytes: number }>
   WM1_MINI: { prefix: "WM1", suffixBytes: 4 },
   WPC: { prefix: "WPC", suffixBytes: 4 },
   WM2: { prefix: "WM2", suffixBytes: 4 },
+  FG1_TH: { prefix: "FG1P", suffixBytes: 2 },   // the controller's own ID (Config.h DEVICE_PREFIX + last 2 MAC bytes)
 };
 
 export function deriveDeviceId(product: string, macHex: string): string | null {

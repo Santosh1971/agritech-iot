@@ -23,6 +23,7 @@ enum Product {
   TH
   ASC_KIT // ASC Student Kit firmware (Mini and Mega share one image)
   WM2 // WM2 WaterMaster (Girish Farm), topics agrisense/WM2/<WM2_xxxxxxxx>/
+  FG1_TH // FG1 Greenhouse TH (ASAC TH app): FG1/C3 controller FG1P_xxxx + ESP-NOW sensor nodes; MQTT under agrisense/FG1/
 }
 
 enum CommandStatus {
