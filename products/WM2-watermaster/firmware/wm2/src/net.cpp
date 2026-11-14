@@ -372,9 +372,13 @@ void loop() {
   }
 
   if (up) {
+    crumb(20);
     if (!mqtt.connected()) mqttConnect();
+    crumb(21);
     mqtt.loop();
+    crumb(22);
     drainQueue();
+    crumb(23);
   }
   mqttIsUp = up && mqtt.connected();
 }

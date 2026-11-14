@@ -1,4 +1,5 @@
 #include "hw.h"
+#include "app.h"
 
 #include <Preferences.h>
 #include <driver/pcnt.h>
@@ -133,7 +134,9 @@ void valvesLoop() {
       nextRetry = now + 10000;
       return;
     }
+    crumb(30);
     valvePulseRaw(v, vWant[v]);
+    crumb(31);
     vState[v] = vWant[v];
     vPending[v] = false;
     prefs.putBool(v == 0 ? "v0" : "v1", vState[v]);

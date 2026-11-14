@@ -61,8 +61,8 @@ static const char* resetReasonText() {
     case ESP_RST_EXT: return "reset pin";
     case ESP_RST_SW: return "software restart";
     case ESP_RST_PANIC: return "crash";
-    case ESP_RST_INT_WDT:
-    case ESP_RST_TASK_WDT:
+    case ESP_RST_INT_WDT: return "watchdog (interrupts blocked)";
+    case ESP_RST_TASK_WDT: return "watchdog (task starved)";
     case ESP_RST_WDT: return "watchdog";
     case ESP_RST_BROWNOUT: return "brownout (supply too low)";
     case ESP_RST_DEEPSLEEP: return "deep sleep wake";
@@ -71,6 +71,14 @@ static const char* resetReasonText() {
 }
 
 using namespace wm2core;
+
+RTC_NOINIT_ATTR static uint32_t crumbStage, crumbMagic, crumbMs;
+void crumb(uint8_t stage) {
+  crumbStage = stage;
+  crumbMagic = 0xC0DEC0DE;
+  crumbMs = millis();
+}
+static uint32_t bootCrumb = 0, bootCrumbMs = 0;  // what the node was doing before this restart
 
 wm2core::Core core;
 SemaphoreHandle_t gLock;
@@ -283,7 +291,7 @@ void buildState(JsonObject o) {
     if (runOpen[v]) {
       JsonObject r = j["run"].to<JsonObject>();
       r["since"] = curRun[v].start;
-      r["min"] = curRun[v].waterSec / 60;
+      r["min"] = (curRun[v].waterSec + 30) / 60;  // nearest minute (119 s showed as 1)
       r["l"] = roundf(curRun[v].litres * 10) / 10;
       r["manual"] = curRun[v].manual;
     }
@@ -291,7 +299,7 @@ void buildState(JsonObject o) {
       JsonObject l = j["last"].to<JsonObject>();
       l["start"] = lastRun[v].start;
       l["end"] = lastRun[v].end;
-      l["min"] = lastRun[v].waterSec / 60;
+      l["min"] = (lastRun[v].waterSec + 30) / 60;
       l["l"] = roundf(lastRun[v].litres * 10) / 10;
       l["manual"] = lastRun[v].manual;
     }
@@ -581,6 +589,13 @@ void setup() {
   gLock = xSemaphoreCreateRecursiveMutex();
   Serial.printf("\n\n=== WM2 WaterMaster fw %s ===\n", FW_VERSION);
   Serial.printf("[boot] reset reason: %s\n", resetReasonText());
+  if (crumbMagic == 0xC0DEC0DE) {
+    bootCrumb = crumbStage;
+    bootCrumbMs = crumbMs;
+  }
+  crumbMagic = 0;
+  if (bootCrumb) Serial.printf("[boot] before the restart the node was at step %lu (uptime %lu s)\n",
+                               (unsigned long)bootCrumb, (unsigned long)(bootCrumbMs / 1000));
 
   bool dbl = doubleResetCheck();
   history::begin();
@@ -629,6 +644,14 @@ void setup() {
                 cfg.apSsid().c_str(), cfg.apPassword().c_str());
   Serial.println("Type 'h' + Enter for console help.");
   lastRecMs = millis();
+  if (bootCrumb) {
+    JsonDocument d;
+    d["event"] = "crash";
+    d["reset"] = resetReasonText();
+    d["step"] = bootCrumb;            // see crumb() calls in loop()/net/hw
+    d["uptime_s"] = bootCrumbMs / 1000;
+    emitEvent(d);
+  }
 }
 
 void loop() {
@@ -637,9 +660,13 @@ void loop() {
   static bool bootFlagCleared = false;
   uint32_t now = millis();
 
+  crumb(1);
   net::loop();
+  crumb(2);
   web::loop();
+  crumb(3);
   hw::valvesLoop();
+  crumb(4);
   {
     static uint32_t lastZone = 0;
     if (now - lastZone >= 100) {
@@ -648,7 +675,9 @@ void loop() {
       zone::loop();
     }
   }
+  crumb(5);
   serialConsole();
+  crumb(6);
 
   if (!bootFlagCleared && now > 5000) {
     prefs.begin("boot", false);
@@ -679,8 +708,11 @@ void loop() {
     }
     zone::gate(in);  // zone turns: which program valves may run now
     uint32_t dayBefore = core.dayIndex();
+    crumb(7);
     int n = core.tick(in);
+    crumb(8);
     handleCoreEvents(n);
+    crumb(9);
     if (core.dayIndex() != dayBefore || litresDay != core.dayIndex()) {
       for (int i = 0; i < 4; i++) litresToday[i] = 0;
       litresDay = core.dayIndex();
@@ -715,6 +747,7 @@ void loop() {
     uint32_t interval = (active ? cfg.activeS : cfg.heartbeatS) * 1000UL;
     if (now - lastRecMs >= interval) {
       lastRecMs = now;
+      crumb(10);
       makeRecord(active);
     }
 
@@ -771,6 +804,7 @@ void loop() {
     }
     String s;
     serializeJson(d, s);
+    crumb(11);
     web::broadcast("{\"type\":\"state\",\"data\":" + s + "}");
     lastWsPush = now;
     if (stateDirty) {
@@ -783,6 +817,7 @@ void loop() {
   if (now - lastDrain >= 300) {
     lastDrain = now;
     Lock lock;
+    crumb(12);
     drainBacklog();
   }
 

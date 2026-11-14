@@ -5,7 +5,7 @@
 
 #include "irrigation_core.h"
 
-#define FW_VERSION "0.2.7"
+#define FW_VERSION "0.2.8"
 
 extern wm2core::Core core;
 
@@ -31,6 +31,10 @@ void setBypass(bool on, uint32_t minutes, const char* src);
 
 // Remember who sent the last command for a valve (for its events).
 void noteSource(int valve, const char* src);
+
+// Crash breadcrumb: what the node was doing, kept in RTC memory across a
+// watchdog/crash restart and reported as a "crash" event after boot.
+void crumb(uint8_t stage);
 
 void buildState(JsonObject o);
 void emitEvent(JsonDocument& d);   // adds v/ts/node, logs it, sends on MQTT + WS
