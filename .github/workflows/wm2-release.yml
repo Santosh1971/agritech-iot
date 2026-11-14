@@ -69,11 +69,14 @@ jobs:
         env:
           # Fixed AgriSense login password for wm2-device (wm2_secrets.py compiles it in).
           WM2_AG_PASS: ${{ secrets.WM2_MQTT_PASS }}
+          # Firmware update over WiFi (wm2_secrets.py); required so released nodes can be updated.
+          WM2_OTA_PASS: ${{ secrets.WM2_OTA_PASS }}
           # Girish broker login (optional: blank = connect without a login).
           WM2_GR_USER: ${{ secrets.WM2_GIRISH_USER }}
           WM2_GR_PASS: ${{ secrets.WM2_GIRISH_PASS }}
         run: |
           if [ -z "$WM2_AG_PASS" ]; then echo "::error::Secret WM2_MQTT_PASS is not set: nodes would not reach the AgriSense broker"; exit 1; fi
+          if [ -z "$WM2_OTA_PASS" ]; then echo "::error::Secret WM2_OTA_PASS is not set: released nodes could not be updated over WiFi"; exit 1; fi
           pio run -e wm2
       - name: Upload to NB Agri Flasher
         env:

@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.6 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.7 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.6-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.7-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,20 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Firmware update over WiFi (0.2.7)
+
+No programmer needed once a node runs 0.2.7 or later (the first such version goes on by USB):
+
+    python3 ../tools/wm2_ota.py 192.168.1.14            # pushes .pio/build/wm2/firmware.bin
+
+`POST /api/ota` with HTTP basic auth `wm2:<WM2_OTA_PASS>` (compiled in by wm2_secrets.py from
+env or `~/.config/agrisense/wm2_ota_pass`; CI secret `WM2_OTA_PASS`; without it the endpoint
+is disabled). The image goes to the spare OTA slot (default.csv: 2 x 1.25 MB) and the node only
+switches after the whole image arrived and its MD5 (header X-MD5) matched, so an interrupted or
+corrupt upload leaves the running firmware in place. There is no automatic rollback if new
+firmware cannot start: then re-flash by USB. All LEDs blink while an update comes in.
+`device_info` reports `ota: true`. Local network only (plain HTTP on the farm WiFi).
 
 ## Identify (0.2.6)
 

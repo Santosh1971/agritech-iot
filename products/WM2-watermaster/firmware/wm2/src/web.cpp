@@ -1,16 +1,29 @@
 #include "web.h"
 
 #include <ESPAsyncWebServer.h>
+#include <Update.h>
 
 #include <memory>
 
 #include "app.h"
 #include "commands.h"
+#include "hw.h"
 #include "history.h"
 #include "settings.h"
 #include "webpage.h"
 
+// Firmware update over WiFi (0.2.7). Password compiled in from WM2_OTA_PASS by
+// wm2_secrets.py (never in the repo); without it the endpoint is disabled.
+#ifndef WM2_OTA_PASS
+#define WM2_OTA_PASS ""
+#endif
+
 namespace web {
+
+static bool otaOk = false;
+static String otaErr;
+
+bool otaEnabled() { return WM2_OTA_PASS[0] != 0; }
 
 static AsyncWebServer server(80);
 static AsyncWebSocket ws("/ws");
@@ -83,6 +96,59 @@ void begin() {
     r->addHeader("Content-Disposition", "attachment; filename=\"" + cfg.hostname() + "-history.csv\"");
     req->send(r);
   });
+
+  // POST /api/ota, body = firmware.bin, HTTP basic auth wm2:<WM2_OTA_PASS>,
+  // optional header X-MD5. The image goes to the spare OTA slot; the node
+  // only switches to it after the whole image arrived and checked out, so an
+  // interrupted or bad upload leaves the running firmware untouched.
+  server.on(
+      "/api/ota", HTTP_POST,
+      [](AsyncWebServerRequest* req) {
+        if (!otaEnabled()) return req->send(403, "application/json", "{\"ok\":false,\"err\":\"WiFi update not enabled in this build\"}");
+        if (!req->authenticate("wm2", WM2_OTA_PASS)) return req->requestAuthentication();
+        if (otaOk) {
+          req->send(200, "application/json", "{\"ok\":true,\"msg\":\"updated, restarting\"}");
+          requestReboot(1500);
+        } else {
+          req->send(500, "application/json", "{\"ok\":false,\"err\":\"" + otaErr + "\"}");
+        }
+      },
+      nullptr,
+      [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
+        if (index == 0) {
+          otaOk = false;
+          otaErr = "";
+          if (!otaEnabled() || !req->authenticate("wm2", WM2_OTA_PASS)) {
+            otaErr = "not authorised";
+            return;
+          }
+          if (!Update.begin(total, U_FLASH)) {
+            otaErr = Update.errorString();
+            return;
+          }
+          if (req->hasHeader("X-MD5")) Update.setMD5(req->header("X-MD5").c_str());
+          Serial.printf("[ota] receiving %u bytes over WiFi\n", (unsigned)total);
+          hw::ledsIdentify(180);  // all LEDs blink while the update comes in
+        }
+        if (otaErr.length()) return;
+        if (Update.write(data, len) != len) {
+          otaErr = Update.errorString();
+          Update.abort();
+          hw::ledsIdentify(0);
+          Serial.printf("[ota] failed: %s\n", otaErr.c_str());
+          return;
+        }
+        if (index + len == total) {
+          if (Update.end(true)) {
+            otaOk = true;
+            Serial.println("[ota] image received and checked; restarting into it");
+          } else {
+            otaErr = Update.errorString();
+            Serial.printf("[ota] failed: %s\n", otaErr.c_str());
+          }
+          hw::ledsIdentify(0);
+        }
+      });
 
   server.onNotFound([](AsyncWebServerRequest* req) {
     // SoftAP users typing any address land on the page.

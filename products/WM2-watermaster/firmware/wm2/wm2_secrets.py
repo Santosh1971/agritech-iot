@@ -1,6 +1,7 @@
 # PlatformIO pre-script: compile in the fixed broker logins. Never commit
 # them (the repo is public). Each value: env var first, then a file.
 #   AgriSense password (user wm2-device): WM2_AG_PASS  / ~/.config/agrisense/wm2_mqtt_pass
+#   WiFi update password (user wm2):  WM2_OTA_PASS / ~/.config/agrisense/wm2_ota_pass
 #   Girish user + password:               WM2_GR_USER  / ~/.config/agrisense/wm2_girish_user
 #                                         WM2_GR_PASS  / ~/.config/agrisense/wm2_girish_pass
 import os
@@ -22,6 +23,10 @@ if secret("WM2_AG_PASS", "wm2_mqtt_pass"):
     print("wm2_secrets: AgriSense login included")
 else:
     print("wm2_secrets: WARNING no WM2_AG_PASS: nodes cannot log in to the AgriSense broker")
+if secret("WM2_OTA_PASS", "wm2_ota_pass"):
+    print("wm2_secrets: WiFi update password included")
+else:
+    print("wm2_secrets: WARNING no WM2_OTA_PASS: firmware update over WiFi disabled")
 gu = secret("WM2_GR_USER", "wm2_girish_user")
 gp = secret("WM2_GR_PASS", "wm2_girish_pass")
 print("wm2_secrets: Girish login " + ("included" if gu else "not set (connects without a login)"))

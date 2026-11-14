@@ -10,6 +10,7 @@
 #include "net.h"
 #include "settings.h"
 #include "timeutil.h"
+#include "web.h"
 #include "zone.h"
 #include "wm2_pins.h"
 
@@ -76,6 +77,7 @@ String dispatchCommand(const String& json, const char* via) {
     buildState(data);
   } else if (cmd == "device_info") {
     data["fw"] = FW_VERSION;
+    data["ota"] = web::otaEnabled();  // firmware update over WiFi available
     data["chip"] = ESP.getChipModel();
     data["mac"] = WiFi.macAddress();
     data["flash_mb"] = ESP.getFlashChipSize() / (1024 * 1024);

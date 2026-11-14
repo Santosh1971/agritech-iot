@@ -5,6 +5,7 @@
 #include <Arduino.h>
 
 namespace web {
+bool otaEnabled();  // firmware update over WiFi built in (POST /api/ota)
 void begin();
 void loop();
 void broadcast(const String& json);  // to all WebSocket clients
