@@ -5,7 +5,10 @@ import { Readable } from "stream";
 
 // Streams one file from disk with HTTP Range support, so videos can be seeked
 // and play on iPhone. ?download=1 saves instead of viewing.
-const TYPES: Record<string, string> = { pdf: "application/pdf", mp4: "video/mp4", mp3: "audio/mpeg", png: "image/png", jpg: "image/jpeg" };
+const TYPES: Record<string, string> = { pdf: "application/pdf", mp4: "video/mp4", mp3: "audio/mpeg", png: "image/png", jpg: "image/jpeg",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  csv: "text/csv" };
 
 export async function serveFile(req: NextRequest, path: string, name: string, cacheControl: string) {
   let size: number;

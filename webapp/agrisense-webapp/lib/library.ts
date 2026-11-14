@@ -11,7 +11,7 @@ export type LibraryCategory = { id: string; name: string; note?: string; archive
 export type LibraryItem = {
   id: string;
   cat: string;
-  kind: "pdf" | "video" | "link";
+  kind: "pdf" | "video" | "link" | "file"; // file = download only (Excel, Word, CSV)
   title: string;
   date: string;
   note?: string;

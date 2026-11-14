@@ -21,14 +21,15 @@ const fmtDate = (d: string) => {
   return Number.isNaN(t) ? d : new Date(t).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 };
 
-const KIND_LABEL: Record<LibraryItem["kind"], string> = { pdf: "PDF", video: "Video", link: "Link" };
+const KIND_LABEL: Record<LibraryItem["kind"], string> = { pdf: "PDF", video: "Video", link: "Link", file: "File" };
+const kindLabel = (i: LibraryItem) => (i.kind === "file" && i.file ? i.file.split(".").pop()!.toUpperCase() : KIND_LABEL[i.kind]);
 
 function Card({ item }: { item: LibraryItem }) {
   const btn = { padding: "7px 12px", borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: "none", border: `1.5px solid ${C.teal}` } as const;
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, display: "grid", gap: 8, alignContent: "start" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: item.kind === "video" ? C.ochre : C.teal }}>{KIND_LABEL[item.kind]}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: item.kind === "video" ? C.ochre : C.teal }}>{kindLabel(item)}</span>
         {item.lang && <span style={{ fontSize: 12, fontWeight: 700, padding: "1px 8px", borderRadius: 99, background: C.sage, color: C.ink }}>{item.lang}</span>}
         <span style={{ fontSize: 12, color: C.ink2, marginLeft: "auto" }}>{fmtDate(item.date)}</span>
       </div>
