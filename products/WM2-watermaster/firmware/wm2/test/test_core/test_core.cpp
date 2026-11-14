@@ -370,6 +370,24 @@ void test_no_run_time_while_valve_held_shut() {
   TEST_ASSERT_TRUE(s.c.valve(0).done);
 }
 
+
+// A zone member with no switch and no flow meter counts its turn on the
+// leader's water (zoneWater), else its turn could never finish.
+void test_zone_member_counts_on_leader_water() {
+  Sim s(MON + 8 * 3600);
+  s.c.setProgram(0, timerProg(0x01, 1));
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.in.turnGated[0] = true;
+  s.in.turnAllowed[0] = true;
+  s.in.zoneWater = true;
+  for (int i = 0; i < 70; i++) {          // no PS, no flow: only the leader's water
+    s.t++; s.in.localEpoch = s.t; s.in.ps = false;
+    for (int k = 0; k < NUM_FLOW; k++) { s.in.lpm[k] = 0; s.in.litresDelta[k] = 0; }
+    s.c.tick(s.in);
+  }
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -393,5 +411,6 @@ int main(int, char**) {
   RUN_TEST(test_seq_entry_state);
   RUN_TEST(test_manual_minutes_separate_from_program);
   RUN_TEST(test_no_run_time_while_valve_held_shut);
+  RUN_TEST(test_zone_member_counts_on_leader_water);
   return UNITY_END();
 }

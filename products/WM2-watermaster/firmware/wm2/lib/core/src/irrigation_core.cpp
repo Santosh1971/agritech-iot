@@ -277,7 +277,7 @@ int Core::tick(const Inputs& in) {
   // 2) Water present?
   float flowSum = 0;
   for (int i = 0; i < NUM_FLOW; i++) flowSum += in.lpm[i];
-  bool water = (cfg.psFitted && in.ps) || flowSum > cfg.flowSeenLpm;
+  bool water = (cfg.psFitted && in.ps) || flowSum > cfg.flowSeenLpm || in.zoneWater;
   if (water != _water) {
     _water = water;
     Event e;

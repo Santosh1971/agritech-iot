@@ -56,12 +56,17 @@ def main():
             print("node:", r.read().decode(), f"({time.time() - t0:.0f} s)")
     except urllib.error.HTTPError as e:
         sys.exit(f"update refused: HTTP {e.code} {e.read().decode(errors='replace')}")
+    except (TimeoutError, OSError, urllib.error.URLError) as e:
+        # The node can restart before its reply reaches us: judge by the version it comes back with.
+        print(f"no reply from the node ({type(e).__name__}); checking whether it restarted...")
     print("waiting for the node to restart...")
     time.sleep(6)
     for _ in range(30):
         try:
             s = state(host)
-            print(f"{s.get('dev')} is back: fw {s.get('fw')}, reset reason {s.get('reset')}")
+            print(f"{s.get('dev')} is back: fw {s.get('fw')}, reset reason {s.get('reset')}, uptime {s.get('uptime_s')} s")
+            if s.get("uptime_s", 999) > 120:
+                sys.exit("the node did not restart: the update was not applied")
             return
         except Exception:
             time.sleep(2)

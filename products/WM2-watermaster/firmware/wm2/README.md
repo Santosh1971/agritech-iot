@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.10 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.12 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.10-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.12-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,16 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Zone turns: members follow the leader's water; released when dropped (0.2.11-0.2.12)
+
+T6 (2026-11-14, two real boards): a member with no pressure switch and no flow meter could open
+on its turn but never count minutes, so the turn never ended. Members now also take the
+leader's "water in the zone pipe" (`Inputs.zoneWater`, from the leader packet's `w`). And a
+leader that drops nodes from its turns (or switches turns off) tells them for ~10 s with a
+packet listing nobody (direct to their addresses; broadcast too when switched off) - before,
+a member kept waiting for a silent leader and kept its valves shut. T6 passed: turn 1 (both
+V1), pause on PS loss, turn 2 (both V2), all done; release after turns off in 1.5 s.
 
 ## Web tasks never wait forever on the node lock (0.2.10)
 

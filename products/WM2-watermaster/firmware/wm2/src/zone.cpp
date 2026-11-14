@@ -42,9 +42,16 @@ static uint8_t st[SEQ_MAX_TURNS][SEQ_MAX_PER_TURN];
 static int curTurn = -1;
 static bool water = false;
 static uint32_t lastLeaderTx = 0;
+// Nodes dropped from the turns (or all of them when turns are switched off)
+// are told for ~10 s so they stop waiting: a member keeps its valves shut
+// while it believes it is in a zone, so silence alone would block it.
+static std::vector<IPAddress> releaseIps;
+static bool releaseAll = false;
+static uint32_t releaseUntil = 0, lastReleaseTx = 0;
 
 // member
 static uint32_t leaderHeardMs = 0;
+static bool leaderWater = false;  // the leader's "water in the zone pipe"
 static IPAddress leaderIp;  // learnt from its packets: reports also go to it directly
 static bool allowedMine[2] = {false, false};
 static bool lostRaised = false;
@@ -235,6 +242,7 @@ static void onLeaderPacket(JsonDocument& d, uint32_t now, const IPAddress& from)
     Entry e;
     if (parseEntry(x | "", e) && e.dev == me) allowedMine[e.v] = true;
   }
+  leaderWater = (d["w"] | 0) == 1;
   if (lostRaised) {
     lostRaised = false;
     zoneEvent("leader_back", -1);
@@ -283,6 +291,7 @@ void gate(Inputs& in) {
       in.turnGated[v] = cfg.seqMask & (1 << v);
       in.turnAllowed[v] = in.turnGated[v] && heard && allowedMine[v];
     }
+    in.zoneWater = heard && leaderWater;
   }
 }
 
@@ -310,6 +319,26 @@ void loop() {
       const char* t = d["t"] | "";
       if (!strcmp(t, "wm2z") && cfg.deviceId() != (d["ld"] | "")) onLeaderPacket(d, now, from);
       else if (!strcmp(t, "wm2m")) onMemberPacket(d, now, from);
+    }
+  }
+
+  if (releaseUntil && udpOn) {
+    if ((int32_t)(now - releaseUntil) > 0) {
+      releaseUntil = 0;
+      releaseIps.clear();
+    } else if (now - lastReleaseTx >= 2000) {
+      lastReleaseTx = now;
+      JsonDocument d;
+      d["t"] = "wm2z";
+      d["ld"] = cfg.deviceId();
+      d["w"] = 0;
+      d["turn"] = 0;
+      d["al"].to<JsonArray>();
+      d["tu"].to<JsonArray>();  // lists nobody: a member hearing this leaves
+      String s;
+      serializeJson(d, s);
+      if (releaseAll) sendTo(WiFi.broadcastIP(), s);
+      for (auto& ip : releaseIps) sendTo(ip, s);
     }
   }
 
@@ -373,6 +402,21 @@ bool setTurns(JsonVariantConst in, JsonVariantConst ips, String& err) {
       ot.add(id);
     }
   }
+  // Who is no longer listed: tell them for a while (see releaseIps).
+  releaseIps.clear();
+  for (auto& m : members) {
+    bool still = false;
+    for (JsonArrayConst t : o)
+      for (JsonVariantConst x : t) {
+        Entry e;
+        if (parseEntry(x | "", e) && e.dev == m.dev) still = true;
+      }
+    if (!still && (uint32_t)m.ip) releaseIps.push_back(m.ip);
+  }
+  releaseAll = o.size() == 0;
+  releaseUntil = millis() + 10000;
+  if (!releaseUntil) releaseUntil = 1;
+  lastReleaseTx = 0;
   members.clear();
   cfg.seqIps = "";
   if (o.size() && ips.is<JsonObjectConst>() && ips.size()) serializeJson(ips, cfg.seqIps);
