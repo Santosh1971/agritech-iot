@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.8 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.9 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.8-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.9-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,14 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Run time counts only while a valve is really open (0.2.9)
+
+T5 (2026-11-14): at critical battery the node's safe-close held V2 shut, but the program
+logic still counted 3 minutes and marked the day done. The core now gets the real valve state
+(`Inputs.haveActual/actualOpen` from `hw::valveState`) and counts program/manual time and
+litres only while the valve is really open with water; a valve held shut (no 12V, critical
+battery) keeps waiting. The "crash" event is raised only after a watchdog/crash restart.
 
 ## Crash breadcrumbs (0.2.8)
 

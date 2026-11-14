@@ -248,7 +248,8 @@ int Core::tick(const Inputs& in) {
   for (int v = 0; v < NUM_VALVES; v++) {
     ValveState& s = _vs[v];
     const ValveCfg& c = cfg.v[v];
-    bool flowing = s.open && (_water || in.bypass);
+    bool reallyOpen = in.haveActual ? in.actualOpen[v] : s.open;
+    bool flowing = reallyOpen && (_water || in.bypass);
     float l = valveLitres(cfg, in.litresDelta, v);
     if (s.open && _water) s.openSec += (uint32_t)(dt + 0.5f);
     if (!flowing) continue;

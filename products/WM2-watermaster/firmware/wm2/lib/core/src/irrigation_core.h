@@ -72,6 +72,12 @@ struct Inputs {
   // program may only open while the zone leader allows it (its turn, water on).
   bool turnGated[NUM_VALVES] = {false, false};
   bool turnAllowed[NUM_VALVES] = {false, false};
+  // The valve's real state from the hardware (after its pulse). The node may
+  // hold a valve shut although the logic wants it open (no 12V yet, critical
+  // battery safe-close); run time and litres count only while it is really
+  // open. haveActual false (tests): assume the valve follows the logic.
+  bool haveActual = false;
+  bool actualOpen[NUM_VALVES] = {false, false};
 };
 
 enum EventType : uint8_t {

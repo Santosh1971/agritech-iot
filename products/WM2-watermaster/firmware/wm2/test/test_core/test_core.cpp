@@ -352,6 +352,24 @@ void test_manual_minutes_separate_from_program() {
   TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).manualSec);
 }
 
+
+// A valve the node holds shut (critical battery, no 12V) must not count run
+// time, even though the logic wants it open (T5, 2026-11-14: 3 min counted).
+void test_no_run_time_while_valve_held_shut() {
+  Sim s(MON + 8 * 3600);
+  s.c.setProgram(0, timerProg(0x01, 2));
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.in.haveActual = true;
+  s.in.actualOpen[0] = false;             // hardware keeps it closed
+  s.run(120, true);
+  TEST_ASSERT_TRUE(s.c.valve(0).open);    // the logic wants it open
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).runSec);
+  TEST_ASSERT_FALSE(s.c.valve(0).done);
+  s.in.actualOpen[0] = true;              // 12V back / battery ok: really opens
+  s.run(125, true);
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_weekday);
@@ -374,5 +392,6 @@ int main(int, char**) {
   RUN_TEST(test_seq_current_turn);
   RUN_TEST(test_seq_entry_state);
   RUN_TEST(test_manual_minutes_separate_from_program);
+  RUN_TEST(test_no_run_time_while_valve_held_shut);
   return UNITY_END();
 }

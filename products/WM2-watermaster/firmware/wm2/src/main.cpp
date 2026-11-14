@@ -644,7 +644,9 @@ void setup() {
                 cfg.apSsid().c_str(), cfg.apPassword().c_str());
   Serial.println("Type 'h' + Enter for console help.");
   lastRecMs = millis();
-  if (bootCrumb) {
+  esp_reset_reason_t rr = esp_reset_reason();
+  bool badReset = rr == ESP_RST_PANIC || rr == ESP_RST_INT_WDT || rr == ESP_RST_TASK_WDT || rr == ESP_RST_WDT;
+  if (bootCrumb && badReset) {  // only real crashes / watchdog restarts, not updates or power cuts
     JsonDocument d;
     d["event"] = "crash";
     d["reset"] = resetReasonText();
@@ -707,6 +709,8 @@ void loop() {
       in.litresDelta[i] = dl[i];
     }
     zone::gate(in);  // zone turns: which program valves may run now
+    in.haveActual = true;  // count time only while a valve is really open (not held shut)
+    for (int v = 0; v < 2; v++) in.actualOpen[v] = hw::valveState(v);
     uint32_t dayBefore = core.dayIndex();
     crumb(7);
     int n = core.tick(in);
