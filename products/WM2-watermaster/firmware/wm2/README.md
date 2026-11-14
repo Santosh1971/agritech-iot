@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.13 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.15 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.13-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.15-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,16 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Cloud fixes (0.2.14 / 0.2.15)
+
+- Firmware: `get_history` reads at most ~400 day files up to today. A request
+  from 1970 held the node lock for ~10 min (web and cloud both "busy"), and the
+  broker's persistent session handed it back after a power cycle.
+- App: on mobile data the app goes straight to the cloud (no local tries or LAN
+  sweep on the carrier network); commands wait up to 25 s for the link instead
+  of failing with "not connected"; Settings shows the error with Retry.
+- Local app builds need `--dart-define=WM2_AG_PASS=...` or the cloud login is empty.
 
 ## Independent nodes by default (0.2.13)
 
