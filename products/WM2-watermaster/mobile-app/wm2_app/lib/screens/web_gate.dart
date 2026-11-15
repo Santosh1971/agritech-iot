@@ -198,6 +198,27 @@ class WebNodesScreen extends StatelessWidget {
   final NodeStore store;
   final Future<void> Function()? onRefresh;
 
+  Future<void> _delete(BuildContext context, NodeEntry n) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete ${n.name} (${n.agId})?'),
+        content: const Text('The node, its history and its command log are removed from the server, and it leaves its '
+            'farm. This cannot be undone.\n\nA node that is still powered and online reports again and comes back '
+            'by itself, in no farm.'),
+        actions: [
+          FilledButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final err = await Account.instance.deleteDevice(n.agId);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err ?? '${n.agId} deleted')));
+    if (err == null) await onRefresh?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final acct = Account.instance;
@@ -225,6 +246,13 @@ class WebNodesScreen extends StatelessWidget {
               leading: const Icon(Icons.water_drop_outlined),
               title: Text(n.name),
               subtitle: Text('${store.zone(n.zone).name} · ${n.agId}'),
+              trailing: acct.isAdmin
+                  ? PopupMenuButton<String>(
+                      tooltip: 'Admin',
+                      onSelected: (_) => _delete(context, n),
+                      itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete from server...'))],
+                    )
+                  : null,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NodeScreen(entry: n, store: store))),
             ),
           const Padding(

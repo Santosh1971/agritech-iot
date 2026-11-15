@@ -84,6 +84,17 @@ class Account extends ChangeNotifier {
     }
   }
 
+  /// Admin: remove a node (and its history) from the server. Returns an error or null.
+  Future<String?> deleteDevice(String deviceId) async {
+    try {
+      final r = await http.delete(Uri.parse('$base/api/app/devices/$deviceId'), headers: headers);
+      final j = jsonDecode(r.body) as Map<String, dynamic>;
+      return j['ok'] == true ? null : '${j['err'] ?? 'delete failed (${r.statusCode})'}';
+    } catch (_) {
+      return 'no internet or server not reachable';
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await http.post(Uri.parse('$base/api/app/logout'), headers: headers);

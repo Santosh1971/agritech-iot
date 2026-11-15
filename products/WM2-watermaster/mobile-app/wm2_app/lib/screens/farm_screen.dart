@@ -68,7 +68,9 @@ class FarmScreen extends StatelessWidget {
               ? const Center(
                   child: Padding(
                       padding: EdgeInsets.all(24),
-                      child: Text('No nodes yet. Add them on the Nodes tab, with their zone and position.')))
+                      child: Text(kIsWeb
+                          ? 'No nodes for this email yet. Ask your farm admin to add you to the farm.'
+                          : 'No nodes yet. Add them on the Nodes tab, with their zone and position.')))
               : ListView(padding: const EdgeInsets.all(10), children: [
                   _Banner(farm: farm, store: store),
                   for (final z in zones) _ZoneCard(farm: farm, store: store, zone: z.key, nodes: z.value),
