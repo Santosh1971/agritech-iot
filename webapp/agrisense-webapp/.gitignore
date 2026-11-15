@@ -1,0 +1,3 @@
+
+# Product web apps (Flutter builds), deployed to ~/agrisense-data/apps and served by nginx at /app/
+/public/app/

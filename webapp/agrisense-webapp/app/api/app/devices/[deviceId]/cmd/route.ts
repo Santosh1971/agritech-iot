@@ -5,13 +5,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { appSession, deviceFor, mayRun } from "@/lib/appAccess";
+import { appSession, deviceFor, mayRun, memberSafe } from "@/lib/appAccess";
 import { relay, TOPIC_OF } from "@/lib/mqttRelay";
 
 export const dynamic = "force-dynamic";
 
 // Read-only commands are frequent (the app polls state); don't log them.
 const QUIET = new Set(["get_state", "get_config", "get_program", "get_history", "get_days", "get_events", "device_info", "wifi_scan"]);
+
+function redact(o: unknown): unknown {
+  if (Array.isArray(o)) return o.map(redact);
+  if (o && typeof o === "object") {
+    return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, /pass/i.test(k) ? "***" : redact(v)]));
+  }
+  return o;
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ deviceId: string }> }) {
   const s = await appSession(req);
@@ -33,13 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ dev
   if (!mayRun(s, device.product, cmd)) {
     return NextResponse.json({ ok: false, cmd, err: "only an admin can do this" }, { status: 403 });
   }
-  // Members never move a node off our broker.
-  if (s.role !== "ADMIN" && cmd === "set_config" && body.config && typeof body.config === "object") {
-    const c = { ...(body.config as Record<string, unknown>) };
-    delete c.broker;
-    delete c.broker_host;
-    body = { ...body, config: c };
-  }
+  // Members: only the safe parts of set_config / wifi_config go through.
+  if (s.role !== "ADMIN") body = memberSafe(device.product, body);
   delete body.id;
   delete body.src;
   delete body.ts;
@@ -47,7 +50,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ dev
   const id = randomUUID();
   if (!QUIET.has(cmd)) {
     await prisma.command.create({
-      data: { cmdId: id, deviceId: device.id, payloadId: cmd, params: body as object, sentById: s.userId },
+      // Never keep a WiFi or other password in the log.
+      data: { cmdId: id, deviceId: device.id, payloadId: cmd, params: redact(body) as object, sentById: s.userId },
     });
   }
   const timeout = Math.min(Math.max(Number(req.nextUrl.searchParams.get("timeout") ?? 20), 3), 30) * 1000;

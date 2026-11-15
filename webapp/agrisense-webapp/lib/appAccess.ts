@@ -45,3 +45,28 @@ export function mayRun(s: SessionPayload, product: string, cmd: string): boolean
   if (s.role === "ADMIN") return true;
   return MEMBER_CMDS[product]?.has(cmd) ?? false;
 }
+
+// set_config keys a farm member may change (WM2). Everything else in the
+// config (WiFi and SoftAP passwords, broker and MQTT logins, zone/node names,
+// valve hardware, safe-close, zone turns) is dropped unless an admin sends it.
+const MEMBER_CONFIG_KEYS: Record<string, Set<string>> = {
+  WM2: new Set([
+    "flow", "sequential", "ps_fitted", "day_start_hour", "tz_min", "ps_settle_s", "low_pct", "high_pct",
+    "imbalance_pct", "alarm_delay_s", "bypass_default_min", "active_s", "heartbeat_s", "profile",
+    "chemistry", "capacity_ah", "v_warn", "v_save", "v_crit", "daily_ah",
+  ]),
+};
+
+/** The command a member may actually send: unknown config keys removed, WiFi cut to name + password. */
+export function memberSafe(product: string, body: Record<string, unknown>): Record<string, unknown> {
+  const cmd = body.cmd;
+  if (cmd === "set_config") {
+    const allowed = MEMBER_CONFIG_KEYS[product] ?? new Set<string>();
+    const src = body.config && typeof body.config === "object" ? (body.config as Record<string, unknown>) : {};
+    const config = Object.fromEntries(Object.entries(src).filter(([k]) => allowed.has(k)));
+    return { cmd, config };
+  }
+  if (cmd === "wifi_config") return { cmd, ssid: body.ssid, pass: body.pass };
+  return body;
+}
+
