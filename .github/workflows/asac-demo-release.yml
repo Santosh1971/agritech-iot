@@ -1,0 +1,72 @@
+name: ASAC Demo — release (app)
+
+# Publishes the ASAC Demo app (every product on a simulated device, no
+# hardware) to the NB Agri Flasher server under product ASAC_DEMO.
+#
+# Trigger: push of a tag "asac-demo-vX.Y.Z" -> builds and publishes X.Y.Z.
+# Guard: X.Y.Z must equal the version in the app's pubspec.yaml.
+on:
+  push:
+    tags:
+      - "asac-demo-v*"
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/ASAC-Demo/demo_app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the version
+        id: ver
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          V="${TAG#asac-demo-v}"
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$V' is not a plain X.Y.Z version"; exit 1
+          fi
+          APP=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+          if [ "$APP" != "$V" ]; then echo "::error::Publishing $V but pubspec.yaml version is '$APP'"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.4"
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Same debug key as the APKs built on Santosh's Mac, so a new version
+      # installs over the old one instead of failing with "App not installed".
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_DEBUG_KEYSTORE_B64 is not set"; exit 1
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/debug.keystore"
+          echo "ASAC_DEBUG_KEYSTORE=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - name: Check the signing key
+        run: |
+          AS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)apksigner
+          SHA=$("$AS" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          if [ "$SHA" != "5a084b3d56913f0fe636e3d88d54a31127dfcf75e3196edf89f46954b6b2125a" ]; then
+            echo "::error::APK signed with $SHA, not the key of the earlier builds"; exit 1
+          fi
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "versionName=${VERSION}" \
+            -F "buildType=debug" \
+            -F "product=ASAC_DEMO" \
+            -F "notes=ASAC Demo ${VERSION} (FG1, WM1-Mini, FG1 Polyhouse, WPC, WM2 on simulated devices), built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA})" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk;type=application/vnd.android.package-archive"
