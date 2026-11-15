@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../services/farm.dart';
@@ -71,6 +72,8 @@ class FarmScreen extends StatelessWidget {
               : ListView(padding: const EdgeInsets.all(10), children: [
                   _Banner(farm: farm, store: store),
                   for (final z in zones) _ZoneCard(farm: farm, store: store, zone: z.key, nodes: z.value),
+                  // Web app: zones come from the server's farm list.
+                  if (!kIsWeb)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: OutlinedButton.icon(
