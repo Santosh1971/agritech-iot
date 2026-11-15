@@ -297,10 +297,14 @@ for x, y in [(sx0 - M, hy1 + 0.6), (sx1 + M, hy1 + 0.6), (sx1 + M, sy1 + M), (sx
 board.Add(ka)
 
 # No tracks or vias within 0.6 mm of the head edges (Freerouting ignores KiCad's copper-to-edge rule)
-def keepout(name, x0, y0, x1, y1):
+def keepout(name, x0, y0, x1, y1, vias=False, front_only=False):
     k = pcbnew.ZONE(board)
-    k.SetIsRuleArea(True); k.SetLayerSet(pcbnew.LSET.AllCuMask()); k.SetZoneName(name)
-    k.SetDoNotAllowTracks(True); k.SetDoNotAllowVias(True); k.SetDoNotAllowPads(False)
+    k.SetIsRuleArea(True); k.SetZoneName(name)
+    if front_only:
+        k.SetLayer(FCU)
+    else:
+        k.SetLayerSet(pcbnew.LSET.AllCuMask())
+    k.SetDoNotAllowTracks(True); k.SetDoNotAllowVias(not vias); k.SetDoNotAllowPads(False)
     k.SetDoNotAllowFootprints(False); k.SetDoNotAllowCopperPour(False)
     o = k.Outline(); o.NewOutline()
     for x, y in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]:
@@ -311,6 +315,9 @@ keepout("edge_left", hx0 - 1, hy0 - 1, hx0 + E, hy1 + 1)
 keepout("edge_right", hx1 - E, hy0 - 1, hx1 + 1, hy1 + 1)
 keepout("edge_bottom_left", hx0 - 1, hy1 - E, sx0, hy1 + 1)
 keepout("edge_bottom_right", sx1, hy1 - E, hx1 + 1, hy1 + 1)
+# No F.Cu tracks under the LoRa module (between its two pad rows): F.Cu there fills as solid GND right
+# under the radio, and traces that must pass (the touch bus) go on B.Cu, shielded by that pour.
+keepout("under_lora_top", D.STRIP_CX - 6.6, 72 - 8.2, D.STRIP_CX + 6.6, 72 + 8.2, vias=True, front_only=True)
 
 # ---- silkscreen / notes ------------------------------------------------------------------------
 def text(s, x, y, layer, size=1.0, rot=0, mirror=False, just=None):
