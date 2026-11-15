@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   // Serve the static student labs pages (public/workshop/...) at /workshop and /workshop/practical (+ /hi, /kn).
   async rewrites() {
     return [
+      // Product web apps (Flutter builds in public/app/<product>, not in git; see deploy notes).
+      { source: "/app/wm2", destination: "/app/wm2/index.html" },
+      { source: "/app/wm2/", destination: "/app/wm2/index.html" },
       { source: "/workshop", destination: "/workshop/index.html" },
       { source: "/workshop/practical", destination: "/workshop/practical/index.html" },
       { source: "/workshop/practical/hi", destination: "/workshop/practical/hi/index.html" },
