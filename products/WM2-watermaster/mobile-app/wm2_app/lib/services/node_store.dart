@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +9,7 @@ import 'lan_finder.dart';
 import 'local_link.dart';
 import 'mqtt_link.dart';
 import 'node_link.dart';
+import 'server_link.dart';
 
 /// A node the user added: reachable directly (host) and/or through MQTT on
 /// the AgriSense broker (agrisense/WM2/DEVICE_ID/) or Girish broker
@@ -108,6 +110,9 @@ class NodeStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Tell listeners the nodes changed without saving (web app: the server owns the list).
+  void changed() => notifyListeners();
+
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('nodes', jsonEncode(nodes.map((n) => n.toJson()).toList()));
@@ -149,12 +154,15 @@ class NodeController extends ChangeNotifier {
   bool get connected {
     final l = link;
     if (l == null || !l.isConnected) return false;
+    if (l is ServerLink) return l.nodeOnline;
     return l is! MqttLink || l.nodeOnline;
   }
 
   String _statusFor(NodeLink l, bool up) {
     if (!up) return 'reconnecting (${l.kind})...';
-    if (l is MqttLink && !l.nodeOnline) return 'node offline (not connected to the cloud)';
+    if ((l is MqttLink && !l.nodeOnline) || (l is ServerLink && !l.nodeOnline)) {
+      return 'node offline (not connected to the cloud)';
+    }
     return 'connected (${l.kind})';
   }
 
@@ -199,6 +207,20 @@ class NodeController extends ChangeNotifier {
     status = 'connecting...';
     _notify();
     _drop();
+    // Web app: only through the AgriSense server (signed in, farm access).
+    if (kIsWeb) {
+      final sl = ServerLink(entry.agId);
+      if (await sl.connect()) {
+        _use(sl);
+        connecting = false;
+        return;
+      }
+      sl.dispose();
+      connecting = false;
+      status = 'server not reachable: check the internet, or sign in again';
+      _notify();
+      return;
+    }
     // Direct link: the farm-WiFi address the node last reported, then the
     // saved address (often 192.168.4.1, its SoftAP).
     // On mobile data only the cloud can work: skip the local tries.

@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../services/farm.dart';
 import '../services/node_store.dart';
 import 'farm_screen.dart';
 import 'node_list_screen.dart';
+import 'web_gate.dart';
 
 /// Farm dashboard and node list, with one live link per node shared by both.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.store});
+  const HomeScreen({super.key, required this.store, this.onRefresh});
   final NodeStore store;
+  /// Web app: reload the node list from the server.
+  final Future<void> Function()? onRefresh;
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -28,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: IndexedStack(index: tab, children: [
         FarmScreen(farm: farm, store: widget.store),
-        NodeListScreen(store: widget.store),
+        kIsWeb ? WebNodesScreen(store: widget.store, onRefresh: widget.onRefresh) : NodeListScreen(store: widget.store),
       ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,

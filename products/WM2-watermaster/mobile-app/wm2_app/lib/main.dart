@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'screens/web_gate.dart';
+import 'services/account.dart';
 import 'services/node_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = NodeStore();
-  await store.load();
+  // The web app's nodes come from the server after sign-in; the Android app
+  // keeps the nodes the user added.
+  if (!kIsWeb) await store.load();
+  await Account.instance.load();
   runApp(Wm2App(store: store));
 }
 
@@ -22,7 +28,7 @@ class Wm2App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: seed, useMaterial3: true),
       darkTheme: ThemeData(colorSchemeSeed: seed, brightness: Brightness.dark, useMaterial3: true),
-      home: HomeScreen(store: store),
+      home: kIsWeb ? WebGate(store: store) : HomeScreen(store: store),
     );
   }
 }

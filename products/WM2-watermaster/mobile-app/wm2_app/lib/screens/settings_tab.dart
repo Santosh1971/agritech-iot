@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../services/account.dart';
 
 import '../services/node_store.dart';
 import 'node_screen.dart';
@@ -109,6 +112,8 @@ class _SettingsTabState extends State<SettingsTab> {
           ),
         );
 
+    // Web app (through the server): broker, forgetting WiFi and bench mode are for admins.
+    final fullControl = !kIsWeb || Account.instance.isAdmin;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(padding: const EdgeInsets.all(12), children: [
@@ -160,6 +165,7 @@ class _SettingsTabState extends State<SettingsTab> {
         // Kept apart from Save and named for what it does: "Disconnect WiFi"
         // next to Save was tapped as "disconnect my phone" and made the node
         // forget the farm WiFi right after joining it (Avinash, 2026-11-13).
+        if (fullControl)
         Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
@@ -185,6 +191,7 @@ class _SettingsTabState extends State<SettingsTab> {
             },
           ),
         ),
+        if (fullControl)
         section('MQTT broker (node)', [
           SizedBox(
             width: 220,
@@ -227,6 +234,7 @@ class _SettingsTabState extends State<SettingsTab> {
           }
           widget.ctl.store.save();
         }),
+        if (fullControl)
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
