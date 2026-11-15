@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'common/demo.dart';
 import 'fg1/fg1_app.dart';
 import 'wm1/wm1_app.dart';
+import 'fg1p/fg1p_app.dart';
+import 'wpc/wpc_app.dart';
+import 'wm2/wm2_app.dart';
 
 void main() {
   runApp(const ProviderScope(child: AsacDemoApp()));
@@ -61,8 +64,12 @@ final _products = <_Product>[
       Icons.water_drop, () => const Fg1DemoShell()),
   _Product('WM1-Mini', 'WaterMaster Mini', 'Pump, fertilizer doser and 4 valves. Multi-zone programs, pressure and flow.',
       Icons.account_tree, () => const Wm1DemoShell()),
-  const _Product('WPC', 'Wireless Pump Controller', 'LoRa control of distant pumps.', Icons.settings_input_antenna, null),
-  const _Product('WM2', 'WaterMaster 2', 'Farm-wide valves with flow sensing.', Icons.grass, null),
+  _Product('FG1 Polyhouse', 'Misting Controller', 'Wireless temperature and humidity sensors start misting automatically.',
+      Icons.cloud_queue, () => const Fg1pDemoShell()),
+  _Product('WPC', 'Wireless Pump Controller', 'Keeps a sump full by switching far-away field pumps over LoRa radio.',
+      Icons.settings_input_antenna, () => const WpcDemoShell()),
+  _Product('WM2', 'WaterMaster 2', 'Solar valve nodes across the farm, opening when water arrives. Litres per valve.',
+      Icons.grass, () => const Wm2DemoShell()),
 ];
 
 class ProductPicker extends StatelessWidget {
