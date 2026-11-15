@@ -52,6 +52,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Product apps (/api/app/*): each route checks the session itself (cookie
+  // or "Authorization: Bearer"), and answers 401 JSON instead of a redirect.
+  if (pathname.startsWith("/api/app/")) {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get("agrisense_session")?.value;
   const session = token ? await verifySession(token) : null;
 

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { signSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
-  const { email, code } = await req.json();
+  const { email, code, client } = await req.json();
 
   if (!email || !code) {
     return NextResponse.json({ error: "email and code are required" }, { status: 400 });
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
 
   const token = await signSession({ userId: user.id, email: user.email, role: user.role });
 
-  const res = NextResponse.json({ ok: true, role: user.role });
+  // The Android product apps keep the session as a bearer token (no cookies).
+  const res = NextResponse.json(client === "app" ? { ok: true, role: user.role, token } : { ok: true, role: user.role });
   res.cookies.set("agrisense_session", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

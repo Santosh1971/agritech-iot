@@ -63,6 +63,9 @@ model User {
   trackReleasesPublished TrackRelease[] @relation("TrackReleasePublish")
   trackEvents            TrackEvent[]
   trackFiles             TrackFile[]
+
+  farmMemberships FarmMember[] @relation("FarmMemberUser")
+  farmMembersAdded FarmMember[] @relation("FarmMemberAddedBy")
 }
 
 model OtpCode {
@@ -90,11 +93,41 @@ model Device {
   lastSeenAt  DateTime?
   createdAt   DateTime  @default(now())
 
+  // Farm access (product apps on the web): every member of the farm sees and
+  // controls this node; admins see all farms.
+  farmId      String?
+  farm        Farm?     @relation(fields: [farmId], references: [id])
+
   readings    Reading[]
   commands    Command[]
 
   @@index([ownerId])
+  @@index([farmId])
   @@index([dealerId])
+}
+
+// A customer's farm: its nodes (Device.farmId) and the emails allowed to use
+// them in the product apps. Admin (Santosh, Avinash) adds and removes members.
+model Farm {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  createdAt DateTime     @default(now())
+  devices   Device[]
+  members   FarmMember[]
+}
+
+model FarmMember {
+  id        String   @id @default(cuid())
+  farmId    String
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("FarmMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedById String?
+  addedBy   User?    @relation("FarmMemberAddedBy", fields: [addedById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([farmId, userId])
+  @@index([userId])
 }
 
 model Reading {
