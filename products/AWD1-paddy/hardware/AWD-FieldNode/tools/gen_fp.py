@@ -56,7 +56,7 @@ def write(name, w, h, descr):
                         ty=-h / 2 - 1, vy=h / 2 + 1, u1=u[0], u2=u[1], u3=u[2], u4=u[3])
     open(os.path.join(OUT, name + ".kicad_mod"), "w").write(s)
 
-write("SensePad_8x18mm", 8, 18, "AWD level-strip sensing electrode, 8x18 mm on 20 mm pitch, mask-covered")
-write("SensePad_8x12mm", 8, 12, "AWD level-strip dry reference electrode, 8x12 mm, mask-covered")
-write("ReturnPad_8x20mm", 8, 20, "AWD level-strip GND water-return electrode, 8x20 mm, mask-covered")
+write("SensePad_6x18mm", 6, 18, "AWD level-strip sensing electrode, 6x18 mm on 20 mm pitch, mask-covered (v0.3, 2-layer)")
+write("SensePad_6x12mm", 6, 12, "AWD level-strip dry reference electrode, 6x12 mm, mask-covered (v0.3)")
+write("ReturnPad_12x20mm", 12, 20, "AWD level-strip GND water-return electrode, 12x20 mm, mask-covered (v0.3)")
 print("footprints written to", OUT)

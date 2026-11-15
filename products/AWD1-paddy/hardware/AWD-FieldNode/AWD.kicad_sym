@@ -31,7 +31,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "AWD:SensePad_8x18mm"
+		(property "Footprint" "AWD:SensePad_6x18mm"
 			(at 0 0 0)
 			(effects
 				(font

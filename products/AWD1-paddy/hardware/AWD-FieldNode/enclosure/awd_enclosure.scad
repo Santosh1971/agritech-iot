@@ -36,8 +36,8 @@ screw_d = 3.4;  nut_af = 5.6;  nut_h = 2.6;
 // interface features
 sma_y = -25;  sma_z = 1.98;  sma_hole = 6.7;           // 1/4-36 barrel
 sw_xy = [5, -14];   led_xy = [30.5, -18.5];
-neck_x0 = 15 - 0.4;  neck_x1 = 25 + 0.4;               // strip is 10 mm wide at X 15..25
-boss = [16, 8, 17];                                    // neck gland: width, thickness, length below box wall
+neck_x0 = 12 - 0.4;  neck_x1 = 28 + 0.4;               // v0.3: strip is 16 mm wide at X 12..28 (v0.1: 10 mm)
+boss = [22, 8, 17];                                    // neck gland: width, thickness, length below box wall (v0.3: 22, was 16)
 boss_z0 = -3;                                          // gland spans Z -3..5 (split at Z = 0)
 
 ox0 = cx0 - wall; ox1 = cx1 + wall; oy0 = cy0 - wall; oy1 = cy1 + wall;

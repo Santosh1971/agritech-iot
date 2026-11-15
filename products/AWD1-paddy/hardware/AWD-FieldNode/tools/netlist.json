@@ -379,7 +379,7 @@
   "value": "510",
   "uuid": "fef2cc7e-e53e-45ec-a7aa-09d0562bd544",
   "pads": {
-   "1": "/T1",
+   "1": "/T2",
    "2": "/P1"
   },
   "nc": {},
@@ -391,7 +391,7 @@
   "value": "510",
   "uuid": "ebd9c083-525f-47b8-8f9b-e48dffa3acd6",
   "pads": {
-   "1": "/T2",
+   "1": "/T3",
    "2": "/P2"
   },
   "nc": {},
@@ -403,7 +403,7 @@
   "value": "510",
   "uuid": "d962376a-55bd-4ca8-9eac-98a362cd83d2",
   "pads": {
-   "1": "/T3",
+   "1": "/T4",
    "2": "/P3"
   },
   "nc": {},
@@ -415,7 +415,7 @@
   "value": "510",
   "uuid": "2e2c4cd6-60dc-4cb6-8b46-f5fda65a13bf",
   "pads": {
-   "1": "/T4",
+   "1": "/T5",
    "2": "/P4"
   },
   "nc": {},
@@ -427,7 +427,7 @@
   "value": "510",
   "uuid": "5340b835-30ed-42c6-a39f-f317973728bf",
   "pads": {
-   "1": "/T5",
+   "1": "/T6",
    "2": "/P5"
   },
   "nc": {},
@@ -439,7 +439,7 @@
   "value": "510",
   "uuid": "e357d832-cfc8-4990-9307-6c5dac9ef7e5",
   "pads": {
-   "1": "/T6",
+   "1": "/T7",
    "2": "/P6"
   },
   "nc": {},
@@ -451,7 +451,7 @@
   "value": "510",
   "uuid": "23b36b46-19fa-4ab1-ae2e-0029864fa26d",
   "pads": {
-   "1": "/T7",
+   "1": "/T8",
    "2": "/P7"
   },
   "nc": {},
@@ -463,7 +463,7 @@
   "value": "510",
   "uuid": "42656e3f-75c1-4e78-bb2c-588bed277d0e",
   "pads": {
-   "1": "/T8",
+   "1": "/T9",
    "2": "/P8"
   },
   "nc": {},
@@ -475,7 +475,7 @@
   "value": "510",
   "uuid": "ab5debf0-1a67-4b72-a36e-5922af2fe4ee",
   "pads": {
-   "1": "/T9",
+   "1": "/T10",
    "2": "/P9"
   },
   "nc": {},
@@ -487,7 +487,7 @@
   "value": "510",
   "uuid": "53e484e6-4058-4a24-ace1-8cdd5ad0bcce",
   "pads": {
-   "1": "/T10",
+   "1": "/T11",
    "2": "/P10"
   },
   "nc": {},
@@ -499,7 +499,7 @@
   "value": "510",
   "uuid": "bc87b866-0fe1-4456-9afb-b327f6b51de6",
   "pads": {
-   "1": "/T11",
+   "1": "/T12",
    "2": "/P11"
   },
   "nc": {},
@@ -511,7 +511,7 @@
   "value": "510",
   "uuid": "068ef70a-0f84-4e20-a988-5a330f87c991",
   "pads": {
-   "1": "/T12",
+   "1": "/T13",
    "2": "/P12"
   },
   "nc": {},
@@ -523,7 +523,7 @@
   "value": "510",
   "uuid": "9a2f5714-8d86-49da-b7fd-353db4e2ecb8",
   "pads": {
-   "1": "/T13",
+   "1": "/T1",
    "2": "/REF"
   },
   "nc": {},
@@ -531,7 +531,7 @@
  },
  {
   "ref": "E1",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P1",
   "uuid": "b5f4c11c-ef3c-4f65-85f1-81345e02ed61",
   "pads": {
@@ -542,7 +542,7 @@
  },
  {
   "ref": "E2",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P2",
   "uuid": "25db5671-d112-49c7-9ab5-3b3d3a48425d",
   "pads": {
@@ -553,7 +553,7 @@
  },
  {
   "ref": "E3",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P3",
   "uuid": "998ff0d3-18a8-4cd7-a324-06d3290e4b53",
   "pads": {
@@ -564,7 +564,7 @@
  },
  {
   "ref": "E4",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P4",
   "uuid": "13278266-9161-4d8e-b404-de1e4c3f6a10",
   "pads": {
@@ -575,7 +575,7 @@
  },
  {
   "ref": "E5",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P5",
   "uuid": "a51bd3d3-20cb-4868-8283-eced59ee27c5",
   "pads": {
@@ -586,7 +586,7 @@
  },
  {
   "ref": "E6",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P6",
   "uuid": "7be7c46f-acb4-4edb-b24e-5d674b641d65",
   "pads": {
@@ -597,7 +597,7 @@
  },
  {
   "ref": "E7",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P7",
   "uuid": "fd772c26-1e1c-41d9-a162-7c332838d436",
   "pads": {
@@ -608,7 +608,7 @@
  },
  {
   "ref": "E8",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P8",
   "uuid": "d36aa285-802b-4089-9168-7ed324bfc407",
   "pads": {
@@ -619,7 +619,7 @@
  },
  {
   "ref": "E9",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P9",
   "uuid": "2e364bc5-9fb5-4da9-88af-e0cffe09b167",
   "pads": {
@@ -630,7 +630,7 @@
  },
  {
   "ref": "E10",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P10",
   "uuid": "77253a81-de77-4baf-8d12-16c92c80aca5",
   "pads": {
@@ -641,7 +641,7 @@
  },
  {
   "ref": "E11",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P11",
   "uuid": "7a4a23f3-db3f-4dff-ab52-a103eda34fbf",
   "pads": {
@@ -652,7 +652,7 @@
  },
  {
   "ref": "E12",
-  "fp": "AWD:SensePad_8x18mm",
+  "fp": "AWD:SensePad_6x18mm",
   "value": "P12",
   "uuid": "4a6ccba4-1a09-4495-9d18-8e2a636cd1e2",
   "pads": {
@@ -663,7 +663,7 @@
  },
  {
   "ref": "E13",
-  "fp": "AWD:SensePad_8x12mm",
+  "fp": "AWD:SensePad_6x12mm",
   "value": "REF",
   "uuid": "030a82f1-051e-4ca7-a5d9-fb91e93574b2",
   "pads": {
@@ -674,7 +674,7 @@
  },
  {
   "ref": "E14",
-  "fp": "AWD:ReturnPad_8x20mm",
+  "fp": "AWD:ReturnPad_12x20mm",
   "value": "GND return",
   "uuid": "8ca88c29-af95-4c0b-8d4d-d2de987e4761",
   "pads": {
@@ -739,7 +739,7 @@
  },
  {
   "ref": "U3",
-  "fp": "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm_ThermalVias",
+  "fp": "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm",
   "value": "CN3058E",
   "uuid": "c9fe5dcd-6b6e-4018-ac38-2612e7ede827",
   "pads": {
@@ -839,7 +839,9 @@
    "2": "GND",
    "5": "+3V3"
   },
-  "nc": {},
+  "nc": {
+   "4": "unconnected-(U4-NC-Pad4)"
+  },
   "in_bom": true
  },
  {

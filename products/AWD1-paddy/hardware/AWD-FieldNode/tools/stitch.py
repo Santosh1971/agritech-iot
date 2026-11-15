@@ -1,6 +1,6 @@
 """Drop GND stitching vias into the head wherever they clear every other net on every layer.
 
-Run with KiCad's python after routing. Ties the F.Cu GND pour islands to the In1/B.Cu planes.
+Run with KiCad's python after routing. Ties the F.Cu GND pour islands to the B.Cu GND plane (v0.3: 2 layers).
 """
 import math, os, sys
 import pcbnew
@@ -33,7 +33,7 @@ for fp in b.GetFootprints():
         # GND pads are fine to sit next to, but never put a via inside any pad
         obst.append(("b", box, 0 if p.GetNetname() != "GND" else -CLR))
     if fp.GetReference() == "U1":       # nothing under the module body (keeps its bottom pads clean)
-        obst.append(("b", (D.STRIP_CX - 7.7, D.HEAD[1], D.STRIP_CX + 7.7, D.HEAD[1] + 20.5), 0))
+        obst.append(("b", (D.STRIP_CX - 7.7, D.HEAD[1], D.STRIP_CX + 7.7, D.HEAD[1] + 21.15), 0))
 
 def seg_dist(px, py, x1, y1, x2, y2):
     dx, dy = x2 - x1, y2 - y1

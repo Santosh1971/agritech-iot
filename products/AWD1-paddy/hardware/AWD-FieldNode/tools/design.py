@@ -1,4 +1,4 @@
-"""AWD field node v0.1 - single source of truth for parts, nets and placement.
+"""AWD field node v0.3 (2-layer) - single source of truth for parts, nets and placement.
 
 Used by gen_sch.py (schematic, system python) and gen_pcb.py (board, KiCad python).
 Net names follow KiCad's convention for local labels on the root sheet ("/NAME");
@@ -9,20 +9,29 @@ PROJECT = "AWD-FieldNode"
 POWER_NETS = {"GND", "+3V3"}
 
 # ---- strip geometry (mm, board coordinates) ---------------------------------
+# v0.3: 2 layers. F.Cu = sensing pads (left column) + a "staircase" of sense lanes, each lane between
+# two GND guard traces (right column). B.Cu = GND: hatched behind the pads, solid behind the lanes.
+# Water rises from the bottom, and each lane runs only ABOVE its own pad, so a pad is always wet
+# before any part of its own lane is. The guards stop a wet lower pad leaking into a higher dry lane.
 HEAD = (97.5, 40.0, 137.5, 100.0)          # x0, y0, x1, y1  (40 x 60 mm)
-STRIP_X0, STRIP_X1 = 112.5, 122.5          # 10 mm wide
+STRIP_X0, STRIP_X1 = 109.5, 125.5          # 16 mm wide (v0.1: 10 mm)
 STRIP_Y0, STRIP_Y1 = 100.0, 400.0          # 300 mm long
 STRIP_CX = 117.5
-PAD_W, PAD_H, PAD_PITCH = 8.0, 18.0, 20.0
+PAD_W, PAD_H, PAD_PITCH = 6.0, 18.0, 20.0
+PAD_CX = 113.0                             # pad column x 110..116
 P1_CENTER_Y = 135.0                        # P1 spans +7..+5 cm, P12 spans -15..-17 cm
 REF_CENTER_Y, REF_H = 116.0, 12.0
 GND_PAD_CENTER_Y, GND_PAD_H = 384.0, 20.0
 SOIL_Y = 196.0                             # 0 cm mark
-LANE_PITCH = 0.6                           # In2.Cu trace pitch inside the strip
-RS_PITCH = 1.6                             # series-resistor row pitch in the head
-RS_Y = 92.0
-FAN_START_Y = 100.5
-VIA_Y = 93.5
+TRACE_PITCH = 0.3                          # lane/guard pitch in the strip (0.15 track, 0.15 gap)
+BUNDLE_X0 = 117.2                          # trace 0 (guard G0); trace 2c+1 = lane c, 2c = guard Gc
+FAN_PITCH = 0.8                            # trace pitch at the RS row (lanes 1.6 mm apart)
+FAN_CX = BUNDLE_X0 + 13 * TRACE_PITCH      # fan-out centre (trace 13)
+RS_PITCH = 1.6
+RS_Y = 90.5
+GUARD_VIA_Y = 92.0
+FAN_TOP_Y = 96.9                           # where the inner traces start to bend
+FAN_STAGGER = 0.2                          # each trace further out bends this much lower
 
 def pad_center_y(i):            # i = 1..12
     return P1_CENTER_Y + PAD_PITCH * (i - 1)
@@ -63,9 +72,12 @@ esp = {"3V3": "+3V3", "GND": "GND", "EN": "EN", "IO0": "BOOT",
        "USB_D-": "USB_DN", "USB_D+": "USB_DP", "IO21": "LORA_RST", "IO38": "LED",
        "IO39": "LORA_NSS", "IO40": "LORA_SCK", "IO41": "LORA_MOSI", "IO42": "LORA_MISO",
        "TXD0": "TXD0", "RXD0": "RXD0"}
-for i in range(1, 13):
-    esp["IO%d" % i] = "T%d" % i            # touch channel T1..T12 -> pads P1..P12
-esp["IO13"] = "T13"                         # touch channel T13 -> REF pad
+for i in range(1, 14):
+    esp["IO%d" % i] = "T%d" % i            # touch channel Tn = IOn
+# v0.3: channels follow the pads top to bottom, so the head traces never cross:
+# T1 (IO1) -> REF, T2 (IO2) -> P1 ... T13 (IO13) -> P12. (v0.1/v0.2: T1..T12 -> P1..P12, T13 -> REF.)
+def touch_ch(i):                            # i = 1..12 pads, 13 = REF
+    return 1 if i == 13 else i + 1
 part("U1", "RF_Module:ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N8", "RF_Module:ESP32-S2-MINI-1", (114.3, 144.78), esp)
 part("R2", "Device:R", "10k", R0603, (40.64, 101.6), {"1": "+3V3", "2": "EN"})
 part("C6", "Device:C", "1u", C0603, (40.64, 119.38), {"1": "EN", "2": "GND"})
@@ -99,11 +111,11 @@ part("TP1", "Connector:TestPoint", "VBUS_DET", "TestPoint:TestPoint_Pad_D1.5mm",
 # Touch series resistors (Espressif recommends ~510R close to the chip) + sensing pads
 for i in range(1, 14):
     sense = "P%d" % i if i <= 12 else "REF"
-    part("RS%d" % i, "Device:R", "510", R0402, (35.56 + 12.7 * (i - 1), 213.36), {"1": "T%d" % i, "2": sense})
+    part("RS%d" % i, "Device:R", "510", R0402, (35.56 + 12.7 * (i - 1), 213.36), {"1": "T%d" % touch_ch(i), "2": sense})
 for i in range(1, 13):
-    part("E%d" % i, "AWD:SensePad", "P%d" % i, "AWD:SensePad_8x18mm", (35.56 + 12.7 * (i - 1), 248.92), {"1": "P%d" % i})
-part("E13", "AWD:SensePad", "REF", "AWD:SensePad_8x12mm", (35.56 + 12.7 * 12, 248.92), {"1": "REF"})
-part("E14", "AWD:SensePad", "GND return", "AWD:ReturnPad_8x20mm", (35.56 + 12.7 * 13, 248.92), {"1": "GND"})
+    part("E%d" % i, "AWD:SensePad", "P%d" % i, "AWD:SensePad_6x18mm", (35.56 + 12.7 * (i - 1), 248.92), {"1": "P%d" % i})
+part("E13", "AWD:SensePad", "REF", "AWD:SensePad_6x12mm", (35.56 + 12.7 * 12, 248.92), {"1": "REF"})
+part("E14", "AWD:SensePad", "GND return", "AWD:ReturnPad_12x20mm", (35.56 + 12.7 * 13, 248.92), {"1": "GND"})
 
 # ---- v0.2: field charging through a magnetic socket (same block as TH2) --------------------
 # J4 -> 4-pin magnetic pogo socket in the box wall (VBUS, D-, D+, GND): charge + USB flash with the box shut
@@ -114,7 +126,8 @@ part("C8", "Device:C", "10u", C0805, (378.46, 55.88), {"1": "VBUS", "2": "GND"})
 part("U5", "Power_Protection:USBLC6-2SC6", "USBLC6-2SC6", "Package_TO_SOT_SMD:SOT-23-6", (340.36, 91.44),
      {"1": "USB_DN", "6": "USB_DN", "3": "USB_DP", "4": "USB_DP", "VBUS": "VBUS", "GND": "GND"})
 # CN3058E LiFePO4 charger, 3.6 V CV, ICH = 1218 V / R9 = 0.31 A (0.5C for a 600 mAh 14500)
-part("U3", "AWD:CN3058E", "CN3058E", "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm_ThermalVias",
+# v0.3: EP footprint without the 0.2 mm thermal vias (JLC 2-layer minimum drill is 0.3 mm)
+part("U3", "AWD:CN3058E", "CN3058E", "Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.41x3.3mm",
      (383.54, 96.52), {"VIN": "VBUS", "CE": "VBUS", "TEMP": "CHG_TEMP", "ISET": "CHG_ISET", "GND": "GND", "EP": "GND",
                        "BAT": "VBAT", "~{CHRG}": "CHRG_N", "~{DONE}": "DONE_N"})
 part("R8", "Device:R", "0R", R0603, (340.36, 127.0), {"1": "CHG_TEMP", "2": "GND"})
@@ -135,3 +148,11 @@ PWR_FLAGS = [("GND", (177.8, 50.8)), ("VBAT_RAW", (190.5, 50.8)), ("VBAT", (203.
 
 def netname(n):
     return n if n in POWER_NETS else "/" + n
+
+# ---- v0.3 net classes (width mm, clearance mm, members) - used by route.py ------------------------
+SENSE_NETS = ["/P%d" % i for i in range(1, 13)] + ["/REF"] + ["/T%d" % i for i in range(1, 14)]
+NETCLASSES = {
+    "Sense": (0.15, 0.15, SENSE_NETS),
+    "Power": (0.5, 0.2, ["+3V3", "/VBAT_RAW", "/VBAT", "/VBUS", "/VBUS_IN"]),
+    "RF": (1.0, 0.2, ["/RF_ANT"]),        # ~50 ohm grounded coplanar on 1.6 mm FR4 (1.0 mm / 0.2 mm gap)
+}

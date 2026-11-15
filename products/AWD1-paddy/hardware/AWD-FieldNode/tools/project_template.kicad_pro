@@ -44,7 +44,7 @@
       },
       {
         "name": "Sense",
-        "clearance": 0.2,
+        "clearance": 0.15,
         "track_width": 0.15,
         "via_diameter": 0.6,
         "via_drill": 0.3,
@@ -75,7 +75,7 @@
       {
         "name": "RF",
         "clearance": 0.2,
-        "track_width": 0.36,
+        "track_width": 1.0,
         "via_diameter": 0.6,
         "via_drill": 0.3,
         "diff_pair_gap": 0.25,
@@ -110,7 +110,11 @@
       },
       {
         "netclass": "Power",
-        "pattern": "/VBAT_RAW"
+        "pattern": "/VBAT*"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/VBUS*"
       },
       {
         "netclass": "RF",
