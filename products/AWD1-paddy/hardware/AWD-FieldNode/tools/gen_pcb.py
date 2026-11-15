@@ -169,6 +169,32 @@ for t in range(27):
         via(x_f(t), D.GUARD_VIA_Y, GND)
         via(end[0], end[1], GND)
 
+# ---- touch bus in the head (pre-drawn, locked) --------------------------------------------------
+# Each U1 touch pin -> short F.Cu stub -> via at BUS_VIA_X -> B.Cu: across, then straight down under
+# the LoRa module (F.Cu above is a GND pour) -> via -> F.Cu step right -> down into its RS pad 1.
+# Lane j (0 = REF, 1..12 = P1..P12) is driven by T(13 - j), so the ladder never crosses itself.
+def u1pad(netname):
+    return [p for p in fps["U1"].Pads() if p.GetNetname() == netname][0]
+for j in range(13):
+    ch = 13 - j
+    n = net("/T%d" % ch)
+    pad = u1pad("/T%d" % ch)
+    px, py = pcbnew.ToMM(pad.GetPosition().x), pcbnew.ToMM(pad.GetPosition().y)
+    xv = D.BUS_X0 + D.BUS_PITCH * j
+    yb = D.BUS_Y0 - D.BUS_STEP * j
+    if ch <= 11:                                     # pins on U1's left edge
+        yin = py
+        track([(px, py), (D.BUS_VIA_X, py)], n, D.BUS_W)
+    else:                                            # T12 / T13 on U1's bottom edge: down, then left
+        yin = py + (1.15 if ch == 12 else 2.15)
+        track([(px, py), (px, yin), (D.BUS_VIA_X, yin)], n, D.BUS_W)
+    via(D.BUS_VIA_X, yin, n)
+    track([(D.BUS_VIA_X, yin), (xv, yin), (xv, yb)], n, D.BUS_W, BCU)
+    via(xv, yb, n)
+    rs1 = [p for p in fps[rs_ref(j)].Pads() if p.GetNumber() == "1"][0].GetPosition()
+    xr, yr = pcbnew.ToMM(rs1.x), pcbnew.ToMM(rs1.y)
+    track([(xv, yb), (xr, yb), (xr, yr)], n, D.BUS_W)
+
 # GND return pad stitched to the back plane
 for dx in (-3.5, 0, 3.5):
     for dy in (-6, 0, 6):
@@ -186,11 +212,14 @@ blocked = [
     (D.STRIP_CX - 9.4, 72 - 9.1, D.STRIP_CX + 9.4, 72 + 9.1),       # SX1262 module
     (hx0, 59.0, bbox(fps["J1"])[2], 71.0),                          # SMA
     (x_f(0) - 0.6, D.RS_Y - 1.2, x_f(26) + 0.6, hy1),              # RS row, guard vias and fan-out
+    (D.BUS_VIA_X - 0.6, 50.0, D.BUS_VIA_X + 0.6, 63.5),            # touch-bus via column
+    (D.BUS_X0 - 0.6, D.BUS_Y0 - D.BUS_STEP * 12 - 0.6, x_f(26) + 0.6, D.RS_Y),   # touch-bus F.Cu steps
 ] + [bbox(fps[r]) for r in ("SW1", "R7", "D1")]
 
 blocked_b = [
     (hx0, hy0, hx1, hy0 + 6.0),                                     # under the ESP32 antenna
     (x_f(0) - 0.8, D.GUARD_VIA_Y - 0.8, x_f(26) + 0.8, D.GUARD_VIA_Y + 0.8),   # guard via row
+    (D.BUS_VIA_X - 0.6, 50.0, D.BUS_X0 + D.BUS_PITCH * 12 + 0.6, D.BUS_Y0 + 0.6),   # touch-bus ladder on B.Cu
 ]
 
 def free(b, side="F", m=0.25):
@@ -244,7 +273,7 @@ for ref, x, y, rot in PREF:
 # ---- back of the head = power: battery and magnetic-socket connectors, charger, LDO, protection ----
 # (front = ESP32 + LoRa + touch traces; the 13 touch traces need the front-left corner to themselves)
 BACK = [  # ref, preferred x, y, rotation
-    ("J3", D.STRIP_CX, 70.0, 0),            # battery (the cell sits behind the board in the cap)
+    ("J3", 131.5, 66.0, 90),                # battery (the cell sits behind the board); kept off the touch bus under U2
     ("J4", 131.5, 85.0, 90),                # magnetic-socket cable
     ("U5", 128.0, 76.0, 0),                 # USB ESD, between J4 and the ESP32's USB pins
     ("F1", 124.0, 84.0, 90), ("C8", 121.5, 84.0, 90),

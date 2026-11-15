@@ -32,6 +32,11 @@ RS_Y = 90.5
 GUARD_VIA_Y = 92.0
 FAN_TOP_Y = 96.9                           # where the inner traces start to bend
 FAN_STAGGER = 0.2                          # each trace further out bends this much lower
+# touch bus (head): U1 pin -> via at BUS_VIA_X -> B.Cu ladder -> via -> F.Cu step -> RS pad 1
+BUS_VIA_X = 109.3                          # via column left of U1's touch pins
+BUS_X0, BUS_PITCH = 111.0, 0.6             # B.Cu verticals, j = 0 (REF lane) .. 12 (P12 lane)
+BUS_Y0, BUS_STEP = 88.8, 0.7               # F.Cu step for lane j at y = BUS_Y0 - BUS_STEP * j
+BUS_W = 0.2
 
 def pad_center_y(i):            # i = 1..12
     return P1_CENTER_Y + PAD_PITCH * (i - 1)
@@ -74,10 +79,10 @@ esp = {"3V3": "+3V3", "GND": "GND", "EN": "EN", "IO0": "BOOT",
        "TXD0": "TXD0", "RXD0": "RXD0"}
 for i in range(1, 14):
     esp["IO%d" % i] = "T%d" % i            # touch channel Tn = IOn
-# v0.3: channels follow the pads top to bottom, so the head traces never cross:
-# T1 (IO1) -> REF, T2 (IO2) -> P1 ... T13 (IO13) -> P12. (v0.1/v0.2: T1..T12 -> P1..P12, T13 -> REF.)
+# v0.3: the touch bus is a pre-drawn ladder (gen_pcb.py) and the channels follow the pads, so nothing
+# crosses: T13 (IO13) -> REF, T12 (IO12) -> P1 ... T1 (IO1) -> P12. (v0.1/v0.2: T1..T12 -> P1..P12, T13 -> REF.)
 def touch_ch(i):                            # i = 1..12 pads, 13 = REF
-    return 1 if i == 13 else i + 1
+    return 13 if i == 13 else 13 - i
 part("U1", "RF_Module:ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N8", "RF_Module:ESP32-S2-MINI-1", (114.3, 144.78), esp)
 part("R2", "Device:R", "10k", R0603, (40.64, 101.6), {"1": "+3V3", "2": "EN"})
 part("C6", "Device:C", "1u", C0603, (40.64, 119.38), {"1": "EN", "2": "GND"})

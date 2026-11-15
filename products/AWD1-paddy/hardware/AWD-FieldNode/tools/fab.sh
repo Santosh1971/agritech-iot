@@ -20,8 +20,25 @@ $K pcb export step --force --subst-models -o fab/$P.step $P.kicad_pcb >/dev/null
 for side in top bottom; do
   $K pcb render --side $side --width 1200 --height 2400 --quality high --background opaque -o fab/renders/$P-$side.png $P.kicad_pcb >/dev/null 2>&1
 done
-# head close-ups (zoom on the top 70 mm)
-$K pcb render --side top --width 1600 --height 1600 --zoom 4.5 --pan '0,105,0' --quality high --background opaque -o fab/renders/$P-head-top.png $P.kicad_pcb >/dev/null 2>&1 || true
-$K pcb render --side bottom --width 1600 --height 1600 --zoom 4.5 --pan '0,105,0' --quality high --background opaque -o fab/renders/$P-head-bottom.png $P.kicad_pcb >/dev/null 2>&1 || true
+# head close-ups: crop the head out of a tall high-res render
+for side in top bottom; do
+  $K pcb render --side $side --width 2000 --height 4000 --quality high --background opaque -o fab/renders/tmp-$side.png $P.kicad_pcb >/dev/null 2>&1
+  python3 - fab/renders/tmp-$side.png fab/renders/$P-head-$side.png <<'PY'
+import sys
+from PIL import Image
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+px = im.load()
+bg = px[5, 5]
+rows = [y for y in range(h) if any(sum(abs(a - b) for a, b in zip(px[x, y], bg)) > 60 for x in range(0, w, 8))]
+top = rows[0]
+cols = [x for x in range(w) if any(sum(abs(a - b) for a, b in zip(px[x, y], bg)) > 60 for y in range(top, top + 60, 4))]
+x0, x1 = cols[0], cols[-1]
+head_h = int((x1 - x0) * 60 / 40)          # head is 40 x 60 mm
+pad = int((x1 - x0) * 0.05)
+im.crop((x0 - pad, top - pad, x1 + pad, top + head_h + pad)).save(sys.argv[2])
+PY
+  rm fab/renders/tmp-$side.png
+done
 $K pcb render --width 2000 --height 1200 --rotate ' -55,0,-30' --zoom 1.2 --quality high --background opaque -o fab/renders/$P-3d.png $P.kicad_pcb >/dev/null 2>&1
 echo "fab/ written"; ls fab fab/renders
