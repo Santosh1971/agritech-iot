@@ -13,4 +13,4 @@ OUT=release/WMM-C3-fw-$V-merged-0x0.bin
 $P $ET --chip esp32c3 merge_bin -o $OUT --flash_mode dio --flash_size 4MB \
   0x0 $B/bootloader.bin 0x8000 $B/partitions.bin 0xe000 $BA 0x10000 $B/firmware.bin >/dev/null
 ls -l $OUT | awk '{print $5, $9}'
-md5 -q $B/firmware.bin | sed 's/^/app md5 (for ota_url): /'
+shasum -a 256 $B/firmware.bin | cut -d' ' -f1 | sed 's/^/app sha256: /'

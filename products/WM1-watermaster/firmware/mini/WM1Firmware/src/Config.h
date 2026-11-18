@@ -13,9 +13,11 @@
 #define DEVICE_MODEL_PREFIX "WM1"   // Water Manager - Mini
 
 // Reported as "fw" in the status JSON. 0.4.0: WM-Mini C3 board support,
-// firmware update over WiFi (push and pull), /api/state.
+// firmware update over WiFi (push and pull), /api/state. 0.4.1: pull
+// commands signed with a one-time nonce (no password on the wire), SHA-256
+// checked image; push needs X-MD5 and takes one upload at a time.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.0"
+#define FIRMWARE_VERSION "0.4.1"
 #endif
 
 // Same broker FG1 already points at.

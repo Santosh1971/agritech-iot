@@ -32,6 +32,8 @@ public:
         [](AsyncWebServerRequest* req) {
           if (!ota::enabled()) return req->send(403, "application/json", "{\"ok\":false,\"err\":\"update not enabled in this build\"}");
           if (!req->authenticate("ota", OTA_PASS)) return req->requestAuthentication();
+          if (req != _pushOwner) return req->send(409, "application/json", "{\"ok\":false,\"err\":\"another update is in progress\"}");
+          _pushOwner = nullptr;
           if (_pushOk) {
             req->send(200, "application/json", "{\"ok\":true,\"msg\":\"updated, restarting\"}");
             _restartAt = millis() + 800;
@@ -42,9 +44,12 @@ public:
         nullptr,
         [](AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total) {
           if (index == 0) {
+            if (!ota::enabled() || !req->authenticate("ota", OTA_PASS)) return;   // answered 401/403 above
+            if (_pushOwner && _pushOwner != req) return;                          // one upload at a time
+            _pushOwner = req;
             _pushOk = false;
             _pushErr = "";
-            if (!ota::enabled() || !req->authenticate("ota", OTA_PASS)) { _pushErr = "not authorised"; return; }
+            if (!req->hasHeader("X-MD5") || req->header("X-MD5").length() != 32) { _pushErr = "X-MD5 header required"; return; }
             // An upload cut off earlier leaves Update running, and begin()
             // then fails with no error text: clear it first.
             if (Update.isRunning()) { Serial.println("[ota] clearing an unfinished update"); Update.abort(); }
@@ -53,14 +58,15 @@ public:
               Serial.printf("[ota] %s\n", _pushErr.c_str());
               return;
             }
-            if (req->hasHeader("X-MD5")) Update.setMD5(req->header("X-MD5").c_str());
+            Update.setMD5(req->header("X-MD5").c_str());
             Serial.printf("[ota] receiving %u bytes over WiFi\n", (unsigned)total);
             // If the PC goes away mid-upload, drop the half-written image.
-            req->onDisconnect([]() {
+            req->onDisconnect([req]() {
+              if (_pushOwner == req) _pushOwner = nullptr;
               if (!_pushOk && Update.isRunning()) { Update.abort(); Serial.println("[ota] upload cut off; running firmware kept"); }
             });
           }
-          if (_pushErr.length()) return;
+          if (req != _pushOwner || _pushErr.length()) return;
           if (Update.write(data, len) != len) {
             _pushErr = String("write failed at ") + String((unsigned)index) + ": " + Update.errorString();
             Serial.printf("[ota] %s\n", _pushErr.c_str());
@@ -204,6 +210,7 @@ private:
   AsyncWebServer _server{LOCAL_SERVER_PORT};
   AsyncWebSocket _ws{"/ws"};
   CommandHandler* _handler = nullptr;
+  static inline AsyncWebServerRequest* _pushOwner = nullptr;   // the one upload being written
   static inline bool _pushOk = false;
   static inline String _pushErr;
   static inline uint32_t _restartAt = 0;

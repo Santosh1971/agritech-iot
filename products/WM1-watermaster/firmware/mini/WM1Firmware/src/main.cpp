@@ -272,8 +272,8 @@ void loop() {
 
   localServer.serviceOtaRestart();
   {
-    String otaUrl, otaMd5;
-    if (commandHandler->consumeOtaRequest(otaUrl, otaMd5)) {
+    String otaUrl, otaSha;
+    if (commandHandler->consumeOtaRequest(otaUrl, otaSha)) {
       // Let the "ok" reply and a status push reach the app / broker first.
       String st = commandHandler->buildStatusJson();
       mqtt.publishStatus(st);
@@ -281,7 +281,7 @@ void loop() {
       for (int i = 0; i < 20; i++) { mqtt.loop(wifiManager.isStaConnected()); delay(25); }
       relays.allOff();   // nothing switches while the flash is being written
       String err;
-      if (!ota::pull(otaUrl, otaMd5, err)) {   // restarts on success
+      if (!ota::pull(otaUrl, otaSha, err)) {   // restarts on success
         ota::lastResult() = "failed: " + err;
         Serial.printf("[ota] failed: %s\n", err.c_str());
       }

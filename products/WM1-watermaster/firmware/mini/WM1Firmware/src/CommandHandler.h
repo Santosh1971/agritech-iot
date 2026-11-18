@@ -189,12 +189,20 @@ public:
     } else if (cmd == "ota_url") {
       // Pull update (see Ota.h). Checked here, run from main.cpp's loop()
       // after this ack has gone out, because the download blocks.
+      // Signed with the board's one-time ota_nonce (see Ota.h); the
+      // password itself never travels.
       String url = doc["url"] | "";
-      if (!ota::enabled()) { reply(_errorReply(cmd, "ota_disabled")); return; }
-      if (!ota::keyOk(String(doc["key"] | ""))) { reply(_errorReply(cmd, "bad_key")); return; }
+      String sha = doc["sha256"] | "";
+      String err;
       if (!url.length()) { reply(_errorReply(cmd, "missing_url")); return; }
+      if (!ota::commandOk(url, sha, String(doc["mac"] | ""), err)) {
+        ota::lastResult() = "refused: " + err;
+        _statusChanged = true;
+        reply(_errorReply(cmd, err));
+        return;
+      }
       _otaUrl = url;
-      _otaMd5 = String(doc["md5"] | "");
+      _otaMd5 = sha;   // holds the sha256 for the pull
       _otaRequested = true;
       ota::lastResult() = "downloading";
       reply(_okReply(cmd));
@@ -271,11 +279,11 @@ public:
     _factoryResetRequested = false;
     return v;
   }
-  bool consumeOtaRequest(String& url, String& md5) {
+  bool consumeOtaRequest(String& url, String& sha256) {
     if (!_otaRequested) return false;
     _otaRequested = false;
     url = _otaUrl;
-    md5 = _otaMd5;
+    sha256 = _otaMd5;
     return true;
   }
   bool consumeStatusChanged() {
@@ -603,6 +611,7 @@ private:
     doc["uptime_s"] = millis() / 1000;
     doc["ip"] = _wifi.isStaConnected() ? WiFi.localIP().toString() : String("");
     doc["ota"] = ota::enabled() ? (ota::lastResult().length() ? ota::lastResult() : String("ready")) : String("off");
+    if (ota::enabled()) doc["ota_nonce"] = ota::nonce();
     doc["state"] = (int)_scheduler.state();
     doc["pause_reason"] = _scheduler.pauseReason();
     doc["pump"] = _irrigation.getPump();

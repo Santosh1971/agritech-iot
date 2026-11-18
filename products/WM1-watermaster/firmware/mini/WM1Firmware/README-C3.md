@@ -1,4 +1,4 @@
-# WM-Mini C3 firmware (WM1-Mini firmware 0.4.0, `env:wm_mini_c3`)
+# WM-Mini C3 firmware (WM1-Mini firmware 0.4.1, `env:wm_mini_c3`)
 
 The WM1 Water Manager-Mini firmware with a second board build for **WM-Mini C3**
 (ESP32-C3 Super Mini, six relays on GPIOs through a ULN2003; hardware in
@@ -28,32 +28,37 @@ pio device monitor -e wm_mini_c3
 zsh make_merged.sh                     # release/WMM-C3-fw-<v>-merged-0x0.bin for the remote bench
 ```
 
-## Firmware update over WiFi (0.4.0)
+## Firmware update over WiFi (0.4.1)
 
 Password: `~/.config/agrisense/wmm_ota_pass` (or env `WMM_OTA_PASS`), compiled in by
 `wmm_secrets.py`; never in this repo. Without it, updates over WiFi are disabled.
 
 - **Same WiFi as the board (push):** `python3 ../tools/wmm_ota.py <board-ip>`
-- **From anywhere (pull):** the board downloads the image itself.
-  `python3 ../tools/wmm_cloud.py <WM1_id> ota <url> <md5>`. The URL must be private
-  (the image contains the update password and broker login): not a public GitHub link.
+  (HTTP basic auth, MD5 required, one upload at a time).
+- **From anywhere (pull):** `python3 ../tools/wmm_cloud.py <WM1_id> ota <url> <local .bin>`.
+  The board downloads the image itself. The password never travels: the tool reads
+  the board's one-time `ota_nonce` from its status and sends
+  `mac = HMAC-SHA256(password, nonce|url|sha256)` with the file's SHA-256. The nonce
+  changes after every attempt (a command seen on the broker cannot be replayed), and
+  the downloaded image must hash to the signed SHA-256 or it is thrown away.
 
 The image goes to the spare slot; the board switches only after the whole image
-arrived and its MD5 matched. All relays switch off while an update is written.
+arrived and was checked. All relays switch off while an update is written.
+Tested 2026-11-18: good signed pull worked; replay, wrong signature and a swapped
+file were refused with the running firmware kept.
 
-### Tested 2026-11-18 on an FG1 C3 TH controller (WM1_EE126AF8)
+Known limits: the broker is plain MQTT on port 1883 with the shared WM1 login, so
+anyone with that login can read status and send ordinary commands (as for every
+WM1 today); only firmware updates are signed. The local push uses one shared
+password over plain HTTP on the farm WiFi.
 
-Boot, RTC set and kept through reset, valve on -> pump on (interlock), doser,
-all off; cloud status and commands through the broker; push update 0.4.0 ->
-0.4.1-test (1.13 MB, MD5 checked); pull update back to 0.4.0 sent through the
-cloud (file served on the LAN); wrong key refused. Fixed on the way: the flow
-input floated on that carrier (~800 false pulses/s, now INPUT_PULLUP), and an
-upload cut off mid-way left Update running so the next one failed with "No
-Error" (now cleared first, and aborted when the PC disconnects).
+The NB Agri Flasher cannot do the first flash of a blank C3 (it writes the
+bootloader at 0x1000, the ESP32 address; a C3 boots from 0x0), so a new board is
+first flashed through the remote bench with the merged 0x0 image.
 
 ## Remote testing (developer away from the board)
 
-`../tools/wmm_cloud.py <WM1_id> status | watch | cmd '<json>' | ota <url> <md5>`
+`../tools/wmm_cloud.py <WM1_id> status | watch | cmd '<json>' | ota <url> <local .bin>`
 reads and commands the board through the AgriSense broker (login wm1-device,
 `~/.config/agrisense/wm1_mqtt_pass`). The board's status now carries `fw`, `board`,
 `uptime_s`, `ip` and `ota`. Serial log and USB flashing go through the remote bench

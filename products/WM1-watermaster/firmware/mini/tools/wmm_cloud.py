@@ -5,12 +5,17 @@ from anywhere (the board only needs internet on its own WiFi).
     python3 wmm_cloud.py WM1_1A2B3C4D status            # latest retained status
     python3 wmm_cloud.py WM1_1A2B3C4D watch             # print status/programs as they arrive
     python3 wmm_cloud.py WM1_1A2B3C4D cmd '{"cmd":"manual_set","channel":"valve1","state":true}'
-    python3 wmm_cloud.py WM1_1A2B3C4D ota https://host/path/firmware.bin [md5]
+    python3 wmm_cloud.py WM1_1A2B3C4D ota https://host/path/firmware.bin firmware.bin
 
 Topics: agrisense/WM1/<id>/{status,programs,command,lwt}. Login: user wm1-device,
 password WM1_MQTT_PASS (env) or ~/.config/agrisense/wm1_mqtt_pass.
-The ota command adds the update key from WMM_OTA_PASS / ~/.config/agrisense/wmm_ota_pass.
+The ota command signs the request (the password never travels): it reads the
+board's one-time ota_nonce from its status, hashes the local copy of the file
+(SHA-256) and sends mac = HMAC-SHA256(password, nonce|url|sha256), with the
+password from WMM_OTA_PASS / ~/.config/agrisense/wmm_ota_pass.
 """
+import hashlib
+import hmac
 import json
 import os
 import sys
@@ -69,10 +74,24 @@ def main():
         if action == "cmd":
             payload = json.loads(sys.argv[3])
         else:
+            if len(sys.argv) < 5:
+                sys.exit("ota needs <url> <local copy of the same .bin>")
             key = secret("WMM_OTA_PASS", "wmm_ota_pass")
-            payload = {"cmd": "ota_url", "url": sys.argv[3], "key": key}
-            if len(sys.argv) > 4:
-                payload["md5"] = sys.argv[4]
+            if not key:
+                sys.exit("no update password: WMM_OTA_PASS or ~/.config/agrisense/wmm_ota_pass")
+            for _ in range(30):
+                if isinstance(got.get("status"), dict) and got["status"].get("ota_nonce"):
+                    break
+                time.sleep(0.2)
+            st = got.get("status") if isinstance(got.get("status"), dict) else {}
+            nonce = st.get("ota_nonce")
+            if not nonce:
+                sys.exit("board status has no ota_nonce: is it online with firmware 0.4.1 or later?")
+            url = sys.argv[3]
+            sha = hashlib.sha256(open(sys.argv[4], "rb").read()).hexdigest()
+            mac = hmac.new(key.encode(), f"{nonce}|{url}|{sha}".encode(), hashlib.sha256).hexdigest()
+            payload = {"cmd": "ota_url", "url": url, "sha256": sha, "mac": mac}
+            print(f"{dev}: fw {st.get('fw')} -> {url} (sha256 {sha[:12]}...)")
         payload.setdefault("ts", int(time.time()))
         c.publish(base + "command", json.dumps(payload), qos=1).wait_for_publish()
         print("sent", payload.get("cmd"))
