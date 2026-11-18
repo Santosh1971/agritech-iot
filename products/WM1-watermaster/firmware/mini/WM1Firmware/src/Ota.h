@@ -12,7 +12,7 @@
 //         The password is never sent: mac = HMAC-SHA256(OTA_PASS,
 //         nonce + "|" + url + "|" + sha256), where nonce is the one-time value
 //         the board shows as "ota_nonce" in its status. The nonce changes after
-//         every attempt, so a command seen on the broker cannot be replayed,
+//         every correctly signed command, so it cannot be replayed,
 //         and the image must hash to the signed sha256 or it is not used
 //         (a changed file or a man in the middle cannot install other code).
 //
@@ -78,10 +78,12 @@ inline String hmacHex(const String& msg) {
   return toHex(out, sizeof(out));
 }
 
-// Checks a pull command; uses up the nonce whatever the result.
+// Checks a pull command. The nonce is used up only by a correctly signed
+// command (forging a signature is not feasible, so unsigned junk sent by
+// anyone with the shared broker login cannot keep rotating it and block a
+// real update); a used nonce cannot be replayed.
 inline bool commandOk(const String& url, const String& sha256, const String& mac, String& err) {
   String n = nonce();
-  newNonce();
   if (!enabled()) { err = "ota_disabled"; return false; }
   if (!isHex(sha256, 64) || !isHex(mac, 64)) { err = "need sha256 and mac"; return false; }
   String want = hmacHex(n + "|" + url + "|" + sha256);
@@ -90,6 +92,7 @@ inline bool commandOk(const String& url, const String& sha256, const String& mac
   uint8_t diff = 0;   // constant-time compare
   for (size_t i = 0; i < 64; i++) diff |= (uint8_t)(want[i] ^ got[i]);
   if (diff) { err = "bad_mac"; return false; }
+  newNonce();
   return true;
 }
 
