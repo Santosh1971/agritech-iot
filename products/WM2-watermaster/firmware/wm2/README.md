@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.15 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.16 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.15-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.16-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,13 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## Flow 3/4 match the board labels (0.2.16)
+
+On WM2 rev A the connector printed FL3 (J4, next to LD5) is wired to IO39 and
+the one printed FL4 (J3, next to LD6) to IO36. Firmware now reads IO39 as
+flow 3 and IO36 as flow 4, so the connector label, its LED and the app agree.
+Next PCB revision: swap the J3/J4 nets (or labels) and put the pin map back.
 
 ## Cloud fixes (0.2.14 / 0.2.15)
 

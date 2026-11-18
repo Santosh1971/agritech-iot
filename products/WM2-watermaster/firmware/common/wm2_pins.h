@@ -10,7 +10,11 @@ namespace wm2 {
 
 // --- Sensor inputs (input-only pins, 10K pull-up to 3.3V on board,
 //     470R series + 100pF to GND). Idle with nothing plugged in = HIGH.
-constexpr uint8_t PIN_FLOW[4] = {34, 35, 36, 39};  // J2, J5, J3, J4 -> Flow_MCU1..4
+// Index = the FL number printed on the board. The PCB places J4 (wired to
+// Flow_MCU4 = IO39) under the "FL3" silkscreen, next to LD5, and J3 (IO36)
+// under "FL4", next to LD6; reading IO39 as flow 3 and IO36 as flow 4 makes
+// connector label, LED and app agree (WM2 rev A, found 2026-11-18).
+constexpr uint8_t PIN_FLOW[4] = {34, 35, 39, 36};  // FL1 J2, FL2 J5, FL3 J4, FL4 J3
 constexpr uint8_t PIN_PS      = 32;                // J1 pressure switch, closes to GND (active LOW)
 
 // --- Indicator LEDs (active HIGH, 470R). LD1 power LED is hardwired to +12V.
