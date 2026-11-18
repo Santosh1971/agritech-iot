@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
+#include "Board.h"
 
 // Pin map per spec §2.2, confirmed bench-tested via HardwareBringupTest
 // on the real PCB (flow pulse counting, pressure/battery ADC all read
@@ -27,12 +28,10 @@
 // and get irrigation wrongly blocked.
 class Sensors {
 public:
-  static constexpr uint8_t PIN_FLOW = 36;
-  static constexpr uint8_t PIN_PRESS1 = 39;
-  static constexpr uint8_t PIN_PRESS2 = 34;
-  static constexpr uint8_t PIN_BATT = 35;
-  static constexpr uint8_t PIN_WATER_L1 = 32;  // IN2, repurposed
-  static constexpr uint8_t PIN_WATER_L2 = 33;  // IN3, repurposed
+  // Pins come from Board.h. On WM-Mini C3 there are no pressure, battery or
+  // water-level inputs (NO_PIN): they read 0 V / 0 bar, and a level switch
+  // with no pin always reads "water present" so it can never block a run.
+  static constexpr uint8_t PIN_FLOW = PIN_FLOW_IN;
 
   // Incremented by main.cpp's ISR (kept as a free function there, same
   // convention as the rest of this firmware's interrupt handling) —
@@ -46,9 +45,16 @@ public:
   volatile uint32_t pulseCount = 0;
 
   void begin() {
-    pinMode(PIN_FLOW, INPUT);
-    pinMode(PIN_WATER_L1, INPUT_PULLUP);
-    pinMode(PIN_WATER_L2, INPUT_PULLUP);
+#if defined(BOARD_WM_MINI_C3)
+    // The C3 board has its own 10k pull-up after the level-shift diode; the
+    // internal one as well keeps the pin quiet on a carrier without the flow
+    // parts fitted (seen on an FG1 C3 TH controller: ~800 false pulses/s).
+    pinMode(PIN_FLOW, INPUT_PULLUP);
+#else
+    pinMode(PIN_FLOW, INPUT);   // GPIO36: input only, no internal pull-up
+#endif
+    if (PIN_WATER_L1 != NO_PIN) pinMode(PIN_WATER_L1, INPUT_PULLUP);
+    if (PIN_WATER_L2 != NO_PIN) pinMode(PIN_WATER_L2, INPUT_PULLUP);
     _prefs.begin("wm1", false);
     _levelEnabled = _prefs.getBool("lvl_en", false);
     _pulsesPerLiter = _prefs.getFloat("flow_k", DEFAULT_PULSES_PER_LITER);
@@ -82,8 +88,8 @@ public:
     _flowTotalLiters += liters;
   }
 
-  float pressure1Bar() const { return _adcToBar(analogRead(PIN_PRESS1)); }
-  float pressure2Bar() const { return _adcToBar(analogRead(PIN_PRESS2)); }
+  float pressure1Bar() const { return PIN_PRESS1 == NO_PIN ? 0 : _adcToBar(analogRead(PIN_PRESS1)); }
+  float pressure2Bar() const { return PIN_PRESS2 == NO_PIN ? 0 : _adcToBar(analogRead(PIN_PRESS2)); }
   float flowRateLpm() const { return _flowRateLpm; }
   float flowTotalLiters() const { return _flowTotalLiters; }
 
@@ -113,8 +119,8 @@ public:
   // meaningful (and only read) when waterLevelEnabled(); with no
   // simulate override active, main.cpp is the one place these are
   // actually read from the real pins.
-  bool waterL1Ok() const { return _simulated ? _simL1Ok : digitalRead(PIN_WATER_L1) == LOW; }
-  bool waterL2Ok() const { return _simulated ? _simL2Ok : digitalRead(PIN_WATER_L2) == LOW; }
+  bool waterL1Ok() const { return _simulated ? _simL1Ok : (PIN_WATER_L1 == NO_PIN || digitalRead(PIN_WATER_L1) == LOW); }
+  bool waterL2Ok() const { return _simulated ? _simL2Ok : (PIN_WATER_L2 == NO_PIN || digitalRead(PIN_WATER_L2) == LOW); }
 
   // Combined dry-run check: water is considered OK unless BOTH switches
   // read absent (water has receded below L1, the lower of the two) —
@@ -133,7 +139,7 @@ public:
   }
   void clearSimulation() { _simulated = false; }
 
-  float batteryVolts() const { return analogRead(PIN_BATT) * (3.3f / 4095.0f) * BATT_DIVIDER_RATIO; }
+  float batteryVolts() const { return PIN_BATT == NO_PIN ? 0 : analogRead(PIN_BATT) * (3.3f / 4095.0f) * BATT_DIVIDER_RATIO; }
 
 private:
   // PLACEHOLDER: assumes a 250-ohm shunt converting 4-20mA to 1-5V,

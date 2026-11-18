@@ -38,11 +38,13 @@
 #include "MqttClientWrapper.h"
 #include "LocalServer.h"
 
-#define RLY_DATA  17
-#define RLY_CLK   16
-#define RLY_LATCH 13
+#include "Board.h"
 
-ShiftRegisterRelayController relays(RLY_DATA, RLY_CLK, RLY_LATCH);
+#if defined(BOARD_WM_MINI_C3)
+BoardRelays relays;
+#else
+BoardRelays relays(RLY_DATA, RLY_CLK, RLY_LATCH);
+#endif
 IrrigationController irrigation(relays);
 Sensors sensors;
 RunHistory runHistory;
@@ -99,9 +101,9 @@ void setup() {
 
   Serial.begin(115200);
   delay(500);
-  Wire.begin(21, 22);
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
 
-  Serial.printf("\n=== Water Manager-Mini — %s ===\n", computeDeviceId().c_str());
+  Serial.printf("\n=== Water Manager-Mini (%s) — %s ===\n", BOARD_NAME, computeDeviceId().c_str());
 
   // Self-test: all 7 status LEDs (Flow/PR1/PR2/IN1/IN2/IN3/LOBATT) plus
   // the onboard WiFi status LED ON for 3s then OFF — same idea as WPC's
@@ -111,11 +113,11 @@ void setup() {
   // at every boot) — relays.begin() above already latched them off.
   pinMode(StatusLed::PIN, OUTPUT);
   Serial.println("[SelfTest] LEDs ON");
-  for (uint8_t bit = 0; bit <= ShiftRegisterRelayController::LED_LOBATT; bit++) relays.setLed(bit, true);
-  digitalWrite(StatusLed::PIN, HIGH);
+  for (uint8_t bit = 0; bit <= BoardRelays::LED_LOBATT; bit++) relays.setLed(bit, true);
+  StatusLed::write(true);
   delay(3000);
   relays.allLedsOff();
-  digitalWrite(StatusLed::PIN, LOW);
+  StatusLed::write(false);
   Serial.println("[SelfTest] LEDs OFF");
 
   // Reported live: the device can become fully unresponsive after a
@@ -144,7 +146,7 @@ void setup() {
   relayNames.begin();
   sequenceLibrary.begin();
   sensors.begin();
-  attachInterrupt(digitalPinToInterrupt(Sensors::PIN_FLOW), onFlowPulse, RISING);
+  attachInterrupt(digitalPinToInterrupt(PIN_FLOW_IN), onFlowPulse, RISING);
   runHistory.begin();
   statusLed.begin();
   if (!rtcClock.isRunning()) {
@@ -212,11 +214,11 @@ void loop() {
     if (millis() - lastFlowBlinkToggle >= 150) {
       lastFlowBlinkToggle = millis();
       flowLedOn = !flowLedOn;
-      relays.setLed(ShiftRegisterRelayController::LED_FLOW, flowLedOn);
+      relays.setLed(BoardRelays::LED_FLOW, flowLedOn);
     }
   } else if (flowLedOn) {
     flowLedOn = false;
-    relays.setLed(ShiftRegisterRelayController::LED_FLOW, false);
+    relays.setLed(BoardRelays::LED_FLOW, false);
   }
   // Only ever affects scheduling when this installation has actually
   // opted in (Settings > Hardware Configuration > Water Level Sensor,
@@ -266,6 +268,25 @@ void loop() {
   if (wifiScanInProgress && wifiScanner.checkComplete()) {
     localServer.broadcastTyped("wifi_scan_result", wifiScanner.resultAsJson());
     wifiScanInProgress = false;
+  }
+
+  localServer.serviceOtaRestart();
+  {
+    String otaUrl, otaMd5;
+    if (commandHandler->consumeOtaRequest(otaUrl, otaMd5)) {
+      // Let the "ok" reply and a status push reach the app / broker first.
+      String st = commandHandler->buildStatusJson();
+      mqtt.publishStatus(st);
+      localServer.broadcastTyped("status", st);
+      for (int i = 0; i < 20; i++) { mqtt.loop(wifiManager.isStaConnected()); delay(25); }
+      relays.allOff();   // nothing switches while the flash is being written
+      String err;
+      if (!ota::pull(otaUrl, otaMd5, err)) {   // restarts on success
+        ota::lastResult() = "failed: " + err;
+        Serial.printf("[ota] failed: %s\n", err.c_str());
+      }
+      lastStatusPublish = 0;   // push the result now
+    }
   }
 
   if (commandHandler->consumeFactoryResetRequested()) {

@@ -12,6 +12,12 @@
 
 #define DEVICE_MODEL_PREFIX "WM1"   // Water Manager - Mini
 
+// Reported as "fw" in the status JSON. 0.4.0: WM-Mini C3 board support,
+// firmware update over WiFi (push and pull), /api/state.
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "0.4.0"
+#endif
+
 // Same broker FG1 already points at.
 #define MQTT_BROKER_HOST "mqtt.agrisenseandcontrol.in"
 #define MQTT_BROKER_PORT 1883

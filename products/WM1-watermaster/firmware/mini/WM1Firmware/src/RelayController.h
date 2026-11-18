@@ -111,6 +111,69 @@ private:
   uint8_t _ledByte = 0;
 };
 
+// --- WM-Mini C3: six relays on GPIOs through a ULN2003 ----------------
+//
+// Same interface as ShiftRegisterRelayController (including the LED bit
+// constants and setLed/allLedsOff), so CommandHandler and main.cpp work
+// with either board through the BoardRelays alias below. The relay LEDs
+// on WM-Mini C3 sit across each coil in hardware; the only firmware LED
+// is the flow LED (LED_FLOW). The other LED bits have no LED and are
+// ignored.
+#if defined(BOARD_WM_MINI_C3)
+#include "Board.h"
+
+class GpioRelayBankController : public RelayController {
+public:
+  static constexpr uint8_t RELAY_CHANNEL_COUNT = 6;
+
+  static constexpr uint8_t LED_FLOW    = 0;
+  static constexpr uint8_t LED_PR1     = 1;
+  static constexpr uint8_t LED_PR2     = 2;
+  static constexpr uint8_t LED_IN1     = 3;
+  static constexpr uint8_t LED_IN2     = 4;
+  static constexpr uint8_t LED_IN3     = 5;
+  static constexpr uint8_t LED_LOBATT  = 6;
+
+  void begin() override {
+    for (uint8_t i = 0; i < RELAY_CHANNEL_COUNT; i++) {
+      digitalWrite(RELAY_PINS[i], LOW);   // set the level before driving the pin
+      pinMode(RELAY_PINS[i], OUTPUT);
+      digitalWrite(RELAY_PINS[i], LOW);
+      _state[i] = false;
+    }
+    if (PIN_FLOW_LED != NO_PIN) {
+      pinMode(PIN_FLOW_LED, OUTPUT);
+      digitalWrite(PIN_FLOW_LED, LOW);
+    }
+  }
+
+  void setChannel(uint8_t index, bool on) override {
+    if (index >= RELAY_CHANNEL_COUNT) return;
+    _state[index] = on;
+    digitalWrite(RELAY_PINS[index], on ? HIGH : LOW);
+  }
+
+  bool getChannel(uint8_t index) const override {
+    return (index < RELAY_CHANNEL_COUNT) ? _state[index] : false;
+  }
+
+  uint8_t channelCount() const override { return RELAY_CHANNEL_COUNT; }
+
+  void setLed(uint8_t ledBit, bool on) {
+    if (ledBit == LED_FLOW && PIN_FLOW_LED != NO_PIN) digitalWrite(PIN_FLOW_LED, on ? HIGH : LOW);
+  }
+
+  void allLedsOff() { setLed(LED_FLOW, false); }
+
+private:
+  bool _state[RELAY_CHANNEL_COUNT] = {false};
+};
+
+using BoardRelays = GpioRelayBankController;
+#else
+using BoardRelays = ShiftRegisterRelayController;
+#endif
+
 // --- Today's bring-up hardware: single relay on a fixed GPIO ----------
 // Kept for reference / earlier bench testing — the real board (above)
 // is now confirmed working, so ShiftRegisterRelayController is what

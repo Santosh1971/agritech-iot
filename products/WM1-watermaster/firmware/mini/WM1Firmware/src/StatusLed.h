@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "Board.h"
 
 // Mirrors WPC's non-blocking LED state machine (see
 // products/WPC-pumpcontroller/firmware/master_node/src/main.cpp,
@@ -14,11 +15,13 @@
 //   AP up, app (WS) connected -> fast continuous blink (50ms/50ms)
 class StatusLed {
 public:
-  static constexpr uint8_t PIN = 2;
+  static constexpr uint8_t PIN = PIN_WIFI_LED;   // GPIO2 on WM1-Mini, IO8 (active LOW) on WM-Mini C3
+
+  static void write(bool on) { digitalWrite(PIN, (on != WIFI_LED_ACTIVE_LOW) ? HIGH : LOW); }
 
   void begin() {
     pinMode(PIN, OUTPUT);
-    digitalWrite(PIN, LOW);
+    write(false);
   }
 
   void update(bool apOk, bool clientConnected) {
@@ -39,7 +42,7 @@ public:
       // Every pattern above alternates on/off starting ON — phase 0 and
       // 2 are "on", 1 and 3 are "off" (phase 3, the idle pattern's long
       // pause, is simply an extra-long "off").
-      digitalWrite(PIN, (_phase % 2 == 0) ? HIGH : LOW);
+      write(_phase % 2 == 0);
     }
   }
 
