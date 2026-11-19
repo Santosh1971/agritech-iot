@@ -16,6 +16,7 @@ export default async function DashboardPage() {
         <h1>Devices ({session.role})</h1>
         <span style={{ display: "flex", gap: 18 }}>
           <Link href="/dashboard/apps">My apps →</Link>
+          <Link href="/flash">Flash by USB →</Link>
           {session.role === "ADMIN" && (
             <>
               <Link href="/dashboard/farms">Farms & app access →</Link>
