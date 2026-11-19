@@ -726,6 +726,13 @@ void loop() {
       for (int i = 0; i < 4; i++) litresToday[i] = 0;
       litresDay = core.dayIndex();
     }
+    // New day: the counters just went back to zero. Send the state now, or the
+    // cloud (and the app away from the farm) keeps showing yesterday's minutes
+    // until the next valve action (Avinash, 2026-11-19).
+    if (core.dayIndex() != dayBefore) {
+      saveProgressNow();
+      stateDirty = true;
+    }
     bool anyFlow = false;
     for (int i = 0; i < 4; i++) {
       accL[i] += dl[i];
@@ -804,6 +811,12 @@ void loop() {
                                  : hw::WL_SEARCH,
                  cfg.core.psFitted && ps, bypass);
   }
+
+  // Keep the cloud copy fresh too: every minute while a valve is open (run
+  // minutes count up), every 15 min otherwise.
+  if (!stateDirty && lastPush &&
+      now - lastPush >= ((hw::valveState(0) || hw::valveState(1)) ? 60000UL : 900000UL))
+    stateDirty = true;
 
   if ((stateDirty && now - lastPush >= 1000) || (web::clients() && now - lastWsPush >= 2000)) {
     JsonDocument d;

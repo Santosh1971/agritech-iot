@@ -1,4 +1,4 @@
-# WM2 WaterMaster firmware 0.2.16 (Girish Farm)
+# WM2 WaterMaster firmware 0.2.17 (Girish Farm)
 
 Phase 2 "node core" from the spec (Claude Doc *WM2 WaterMaster: Girish Farm Functional
 Specification*, https://claude.ai/artifact/NSR2Czwmsft66fzP3ZnTnU).
@@ -16,7 +16,7 @@ firmware update over WiFi, measured daily battery use.
 
 ## Flash
 
-One image at **0x0**: `release/WM2-fw-0.2.16-merged-0x0.bin` (gitignored; rebuild with
+One image at **0x0**: `release/WM2-fw-0.2.17-merged-0x0.bin` (gitignored; rebuild with
 `pio run -e wm2` then the merge command in the session notes, or flash from source):
 
 ```bash
@@ -83,6 +83,14 @@ Logins are compiled in, never stored in this (public) repo:
 - Release builds: GitHub secrets `WM2_MQTT_PASS` (required), `WM2_GIRISH_USER`,
   `WM2_GIRISH_PASS` (optional); the app gets the same values via `--dart-define`.
 - `get_config` reports only `ag_builtin_login` / `girish_builtin_login`, never the passwords.
+
+## New day shows at once in the cloud (0.2.17)
+
+The node resets its daily counters at 00:00 (day_start_hour 0, IST), but it
+sent its state to the cloud only on commands and events, so away from the farm
+the app kept yesterday's minutes until the next valve action. The node now
+sends its state at the day change, every minute while a valve is open, and
+every 15 minutes otherwise.
 
 ## Flow 3/4 match the board labels (0.2.16)
 

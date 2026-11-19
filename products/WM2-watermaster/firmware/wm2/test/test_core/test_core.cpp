@@ -352,6 +352,29 @@ void test_manual_minutes_separate_from_program() {
   TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).manualSec);
 }
 
+// At 00:00 every daily counter starts again from zero: program minutes,
+// manual minutes, litres and "done" (Avinash, 2026-11-19).
+void test_counters_reset_at_midnight() {
+  Sim s(MON + 8 * 3600);
+  s.c.setProgram(0, timerProg(0x03, 5));      // Mon + Tue
+  s.c.cfg.v[1].mode = MODE_OFF;
+  s.run(310, true);                           // Monday's 5 min
+  TEST_ASSERT_TRUE(s.c.valve(0).done);
+  TEST_ASSERT_TRUE(s.c.manualOpen(0, 120, 0));
+  s.run(125, true);                           // plus 2 min manual
+  TEST_ASSERT_UINT32_WITHIN(2, 120, s.c.valve(0).manualSec);
+  uint32_t monDay = s.c.dayIndex();
+  s.run(16 * 3600 - 435 - 30, false);         // to 23:59:30 Monday
+  TEST_ASSERT_EQUAL_UINT32(monDay, s.c.dayIndex());
+  TEST_ASSERT_UINT32_WITHIN(2, 300, s.c.valve(0).runSec);
+  s.run(60, false);                           // 00:00:30 Tuesday
+  TEST_ASSERT_EQUAL_UINT32(monDay + 1, s.c.dayIndex());
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).runSec);
+  TEST_ASSERT_EQUAL_UINT32(0, s.c.valve(0).manualSec);
+  TEST_ASSERT_EQUAL_FLOAT(0, s.c.valve(0).runL);
+  TEST_ASSERT_FALSE(s.c.valve(0).done);
+}
+
 
 // A valve the node holds shut (critical battery, no 12V) must not count run
 // time, even though the logic wants it open (T5, 2026-11-14: 3 min counted).
@@ -410,6 +433,7 @@ int main(int, char**) {
   RUN_TEST(test_seq_current_turn);
   RUN_TEST(test_seq_entry_state);
   RUN_TEST(test_manual_minutes_separate_from_program);
+  RUN_TEST(test_counters_reset_at_midnight);
   RUN_TEST(test_no_run_time_while_valve_held_shut);
   RUN_TEST(test_zone_member_counts_on_leader_water);
   return UNITY_END();
