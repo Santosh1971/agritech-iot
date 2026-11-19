@@ -4,7 +4,7 @@
 // grant and per-device checks as the NB Agri Flasher app (/api/flasher/*), so
 // the flash shows up in the flasher activity log like an app flash.
 import { ESPLoader, Transport, type IEspLoaderTerminal } from "esptool-js";
-import { USB_PRODUCTS, deviceIdFor } from "./products";
+import { USB_PRODUCTS, bootloaderOffset, chipForVariant, deviceIdFor } from "./products";
 
 export type Build = {
   id: string;
@@ -45,8 +45,9 @@ export async function report(buildId: string, result: "flash_ok" | "flash_failed
 }
 
 export async function flashOverUsb(port: SerialPort, o: FlashOptions): Promise<FlashResult> {
-  const p = USB_PRODUCTS[o.product];
-  if (!p) throw new Error(`${o.product} can't be flashed from this page yet.`);
+  const name = USB_PRODUCTS[o.product];
+  if (!name) throw new Error(`${o.product} can't be flashed from this page.`);
+  const want = chipForVariant(o.build.variant);
   if (o.eraseAll && !o.full) throw new Error("Erase everything also needs the bootloader and partition table.");
 
   const terminal: IEspLoaderTerminal = { clean() {}, writeLine: (d: string) => o.onLog(d), write: () => {} };
@@ -57,20 +58,23 @@ export async function flashOverUsb(port: SerialPort, o: FlashOptions): Promise<F
     o.onLog("Putting the board into download mode…");
     const chip = await loader.main();
     o.onLog(`Connected to ${chip}.`);
-    if (loader.chip.CHIP_NAME !== p.chip) {
-      throw new Error(`This board is an ${loader.chip.CHIP_NAME}; ${p.name} uses an ${p.chip}. Wrong board or wrong product?`);
+    if (loader.chip.CHIP_NAME !== want) {
+      throw new Error(
+        `This board is an ${loader.chip.CHIP_NAME}, but ${name} ${o.build.variant} is built for an ${want}. Wrong board, product or variant?`,
+      );
     }
     mac = await loader.chip.readMac(loader);
     const deviceId = deviceIdFor(o.product, mac);
     o.onLog(`MAC ${mac}${deviceId ? `, device ${deviceId}` : ""}.`);
 
     // Downloading with the MAC checks this unit is registered (and registers
-    // it on an admin's first flash) and logs the download.
-    o.onLog(`Downloading firmware ${o.build.version}…`);
-    const app = await download(o.build.id, `mac=${encodeURIComponent(mac)}`);
+    // it on an admin's first flash) and logs the download. Products with no
+    // MAC-based ID go without it, as the app's WiFi flow does.
+    o.onLog(`Downloading firmware ${o.build.version} (${o.build.variant})…`);
+    const app = await download(o.build.id, deviceId ? `mac=${encodeURIComponent(mac)}` : "");
     const files: { data: Uint8Array; address: number }[] = [];
     if (o.full) {
-      files.push({ data: await download(o.build.id, "part=bootloader"), address: p.bootloaderAt });
+      files.push({ data: await download(o.build.id, "part=bootloader"), address: bootloaderOffset(want) });
       files.push({ data: await download(o.build.id, "part=partitions"), address: 0x8000 });
     }
     // Blank OTA data so the chip boots the app written to 0x10000, even if a

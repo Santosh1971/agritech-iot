@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Build } from "./usbFlash";
+import { chipForVariant } from "./products";
 
 type Product = { id: string; name: string };
 type Info = { fw?: string; device?: string; ssid?: string; pass?: string };
@@ -32,7 +33,11 @@ const pre: React.CSSProperties = {
 
 export default function FlashClient({ products, admin }: { products: Product[]; admin: boolean }) {
   const [serialOk, setSerialOk] = useState(true);
-  const [product, setProduct] = useState(products[0].id);
+  const [product, setProductState] = useState(products[0].id);
+  const setProduct = (p: string) => {
+    setProductState(p);
+    try { localStorage.setItem("flash.product", p); } catch {}
+  };
   const [builds, setBuilds] = useState<Build[] | null>(null);
   const [buildId, setBuildId] = useState("");
   const [full, setFull] = useState(admin);
@@ -45,21 +50,36 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
   const [done, setDone] = useState<{ version: string; deviceId: string | null } | null>(null);
   const stop = useRef({ stopped: false });
 
-  useEffect(() => setSerialOk(typeof navigator !== "undefined" && "serial" in navigator), []);
+  useEffect(() => {
+    setSerialOk(typeof navigator !== "undefined" && "serial" in navigator);
+    // Back to the product picked last time on this laptop.
+    try {
+      const last = localStorage.getItem("flash.product");
+      if (last && products.some((p) => p.id === last)) setProductState(last);
+    } catch {}
+  }, [products]);
 
   useEffect(() => {
+    let cancelled = false;
     setBuilds(null);
     setError("");
+    setDone(null);
     fetch(`/api/flasher/builds?product=${product}`, { cache: "no-store" })
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error ?? "Couldn't load the builds.");
+        if (cancelled) return;
         const list: Build[] = j.builds;
         setBuilds(list);
         // Default: the newest real release, not a CI dev build.
         setBuildId((list.find((b) => !b.version.startsWith("dev-")) ?? list[0])?.id ?? "");
       })
-      .catch((e) => { setBuilds([]); setError((e as Error).message); });
+      .catch((e) => {
+        if (cancelled) return;
+        setBuilds([]);
+        setError((e as Error).message);
+      });
+    return () => { cancelled = true; };
   }, [product]);
 
   const build = builds?.find((b) => b.id === buildId);
@@ -80,7 +100,7 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
 
   const flash = async () => {
     if (!build) return;
-    if (eraseAll && !confirm("Erase everything wipes this node's saved WiFi, settings, programs and history. Continue?")) return;
+    if (eraseAll && !confirm("Erase everything wipes this board's saved WiFi, settings and data. Continue?")) return;
     setBusy("flash"); setError(""); setLog([]); setSerial(""); setProgress(0); setDone(null);
     let port: SerialPort;
     try {
@@ -126,14 +146,12 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
 
       <section style={box}>
         <h3 style={{ marginTop: 0 }}>1 · Firmware</h3>
-        {products.length > 1 && (
-          <p>
-            Product{" "}
-            <select value={product} onChange={(e) => setProduct(e.target.value)} disabled={!!busy}>
-              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </p>
-        )}
+        <p>
+          Product{" "}
+          <select value={product} onChange={(e) => setProduct(e.target.value)} disabled={!!busy} style={{ fontSize: 15 }}>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </p>
         {builds === null ? (
           <p>Loading builds…</p>
         ) : builds.length === 0 ? (
@@ -143,7 +161,7 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
             <select value={buildId} onChange={(e) => setBuildId(e.target.value)} disabled={!!busy} style={{ maxWidth: "100%" }}>
               {builds.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.version} ({b.variant}, {Math.round(b.sizeBytes / 1024)} KB, {new Date(b.createdAt).toLocaleDateString()})
+                  {b.version} · {b.variant} ({chipForVariant(b.variant)}, {Math.round(b.sizeBytes / 1024)} KB, {new Date(b.createdAt).toLocaleDateString()})
                 </option>
               ))}
             </select>
@@ -152,16 +170,16 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
               <div style={{ fontSize: 14, marginTop: 8 }}>
                 <label style={{ display: "block", opacity: canFull ? 1 : 0.5 }}>
                   <input type="checkbox" checked={doFull} disabled={!canFull || !!busy} onChange={(e) => setFull(e.target.checked)} />{" "}
-                  Also write the bootloader and partition table (needed on a new, blank ESP32 module; harmless on a working node)
+                  Also write the bootloader and partition table (needed on a new, blank module; harmless on a working board)
                   {!build?.hasFullFlash && " (this build has none)"}
                 </label>
                 <label style={{ display: "block", opacity: doFull ? 1 : 0.5 }}>
                   <input type="checkbox" checked={doFull && eraseAll} disabled={!doFull || !!busy} onChange={(e) => setEraseAll(e.target.checked)} />{" "}
-                  Erase everything first (wipes saved WiFi, settings, programs and history)
+                  Erase everything first (wipes the board&apos;s saved WiFi, settings and data)
                 </label>
               </div>
             )}
-            {!admin && <p style={{ fontSize: 13, color: "#666" }}>Updates the firmware only; the node keeps its WiFi, settings and programs.</p>}
+            {!admin && <p style={{ fontSize: 13, color: "#666" }}>Updates the firmware only; the board keeps its WiFi and settings.</p>}
           </>
         )}
       </section>
@@ -171,7 +189,7 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
         <ol style={{ fontSize: 14, paddingLeft: 20 }}>
           <li>Plug the board into the laptop with a data USB cable (power from USB is enough).</li>
           <li>Close any serial monitor (Arduino, PlatformIO) using the port.</li>
-          <li>Click the button and pick the board&apos;s port (CP2102 / &quot;USB to UART&quot; or similar).</li>
+          <li>Click the button and pick the board&apos;s port (CP2102, CH340, &quot;USB to UART&quot; or &quot;USB JTAG/serial&quot;).</li>
           <li>If it can&apos;t connect: hold <b>BOOT</b>, tap <b>RESET</b> (EN), release BOOT, and try again.</li>
         </ol>
         <button onClick={flash} disabled={!serialOk || !build || !!busy} style={{ padding: "8px 16px", fontSize: 15 }}>
@@ -206,7 +224,7 @@ export default function FlashClient({ products, admin }: { products: Product[]; 
           )}
           {info.ssid && (
             <p style={{ fontSize: 13, color: "#666" }}>
-              Join that WiFi from a phone and open http://192.168.4.1 to set the farm WiFi.
+              Join that WiFi from a phone and open http://192.168.4.1 to set it up.
             </p>
           )}
           <pre style={pre}>{serial || "Waiting for the board…"}</pre>
