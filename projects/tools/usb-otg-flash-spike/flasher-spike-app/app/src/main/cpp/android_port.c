@@ -90,9 +90,18 @@ static void android_delay_ms(esp_loader_port_t *port, uint32_t ms)
     usleep((useconds_t)ms * 1000u);
 }
 
+/* esp-serial-flasher allows 1 s per flash block and 10 s/MB of erase; esptool
+ * (the web flasher, which works on the same boards) allows 3 s per block and
+ * 30 s/MB. The stub erases as it writes, and on some modules' flash (WM2's
+ * newer WROOM-32 batch, 2026-11-19) one erase step takes longer than 1 s,
+ * which ended every flash in TIMEOUT. Give every timer of 1 s or more three
+ * times as long (esptool's margins); the short sync timers (100 ms) stay as
+ * they are, so finding the chip is no slower. */
+#define TIMEOUT_SCALE 3
 static void android_start_timer(esp_loader_port_t *port, uint32_t ms)
 {
     android_port_t *p = container_of(port, android_port_t, port);
+    if (ms >= 1000) ms *= TIMEOUT_SCALE;
     p->time_end = now_ms() + (int64_t)ms;
 }
 
