@@ -43,6 +43,15 @@ export async function middleware(req: NextRequest) {
   if (benchToken && pathname === "/api/bench/cli" && req.headers.get("authorization") === `Bearer ${benchToken}`) {
     return NextResponse.next();
   }
+  // Sales register tool (tools/sales/sales.py): its own bearer SALES_TOKEN.
+  const salesToken = process.env.SALES_TOKEN;
+  if (
+    salesToken &&
+    (pathname === "/api/sales" || pathname.startsWith("/api/sales/")) &&
+    req.headers.get("authorization") === `Bearer ${salesToken}`
+  ) {
+    return NextResponse.next();
+  }
   // Leads tool (tools/leads/leads.py): its own bearer LEADS_TOKEN.
   const leadsToken = process.env.LEADS_TOKEN;
   if (

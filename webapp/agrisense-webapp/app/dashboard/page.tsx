@@ -22,6 +22,7 @@ export default async function DashboardPage() {
               <Link href="/dashboard/farms">Farms & app access →</Link>
               <Link href="/dashboard/testing">Product testing →</Link>
               <Link href="/dashboard/testing/leads">Leads →</Link>
+              <Link href="/dashboard/testing/sales">Sales register →</Link>
               <Link href="/studio">Product Studio →</Link>
               <Link href="/dashboard/library">Documents & videos →</Link>
               <Link href="/dashboard/workshop">Workshop library →</Link>

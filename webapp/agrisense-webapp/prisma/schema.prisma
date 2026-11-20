@@ -663,3 +663,50 @@ model LeadNote {
 
   @@index([leadId])
 }
+
+// ---------------------------------------------------------------------------
+// Sales register (/dashboard/testing/sales): which device went to whom, under
+// which invoice, when, and whether it is paid. One Sale = one dispatch/invoice;
+// each SaleUnit is one physical device by the ID printed on it / reported by
+// its firmware (e.g. "0DA8" or "SWC_001_0DA8"). Money and GST live in Zoho
+// Books; this is the device side. Claude reads/imports with SALES_TOKEN
+// (tools/sales/sales.py).
+// ---------------------------------------------------------------------------
+
+enum PaymentStatus {
+  PAID
+  PARTIAL
+  PENDING
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  customer      String
+  customerType  String?       // Dealer, Farmer, Institution, Other
+  location      String?
+  invoiceNo     String?
+  dispatchDate  DateTime?
+  paymentStatus PaymentStatus @default(PENDING)
+  notes         String?
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  units         SaleUnit[]
+
+  @@index([customer])
+  @@index([invoiceNo])
+}
+
+model SaleUnit {
+  id             String   @id @default(cuid())
+  saleId         String
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        String   // FG1, FG1-TH, WPC-GW, WPC-PN, WM1-MINI, WM1-PRO, WM2, TH2, ASC-KIT, OTHER
+  deviceId       String
+  warrantyMonths Int      @default(12)
+  note           String?
+  createdAt      DateTime @default(now())
+
+  @@index([deviceId])
+  @@index([saleId])
+}
