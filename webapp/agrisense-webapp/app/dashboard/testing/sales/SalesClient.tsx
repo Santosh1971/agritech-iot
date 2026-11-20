@@ -68,7 +68,12 @@ export default function SalesClient({ sales, devices }: { sales: Sale[]; devices
         s.dispatchDate ? s.dispatchDate.slice(0, 10) : "", PAY_LABEL[s.paymentStatus], w ? w.toISOString().slice(0, 10) : "",
         devices[u.deviceId]?.lastSeenAt?.slice(0, 10) ?? "", u.note ?? ""]);
     }
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    // A cell starting with = + - @ (or tab/CR) would run as a formula in Excel: prefix it with '.
+    const cell = (c: unknown) => {
+      const v = String(c);
+      return `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`;
+    };
+    const csv = rows.map((r) => r.map(cell).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = `sales-register-${new Date().toISOString().slice(0, 10)}.csv`;
