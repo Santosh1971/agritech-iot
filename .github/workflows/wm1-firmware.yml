@@ -1,18 +1,68 @@
-name: WM1 firmware — build and upload
+name: WM1 Mini firmware — build and upload
 
+# One PlatformIO project, two boards:
+#   esp32dev    -> the original WM1 Mini (classic ESP32)
+#   wm_mini_c3  -> WM-Mini C3 (ESP32-C3 Super Mini, relays on GPIOs)
+#
+# A push to main uploads a dev-<shortsha> build of both (hidden from every
+# non-admin flasher account, see /api/flasher/builds). Pushing a tag
+# "wm1-vX.Y.Z" (or a manual run with release_version) cuts a real,
+# dealer-visible release X.Y.Z. A release must equal Config.h's
+# FIRMWARE_VERSION on the commit being built, so the "fw" the board reports
+# and the label on the dashboard cannot drift apart.
+#
+# bootloader.bin and partitions.bin go up with the app, so /flash (USB web
+# flasher) can do the first flash of a blank board; it picks the 0x0
+# bootloader offset for the *_c3 variant itself (app/flash/products.ts).
+#
+# WMM_OTA_PASS (repo secret) is compiled into the C3 build by wmm_secrets.py.
+# Without it the build still succeeds but firmware update over WiFi is off.
 on:
   push:
     branches: [main]
+    tags: ["wm1-v*"]
     paths:
       - "products/WM1-watermaster/firmware/mini/WM1Firmware/**"
       - ".github/workflows/wm1-firmware.yml"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version, e.g. 0.4.1 (must match Config.h). Empty = dev build."
+        required: false
+        default: ""
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [esp32dev, wm_mini_c3]
+    defaults:
+      run:
+        working-directory: products/WM1-watermaster/firmware/mini/WM1Firmware
     steps:
       - uses: actions/checkout@v4
+
+      - name: Work out the version
+        id: ver
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.release_version }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then V="${REF_NAME#wm1-v}"
+          elif [ -n "$INPUT_VERSION" ]; then V="$INPUT_VERSION"
+          else echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$V' is not a plain X.Y.Z version"; exit 1
+          fi
+          CFG=$(sed -n 's/^#define FIRMWARE_VERSION[[:space:]]*"\(.*\)"/\1/p' src/Config.h)
+          if [ "$CFG" != "$V" ]; then
+            echo "::error::Releasing $V but Config.h's FIRMWARE_VERSION is '$CFG' -- bump Config.h first"; exit 1
+          fi
+          echo "value=$V" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
         with:
@@ -21,20 +71,24 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
-      - name: Build
-        working-directory: products/WM1-watermaster/firmware/mini/WM1Firmware
-        run: pio run -e esp32dev
+      - name: Build (${{ matrix.variant }})
+        env:
+          WMM_OTA_PASS: ${{ secrets.WMM_OTA_PASS }}
+        run: pio run -e ${{ matrix.variant }}
 
       - name: Upload to NB Agri Flasher
-        working-directory: products/WM1-watermaster/firmware/mini/WM1Firmware
         env:
           CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.value }}
+          VARIANT: ${{ matrix.variant }}
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
+          B=.pio/build/$VARIANT
           curl -sf -X POST https://agrisenseandcontrol.in/api/admin/builds \
             -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
             -F "product=WM1_MINI" \
-            -F "version=dev-${SHORT_SHA}" \
-            -F "variant=esp32dev" \
-            -F "notes=Auto-built by GitHub Actions from commit ${{ github.sha }} (run ${{ github.run_number }})" \
-            -F "file=@.pio/build/esp32dev/firmware.bin;type=application/octet-stream"
+            -F "version=${VERSION}" \
+            -F "variant=${VARIANT}" \
+            -F "notes=Built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA}), run ${GITHUB_RUN_NUMBER}" \
+            -F "file=@$B/firmware.bin;type=application/octet-stream" \
+            -F "bootloader=@$B/bootloader.bin;type=application/octet-stream" \
+            -F "partitions=@$B/partitions.bin;type=application/octet-stream"

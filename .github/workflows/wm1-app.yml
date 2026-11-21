@@ -1,0 +1,71 @@
+name: WM1 Mini app — build and upload
+
+# Same pattern as wpc-app.yml: a push to main uploads a dev-<shortsha> APK
+# (admin-only on /dashboard/apps); pushing a tag "wm1-app-vX.Y.Z" cuts a
+# real, dealer-visible release X.Y.Z. The same app drives both WM1 Mini
+# boards (classic ESP32 and WM-Mini C3). Debug-signed: android/app/build.gradle
+# has no release keystore yet (release uses signingConfigs.debug).
+on:
+  push:
+    branches: [main]
+    tags: ["wm1-app-v*"]
+    paths:
+      - "products/WM1-watermaster/mobile-app/mini/**"
+      - ".github/workflows/wm1-app.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: products/WM1-watermaster/mobile-app/mini
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned for the Gradle 8.3 wrapper, as in wpc-app.yml.
+          flutter-version: "3.27.4"
+          cache: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Determine version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == wm1-app-v* ]]; then
+            V="${REF_NAME#wm1-app-v}"
+            P=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+            if [ "$P" != "$V" ]; then
+              echo "::error::Releasing $V but pubspec.yaml version is '$P' -- bump pubspec first"; exit 1
+            fi
+            echo "value=$V" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release --build-name="${{ steps.version.outputs.value }}"
+
+      - name: Upload to NB Agri Flasher
+        env:
+          CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+            -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
+            -F "versionName=${VERSION}" \
+            -F "buildType=debug" \
+            -F "product=WM1_MINI" \
+            -F "notes=Built by GitHub Actions from ${GITHUB_REF_NAME} (${GITHUB_SHA}), run ${GITHUB_RUN_NUMBER}" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk;type=application/vnd.android.package-archive"
