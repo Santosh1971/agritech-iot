@@ -2,7 +2,7 @@ name: WM1 Mini app — build and upload
 
 # Same pattern as wpc-app.yml: a push to main uploads a dev-<shortsha> APK
 # (admin-only on /dashboard/apps); pushing a tag "wm1-app-vX.Y.Z" cuts a
-# real, dealer-visible release X.Y.Z. The same app drives both WM1 Mini
+# real, dealer-visible release X.Y.Z (or a manual run with release_version). The same app drives both WM1 Mini
 # boards (classic ESP32 and WM-Mini C3). Debug-signed: android/app/build.gradle
 # has no release keystore yet (release uses signingConfigs.debug).
 on:
@@ -12,7 +12,12 @@ on:
     paths:
       - "products/WM1-watermaster/mobile-app/mini/**"
       - ".github/workflows/wm1-app.yml"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version, e.g. 1.0.2 (must match pubspec.yaml). Empty = dev build."
+        required: false
+        default: ""
 
 jobs:
   build-and-upload:
@@ -39,9 +44,13 @@ jobs:
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.release_version }}
         run: |
-          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == wm1-app-v* ]]; then
-            V="${REF_NAME#wm1-app-v}"
+          V=""
+          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == wm1-app-v* ]]; then V="${REF_NAME#wm1-app-v}"
+          elif [[ -n "$INPUT_VERSION" ]]; then V="$INPUT_VERSION"
+          fi
+          if [[ -n "$V" ]]; then
             P=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
             if [ "$P" != "$V" ]; then
               echo "::error::Releasing $V but pubspec.yaml version is '$P' -- bump pubspec first"; exit 1
