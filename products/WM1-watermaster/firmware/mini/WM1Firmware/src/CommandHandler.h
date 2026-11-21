@@ -8,6 +8,8 @@
 #include "ProgramStore.h"
 #include "DeviceIdentity.h"
 #include "Ds1307Clock.h"
+#include "Board.h"
+#include "Ota.h"
 #include "RelayNames.h"
 #include "SequenceLibrary.h"
 #include "Sensors.h"
@@ -88,7 +90,7 @@ public:
                  WiFiManager& wifi, ProgramStore& store,
                  Program* programSlots[], uint8_t& programCount,
                  Ds1307Clock& clock, RelayNames& names, SequenceLibrary& library, Sensors& sensors,
-                 RunHistory& history, ShiftRegisterRelayController& relays)
+                 RunHistory& history, BoardRelays& relays)
     : _scheduler(scheduler), _irrigation(irrigation), _wifi(wifi),
       _store(store), _programSlots(programSlots), _programCount(programCount),
       _clock(clock), _names(names), _library(library), _sensors(sensors), _history(history),
@@ -184,6 +186,26 @@ public:
       uint32_t unixTime = doc["unix"] | 0;
       _clock.syncFromUnix(unixTime);
       reply(_okReply(cmd));
+    } else if (cmd == "ota_url") {
+      // Pull update (see Ota.h). Checked here, run from main.cpp's loop()
+      // after this ack has gone out, because the download blocks.
+      // Signed with the board's one-time ota_nonce (see Ota.h); the
+      // password itself never travels.
+      String url = doc["url"] | "";
+      String sha = doc["sha256"] | "";
+      String err;
+      if (!url.length()) { reply(_errorReply(cmd, "missing_url")); return; }
+      if (!ota::commandOk(url, sha, String(doc["mac"] | ""), err)) {
+        ota::lastResult() = "refused: " + err;
+        _statusChanged = true;
+        reply(_errorReply(cmd, err));
+        return;
+      }
+      _otaUrl = url;
+      _otaMd5 = sha;   // holds the sha256 for the pull
+      _otaRequested = true;
+      ota::lastResult() = "downloading";
+      reply(_okReply(cmd));
     } else if (cmd == "factory_reset") {
       // Actual NVS clear + reboot happens in main.cpp, deferred briefly
       // so this ack has time to flush before the socket/connection dies.
@@ -256,6 +278,13 @@ public:
     bool v = _factoryResetRequested;
     _factoryResetRequested = false;
     return v;
+  }
+  bool consumeOtaRequest(String& url, String& sha256) {
+    if (!_otaRequested) return false;
+    _otaRequested = false;
+    url = _otaUrl;
+    sha256 = _otaMd5;
+    return true;
   }
   bool consumeStatusChanged() {
     bool v = _statusChanged;
@@ -409,13 +438,13 @@ private:
   // that runs during normal operation.
   void _testLedsCycle() {
     static const struct { uint8_t bit; const char* name; } leds[] = {
-      {ShiftRegisterRelayController::LED_FLOW, "Flow"},
-      {ShiftRegisterRelayController::LED_PR1, "PR1"},
-      {ShiftRegisterRelayController::LED_PR2, "PR2"},
-      {ShiftRegisterRelayController::LED_IN1, "IN1"},
-      {ShiftRegisterRelayController::LED_IN2, "IN2"},
-      {ShiftRegisterRelayController::LED_IN3, "IN3"},
-      {ShiftRegisterRelayController::LED_LOBATT, "LOBATT"},
+      {BoardRelays::LED_FLOW, "Flow"},
+      {BoardRelays::LED_PR1, "PR1"},
+      {BoardRelays::LED_PR2, "PR2"},
+      {BoardRelays::LED_IN1, "IN1"},
+      {BoardRelays::LED_IN2, "IN2"},
+      {BoardRelays::LED_IN3, "IN3"},
+      {BoardRelays::LED_LOBATT, "LOBATT"},
     };
     _relays.allLedsOff();
     for (auto& led : leds) {
@@ -577,6 +606,12 @@ private:
   String _statusJson() {
     JsonDocument doc;
     doc["device_id"] = computeDeviceId();
+    doc["fw"] = FIRMWARE_VERSION;
+    doc["board"] = BOARD_NAME;
+    doc["uptime_s"] = millis() / 1000;
+    doc["ip"] = _wifi.isStaConnected() ? WiFi.localIP().toString() : String("");
+    doc["ota"] = ota::enabled() ? (ota::lastResult().length() ? ota::lastResult() : String("ready")) : String("off");
+    if (ota::enabled()) doc["ota_nonce"] = ota::nonce();
     doc["state"] = (int)_scheduler.state();
     doc["pause_reason"] = _scheduler.pauseReason();
     doc["pump"] = _irrigation.getPump();
@@ -657,7 +692,8 @@ private:
     JsonDocument doc;
     doc["device_id"] = computeDeviceId();
     doc["model"] = "WM1-Mini";
-    doc["firmware"] = "0.2.0";
+    doc["board"] = BOARD_NAME;
+    doc["firmware"] = FIRMWARE_VERSION;
     String out; serializeJson(doc, out);
     return out;
   }
@@ -688,10 +724,12 @@ private:
   SequenceLibrary& _library;
   Sensors& _sensors;
   RunHistory& _history;
-  ShiftRegisterRelayController& _relays;
+  BoardRelays& _relays;
   bool _programsChanged = false;
   bool _libraryChanged = false;
   bool _statusChanged = false;
   bool _wifiScanRequested = false;
   bool _factoryResetRequested = false;
+  bool _otaRequested = false;
+  String _otaUrl, _otaMd5;
 };

@@ -29,6 +29,12 @@ public:
 
     WiFi.mode(WIFI_MODE_APSTA);
     WiFi.setSleep(false);  // known FG1 fix — avoids periodic ASSOC_LEAVE disconnects
+#if defined(BOARD_WM_MINI_C3)
+    // Super Mini boards have a poor antenna match: at full power the signal
+    // is distorted and often not received. Capped as on the FG1 Greenhouse
+    // TH C3 build (a common fix for these boards).
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+#endif
 
     _apOk = WiFi.softAP(computeDeviceId().c_str(), SOFTAP_PASSWORD);
     Serial.printf("[WiFi] SoftAP started: %s\n", computeDeviceId().c_str());
