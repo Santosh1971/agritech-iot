@@ -6,25 +6,30 @@ export default function Privacy() {
       <section className="page-hero">
         <div className="wrap">
           <p className="eyebrow">Privacy Policy</p>
-          <h1>NB Agri Automation</h1>
-          <p className="lead">Last updated: October 2026</p>
+          <h1>NB Agri apps</h1>
+          <p className="lead">Last updated: November 2026</p>
         </div>
       </section>
 
       <section>
         <div className="wrap stack" style={{ gap: 28, maxWidth: 760 }}>
           <p>
-            NB Agri Automation (&ldquo;the App&rdquo;) is published by Agri Sensors and Controls
-            (&ldquo;we&rdquo;, &ldquo;us&rdquo;). This policy explains what information the App
-            accesses and how it is used.
+            This policy covers the NB Agri mobile apps (each &ldquo;the App&rdquo;) published by
+            Agri Sensors and Controls (GSTIN 29BZEPA3511Q1Z8) (&ldquo;we&rdquo;, &ldquo;us&rdquo;):
           </p>
+          <ul className="ticks">
+            <li><span><b>NB Agri Automation</b> &mdash; for the FlowGuard (FG1) pump controller</span></li>
+            <li><span><b>NB Agri-WPC</b> &mdash; for the WPC wireless pump controller (Master and Pump units)</span></li>
+            <li><span><b>NB Agri-WM</b> &mdash; for the WaterMaster Mini (WM1-Mini) irrigation and fertigation controller</span></li>
+          </ul>
+          <p>It explains what information the App accesses and how it is used.</p>
 
           <div>
             <h3>What the App does</h3>
             <p className="muted">
-              The App connects to your own NB Agri smart water controller device to let you
-              monitor and control irrigation &mdash; turning your pump on or off, running
-              scheduled watering cycles, and viewing water-delivery history.
+              The App connects to your own NB Agri controller to let you monitor and control
+              irrigation &mdash; turning pumps and valves on or off, running scheduled watering
+              or fertigation programs, and viewing run history.
             </p>
           </div>
 
@@ -53,6 +58,10 @@ export default function Privacy() {
 
           <div>
             <h3>Permissions the App requests</h3>
+            <p className="muted">
+              NB Agri-WPC and NB Agri-WM request only Internet and network-state access. NB Agri
+              Automation may also request:
+            </p>
             <ul className="ticks">
               <li>
                 <span><b>WiFi access</b> &mdash; to connect to your device directly over your local
