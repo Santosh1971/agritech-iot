@@ -89,6 +89,18 @@ public:
     // it never fires for a deliberate SoftAP-only install (no saved
     // SSID, or force_local_mode) — those are never "supposed" to be
     // STA-connected in the first place.
+    // Force Local Mode (0.4.5): drop the home WiFi a moment after the
+    // command, once MqttClientWrapper has sent its "offline" message.
+    if (_dropStaAt && (int32_t)(now - _dropStaAt) >= 0) {
+      _dropStaAt = 0;
+      WiFi.disconnect();   // STA only; WIFI_MODE_APSTA keeps the SoftAP up
+      Serial.println("[WiFi] Local mode: left home WiFi, SoftAP only");
+    }
+
+    // Never restart under someone who is using the board over its own
+    // WiFi (0.4.5): a phone on the SoftAP doing Local Setup was cut off.
+    if (WiFi.softAPgetStationNum() > 0) _lastStaConnectedMillis = now;
+
     if (!_forcedLocal && _savedSsid.length() && (now - _lastStaConnectedMillis > STA_STUCK_REBOOT_MS)) {
       Serial.println("[WiFi] STA hasn't reconnected in 5 minutes — restarting to clear a possibly stuck WiFi state");
       delay(100);
@@ -106,6 +118,11 @@ public:
     _prefs.putString("wifi_ssid", ssid);
     _prefs.putString("wifi_pass", password);
     Serial.printf("[WiFi] Credentials saved for SSID: %s\n", ssid.c_str());
+    // Bug fix (0.4.5, tester log 2026-11-22 13:45:38): the 5-minute "stuck"
+    // restart counted from boot, so new credentials sent after 5 minutes
+    // without WiFi rebooted the board the same instant. Give the new
+    // network a fresh 5 minutes.
+    _lastStaConnectedMillis = millis();
     if (!_forcedLocal) _startStaConnect();
   }
 
@@ -113,7 +130,18 @@ public:
     _forcedLocal = forced;
     _prefs.putBool("forced_local", forced);
     Serial.printf("[WiFi] force_local_mode = %s\n", forced ? "true" : "false");
-    if (!forced && _savedSsid.length()) _startStaConnect();
+    _lastStaConnectedMillis = millis();
+    if (forced) {
+      // Bug fix (0.4.5, tester report): this only saved the flag and the
+      // board stayed on the home WiFi (and online in Cloud mode). Now it
+      // really leaves it: isStaConnected() goes false at once, so MQTT
+      // publishes "offline" and disconnects on the next loop, then the STA
+      // link is dropped (see loop()). The SoftAP stays up for the phone.
+      if (_state != WifiState::SOFTAP_ACTIVE) _dropStaAt = millis() + 500;
+      _state = WifiState::SOFTAP_ACTIVE;
+    } else if (_savedSsid.length()) {
+      _startStaConnect();
+    }
   }
 
   bool isForcedLocal() const { return _forcedLocal; }
@@ -148,4 +176,5 @@ private:
   uint32_t _staAttemptStart = 0;
   uint32_t _lastStaRetry = 0;
   uint32_t _lastStaConnectedMillis = 0;
+  uint32_t _dropStaAt = 0;
 };

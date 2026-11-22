@@ -49,7 +49,16 @@ public:
   }
 
   void loop(bool wifiConnected) {
-    if (!wifiConnected) return;
+    if (!wifiConnected) {
+      // Leaving the home WiFi on purpose (Force Local Mode): tell the apps
+      // right away instead of waiting for the broker's keep-alive timeout.
+      if (_client.connected()) {
+        _client.publish(_topicLwt.c_str(), "{\"online\":false}", true);
+        _client.disconnect();
+        Serial.println("[MQTT] Disconnected (local mode / WiFi down)");
+      }
+      return;
+    }
     if (!_client.connected()) {
       _tryConnect();
     } else {

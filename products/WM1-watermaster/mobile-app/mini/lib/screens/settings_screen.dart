@@ -5,6 +5,10 @@ import 'local_setup_screen.dart';
 import 'hardware_config_screen.dart';
 import 'history_screen.dart';
 
+// Set by CI (--dart-define=APP_VERSION=<release version>); the fallback is
+// pubspec.yaml's version for local builds. Was a hard-coded '0.1.0'.
+const String _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.4');
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -145,7 +149,7 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 16),
           _SettingsSection(title: 'App Info', items: [
-            const _InfoTile(icon: Icons.info_outline, color: Colors.grey, title: 'App Version', value: '0.1.0'),
+            const _InfoTile(icon: Icons.info_outline, color: Colors.grey, title: 'App Version', value: _appVersion),
           ]),
         ],
       ),

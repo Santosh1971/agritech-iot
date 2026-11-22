@@ -21,8 +21,11 @@
 // 0.4.3: programs/library lists are published (retained) when any app asks,
 // so every phone sees them, not only the one that saved them.
 // 0.4.4: WiFi LED uses the WPC/FG1 patterns (slow 1 s blink on SoftAP only).
+// 0.4.5: Force Local Mode really leaves the home WiFi (MQTT says offline);
+// saving WiFi details no longer triggers the 5-minute stuck restart; no
+// stuck restart while a phone is on the SoftAP.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.4"
+#define FIRMWARE_VERSION "0.4.5"
 #endif
 
 // Same broker FG1 already points at.

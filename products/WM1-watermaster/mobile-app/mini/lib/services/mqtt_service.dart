@@ -96,7 +96,7 @@ class MqttService implements DeviceService {
       return false;
     }
     if (!ok) {
-      _connectedController.add(false);
+      _setBroker(false);
       // Bug fix: a FAILED connect never retried — only a drop after a
       // successful connect did (_onDisconnected). Switching to Cloud
       // while the phone was still on the device's no-internet SoftAP
@@ -112,7 +112,7 @@ class MqttService implements DeviceService {
     _active = false;
     _retryTimer?.cancel();
     try { _client?.disconnect(); } catch (_) {}
-    _connectedController.add(false);
+    _setBroker(false);
   }
 
   void _scheduleRetry() {
@@ -182,7 +182,7 @@ class MqttService implements DeviceService {
       }
     }, onError: (e) => print('[MQTT] Stream error: $e'), cancelOnError: false);
 
-    _connectedController.add(true);
+    _setBroker(true);
     // Bug fix: programs/library only ever populated if whichever screen
     // needs them happened to be freshly (re)mounted after connecting —
     // status arrives fine on its own since that topic is retained, but
@@ -201,6 +201,7 @@ class MqttService implements DeviceService {
     try {
       if (topic == _topicStatus) {
         _statusController.add(DeviceStatus.fromJson(jsonDecode(payload) as Map<String, dynamic>));
+        _onStatusSeen();
       } else if (topic == _topicPrograms) {
         final list = (jsonDecode(payload) as List)
             .map((e) => Program.fromJson(e as Map<String, dynamic>))
@@ -212,8 +213,12 @@ class MqttService implements DeviceService {
             .toList();
         _libraryController.add(list);
       } else if (topic == _topicLwt) {
+        if (payload.isEmpty) return;
         final json = jsonDecode(payload) as Map<String, dynamic>;
         _deviceOnlineController.add(json['online'] == true);
+        _lwtOnline = json['online'] == true;
+        if (!_lwtOnline) { _statusFresh = false; _staleTimer?.cancel(); }
+        _emitOnline();
       } else if (topic == _topicHistory) {
         // Firmware publishes get_history's own {"ok","cmd","data"} reply
         // shape here (see MqttClientWrapper.h), not a bare array, so this
@@ -288,19 +293,52 @@ class MqttService implements DeviceService {
   @override
   void getHistory({int since = 0, int max = 500}) => _publish({'cmd': 'get_history', 'since': since, 'max': max});
 
-  void _onConnected() => _connectedController.add(true);
+  void _onConnected() => _setBroker(true);
   void _onDisconnected() {
-    _connectedController.add(false);
+    _setBroker(false);
     _deviceOnlineController.add(false);
     if (!_active) return; // disconnect() — Local mode is active now
     print('[MQTT] Disconnected — retrying in ${_retryDelay.inSeconds}s');
     _scheduleRetry();
   }
 
+
+  // ---- "Device Online" in Cloud mode (1.0.4) ----
+  // Bug fix (tester report 2026-11-22: board offline 4-5 min, app still
+  // "Device Online"): this used to mean only "the PHONE reached the
+  // broker". Now the board must also be alive: its retained lwt is not
+  // {"online":false} and a status arrived in the last 20 s (the board
+  // publishes one every 5 s while it is on the internet).
+  static const Duration _statusStaleAfter = Duration(seconds: 20);
+  bool _brokerUp = false;
+  bool _lwtOnline = true;
+  bool _statusFresh = false;
+  Timer? _staleTimer;
+
+  void _setBroker(bool up) {
+    _brokerUp = up;
+    if (!up) { _statusFresh = false; _staleTimer?.cancel(); }
+    _emitOnline();
+  }
+
+  void _onStatusSeen() {
+    _statusFresh = true;
+    _lwtOnline = true;  // a status can only come from a running board
+    _staleTimer?.cancel();
+    _staleTimer = Timer(_statusStaleAfter, () { _statusFresh = false; _emitOnline(); });
+    _emitOnline();
+  }
+
+  void _emitOnline() {
+    if (_connectedController.isClosed) return;
+    _connectedController.add(_brokerUp && _lwtOnline && _statusFresh);
+  }
+
   @override
   void dispose() {
     _active = false;
     _retryTimer?.cancel();
+    _staleTimer?.cancel();
     _statusController.close();
     _programsController.close();
     _libraryController.close();
