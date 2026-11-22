@@ -18,8 +18,10 @@
 // checked image; push needs X-MD5 and takes one upload at a time.
 // 0.4.2: retained programs/library config is cleared once applied, so the
 // broker no longer replays an old program list on every reconnect.
+// 0.4.3: programs/library lists are published (retained) when any app asks,
+// so every phone sees them, not only the one that saved them.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.2"
+#define FIRMWARE_VERSION "0.4.3"
 #endif
 
 // Same broker FG1 already points at.

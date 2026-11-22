@@ -63,10 +63,10 @@ public:
     if (_client.connected()) _client.publish(_topicStatus.c_str(), json.c_str(), true);
   }
   void publishPrograms(const String& json) {
-    if (_client.connected()) _client.publish(_topicPrograms.c_str(), json.c_str(), false);
+    if (_client.connected()) _client.publish(_topicPrograms.c_str(), json.c_str(), true);  // retained (0.4.3): a phone that connects later gets the current list at once
   }
   void publishLibrary(const String& json) {
-    if (_client.connected()) _client.publish(_topicLibrary.c_str(), json.c_str(), false);
+    if (_client.connected()) _client.publish(_topicLibrary.c_str(), json.c_str(), true);  // retained (0.4.3): a phone that connects later gets the current list at once
   }
 
 private:

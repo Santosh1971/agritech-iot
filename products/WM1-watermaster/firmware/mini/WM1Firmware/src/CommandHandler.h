@@ -135,6 +135,12 @@ public:
       _scheduler.resume();
       reply(_okReply(cmd));
     } else if (cmd == "list_programs") {
+      // Bug fix (0.4.3, tester report: second phone showed "No programs
+      // yet" for the same board): over MQTT this reply is dropped (see
+      // MqttClientWrapper::_onMessage), so a phone in Cloud mode only ever
+      // saw programs saved while it happened to be connected. Flag a
+      // broadcast too, so every app gets the list on the programs topic.
+      _programsChanged = true;
       reply(_wrapOk(cmd, _programsJson()));
     } else if (cmd == "set_programs") {
       reply(_handleSetPrograms(doc));
@@ -214,6 +220,7 @@ public:
     } else if (cmd == "set_relay_names") {
       reply(_handleSetRelayNames(doc));
     } else if (cmd == "list_sequence_library") {
+      _libraryChanged = true;  // same as list_programs above
       reply(_wrapOk(cmd, _libraryJson()));
     } else if (cmd == "set_sequence_library") {
       reply(_handleSetLibrary(doc));
