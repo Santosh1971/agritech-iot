@@ -243,7 +243,8 @@ void loop() {
   // that actively detects and prunes a vanished client within ~12-15s
   // — so it's now both more accurate AND reasonably prompt, unlike when
   // this was first decided.
-  statusLed.update(wifiManager.apOk(), localServer.clientCount() > 0);
+  statusLed.update(wifiManager.apOk(), wifiManager.isStaConnected(),
+                   localServer.clientCount() > 0 || WiFi.softAPgetStationNum() > 0);
 
   // Heartbeat, every 2s regardless of activity — the single thing to
   // watch on the serial monitor to know what the LED is actually doing

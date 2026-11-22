@@ -20,8 +20,9 @@
 // broker no longer replays an old program list on every reconnect.
 // 0.4.3: programs/library lists are published (retained) when any app asks,
 // so every phone sees them, not only the one that saved them.
+// 0.4.4: WiFi LED uses the WPC/FG1 patterns (slow 1 s blink on SoftAP only).
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.3"
+#define FIRMWARE_VERSION "0.4.4"
 #endif
 
 // Same broker FG1 already points at.
