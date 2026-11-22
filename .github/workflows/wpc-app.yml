@@ -58,7 +58,9 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release --build-name="${{ steps.version.outputs.value }}"
+      # ARM only (every real phone): a 3-ABI fat APK can exceed the server's
+      # 40MB upload cap (next.config.ts middlewareClientMaxBodySize) -> HTTP 500.
+        run: flutter build apk --release --target-platform android-arm,android-arm64 --build-name="${{ steps.version.outputs.value }}"
 
       - name: Upload to NB Agri Flasher
         env:
