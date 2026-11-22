@@ -15,7 +15,7 @@ class HardwareConfig {
 
   const HardwareConfig({
     this.hasDoser = true,
-    this.hasPressure1 = true,
+    this.hasPressure1 = false,
     this.hasPressure2 = false,
     this.hasWaterMeter = true,
     this.hasWaterLevel = false,
@@ -38,7 +38,7 @@ class HardwareConfig {
 
   factory HardwareConfig.fromJson(Map<String, dynamic> j) => HardwareConfig(
         hasDoser: j['hasDoser'] as bool? ?? true,
-        hasPressure1: j['hasPressure1'] as bool? ?? true,
+        hasPressure1: j['hasPressure1'] as bool? ?? false,
         hasPressure2: j['hasPressure2'] as bool? ?? false,
         hasWaterMeter: j['hasWaterMeter'] as bool? ?? true,
         hasWaterLevel: j['hasWaterLevel'] as bool? ?? false,

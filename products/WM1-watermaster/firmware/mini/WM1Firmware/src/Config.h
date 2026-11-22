@@ -16,8 +16,10 @@
 // firmware update over WiFi (push and pull), /api/state. 0.4.1: pull
 // commands signed with a one-time nonce (no password on the wire), SHA-256
 // checked image; push needs X-MD5 and takes one upload at a time.
+// 0.4.2: retained programs/library config is cleared once applied, so the
+// broker no longer replays an old program list on every reconnect.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.1"
+#define FIRMWARE_VERSION "0.4.2"
 #endif
 
 // Same broker FG1 already points at.

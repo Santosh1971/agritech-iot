@@ -86,6 +86,9 @@ class DeviceStatus {
   // Real ADC/pulse reads — see firmware's Sensors.h for the documented
   // placeholder scale factors (no real 4-20mA sensor/flow meter/level
   // switch wired up yet, so these are plumbing-verified, not calibrated).
+  /// Board the firmware runs on: "WM1-Mini" or "WM-Mini-C3" (firmware
+  /// 0.4+). Empty on older firmware, which only ran on the WM1-Mini.
+  final String board;
   final double pressure1Bar;
   final double pressure2Bar;
   final double flowRateLpm;
@@ -135,6 +138,7 @@ class DeviceStatus {
     this.rtcTime = '--:--',
     this.rtcOk = false,
     this.relayNames = const RelayNames(),
+    this.board = '',
     this.pressure1Bar = 0,
     this.pressure2Bar = 0,
     this.flowRateLpm = 0,
@@ -188,6 +192,7 @@ class DeviceStatus {
         rtcTime: j['rtc_time'] as String? ?? '--:--',
         rtcOk: j['rtc_ok'] as bool? ?? false,
         relayNames: RelayNames.fromJson(j['relay_names'] as Map<String, dynamic>?),
+        board: j['board'] as String? ?? '',
         pressure1Bar: (j['pressure1_bar'] as num?)?.toDouble() ?? 0,
         pressure2Bar: (j['pressure2_bar'] as num?)?.toDouble() ?? 0,
         flowRateLpm: (j['flow_rate_lpm'] as num?)?.toDouble() ?? 0,

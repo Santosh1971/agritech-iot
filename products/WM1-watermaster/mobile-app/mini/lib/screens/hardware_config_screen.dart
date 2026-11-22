@@ -13,6 +13,8 @@ class HardwareConfigScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(hardwareConfigProvider);
     final notifier = ref.read(hardwareConfigProvider.notifier);
+    // WM-Mini C3 has no pressure or water-level inputs.
+    final isC3 = ref.watch(deviceStatusProvider).valueOrNull?.board == 'WM-Mini-C3';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Hardware Configuration', style: TextStyle(fontWeight: FontWeight.w600)), centerTitle: true),
@@ -35,12 +37,14 @@ class HardwareConfigScreen extends ConsumerWidget {
               value: config.hasDoser,
               onChanged: (v) => notifier.update(config.copyWith(hasDoser: v)),
             ),
+            if (!isC3)
             _Toggle(
               icon: Icons.speed,
               label: 'Pressure Sensor 1',
               value: config.hasPressure1,
               onChanged: (v) => notifier.update(config.copyWith(hasPressure1: v)),
             ),
+            if (!isC3)
             _Toggle(
               icon: Icons.speed,
               label: 'Pressure Sensor 2',
@@ -53,6 +57,7 @@ class HardwareConfigScreen extends ConsumerWidget {
               value: config.hasWaterMeter,
               onChanged: (v) => notifier.update(config.copyWith(hasWaterMeter: v)),
             ),
+            if (!isC3)
             _Toggle(
               icon: Icons.waves,
               label: 'Water Level Sensor (L1 + L2)',

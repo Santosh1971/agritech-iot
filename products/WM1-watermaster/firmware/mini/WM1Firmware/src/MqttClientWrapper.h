@@ -21,6 +21,8 @@
 // only needs a live link to the BROKER, not the device — if the device
 // is offline when the app saves a program, the broker holds the
 // message and delivers it the instant the device reconnects.
+// The board clears the retained copy once applied (see _onMessage), so
+// it is delivered once, not replayed on every later reconnect.
 class MqttClientWrapper {
 public:
   void begin(CommandHandler* handler) {
@@ -90,8 +92,27 @@ private:
   }
 
   void _onMessage(char* topic, uint8_t* payload, unsigned int len) {
+    // An empty message is the broker deleting a retained one (including
+    // our own clear below echoed back) -- nothing to apply.
+    if (len == 0) return;
     String msg((char*)payload, len);
+    String t(topic);
     if (!_handler) return;
+
+    // Bug fix (0.4.2, tester report "program got deleted"): programs_config
+    // and library_config are retained so a save from the app reaches a board
+    // that is offline at the time. But the retained copy was never cleared,
+    // so the broker replayed it on EVERY reconnect of the board (WiFi blip,
+    // reboot, update) -- silently replacing whatever was saved since then
+    // over Local mode with an older list, or an empty one. Clear it once it
+    // has been applied: the board's own saved copy (NVS) is the truth from
+    // then on, and the app reads programs back from the board, not the broker.
+    if (t == _topicProgramsConfig || t == _topicLibraryConfig) {
+      _handler->handle(msg, [](const String&) {});
+      _client.publish(t.c_str(), (const uint8_t*)"", 0, true);
+      Serial.printf("[MQTT] Applied and cleared retained %s\n", t.c_str());
+      return;
+    }
     // Both command and programs_config carry a {"cmd": ...} payload —
     // same handler either way, no routing needed beyond having
     // subscribed to both. Most replies aren't published anywhere for

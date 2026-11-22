@@ -73,7 +73,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _ActiveRunCard(status: status),
             if (status.state == SchedulerState.running || status.state == SchedulerState.paused)
               const SizedBox(height: 16),
-            SchematicDiagram(status: status, config: hardwareConfig, connected: connected),
+            // WM-Mini C3 has no pressure or water-level inputs (firmware
+            // reports 0 for them), so never show those tiles for it,
+            // whatever the phone's Hardware Configuration says.
+            SchematicDiagram(
+                status: status,
+                config: status.board == 'WM-Mini-C3'
+                    ? hardwareConfig.copyWith(hasPressure1: false, hasPressure2: false, hasWaterLevel: false)
+                    : hardwareConfig,
+                connected: connected),
             if (connected && status.nextRunEpoch != null) ...[
               const SizedBox(height: 16),
               _UpcomingScheduleCard(status: status),
