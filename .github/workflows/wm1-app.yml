@@ -71,7 +71,7 @@ jobs:
           CI_UPLOAD_TOKEN: ${{ secrets.NB_FLASHER_CI_TOKEN }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          curl -sf -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
+          curl -sS --fail-with-body --retry 2 --retry-delay 20 --retry-all-errors -w "\nHTTP %{http_code} in %{time_total}s\n" -X POST https://agrisenseandcontrol.in/api/admin/app-builds \
             -H "Authorization: Bearer $CI_UPLOAD_TOKEN" \
             -F "versionName=${VERSION}" \
             -F "buildType=debug" \
