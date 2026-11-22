@@ -64,7 +64,13 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release --build-name="${{ steps.version.outputs.value }}"
+        # ARM only (every real phone): the 3-ABI fat APK grew past the
+        # server's 40MB upload cap (next.config.ts middlewareClientMaxBodySize),
+        # which fails as HTTP 500 "Failed to parse body as FormData".
+        run: flutter build apk --release --target-platform android-arm,android-arm64 --build-name="${{ steps.version.outputs.value }}"
+
+      - name: APK size
+        run: ls -l build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload to NB Agri Flasher
         env:
