@@ -7,8 +7,9 @@ void WiFiScanner::startScan() {
     _lastFound = WIFI_SCAN_RUNNING;
     _retries = 0;
     _zeroRetried = false;
-    _restartAt = 0;
-    _begin();
+    // 0.4.8: start ~300 ms later, so a disconnect just issued by
+    // WiFiManager::holdStaForScan() has taken effect in the driver.
+    _restartAt = millis() + 300;
 }
 
 void WiFiScanner::_begin() {

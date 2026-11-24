@@ -29,6 +29,11 @@ public:
 
     WiFi.mode(WIFI_MODE_APSTA);
     WiFi.setSleep(false);  // known FG1 fix — avoids periodic ASSOC_LEAVE disconnects
+    // 0.4.8: this class runs its own retry schedule. The core's
+    // auto-reconnect kept the driver connecting in the background after
+    // our attempt "timed out", and the driver rejects every scan while it
+    // is connecting (bench log 2026-11-24: 5x "Driver rejected scan start").
+    WiFi.setAutoReconnect(false);
 #if defined(BOARD_WM_MINI_C3)
     // Super Mini boards have a poor antenna match: at full power the signal
     // is distorted and often not received. Capped as on the FG1 Greenhouse
@@ -58,12 +63,14 @@ public:
         Serial.printf("[WiFi] STA connected, IP=%s\n", WiFi.localIP().toString().c_str());
       } else if (now - _staAttemptStart > STA_CONNECT_TIMEOUT_MS) {
         Serial.println("[WiFi] STA connect timed out — staying on SoftAP, will retry in background");
+        WiFi.disconnect();   // actually stop the driver's attempt (0.4.8)
         _state = WifiState::SOFTAP_ACTIVE;
         _lastStaRetry = now;
       }
     } else if (_state == WifiState::STA_CONNECTED) {
       if (WiFi.status() != WL_CONNECTED) {
         Serial.println("[WiFi] STA link dropped — falling back to SoftAP-only, will retry");
+        WiFi.disconnect();   // 0.4.8: no driver-side reconnect running behind our back
         _state = WifiState::SOFTAP_ACTIVE;
         _lastStaRetry = now;
       } else {
@@ -164,10 +171,13 @@ public:
   // new ones until the scan is done (or maxMs passes).
   void holdStaForScan(uint32_t maxMs) {
     uint32_t now = millis();
-    if (_state == WifiState::STA_CONNECTING) {
+    // 0.4.8: stop the driver whenever STA is not actually connected, not
+    // only when our own state says "connecting" -- the driver may still be
+    // trying in the background.
+    if (_state != WifiState::STA_CONNECTED) {
       WiFi.disconnect();
       _state = WifiState::SOFTAP_ACTIVE;
-      Serial.println("[WiFi] Paused STA connect attempt for WiFi scan");
+      Serial.println("[WiFi] Stopped STA connecting for WiFi scan");
     }
     _scanHoldUntil = now + maxMs;
     _lastStaConnectedMillis = now;

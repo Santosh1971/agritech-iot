@@ -28,8 +28,10 @@
 // and connects; before, a board left in Force Local Mode ignored them.
 // 0.4.7: WiFi scan pauses STA connect attempts (the driver rejected the scan
 // while one was in flight); more retries for a refused scan start.
+// 0.4.8: core auto-reconnect off and the driver really stopped on timeout /
+// before a scan -- it kept connecting in the background and refused scans.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.7"
+#define FIRMWARE_VERSION "0.4.8"
 #endif
 
 // Same broker FG1 already points at.
