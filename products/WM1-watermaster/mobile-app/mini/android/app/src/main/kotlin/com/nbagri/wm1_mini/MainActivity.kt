@@ -87,13 +87,28 @@ class MainActivity : FlutterActivity() {
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
+        // Track every WiFi network separately (app 1.0.7): when the phone
+        // moves office WiFi -> SoftAP, Android can report the new network
+        // BEFORE the old one's onLost. 1.0.5 kept only the last event, so
+        // that late onLost said "no WiFi" and Automatic mode stayed on
+        // Cloud (tester log: phone on the SoftAP, app never connected).
+        val nets = LinkedHashMap<Network, Boolean>()
+        fun emitAll() {
+            synchronized(nets) {
+                emitNet(nets.isNotEmpty(), nets.values.any { it })
+            }
+        }
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
                 try {
-                    emitNet(true, caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+                    synchronized(nets) { nets[network] = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) }
+                    emitAll()
                 } catch (e: Exception) { Log.e(tag, "onCapabilitiesChanged failed", e) }
             }
-            override fun onLost(network: Network) { emitNet(false, false) }
+            override fun onLost(network: Network) {
+                synchronized(nets) { nets.remove(network) }
+                emitAll()
+            }
         }
         netEventsCallback = cb
         emitNet(false, false)  // replaced at once by onCapabilitiesChanged if WiFi is up
