@@ -10,6 +10,7 @@ import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -46,6 +47,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "wm1/netevents").setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink) { startNetEvents(events) }
+            override fun onCancel(arguments: Any?) { stopNetEvents() }
+        })
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
@@ -58,6 +63,51 @@ class MainActivity : FlutterActivity() {
                 result.error("network_binding_error", e.message, null)
             }
         }
+    }
+
+    // ---- Network events for Automatic mode (app 1.0.5) ----
+    // A passive registerNetworkCallback (does not request or bind a
+    // network) that tells Dart whenever the phone's WiFi appears, goes,
+    // or gains/loses validated internet. Dart picks Local for a WiFi
+    // with no internet (the board's SoftAP) and Cloud otherwise.
+    private var netEventsCallback: ConnectivityManager.NetworkCallback? = null
+    private var netEventsSink: EventChannel.EventSink? = null
+
+    private fun emitNet(wifi: Boolean, internet: Boolean) {
+        mainHandler.post {
+            try { netEventsSink?.success(mapOf("wifi" to wifi, "internet" to internet)) } catch (e: Exception) { Log.e(tag, "emit failed", e) }
+        }
+    }
+
+    private fun startNetEvents(sink: EventChannel.EventSink) {
+        netEventsSink = sink
+        if (netEventsCallback != null) return
+        val cm = connectivityManager()
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                try {
+                    emitNet(true, caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+                } catch (e: Exception) { Log.e(tag, "onCapabilitiesChanged failed", e) }
+            }
+            override fun onLost(network: Network) { emitNet(false, false) }
+        }
+        netEventsCallback = cb
+        emitNet(false, false)  // replaced at once by onCapabilitiesChanged if WiFi is up
+        try { cm.registerNetworkCallback(request, cb) } catch (e: Exception) {
+            Log.e(tag, "registerNetworkCallback failed", e)
+            netEventsCallback = null
+        }
+    }
+
+    private fun stopNetEvents() {
+        netEventsSink = null
+        val cb = netEventsCallback ?: return
+        netEventsCallback = null
+        try { connectivityManager().unregisterNetworkCallback(cb) } catch (e: Exception) { /* already gone */ }
     }
 
     private fun connectivityManager(): ConnectivityManager =
@@ -156,6 +206,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        stopNetEvents()
         stopMonitoring()
         super.onDestroy()
     }

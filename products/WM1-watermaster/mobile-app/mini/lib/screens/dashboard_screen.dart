@@ -20,6 +20,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final connected = ref.watch(deviceConnectedProvider);
     final statusAsync = ref.watch(deviceStatusProvider);
     final mode = ref.watch(transportModeProvider);
+    final autoMode = ref.watch(autoModeProvider);
     final hardwareConfig = ref.watch(hardwareConfigProvider);
 
     if (!_didInitialConnect) {
@@ -46,7 +47,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: Center(
               child: Chip(
-                label: Text(mode == TransportMode.local ? 'Local' : 'Cloud', style: const TextStyle(fontSize: 12)),
+                label: Text('${autoMode ? 'Auto · ' : ''}${mode == TransportMode.local ? 'Local' : 'Cloud'}', style: const TextStyle(fontSize: 12)),
                 avatar: Icon(mode == TransportMode.local ? Icons.wifi_tethering : Icons.cloud, size: 16),
                 visualDensity: VisualDensity.compact,
               ),

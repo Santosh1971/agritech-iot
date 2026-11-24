@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/device_service.dart';
 import '../services/mqtt_service.dart';
 import '../services/local_service.dart';
+import '../services/net_events.dart';
 import '../models/device_status.dart';
 import '../models/program.dart';
 import '../models/hardware_config.dart';
@@ -13,6 +14,7 @@ import '../models/hardware_config.dart';
 enum TransportMode { local, cloud }
 
 const _transportPrefsKey = 'transport_mode';
+const _autoTransportPrefsKey = 'transport_auto';
 const _themePrefsKey = 'theme_mode';
 const _deviceSuffixPrefsKey = 'device_suffix';
 const _hardwareConfigPrefsKey = 'hardware_config';
@@ -161,6 +163,69 @@ class TransportModeNotifier extends StateNotifier<TransportMode> {
     ref.read(deviceServiceProvider).connect();
   }
 }
+
+/// Automatic connection mode (app 1.0.5, tester request: moving the phone
+/// between the office WiFi and the board's SoftAP needed a mode change and
+/// often an app restart). On by default; picking Local or Cloud by hand in
+/// Settings turns it off.
+///   WiFi without internet (the board's WM1_xxxx SoftAP) -> Local
+///   WiFi with internet, or no WiFi (mobile data)        -> Cloud
+/// A newly joined office WiFi is "without internet" for a few seconds until
+/// Android validates it, so Local is only chosen after the state has held
+/// for 6 s; Cloud is chosen after 1.5 s.
+class AutoModeNotifier extends StateNotifier<bool> {
+  final Ref ref;
+  StreamSubscription<NetState>? _sub;
+  Timer? _decide;
+  NetState? _last;
+
+  AutoModeNotifier(this.ref) : super(true) {
+    _load();
+    try {
+      _sub = NetEvents.stream().listen(_onNet, onError: (_) {});
+    } catch (_) {}
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(_autoTransportPrefsKey) ?? true;
+  }
+
+  Future<void> setAuto(bool on) async {
+    state = on;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_autoTransportPrefsKey, on);
+    if (on && _last != null) _onNet(_last!);
+  }
+
+  void _onNet(NetState n) {
+    _last = n;
+    if (!state) return;
+    final want = (n.wifi && !n.internet) ? TransportMode.local : TransportMode.cloud;
+    _decide?.cancel();
+    _decide = Timer(Duration(milliseconds: want == TransportMode.local ? 6000 : 1500), () {
+      if (!state || !mounted) return;
+      if (ref.read(transportModeProvider) != want) {
+        ref.read(transportModeProvider.notifier).setMode(want);
+      } else {
+        // Same mode but a different network (e.g. a new WiFi with
+        // internet): kick the active transport so it reconnects now
+        // instead of waiting for its retry timer.
+        ref.read(deviceServiceProvider).connect();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _decide?.cancel();
+    _sub?.cancel();
+    super.dispose();
+  }
+}
+
+final autoModeProvider =
+    StateNotifierProvider<AutoModeNotifier, bool>((ref) => AutoModeNotifier(ref));
 
 final transportModeProvider =
     StateNotifierProvider<TransportModeNotifier, TransportMode>((ref) => TransportModeNotifier(ref));

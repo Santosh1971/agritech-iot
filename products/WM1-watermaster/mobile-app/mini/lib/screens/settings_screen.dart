@@ -7,7 +7,7 @@ import 'history_screen.dart';
 
 // Set by CI (--dart-define=APP_VERSION=<release version>); the fallback is
 // pubspec.yaml's version for local builds. Was a hard-coded '0.1.0'.
-const String _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.4');
+const String _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.5');
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -17,6 +17,7 @@ class SettingsScreen extends ConsumerWidget {
     final statusAsync = ref.watch(deviceStatusProvider);
     final isConnected = ref.watch(deviceConnectedProvider);
     final mode = ref.watch(transportModeProvider);
+    final autoMode = ref.watch(autoModeProvider);
     final themeMode = ref.watch(themeModeProvider);
     final deviceSuffix = ref.watch(deviceSuffixProvider);
     final status = statusAsync.valueOrNull;
@@ -71,12 +72,23 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           _SettingsSection(title: 'Connection Mode', items: [
             _ModeTile(
+              icon: Icons.autorenew,
+              color: const Color(0xFF7B1FA2),
+              title: 'Automatic (recommended)',
+              subtitle: 'Local on the device\'s own WiFi, Cloud on WiFi with internet or mobile data',
+              selected: autoMode,
+              onTap: () async {
+                await ref.read(autoModeProvider.notifier).setAuto(true);
+              },
+            ),
+            _ModeTile(
               icon: Icons.wifi_tethering,
               color: const Color(0xFF2196F3),
               title: 'Local (Device WiFi)',
               subtitle: 'Connect directly to the device\'s own WiFi or LAN — works with no internet',
-              selected: mode == TransportMode.local,
+              selected: !autoMode && mode == TransportMode.local,
               onTap: () async {
+                await ref.read(autoModeProvider.notifier).setAuto(false);
                 await ref.read(transportModeProvider.notifier).setMode(TransportMode.local);
               },
             ),
@@ -85,8 +97,9 @@ class SettingsScreen extends ConsumerWidget {
               color: const Color(0xFF4CAF50),
               title: 'Cloud (MQTT)',
               subtitle: 'Connect over the internet via the AgriSense broker',
-              selected: mode == TransportMode.cloud,
+              selected: !autoMode && mode == TransportMode.cloud,
               onTap: () async {
+                await ref.read(autoModeProvider.notifier).setAuto(false);
                 await ref.read(transportModeProvider.notifier).setMode(TransportMode.cloud);
               },
             ),
