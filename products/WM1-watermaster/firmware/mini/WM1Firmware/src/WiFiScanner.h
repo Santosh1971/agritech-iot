@@ -51,9 +51,9 @@ private:
     bool _startRejected = false;
     uint32_t _scanStartMillis = 0;
     uint32_t _restartAt = 0;          // non-zero = stopped, waiting to restart
-    static const int MAX_RETRIES = 2;
+    static const int MAX_RETRIES = 4;   // was 2; a refused start now gets ~6 s of retries (0.4.7)
     static constexpr uint32_t SCAN_MS_PER_CHAN = 300;  // core's own timeout = 20x this = 6s
     static constexpr uint32_t MAX_SCAN_MS = 15000;     // our ceiling per attempt
-    static constexpr uint32_t REJECTED_RETRY_MS = 1000;
+    static constexpr uint32_t REJECTED_RETRY_MS = 1500;
     static constexpr uint32_t RESTART_DELAY_MS = 500;
 };

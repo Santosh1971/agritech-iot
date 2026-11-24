@@ -70,7 +70,8 @@ public:
         _lastStaConnectedMillis = now;
       }
     } else {  // SOFTAP_ACTIVE
-      if (!_forcedLocal && _savedSsid.length() && (now - _lastStaRetry > STA_RETRY_INTERVAL_MS)) {
+      if (_scanHoldUntil && (int32_t)(now - _scanHoldUntil) >= 0) releaseScanHold();
+      if (!_scanHoldUntil && !_forcedLocal && _savedSsid.length() && (now - _lastStaRetry > STA_RETRY_INTERVAL_MS)) {
         _startStaConnect();
       }
     }
@@ -156,6 +157,27 @@ public:
     }
   }
 
+  // WiFi scan (0.4.7, tester: "driver rejected the scan start"): the ESP32
+  // refuses to start a scan while the STA is in the middle of a connect
+  // attempt, and with saved but unreachable credentials the board retries
+  // one every 30 s (15 s each). Abort any attempt in flight and hold off
+  // new ones until the scan is done (or maxMs passes).
+  void holdStaForScan(uint32_t maxMs) {
+    uint32_t now = millis();
+    if (_state == WifiState::STA_CONNECTING) {
+      WiFi.disconnect();
+      _state = WifiState::SOFTAP_ACTIVE;
+      Serial.println("[WiFi] Paused STA connect attempt for WiFi scan");
+    }
+    _scanHoldUntil = now + maxMs;
+    _lastStaConnectedMillis = now;
+  }
+  void releaseScanHold() {
+    if (!_scanHoldUntil) return;
+    _scanHoldUntil = 0;
+    _lastStaRetry = millis() - STA_RETRY_INTERVAL_MS + 2000;  // retry ~2 s after the scan
+  }
+
   bool isForcedLocal() const { return _forcedLocal; }
   bool apOk() const { return _apOk; }
 
@@ -189,4 +211,5 @@ private:
   uint32_t _lastStaRetry = 0;
   uint32_t _lastStaConnectedMillis = 0;
   uint32_t _dropStaAt = 0;
+  uint32_t _scanHoldUntil = 0;
 };

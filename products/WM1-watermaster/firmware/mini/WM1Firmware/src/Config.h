@@ -26,8 +26,10 @@
 // stuck restart while a phone is on the SoftAP.
 // 0.4.6: saving WiFi details (Local Setup -> Connect) ends Force Local Mode
 // and connects; before, a board left in Force Local Mode ignored them.
+// 0.4.7: WiFi scan pauses STA connect attempts (the driver rejected the scan
+// while one was in flight); more retries for a refused scan start.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.6"
+#define FIRMWARE_VERSION "0.4.7"
 #endif
 
 // Same broker FG1 already points at.

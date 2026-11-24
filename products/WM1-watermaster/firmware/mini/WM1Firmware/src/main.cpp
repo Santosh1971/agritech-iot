@@ -263,12 +263,14 @@ void loop() {
   }
 
   if (commandHandler->consumeWifiScanRequested()) {
+    wifiManager.holdStaForScan(45000);   // no STA connect attempts during the scan (0.4.7)
     wifiScanner.startScan();
     wifiScanInProgress = true;
   }
   if (wifiScanInProgress && wifiScanner.checkComplete()) {
     localServer.broadcastTyped("wifi_scan_result", wifiScanner.resultAsJson());
     wifiScanInProgress = false;
+    wifiManager.releaseScanHold();
   }
 
   localServer.serviceOtaRestart();
