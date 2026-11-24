@@ -40,7 +40,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Image.asset('assets/images/logo_icon.png', fit: BoxFit.contain),
           ),
         ),
-        title: const Text('NB Agri-WM', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text('NB Agri - Mini', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
           Padding(

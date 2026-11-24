@@ -16,7 +16,7 @@ class WM1App extends ConsumerWidget {
     const seed = Color(0xFF2E7D32); // NB Agri green
 
     return MaterialApp(
-      title: 'NB Agri-WM',
+      title: 'NB Agri - Mini',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: ThemeData(
