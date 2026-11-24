@@ -24,8 +24,10 @@
 // 0.4.5: Force Local Mode really leaves the home WiFi (MQTT says offline);
 // saving WiFi details no longer triggers the 5-minute stuck restart; no
 // stuck restart while a phone is on the SoftAP.
+// 0.4.6: saving WiFi details (Local Setup -> Connect) ends Force Local Mode
+// and connects; before, a board left in Force Local Mode ignored them.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.5"
+#define FIRMWARE_VERSION "0.4.6"
 #endif
 
 // Same broker FG1 already points at.

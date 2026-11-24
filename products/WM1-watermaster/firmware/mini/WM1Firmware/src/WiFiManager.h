@@ -123,7 +123,19 @@ public:
     // without WiFi rebooted the board the same instant. Give the new
     // network a fresh 5 minutes.
     _lastStaConnectedMillis = millis();
-    if (!_forcedLocal) _startStaConnect();
+    // Bug fix (0.4.6, tester report 2026-11-24: "select office WiFi, Connect,
+    // device doesn't respond"): with Force Local Mode on (saved in NVS, so
+    // it survives reboots) new credentials were stored and then ignored.
+    // Picking a network and pressing Connect is an explicit request to go
+    // online, so it ends Force Local Mode. Up to 0.4.4 this was hidden
+    // because Force Local Mode never actually left the WiFi.
+    if (_forcedLocal) {
+      _forcedLocal = false;
+      _prefs.putBool("forced_local", false);
+      _dropStaAt = 0;
+      Serial.println("[WiFi] force_local_mode = false (new WiFi details)");
+    }
+    _startStaConnect();
   }
 
   void setForcedLocal(bool forced) {
