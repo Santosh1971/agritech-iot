@@ -29,11 +29,12 @@ public:
 
     WiFi.mode(WIFI_MODE_APSTA);
     WiFi.setSleep(false);  // known FG1 fix — avoids periodic ASSOC_LEAVE disconnects
-    // 0.4.8: this class runs its own retry schedule. The core's
-    // auto-reconnect kept the driver connecting in the background after
-    // our attempt "timed out", and the driver rejects every scan while it
-    // is connecting (bench log 2026-11-24: 5x "Driver rejected scan start").
-    WiFi.setAutoReconnect(false);
+    // Core auto-reconnect stays ON (0.4.9): it also retries inside one
+    // WiFi.begin() attempt, and these low-TX-power C3 boards often need that
+    // second try -- with it off (0.4.8) every attempt timed out on the bench.
+    // The scan problem it caused is handled by explicit WiFi.disconnect()
+    // calls (timeout, link drop, holdStaForScan), which it does not undo.
+    WiFi.setAutoReconnect(true);
 #if defined(BOARD_WM_MINI_C3)
     // Super Mini boards have a poor antenna match: at full power the signal
     // is distorted and often not received. Capped as on the FG1 Greenhouse

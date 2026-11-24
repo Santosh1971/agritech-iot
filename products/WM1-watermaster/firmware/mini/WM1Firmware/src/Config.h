@@ -30,8 +30,10 @@
 // while one was in flight); more retries for a refused scan start.
 // 0.4.8: core auto-reconnect off and the driver really stopped on timeout /
 // before a scan -- it kept connecting in the background and refused scans.
+// 0.4.9: core auto-reconnect back on (0.4.8 turned it off and STA connects
+// then failed every time on the bench); the explicit disconnects stay.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.8"
+#define FIRMWARE_VERSION "0.4.9"
 #endif
 
 // Same broker FG1 already points at.
