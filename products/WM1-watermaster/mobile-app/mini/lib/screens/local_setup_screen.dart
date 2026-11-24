@@ -17,6 +17,7 @@ class LocalSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
+  late final AutoModeNotifier _autoMode;  // read in initState: ref is not usable in dispose
   final _ssidController = TextEditingController();
   final _passController = TextEditingController();
   final _pumpNameController = TextEditingController();
@@ -40,10 +41,13 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   void initState() {
     super.initState();
     _responseSub = ref.read(localServiceProvider).responseStream.listen(_onResponse);
+    _autoMode = ref.read(autoModeProvider.notifier);
+    _autoMode.holdLocal(true);
   }
 
   @override
   void dispose() {
+    _autoMode.holdLocal(false);
     _responseSub?.cancel();
     _ssidController.dispose();
     _passController.dispose();
@@ -93,6 +97,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   }
 
   void _startScan() {
+    if (!ref.read(localServiceProvider).isConnected) {
+      _snack('Not connected to the device yet — join its WM1_xxxx WiFi and wait for "Connected"');
+      ref.read(localServiceProvider).connect();
+      return;
+    }
     setState(() { _scanning = true; _scanResults = []; });
     ref.read(localServiceProvider).scanWifi();
     // Firmware retries internally on a failed scan; if nothing comes

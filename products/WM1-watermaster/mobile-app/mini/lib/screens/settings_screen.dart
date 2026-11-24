@@ -7,7 +7,7 @@ import 'history_screen.dart';
 
 // Set by CI (--dart-define=APP_VERSION=<release version>); the fallback is
 // pubspec.yaml's version for local builds. Was a hard-coded '0.1.0'.
-const String _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.5');
+const String _appVersion = String.fromEnvironment('APP_VERSION', defaultValue: '1.0.6');
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});

@@ -198,13 +198,45 @@ class AutoModeNotifier extends StateNotifier<bool> {
     if (on && _last != null) _onNet(_last!);
   }
 
+  // Local Setup (scan, WiFi details, time sync) only works over the Local
+  // connection, so while that screen is open the app holds Local mode and
+  // ignores network events (app 1.0.6: in 1.0.5 Automatic mode could have
+  // Local switched off -- tester: "WiFi scanning failed").
+  bool _holdLocal = false;
+  TransportMode? _modeBeforeHold;
+
+  void holdLocal(bool hold) {
+    Future.microtask(() {
+      if (!mounted) return;
+      final modes = ref.read(transportModeProvider.notifier);
+      if (hold) {
+        _holdLocal = true;
+        _decide?.cancel();
+        _modeBeforeHold = ref.read(transportModeProvider);
+        if (_modeBeforeHold != TransportMode.local) {
+          modes.setMode(TransportMode.local);
+        } else {
+          ref.read(localServiceProvider).connect();
+        }
+      } else {
+        _holdLocal = false;
+        if (state) {
+          if (_last != null) _onNet(_last!);
+        } else if (_modeBeforeHold != null && _modeBeforeHold != ref.read(transportModeProvider)) {
+          modes.setMode(_modeBeforeHold!);  // manual mode: put the user's choice back
+        }
+        _modeBeforeHold = null;
+      }
+    });
+  }
+
   void _onNet(NetState n) {
     _last = n;
-    if (!state) return;
+    if (!state || _holdLocal) return;
     final want = (n.wifi && !n.internet) ? TransportMode.local : TransportMode.cloud;
     _decide?.cancel();
     _decide = Timer(Duration(milliseconds: want == TransportMode.local ? 6000 : 1500), () {
-      if (!state || !mounted) return;
+      if (!state || !mounted || _holdLocal) return;
       if (ref.read(transportModeProvider) != want) {
         ref.read(transportModeProvider.notifier).setMode(want);
       } else {
