@@ -34,6 +34,7 @@
 #include "RunHistory.h"
 #include "WiFiScanner.h"
 #include "StatusLed.h"
+#include "NtpSync.h"
 #include "CommandHandler.h"
 #include "MqttClientWrapper.h"
 #include "LocalServer.h"
@@ -58,6 +59,7 @@ RelayNames relayNames;
 SequenceLibrary sequenceLibrary;
 WiFiScanner wifiScanner;
 StatusLed statusLed;
+NtpSync ntpSync;
 
 // Kept as a free function per this firmware's existing ISR convention
 // (see the earlier bench sketches) rather than inside Sensors.h, which
@@ -228,6 +230,7 @@ void loop() {
   if (sensors.waterLevelEnabled()) {
     scheduler.onWaterLevelChange(sensors.waterLevelOk());
   }
+  ntpSync.loop(wifiManager.isStaConnected(), rtcClock);   // 0.4.10: RTC from internet time
   scheduler.update(rtcClock.now());
   // Bug fix: this used to be WiFi.softAPgetStationNum() > 0 ("a phone
   // joined the WiFi") instead of the WS client count, specifically to

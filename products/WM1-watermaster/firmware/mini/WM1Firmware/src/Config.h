@@ -32,8 +32,9 @@
 // before a scan -- it kept connecting in the background and refused scans.
 // 0.4.9: core auto-reconnect back on (0.4.8 turned it off and STA connects
 // then failed every time on the bench); the explicit disconnects stay.
+// 0.4.10: RTC set from NTP (IST) whenever on WiFi; resync every 6 h.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.9"
+#define FIRMWARE_VERSION "0.4.10"
 #endif
 
 // Same broker FG1 already points at.
